@@ -27,11 +27,19 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
             }
           },
           onerror: (error: any) => {
-            const errStr = String(error?.error || error?.statusText || error || '');
-            if (errStr.includes('BLOCKED') || errStr.includes('blocked')) {
-              reject(new Error(`Blocked by browser/AdBlocker extension (${errStr || 'ERR_BLOCKED_BY_CLIENT'})`));
+            let errStr = '';
+            if (typeof error === 'string') {
+              errStr = error;
+            } else if (error && typeof error === 'object') {
+              errStr = error.error || error.statusText || error.responseText || (error.status ? `Status ${error.status}` : '') || JSON.stringify(error);
             } else {
-              reject(error instanceof Error ? error : new Error(errStr || 'Network Error'));
+              errStr = String(error || 'Network Error');
+            }
+
+            if (errStr.includes('BLOCKED') || errStr.includes('blocked')) {
+              reject(new Error(`Blocked by browser/AdBlocker extension (${errStr})`));
+            } else {
+              reject(new Error(errStr || 'Network Error'));
             }
           },
           ontimeout: () => reject(new Error('Request Timeout'))

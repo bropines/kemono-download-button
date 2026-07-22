@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.1.1
+// @version      0.1.2
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -436,7 +436,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     enableDownloadRetries: true,
     downloadRetryCount: 2,
     downloadRetryDelay: 2e3,
-    zipFileDownloadTimeout: 6e4,
+    zipFileDownloadTimeout: 3e5,
     addMetadataFile: true,
     addHtmlIndexInZip: true,
     fileNameTemplate: "{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}",
@@ -673,11 +673,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
               }
             },
             onerror: (error) => {
-              const errStr = String((error == null ? void 0 : error.error) || (error == null ? void 0 : error.statusText) || error || "");
-              if (errStr.includes("BLOCKED") || errStr.includes("blocked")) {
-                reject(new Error(`Blocked by browser/AdBlocker extension (${errStr || "ERR_BLOCKED_BY_CLIENT"})`));
+              let errStr = "";
+              if (typeof error === "string") {
+                errStr = error;
+              } else if (error && typeof error === "object") {
+                errStr = error.error || error.statusText || error.responseText || (error.status ? `Status ${error.status}` : "") || JSON.stringify(error);
               } else {
-                reject(error instanceof Error ? error : new Error(errStr || "Network Error"));
+                errStr = String(error || "Network Error");
+              }
+              if (errStr.includes("BLOCKED") || errStr.includes("blocked")) {
+                reject(new Error(`Blocked by browser/AdBlocker extension (${errStr})`));
+              } else {
+                reject(new Error(errStr || "Network Error"));
               }
             },
             ontimeout: () => reject(new Error("Request Timeout"))
@@ -1421,65 +1428,65 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       files.forEach((file) => {
         if (file.source === "text") zip.file(file.name, file.data);
       });
-      const downloadPromises = [];
-      let activeDownloads = 0;
-      for (let i = 0; i < urlFiles.length; i++) {
-        const file = urlFiles[i];
-        downloadPromises.push(
-          (async () => {
-            while (activeDownloads >= state.settings.maxConcurrentFileDownloadsInZip) {
-              await new Promise((resolve) => setTimeout(resolve, 200));
-            }
-            activeDownloads++;
-            const fileTaskId = `${postDetails.postID}-${i}`;
-            task.addFile(fileTaskId, file.name);
-            try {
-              const response = await gmXmlhttpRequestWithRetries({
-                method: "GET",
-                url: file.data,
-                responseType: "arraybuffer",
-                timeout: state.settings.zipFileDownloadTimeout,
-                onprogress: (e) => {
-                  if (e.lengthComputable) {
-                    task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
-                  }
+      const concurrency = Math.max(1, state.settings.maxConcurrentFileDownloadsInZip || 3);
+      let queueIndex = 0;
+      async function downloadWorker() {
+        while (queueIndex < totalUrlFiles) {
+          const i = queueIndex++;
+          const file = urlFiles[i];
+          const fileTaskId = `${postDetails.postID}-${i}`;
+          task.addFile(fileTaskId, file.name);
+          try {
+            const response = await gmXmlhttpRequestWithRetries({
+              method: "GET",
+              url: file.data,
+              responseType: "arraybuffer",
+              timeout: state.settings.zipFileDownloadTimeout,
+              onprogress: (e) => {
+                if (e.lengthComputable && e.total > 0) {
+                  task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
                 }
-              });
-              zip.file(file.name, response.response);
-              task.markFileComplete(fileTaskId, true);
-            } catch (error) {
-              failCount++;
-              console.error(`[Kemono DL Error] File download failed for URL "${file.data}":`, error);
-              task.markFileComplete(fileTaskId, false);
-              zip.file(
-                `failed_${file.name.split("/").pop()}`,
-                `Failed to download file.
+              }
+            });
+            zip.file(file.name, response.response);
+            task.markFileComplete(fileTaskId, true);
+          } catch (error) {
+            failCount++;
+            console.error(`[Kemono DL Error] File download failed for URL "${file.data}":`, error);
+            task.markFileComplete(fileTaskId, false);
+            const sanitizedBase = sanitizeFilename(file.name.split("/").pop() || "file");
+            zip.file(
+              `failed_${sanitizedBase}`,
+              `Failed to download file.
 URL: ${file.data}
-Error: ${error.message}`
-              );
-            } finally {
-              successCount++;
-              activeDownloads--;
-              task.updateStatus(`Downloading... ${successCount}/${totalUrlFiles} done`);
-            }
-          })()
-        );
+Error: ${(error == null ? void 0 : error.message) || error}`
+            );
+          } finally {
+            successCount++;
+            task.updateStatus(`Downloading... ${successCount}/${totalUrlFiles} done`);
+          }
+        }
       }
-      await Promise.all(downloadPromises);
+      const workers = Array.from({ length: Math.min(concurrency, totalUrlFiles) }, () => downloadWorker());
+      await Promise.all(workers);
       if (totalUrlFiles > 0 && failCount === totalUrlFiles) {
         throw new Error("All file downloads failed");
       }
       task.updateStatus("Zipping...");
-      const zipName = `${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`;
+      const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
       const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
         task.updateStatus(`Zipping ${meta.percent.toFixed(0)}%`);
       });
-      if (blob.size === 0) throw new Error("Generated ZIP is empty.");
-      GM_download({
-        url: URL.createObjectURL(blob),
-        name: zipName,
-        saveAs: false
-      });
+      if (!blob || blob.size === 0) throw new Error("Generated ZIP is empty.");
+      const blobUrl = URL.createObjectURL(blob);
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.href = blobUrl;
+      downloadAnchor.download = zipName;
+      downloadAnchor.style.display = "none";
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      document.body.removeChild(downloadAnchor);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
       task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ""}`);
     } catch (error) {
       task.updateStatus(`Error: ${error.message}`);
