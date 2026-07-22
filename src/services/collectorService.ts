@@ -1,4 +1,5 @@
 import { fetchPostDataFromAPI } from '../api/kemonoApi';
+import { getCachedPost, setCachedPost } from './cacheService';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
 import { debugLog, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename } from '../utils/helpers';
@@ -97,7 +98,16 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
   if (state.settings.enableAPIFetch && postDetails.service !== 'unknown' && postDetails.userID !== 'unknown' && postDetails.postID !== 'unknown') {
     try {
-      rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
+      const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
+      const cached = await getCachedPost(cacheKey);
+      if (cached) {
+        rawApiData = cached;
+        debugLog(`Post metadata loaded from cache: ${cacheKey}`);
+      } else {
+        rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
+        if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+      }
+
       const post = rawApiData?.post || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);
       if (post) {
         postDetails.rawApiData = post;

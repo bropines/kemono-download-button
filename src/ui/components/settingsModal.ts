@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from '../../config/constants';
+import { clearAllCache, clearIncompleteCache, getCacheStats } from '../../services/cacheService';
 import { exportSettings, getSettings, importSettings, saveSetting, state } from '../../state/store';
 import { DownloaderSettings } from '../../types';
 import { el } from '../../utils/dom';
@@ -132,11 +133,19 @@ export function createSettingsModal(): void {
         <div id="kdl-gemini-settings" style="display:none;"><div class="kdl-setting-item"><label>Gemini API Key</label><input type="password" id="kdl-setting-geminiApiKey"></div><div class="kdl-setting-item"><label>Model Name</label><input type="text" id="kdl-setting-translationModelName"></div></div>
         <div id="kdl-deepl-settings" style="display:none;"><div class="kdl-setting-item"><label>DeepL API Key</label><input type="password" id="kdl-setting-deeplApiKey"></div><div class="kdl-setting-item"><label>API Tier</label><select id="kdl-setting-deeplApiTier"><option value="free">Free</option><option value="pro">Pro</option></select></div></div>
 
-        <h3>Manage Settings</h3>
-        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center;">
+        <h3>Manage Settings & Cache</h3>
+        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
             <button id="kdl-export-btn" style="padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px;">Export Settings</button>
             <button id="kdl-import-btn" style="padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 4px;">Import Settings</button>
             <input type="file" id="kdl-import-file-input" accept=".json" style="display: none;">
+        </div>
+
+        <div class="kdl-setting-item" style="display: flex; flex-direction: column; gap: 8px; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
+            <div id="kdl-cache-stats-text" style="font-size: 13px; color: #ccc;">Cached Data: Loading...</div>
+            <div style="display: flex; gap: 10px;">
+                <button id="kdl-clear-incomplete-cache-btn" style="padding: 6px 12px; background-color: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Incomplete Cache</button>
+                <button id="kdl-clear-all-cache-btn" style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear All Cache</button>
+            </div>
         </div>
     </div>
     <div class="kdl-settings-actions"><button class="kdl-close">Close</button><button class="kdl-save">Save</button></div>
@@ -210,13 +219,16 @@ export function createSettingsModal(): void {
     showMessage(`Template "${name}" saved!`, 'info');
   });
 
-  document.getElementById('kdl-template-delete-btn')!.addEventListener('click', () => {
-    const selectedIndex = templateSelect.selectedIndex;
-    if (selectedIndex < 1) return showMessage('Select a template to delete first.', 'warning');
-    const templateNameToDelete = (templateSelect.options[selectedIndex] as HTMLOptionElement).dataset.name;
-    state.settings.savedFileNameTemplates = (state.settings.savedFileNameTemplates || []).filter((t) => t.name !== templateNameToDelete);
-    updateSettingsModalUI();
-    showMessage(`Template "${templateNameToDelete}" deleted.`, 'info');
+  document.getElementById('kdl-clear-incomplete-cache-btn')!.addEventListener('click', async () => {
+    const deleted = await clearIncompleteCache();
+    await refreshCacheStatsUI();
+    showMessage(`Cleared ${deleted} incomplete cache entries!`, 'info');
+  });
+
+  document.getElementById('kdl-clear-all-cache-btn')!.addEventListener('click', async () => {
+    await clearAllCache();
+    await refreshCacheStatsUI();
+    showMessage('Entire cache has been cleared!', 'info');
   });
 }
 
@@ -229,6 +241,7 @@ export function updateSettingsModalUI(): void {
       else element.value = (state.settings as any)[key];
     }
   }
+  refreshCacheStatsUI();
 
   const templateSelect = document.getElementById('kdl-template-select') as HTMLSelectElement;
   templateSelect.innerHTML = '<option value="">-- Load a saved template --</option>';
@@ -260,4 +273,12 @@ function toggleRetrySettingsVisibility(): void {
   const enabled = (document.getElementById('kdl-setting-enableDownloadRetries') as HTMLInputElement)?.checked;
   document.getElementById('kdl-retry-count-setting')!.style.display = enabled ? 'block' : 'none';
   document.getElementById('kdl-retry-delay-setting')!.style.display = enabled ? 'block' : 'none';
+}
+
+async function refreshCacheStatsUI(): Promise<void> {
+  const statsElem = document.getElementById('kdl-cache-stats-text');
+  if (!statsElem) return;
+  const { count, totalSizeBytes } = await getCacheStats();
+  const sizeMb = (totalSizeBytes / (1024 * 1024)).toFixed(1);
+  statsElem.textContent = `Cached Data: ${count} files (${sizeMb} MB)`;
 }

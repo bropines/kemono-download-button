@@ -15,8 +15,8 @@ let bundleCode = fs.readFileSync(bundlePath, 'utf-8');
 
 const finalScript = `${header}\n\n${bundleCode}`;
 
-const outputFileUserJs = path.join(rootDir, 'Kemono Download Button-0.1.2.user.js');
-const outputFileTxt = path.join(rootDir, 'Kemono Download Button-0.1.2.txt');
+const outputFileUserJs = path.join(rootDir, 'Kemono Download Button-0.2.0.user.js');
+const outputFileTxt = path.join(rootDir, 'Kemono Download Button-0.2.0.txt');
 
 fs.writeFileSync(outputFileUserJs, finalScript, 'utf-8');
 fs.writeFileSync(outputFileTxt, finalScript, 'utf-8');

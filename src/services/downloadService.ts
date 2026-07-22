@@ -1,3 +1,4 @@
+import { getCachedFile, setCachedFile } from './cacheService';
 import { progressManager } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
@@ -10,6 +11,7 @@ import { addTaskToQueue } from './queueService';
 
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
   const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
+  task.updateStatus('Fetching post metadata...');
   try {
     const isPostPage = window.location.pathname.includes('/post/');
     const { files } = isPostPage && appState.cachedPostFiles
@@ -41,18 +43,32 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
         task.addFile(fileTaskId, file.name);
 
         try {
-          const response = await gmXmlhttpRequestWithRetries({
-            method: 'GET',
-            url: file.data,
-            responseType: 'arraybuffer',
-            timeout: state.settings.zipFileDownloadTimeout,
-            onprogress: (e: ProgressEvent) => {
-              if (e.lengthComputable && e.total > 0) {
-                task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
+          // Check file cache first
+          const cachedData = await getCachedFile(file.data);
+          let arrayBuffer: ArrayBuffer;
+
+          if (cachedData) {
+            arrayBuffer = cachedData;
+            task.updateFileProgress(fileTaskId, 100);
+          } else {
+            const response = await gmXmlhttpRequestWithRetries({
+              method: 'GET',
+              url: file.data,
+              responseType: 'arraybuffer',
+              timeout: state.settings.zipFileDownloadTimeout,
+              onprogress: (e: ProgressEvent) => {
+                if (e.lengthComputable && e.total > 0) {
+                  task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
+                }
               }
+            });
+            arrayBuffer = response.response;
+            if (arrayBuffer && arrayBuffer.byteLength > 0) {
+              await setCachedFile(file.data, arrayBuffer, true);
             }
-          });
-          zip.file(file.name, response.response);
+          }
+
+          zip.file(file.name, arrayBuffer);
           task.markFileComplete(fileTaskId, true);
         } catch (error: any) {
           failCount++;

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.1.2
+// @version      0.2.0
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -836,6 +836,199 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       button.disabled = false;
     }
   }
+  const DB_NAME = "KemonoDownloaderCache";
+  const DB_VERSION = 1;
+  const STORE_FILES = "files";
+  const STORE_POSTS = "posts";
+  let dbPromise = null;
+  const inMemoryPostCache = /* @__PURE__ */ new Map();
+  const inMemoryFileCache = /* @__PURE__ */ new Map();
+  function getDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      if (typeof indexedDB === "undefined") {
+        return reject(new Error("IndexedDB is not supported in this browser."));
+      }
+      const request = indexedDB.open(DB_NAME, DB_VERSION);
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        if (!db.objectStoreNames.contains(STORE_FILES)) {
+          const fileStore = db.createObjectStore(STORE_FILES, { keyPath: "url" });
+          fileStore.createIndex("completed", "completed", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORE_POSTS)) {
+          db.createObjectStore(STORE_POSTS, { keyPath: "key" });
+        }
+      };
+      request.onsuccess = (event) => resolve(event.target.result);
+      request.onerror = (event) => {
+        console.error("Failed to open IndexedDB:", event.target.error);
+        reject(event.target.error);
+      };
+    });
+    return dbPromise;
+  }
+  async function getCachedFile(url) {
+    if (inMemoryFileCache.has(url)) {
+      const item = inMemoryFileCache.get(url);
+      if (item.completed) return item.data;
+    }
+    try {
+      const db = await getDB();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(STORE_FILES, "readonly");
+        const store = tx.objectStore(STORE_FILES);
+        const req = store.get(url);
+        req.onsuccess = () => {
+          const result = req.result;
+          if (result && result.completed && result.data) {
+            inMemoryFileCache.set(url, { data: result.data, completed: true });
+            resolve(result.data);
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      debugLog("Failed to get cached file from IndexedDB:", e);
+      return null;
+    }
+  }
+  async function setCachedFile(url, data, completed) {
+    inMemoryFileCache.set(url, { data, completed });
+    try {
+      const db = await getDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(STORE_FILES, "readwrite");
+        const store = tx.objectStore(STORE_FILES);
+        store.put({
+          url,
+          data,
+          completed,
+          size: data.byteLength,
+          timestamp: Date.now()
+        });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {
+      debugLog("Failed to set cached file in IndexedDB:", e);
+    }
+  }
+  async function getCachedPost(key) {
+    if (inMemoryPostCache.has(key)) {
+      return inMemoryPostCache.get(key);
+    }
+    try {
+      const db = await getDB();
+      return await new Promise((resolve) => {
+        const tx = db.transaction(STORE_POSTS, "readonly");
+        const store = tx.objectStore(STORE_POSTS);
+        const req = store.get(key);
+        req.onsuccess = () => {
+          const result = req.result;
+          if (result && result.data) {
+            inMemoryPostCache.set(key, result.data);
+            resolve(result.data);
+          } else {
+            resolve(null);
+          }
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch (e) {
+      debugLog("Failed to get cached post from IndexedDB:", e);
+      return null;
+    }
+  }
+  async function setCachedPost(key, data) {
+    inMemoryPostCache.set(key, data);
+    try {
+      const db = await getDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(STORE_POSTS, "readwrite");
+        const store = tx.objectStore(STORE_POSTS);
+        store.put({ key, data, timestamp: Date.now() });
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {
+      debugLog("Failed to set cached post in IndexedDB:", e);
+    }
+  }
+  async function clearIncompleteCache() {
+    let deletedCount = 0;
+    for (const [url, item] of inMemoryFileCache.entries()) {
+      if (!item.completed) inMemoryFileCache.delete(url);
+    }
+    try {
+      const db = await getDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(STORE_FILES, "readwrite");
+        const store = tx.objectStore(STORE_FILES);
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            if (!cursor.value.completed) {
+              cursor.delete();
+              deletedCount++;
+            }
+            cursor.continue();
+          } else {
+            resolve();
+          }
+        };
+        req.onerror = () => resolve();
+      });
+    } catch (e) {
+      debugLog("Failed to clear incomplete cache in IndexedDB:", e);
+    }
+    return deletedCount;
+  }
+  async function clearAllCache() {
+    inMemoryPostCache.clear();
+    inMemoryFileCache.clear();
+    try {
+      const db = await getDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction([STORE_FILES, STORE_POSTS], "readwrite");
+        tx.objectStore(STORE_FILES).clear();
+        tx.objectStore(STORE_POSTS).clear();
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => resolve();
+      });
+    } catch (e) {
+      debugLog("Failed to clear all cache in IndexedDB:", e);
+    }
+  }
+  async function getCacheStats() {
+    let count = 0;
+    let totalSizeBytes = 0;
+    try {
+      const db = await getDB();
+      await new Promise((resolve) => {
+        const tx = db.transaction(STORE_FILES, "readonly");
+        const store = tx.objectStore(STORE_FILES);
+        const req = store.openCursor();
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (cursor) {
+            count++;
+            totalSizeBytes += cursor.value.size || (cursor.value.data ? cursor.value.data.byteLength : 0);
+            cursor.continue();
+          } else {
+            resolve();
+          }
+        };
+        req.onerror = () => resolve();
+      });
+    } catch (e) {
+      debugLog("Failed to get cache stats from IndexedDB:", e);
+    }
+    return { count, totalSizeBytes };
+  }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
   async function toggleSettingsModal(forceShow) {
@@ -955,11 +1148,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         <div id="kdl-gemini-settings" style="display:none;"><div class="kdl-setting-item"><label>Gemini API Key</label><input type="password" id="kdl-setting-geminiApiKey"></div><div class="kdl-setting-item"><label>Model Name</label><input type="text" id="kdl-setting-translationModelName"></div></div>
         <div id="kdl-deepl-settings" style="display:none;"><div class="kdl-setting-item"><label>DeepL API Key</label><input type="password" id="kdl-setting-deeplApiKey"></div><div class="kdl-setting-item"><label>API Tier</label><select id="kdl-setting-deeplApiTier"><option value="free">Free</option><option value="pro">Pro</option></select></div></div>
 
-        <h3>Manage Settings</h3>
-        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center;">
+        <h3>Manage Settings & Cache</h3>
+        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
             <button id="kdl-export-btn" style="padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px;">Export Settings</button>
             <button id="kdl-import-btn" style="padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 4px;">Import Settings</button>
             <input type="file" id="kdl-import-file-input" accept=".json" style="display: none;">
+        </div>
+
+        <div class="kdl-setting-item" style="display: flex; flex-direction: column; gap: 8px; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
+            <div id="kdl-cache-stats-text" style="font-size: 13px; color: #ccc;">Cached Data: Loading...</div>
+            <div style="display: flex; gap: 10px;">
+                <button id="kdl-clear-incomplete-cache-btn" style="padding: 6px 12px; background-color: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Incomplete Cache</button>
+                <button id="kdl-clear-all-cache-btn" style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear All Cache</button>
+            </div>
         </div>
     </div>
     <div class="kdl-settings-actions"><button class="kdl-close">Close</button><button class="kdl-save">Save</button></div>
@@ -1025,13 +1226,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       updateSettingsModalUI();
       showMessage(`Template "${name}" saved!`, "info");
     });
-    document.getElementById("kdl-template-delete-btn").addEventListener("click", () => {
-      const selectedIndex = templateSelect.selectedIndex;
-      if (selectedIndex < 1) return showMessage("Select a template to delete first.", "warning");
-      const templateNameToDelete = templateSelect.options[selectedIndex].dataset.name;
-      state.settings.savedFileNameTemplates = (state.settings.savedFileNameTemplates || []).filter((t) => t.name !== templateNameToDelete);
-      updateSettingsModalUI();
-      showMessage(`Template "${templateNameToDelete}" deleted.`, "info");
+    document.getElementById("kdl-clear-incomplete-cache-btn").addEventListener("click", async () => {
+      const deleted = await clearIncompleteCache();
+      await refreshCacheStatsUI();
+      showMessage(`Cleared ${deleted} incomplete cache entries!`, "info");
+    });
+    document.getElementById("kdl-clear-all-cache-btn").addEventListener("click", async () => {
+      await clearAllCache();
+      await refreshCacheStatsUI();
+      showMessage("Entire cache has been cleared!", "info");
     });
   }
   function updateSettingsModalUI() {
@@ -1043,6 +1246,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         else element.value = state.settings[key];
       }
     }
+    refreshCacheStatsUI();
     const templateSelect = document.getElementById("kdl-template-select");
     templateSelect.innerHTML = '<option value="">-- Load a saved template --</option>';
     if (state.settings.savedFileNameTemplates && state.settings.savedFileNameTemplates.length > 0) {
@@ -1071,6 +1275,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const enabled = (_a = document.getElementById("kdl-setting-enableDownloadRetries")) == null ? void 0 : _a.checked;
     document.getElementById("kdl-retry-count-setting").style.display = enabled ? "block" : "none";
     document.getElementById("kdl-retry-delay-setting").style.display = enabled ? "block" : "none";
+  }
+  async function refreshCacheStatsUI() {
+    const statsElem = document.getElementById("kdl-cache-stats-text");
+    if (!statsElem) return;
+    const { count, totalSizeBytes } = await getCacheStats();
+    const sizeMb = (totalSizeBytes / (1024 * 1024)).toFixed(1);
+    statsElem.textContent = `Cached Data: ${count} files (${sizeMb} MB)`;
   }
   function createFixedControls() {
     if (document.getElementById("kdl-fixed-controls")) return;
@@ -1178,7 +1389,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     if (state.settings.enableAPIFetch && postDetails.service !== "unknown" && postDetails.userID !== "unknown" && postDetails.postID !== "unknown") {
       try {
-        rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
+        const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
+        const cached = await getCachedPost(cacheKey);
+        if (cached) {
+          rawApiData = cached;
+          debugLog(`Post metadata loaded from cache: ${cacheKey}`);
+        } else {
+          rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
+          if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+        }
         const post = (rawApiData == null ? void 0 : rawApiData.post) || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);
         if (post) {
           postDetails.rawApiData = post;
@@ -1415,6 +1634,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   async function executeZipDownload(postDetails) {
     const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
+    task.updateStatus("Fetching post metadata...");
     try {
       const isPostPage = window.location.pathname.includes("/post/");
       const { files } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
@@ -1437,18 +1657,29 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           const fileTaskId = `${postDetails.postID}-${i}`;
           task.addFile(fileTaskId, file.name);
           try {
-            const response = await gmXmlhttpRequestWithRetries({
-              method: "GET",
-              url: file.data,
-              responseType: "arraybuffer",
-              timeout: state.settings.zipFileDownloadTimeout,
-              onprogress: (e) => {
-                if (e.lengthComputable && e.total > 0) {
-                  task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
+            const cachedData = await getCachedFile(file.data);
+            let arrayBuffer;
+            if (cachedData) {
+              arrayBuffer = cachedData;
+              task.updateFileProgress(fileTaskId, 100);
+            } else {
+              const response = await gmXmlhttpRequestWithRetries({
+                method: "GET",
+                url: file.data,
+                responseType: "arraybuffer",
+                timeout: state.settings.zipFileDownloadTimeout,
+                onprogress: (e) => {
+                  if (e.lengthComputable && e.total > 0) {
+                    task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
+                  }
                 }
+              });
+              arrayBuffer = response.response;
+              if (arrayBuffer && arrayBuffer.byteLength > 0) {
+                await setCachedFile(file.data, arrayBuffer, true);
               }
-            });
-            zip.file(file.name, response.response);
+            }
+            zip.file(file.name, arrayBuffer);
             task.markFileComplete(fileTaskId, true);
           } catch (error) {
             failCount++;
