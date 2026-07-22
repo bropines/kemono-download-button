@@ -455,7 +455,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   function getFullUrl(path) {
     return path.startsWith("/") ? window.location.origin + path : path;
   }
-  function resolveMediaUrl(path) {
+  function resolveMediaUrl(path, originalFileName) {
     if (!path) return "";
     if (path.startsWith("http://") || path.startsWith("https://")) {
       return path;
@@ -464,10 +464,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const hostname = window.location.hostname;
     const parts = hostname.split(".");
     const baseDomain = parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
-    if (hostname.match(/^c\d+\./)) {
-      return `${window.location.origin}${cleanPath}`;
+    let querySuffix = "";
+    if (originalFileName && !cleanPath.includes("?f=")) {
+      querySuffix = `?f=${encodeURIComponent(originalFileName)}`;
     }
-    return `https://c1.${baseDomain}${cleanPath}`;
+    if (hostname.match(/^(c\d+|file)\./)) {
+      return `${window.location.origin}${cleanPath}${querySuffix}`;
+    }
+    if (baseDomain.includes("pawchive")) {
+      return `https://file.${baseDomain}${cleanPath}${querySuffix}`;
+    }
+    return `https://c1.${baseDomain}${cleanPath}${querySuffix}`;
   }
   function getApiUrl(path) {
     const cleanPath = path.startsWith("/") ? path : "/" + path;
@@ -678,18 +685,23 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         });
       } catch (error) {
         attempts++;
-        const cdnMatch = currentUrl.match(/https:\/\/(c\d+)\.([^/]+)(\/.*)/);
-        if (cdnMatch) {
-          const currentCdnNum = parseInt(cdnMatch[1].replace("c", ""), 10);
-          const nextCdnNum = currentCdnNum % 6 + 1;
-          const domain = cdnMatch[2];
-          const path = cdnMatch[3];
-          currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
+        const fileMatch = currentUrl.match(/https:\/\/(file|c\d+)\.([^/]+)(\/.*)/);
+        if (fileMatch) {
+          const prefix = fileMatch[1];
+          const domain = fileMatch[2];
+          const path = fileMatch[3];
+          if (prefix === "file") {
+            currentUrl = `https://c1.${domain}${path}`;
+          } else {
+            const currentCdnNum = parseInt(prefix.replace("c", ""), 10);
+            const nextCdnNum = currentCdnNum % 6 + 1;
+            currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
+          }
           debugLog(`CDN node fallback: switching to ${currentUrl}`);
         } else {
           const mainMatch = currentUrl.match(/https:\/\/([^/]+)(\/data\/.*)/);
-          if (mainMatch && !mainMatch[1].startsWith("c")) {
-            currentUrl = `https://c1.${mainMatch[1]}${mainMatch[2]}`;
+          if (mainMatch && !mainMatch[1].startsWith("c") && !mainMatch[1].startsWith("file")) {
+            currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
             debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
           }
         }
@@ -1203,7 +1215,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           bulk_post_index: options.bulk_post_index ? String(options.bulk_post_index).padStart(3, "0") : ""
         };
         const finalPath = generateFilePath(templateToUse, pathData, postDetails);
-        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path), source: "url", isMedia: true });
+        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: "url", isMedia: true });
       });
       if (state.settings.savePostContentAsText && post.content) {
         const formattedContent = htmlToFormattedText(post.content);

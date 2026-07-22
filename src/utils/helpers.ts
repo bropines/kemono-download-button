@@ -10,7 +10,7 @@ export function getFullUrl(path: string): string {
   return path.startsWith('/') ? window.location.origin + path : path;
 }
 
-export function resolveMediaUrl(path: string): string {
+export function resolveMediaUrl(path: string, originalFileName?: string): string {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
@@ -27,10 +27,18 @@ export function resolveMediaUrl(path: string): string {
   const parts = hostname.split('.');
   const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
 
-  if (hostname.match(/^c\d+\./)) {
-    return `${window.location.origin}${cleanPath}`;
+  let querySuffix = '';
+  if (originalFileName && !cleanPath.includes('?f=')) {
+    querySuffix = `?f=${encodeURIComponent(originalFileName)}`;
   }
-  return `https://c1.${baseDomain}${cleanPath}`;
+
+  if (hostname.match(/^(c\d+|file)\./)) {
+    return `${window.location.origin}${cleanPath}${querySuffix}`;
+  }
+  if (baseDomain.includes('pawchive')) {
+    return `https://file.${baseDomain}${cleanPath}${querySuffix}`;
+  }
+  return `https://c1.${baseDomain}${cleanPath}${querySuffix}`;
 }
 
 export function getApiUrl(path: string): string {

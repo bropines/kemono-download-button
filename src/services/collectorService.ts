@@ -147,7 +147,7 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
       };
 
       const finalPath = generateFilePath(templateToUse, pathData, postDetails);
-      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path), source: 'url', isMedia: true });
+      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: 'url', isMedia: true });
     });
 
     if (state.settings.savePostContentAsText && post.content) {

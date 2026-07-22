@@ -40,19 +40,24 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
     } catch (error: any) {
       attempts++;
 
-      // Try switching CDN node if cX domain failed with 404 or network error
-      const cdnMatch = currentUrl.match(/https:\/\/(c\d+)\.([^/]+)(\/.*)/);
-      if (cdnMatch) {
-        const currentCdnNum = parseInt(cdnMatch[1].replace('c', ''), 10);
-        const nextCdnNum = (currentCdnNum % 6) + 1;
-        const domain = cdnMatch[2];
-        const path = cdnMatch[3];
-        currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
+      // Try switching CDN node if file. or cX domain failed with 404 or network error
+      const fileMatch = currentUrl.match(/https:\/\/(file|c\d+)\.([^/]+)(\/.*)/);
+      if (fileMatch) {
+        const prefix = fileMatch[1];
+        const domain = fileMatch[2];
+        const path = fileMatch[3];
+        if (prefix === 'file') {
+          currentUrl = `https://c1.${domain}${path}`;
+        } else {
+          const currentCdnNum = parseInt(prefix.replace('c', ''), 10);
+          const nextCdnNum = (currentCdnNum % 6) + 1;
+          currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
+        }
         debugLog(`CDN node fallback: switching to ${currentUrl}`);
       } else {
         const mainMatch = currentUrl.match(/https:\/\/([^/]+)(\/data\/.*)/);
-        if (mainMatch && !mainMatch[1].startsWith('c')) {
-          currentUrl = `https://c1.${mainMatch[1]}${mainMatch[2]}`;
+        if (mainMatch && !mainMatch[1].startsWith('c') && !mainMatch[1].startsWith('file')) {
+          currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
           debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
         }
       }
