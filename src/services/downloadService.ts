@@ -30,14 +30,23 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     console.log(`[Kemono DL] Total files collected: ${files.length} (${totalUrlFiles} URLs, ${files.length - totalUrlFiles} text items)`);
     task.updateStatus(`Downloading ${totalUrlFiles} files...`);
 
-    const ZipConstructor = typeof JSZip !== 'undefined' ? JSZip : (window as any).JSZip;
-    if (!ZipConstructor) {
-      throw new Error('JSZip library is not loaded. Please verify JSZip availability.');
+    const ZipConstructor = typeof JSZip === 'function'
+      ? JSZip
+      : (JSZip as any)?.default || (window as any).JSZip?.default || (window as any).JSZip;
+
+    if (!ZipConstructor || typeof ZipConstructor !== 'function') {
+      throw new Error('JSZip library constructor could not be resolved.');
     }
+    console.log('[Kemono DL] JSZip constructor resolved successfully:', ZipConstructor.name || 'JSZip');
     const zip = new ZipConstructor();
 
     files.forEach((file) => {
-      if (file.source === 'text') zip.file(file.name, file.data);
+      if (file.source === 'text') {
+        const textContent = typeof file.data === 'string' ? file.data : JSON.stringify(file.data || '');
+        const cleanName = file.name.replace(/^\/+/, '');
+        console.log(`[Kemono DL] Adding text file to ZIP: "${cleanName}" (${textContent.length} chars)`);
+        zip.file(cleanName, textContent);
+      }
     });
 
     const concurrency = Math.max(1, state.settings.maxConcurrentFileDownloadsInZip || 3);
@@ -79,7 +88,9 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
           }
 
           if (arrayBuffer && arrayBuffer.byteLength > 0) {
-            zip.file(file.name, new Uint8Array(arrayBuffer));
+            const cleanName = file.name.replace(/^\/+/, '');
+            console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
+            zip.file(cleanName, new Uint8Array(arrayBuffer));
             task.markFileComplete(fileTaskId, true);
           } else {
             throw new Error('Downloaded file ArrayBuffer is empty');
@@ -116,7 +127,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     let lastLoggedPercent = -1;
     const zipPromise = zip.generateAsync({ type: 'uint8array', compression: 'STORE' }, (meta: { percent: number }) => {
       const currentPercent = Math.floor(meta.percent);
-      if (currentPercent !== lastLoggedPercent && currentPercent % 10 === 0) {
+      if (currentPercent !== lastLoggedPercent) {
         lastLoggedPercent = currentPercent;
         console.log(`[Kemono DL] Zipping progress: ${currentPercent}%`);
       }
