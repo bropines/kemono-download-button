@@ -11,8 +11,6 @@ export default defineConfig({
       fileName: () => 'bundle.js'
     },
     minify: false,
-    rollupOptions: {
-      external: ['jszip']
-    }
+    rollupOptions: {}
   }
 });

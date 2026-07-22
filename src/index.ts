@@ -17,7 +17,6 @@
 // @match        https://*.pawchive.pw/*
 // @match        https://pawchive.st/*
 // @match        https://*.pawchive.st/*
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js
 // @connect      *
 // @grant        GM_addStyle
 // @grant        GM_download

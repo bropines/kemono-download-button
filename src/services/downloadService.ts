@@ -1,3 +1,4 @@
+import JSZip from 'jszip';
 import { getCachedFile, setCachedFile } from './cacheService';
 import { progressManager } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
@@ -12,6 +13,7 @@ import { addTaskToQueue } from './queueService';
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
   const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
   task.updateStatus('Fetching post metadata...');
+  console.log(`[Kemono DL] Initiating ZIP task for post ${postDetails.postID}: "${postDetails.postTitle}"`);
   try {
     const isPostPage = window.location.pathname.includes('/post/');
     const { files } = isPostPage && appState.cachedPostFiles
@@ -25,8 +27,14 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     const urlFiles = files.filter((t) => t.source === 'url');
     const totalUrlFiles = urlFiles.length;
 
+    console.log(`[Kemono DL] Total files collected: ${files.length} (${totalUrlFiles} URLs, ${files.length - totalUrlFiles} text items)`);
     task.updateStatus(`Downloading ${totalUrlFiles} files...`);
-    const zip = new JSZip();
+
+    const ZipConstructor = typeof JSZip !== 'undefined' ? JSZip : (window as any).JSZip;
+    if (!ZipConstructor) {
+      throw new Error('JSZip library is not loaded. Please verify JSZip availability.');
+    }
+    const zip = new ZipConstructor();
 
     files.forEach((file) => {
       if (file.source === 'text') zip.file(file.name, file.data);
@@ -43,11 +51,12 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
         task.addFile(fileTaskId, file.name);
 
         try {
-          // Check file cache first
+          console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Starting download: ${file.name} (${file.data})`);
           const cachedData = await getCachedFile(file.data);
           let arrayBuffer: ArrayBuffer;
 
           if (cachedData) {
+            console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Loaded from cache: ${file.name}`);
             arrayBuffer = cachedData;
             task.updateFileProgress(fileTaskId, 100);
           } else {
@@ -64,6 +73,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
             });
             arrayBuffer = response.response;
             if (arrayBuffer && arrayBuffer.byteLength > 0) {
+              console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Downloaded successfully (${arrayBuffer.byteLength} bytes). Saving to cache.`);
               await setCachedFile(file.data, arrayBuffer, true);
             }
           }
@@ -72,7 +82,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
           task.markFileComplete(fileTaskId, true);
         } catch (error: any) {
           failCount++;
-          console.error(`[Kemono DL Error] File download failed for URL "${file.data}":`, error);
+          console.error(`[Kemono DL Error] File ${i + 1} download failed for URL "${file.data}":`, error);
           task.markFileComplete(fileTaskId, false);
           const sanitizedBase = sanitizeFilename(file.name.split('/').pop() || 'file');
           zip.file(
@@ -89,20 +99,37 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     const workers = Array.from({ length: Math.min(concurrency, totalUrlFiles) }, () => downloadWorker());
     await Promise.all(workers);
 
+    console.log(`[Kemono DL] All downloads finished. Succeeded: ${successCount - failCount}, Failed: ${failCount}. Total files in zip object:`, Object.keys(zip.files).length);
+
     if (totalUrlFiles > 0 && failCount === totalUrlFiles) {
       throw new Error('All file downloads failed');
     }
 
     task.updateStatus('Zipping...');
     const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
+    console.log(`[Kemono DL] Starting zip.generateAsync for "${zipName}"...`);
 
-    const blob = await zip.generateAsync({ type: 'blob' }, (meta: { percent: number }) => {
-      task.updateStatus(`Zipping ${meta.percent.toFixed(0)}%`);
+    let lastLoggedPercent = -1;
+    const zipPromise = zip.generateAsync({ type: 'blob', compression: 'STORE' }, (meta: { percent: number }) => {
+      const currentPercent = Math.floor(meta.percent);
+      if (currentPercent !== lastLoggedPercent && currentPercent % 10 === 0) {
+        lastLoggedPercent = currentPercent;
+        console.log(`[Kemono DL] Zipping progress: ${currentPercent}%`);
+      }
+      task.updateStatus(`Zipping ${currentPercent}%`);
     });
+
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('ZIP generation timed out after 60 seconds')), 60000);
+    });
+
+    const blob = await Promise.race([zipPromise, timeoutPromise]);
+    console.log(`[Kemono DL] ZIP generated! Size: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
 
     if (!blob || blob.size === 0) throw new Error('Generated ZIP is empty.');
 
     const blobUrl = URL.createObjectURL(blob);
+    console.log(`[Kemono DL] Triggering download for blob URL ${blobUrl}...`);
     const downloadAnchor = document.createElement('a');
     downloadAnchor.href = blobUrl;
     downloadAnchor.download = zipName;
@@ -111,6 +138,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     downloadAnchor.click();
     document.body.removeChild(downloadAnchor);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+    console.log(`[Kemono DL] Download triggered successfully for ${zipName}`);
 
     task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ''}`);
   } catch (error: any) {
