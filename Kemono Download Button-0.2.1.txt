@@ -1403,8 +1403,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         const cached = await getCachedPost(cacheKey);
         if (cached) {
           rawApiData = cached;
-          debugLog(`Post metadata loaded from cache: ${cacheKey}`);
+          console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
         } else {
+          console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
           rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
           if (rawApiData) await setCachedPost(cacheKey, rawApiData);
         }
@@ -1493,11 +1494,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     if (state.settings.savePostTags && isPostPage) {
       try {
-        const tagsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/tags`);
-        const tagsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: tagsUrl, responseType: "json" });
-        if (Array.isArray(tagsRes.response) && tagsRes.response.length > 0) {
+        const tagsCacheKey = `tags_${postDetails.service}_${postDetails.userID}`;
+        let tagsData = await getCachedPost(tagsCacheKey);
+        if (!tagsData) {
+          const tagsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/tags`);
+          const tagsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: tagsUrl, responseType: "json" });
+          if (Array.isArray(tagsRes.response) && tagsRes.response.length > 0) {
+            tagsData = tagsRes.response;
+            await setCachedPost(tagsCacheKey, tagsData);
+          }
+        }
+        if (Array.isArray(tagsData) && tagsData.length > 0) {
           const tagsPath = generateFilePath(templateToUse, { file_index: "tags", file_name: "tags.txt" }, postDetails);
-          files.push({ name: tagsPath, data: tagsRes.response.join("\n"), source: "text" });
+          files.push({ name: tagsPath, data: tagsData.join("\n"), source: "text" });
         }
       } catch (e) {
         debugLog("Failed to fetch tags", e);
@@ -1505,10 +1514,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     if (state.settings.savePostComments && isPostPage) {
       try {
-        const commentsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`);
-        const commentsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: commentsUrl, responseType: "json" });
-        if (Array.isArray(commentsRes.response) && commentsRes.response.length > 0) {
-          const commentsText = commentsRes.response.map((c) => `[${c.published || "N/A"}] ${c.commenter_name || "User"}: ${c.content}`).join("\n\n");
+        const commentsCacheKey = `comments_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
+        let commentsData = await getCachedPost(commentsCacheKey);
+        if (!commentsData) {
+          const commentsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`);
+          const commentsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: commentsUrl, responseType: "json" });
+          if (Array.isArray(commentsRes.response) && commentsRes.response.length > 0) {
+            commentsData = commentsRes.response;
+            await setCachedPost(commentsCacheKey, commentsData);
+          }
+        }
+        if (Array.isArray(commentsData) && commentsData.length > 0) {
+          const commentsText = commentsData.map((c) => `[${c.published || "N/A"}] ${c.commenter_name || "User"}: ${c.content}`).join("\n\n");
           const commentsPath = generateFilePath(templateToUse, { file_index: "comments", file_name: "comments.txt" }, postDetails);
           files.push({ name: commentsPath, data: commentsText, source: "text" });
         }
