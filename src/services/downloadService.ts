@@ -1,4 +1,4 @@
-import JSZip from 'jszip';
+import { strToU8, zipSync, Zippable } from 'fflate';
 import { getCachedFile, setCachedFile } from './cacheService';
 import { progressManager } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
@@ -30,22 +30,14 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     console.log(`[Kemono DL] Total files collected: ${files.length} (${totalUrlFiles} URLs, ${files.length - totalUrlFiles} text items)`);
     task.updateStatus(`Downloading ${totalUrlFiles} files...`);
 
-    const ZipConstructor = typeof JSZip === 'function'
-      ? JSZip
-      : (JSZip as any)?.default || (window as any).JSZip?.default || (window as any).JSZip;
-
-    if (!ZipConstructor || typeof ZipConstructor !== 'function') {
-      throw new Error('JSZip library constructor could not be resolved.');
-    }
-    console.log('[Kemono DL] JSZip constructor resolved successfully:', ZipConstructor.name || 'JSZip');
-    const zip = new ZipConstructor();
+    const zippable: Zippable = {};
 
     files.forEach((file) => {
       if (file.source === 'text') {
         const textContent = typeof file.data === 'string' ? file.data : JSON.stringify(file.data || '');
         const cleanName = file.name.replace(/^\/+/, '');
         console.log(`[Kemono DL] Adding text file to ZIP: "${cleanName}" (${textContent.length} chars)`);
-        zip.file(cleanName, textContent);
+        zippable[cleanName] = strToU8(textContent);
       }
     });
 
@@ -90,7 +82,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
           if (arrayBuffer && arrayBuffer.byteLength > 0) {
             const cleanName = file.name.replace(/^\/+/, '');
             console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
-            zip.file(cleanName, new Uint8Array(arrayBuffer));
+            zippable[cleanName] = new Uint8Array(arrayBuffer);
             task.markFileComplete(fileTaskId, true);
           } else {
             throw new Error('Downloaded file ArrayBuffer is empty');
@@ -100,10 +92,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
           console.error(`[Kemono DL Error] File ${i + 1} download failed for URL "${file.data}":`, error);
           task.markFileComplete(fileTaskId, false);
           const sanitizedBase = sanitizeFilename(file.name.split('/').pop() || 'file');
-          zip.file(
-            `failed_${sanitizedBase}`,
-            `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`
-          );
+          zippable[`failed_${sanitizedBase}.txt`] = strToU8(`Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
         } finally {
           successCount++;
           task.updateStatus(`Downloading... ${successCount}/${totalUrlFiles} done`);
@@ -114,7 +103,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     const workers = Array.from({ length: Math.min(concurrency, totalUrlFiles) }, () => downloadWorker());
     await Promise.all(workers);
 
-    console.log(`[Kemono DL] All downloads finished. Succeeded: ${successCount - failCount}, Failed: ${failCount}. Total files in zip object:`, Object.keys(zip.files).length);
+    console.log(`[Kemono DL] All downloads finished. Succeeded: ${successCount - failCount}, Failed: ${failCount}. Total entries in zippable:`, Object.keys(zippable).length);
 
     if (totalUrlFiles > 0 && failCount === totalUrlFiles) {
       throw new Error('All file downloads failed');
@@ -122,27 +111,14 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
     task.updateStatus('Zipping...');
     const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-    console.log(`[Kemono DL] Starting zip.generateAsync ({ type: 'uint8array' }) for "${zipName}"...`);
+    console.log(`[Kemono DL] Calling fflate zipSync (level 0 STORE) for "${zipName}"...`);
+    const zipStartTime = Date.now();
 
-    let lastLoggedPercent = -1;
-    const zipPromise = zip.generateAsync({ type: 'uint8array', compression: 'STORE' }, (meta: { percent: number }) => {
-      const currentPercent = Math.floor(meta.percent);
-      if (currentPercent !== lastLoggedPercent) {
-        lastLoggedPercent = currentPercent;
-        console.log(`[Kemono DL] Zipping progress: ${currentPercent}%`);
-      }
-      task.updateStatus(`Zipping ${currentPercent}%`);
-    });
+    const zippedData = zipSync(zippable, { level: 0 });
+    const duration = Date.now() - zipStartTime;
+    console.log(`[Kemono DL] fflate zipSync completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
 
-    const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error('ZIP generation timed out after 60 seconds')), 60000);
-    });
-
-    const uint8Array = await Promise.race([zipPromise, timeoutPromise]);
-    console.log(`[Kemono DL] Uint8Array generated (${uint8Array.byteLength} bytes). Constructing Blob...`);
-    const blob = new Blob([uint8Array], { type: 'application/zip' });
-    console.log(`[Kemono DL] ZIP Blob generated! Size: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
-
+    const blob = new Blob([zippedData], { type: 'application/zip' });
     if (!blob || blob.size === 0) throw new Error('Generated ZIP is empty.');
 
     const blobUrl = URL.createObjectURL(blob);
