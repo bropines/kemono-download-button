@@ -111,12 +111,13 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
     task.updateStatus('Zipping...');
     const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-    console.log(`[Kemono DL] Calling fflate zipSync (level 0 STORE) for "${zipName}"...`);
+    const level = Number(state.settings.zipCompressionLevel) || 0;
+    console.log(`[Kemono DL] Calling fflate zipSync (level ${level}) for "${zipName}"...`);
     const zipStartTime = Date.now();
 
-    const zippedData = zipSync(zippable, { level: 0 });
+    const zippedData = zipSync(zippable, { level: level as any });
     const duration = Date.now() - zipStartTime;
-    console.log(`[Kemono DL] fflate zipSync completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+    console.log(`[Kemono DL] fflate zipSync (level ${level}) completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
 
     const blob = new Blob([zippedData], { type: 'application/zip' });
     if (!blob || blob.size === 0) throw new Error('Generated ZIP is empty.');

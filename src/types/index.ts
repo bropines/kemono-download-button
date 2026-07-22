@@ -29,6 +29,7 @@ export interface DownloaderSettings {
   downloadRetryCount: number;
   downloadRetryDelay: number;
   zipFileDownloadTimeout: number;
+  zipCompressionLevel: number;
   addMetadataFile: boolean;
   addHtmlIndexInZip: boolean;
   fileNameTemplate: string;

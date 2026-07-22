@@ -59,6 +59,16 @@ export function createSettingsModal(): void {
         <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostComments"> Add comments.txt to ZIP</label></div>
         <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDebugLogging"> Enable Debug Logging (Console)</label></div>
         <div class="kdl-setting-item">
+            <label for="kdl-setting-zipCompressionLevel">ZIP Compression Level</label>
+            <select id="kdl-setting-zipCompressionLevel">
+                <option value="0">0 - Store (Instant, 0% CPU - Recommended for Videos & Images)</option>
+                <option value="1">1 - Fast (Light Compression)</option>
+                <option value="4">4 - Normal (Balanced)</option>
+                <option value="6">6 - Standard (Medium Deflate)</option>
+                <option value="9">9 - Maximum (Highest Compression)</option>
+            </select>
+        </div>
+        <div class="kdl-setting-item">
             <label for="kdl-setting-cacheDurationHours">Post List Cache Duration (Hours)</label>
             <input type="number" id="kdl-setting-cacheDurationHours" min="0" step="1">
             <small>0 = disable caching. How long to store the full post list before re-fetching.</small>

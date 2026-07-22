@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   downloadRetryCount: 2,
   downloadRetryDelay: 2000,
   zipFileDownloadTimeout: 300000,
+  zipCompressionLevel: 0,
   addMetadataFile: true,
   addHtmlIndexInZip: true,
   fileNameTemplate: '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}',

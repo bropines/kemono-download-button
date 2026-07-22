@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.2.0
+// @version      0.2.1
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -436,6 +436,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     downloadRetryCount: 2,
     downloadRetryDelay: 2e3,
     zipFileDownloadTimeout: 3e5,
+    zipCompressionLevel: 0,
     addMetadataFile: true,
     addHtmlIndexInZip: true,
     fileNameTemplate: "{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}",
@@ -1072,6 +1073,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostTags"> Add tags.txt to ZIP</label></div>
         <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostComments"> Add comments.txt to ZIP</label></div>
         <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDebugLogging"> Enable Debug Logging (Console)</label></div>
+        <div class="kdl-setting-item">
+            <label for="kdl-setting-zipCompressionLevel">ZIP Compression Level</label>
+            <select id="kdl-setting-zipCompressionLevel">
+                <option value="0">0 - Store (Instant, 0% CPU - Recommended for Videos & Images)</option>
+                <option value="1">1 - Fast (Light Compression)</option>
+                <option value="4">4 - Normal (Balanced)</option>
+                <option value="6">6 - Standard (Medium Deflate)</option>
+                <option value="9">9 - Maximum (Highest Compression)</option>
+            </select>
+        </div>
         <div class="kdl-setting-item">
             <label for="kdl-setting-cacheDurationHours">Post List Cache Duration (Hours)</label>
             <input type="number" id="kdl-setting-cacheDurationHours" min="0" step="1">
@@ -2403,11 +2414,12 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       }
       task.updateStatus("Zipping...");
       const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-      console.log(`[Kemono DL] Calling fflate zipSync (level 0 STORE) for "${zipName}"...`);
+      const level = Number(state.settings.zipCompressionLevel) || 0;
+      console.log(`[Kemono DL] Calling fflate zipSync (level ${level}) for "${zipName}"...`);
       const zipStartTime = Date.now();
-      const zippedData = zipSync(zippable, { level: 0 });
+      const zippedData = zipSync(zippable, { level });
       const duration = Date.now() - zipStartTime;
-      console.log(`[Kemono DL] fflate zipSync completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
+      console.log(`[Kemono DL] fflate zipSync (level ${level}) completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
       const blob = new Blob([zippedData], { type: "application/zip" });
       if (!blob || blob.size === 0) throw new Error("Generated ZIP is empty.");
       const blobUrl = URL.createObjectURL(blob);

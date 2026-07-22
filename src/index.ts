@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.2.0
+// @version      0.2.1
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
