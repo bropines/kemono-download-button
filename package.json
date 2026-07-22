@@ -1,0 +1,14 @@
+{
+  "name": "kemono-download-button",
+  "version": "0.1.0",
+  "description": "Kemono and Pawchive Download Button userscript module",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/postbuild.js"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0"
+  }
+}
