@@ -78,8 +78,12 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
             }
           }
 
-          zip.file(file.name, arrayBuffer);
-          task.markFileComplete(fileTaskId, true);
+          if (arrayBuffer && arrayBuffer.byteLength > 0) {
+            zip.file(file.name, new Uint8Array(arrayBuffer));
+            task.markFileComplete(fileTaskId, true);
+          } else {
+            throw new Error('Downloaded file ArrayBuffer is empty');
+          }
         } catch (error: any) {
           failCount++;
           console.error(`[Kemono DL Error] File ${i + 1} download failed for URL "${file.data}":`, error);
@@ -107,10 +111,10 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
     task.updateStatus('Zipping...');
     const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-    console.log(`[Kemono DL] Starting zip.generateAsync for "${zipName}"...`);
+    console.log(`[Kemono DL] Starting zip.generateAsync ({ type: 'uint8array' }) for "${zipName}"...`);
 
     let lastLoggedPercent = -1;
-    const zipPromise = zip.generateAsync({ type: 'blob', compression: 'STORE' }, (meta: { percent: number }) => {
+    const zipPromise = zip.generateAsync({ type: 'uint8array', compression: 'STORE' }, (meta: { percent: number }) => {
       const currentPercent = Math.floor(meta.percent);
       if (currentPercent !== lastLoggedPercent && currentPercent % 10 === 0) {
         lastLoggedPercent = currentPercent;
@@ -123,8 +127,10 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
       setTimeout(() => reject(new Error('ZIP generation timed out after 60 seconds')), 60000);
     });
 
-    const blob = await Promise.race([zipPromise, timeoutPromise]);
-    console.log(`[Kemono DL] ZIP generated! Size: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
+    const uint8Array = await Promise.race([zipPromise, timeoutPromise]);
+    console.log(`[Kemono DL] Uint8Array generated (${uint8Array.byteLength} bytes). Constructing Blob...`);
+    const blob = new Blob([uint8Array], { type: 'application/zip' });
+    console.log(`[Kemono DL] ZIP Blob generated! Size: ${blob.size} bytes (${(blob.size / 1024 / 1024).toFixed(2)} MB)`);
 
     if (!blob || blob.size === 0) throw new Error('Generated ZIP is empty.');
 
