@@ -68,7 +68,8 @@ npm install
 npm run build
 ```
 
-This compiles `src/index.ts` into a self-contained UserScript bundle at the repository root:
+This compiles `src/index.ts` into self-contained UserScript bundles at the repository root:
+- `kemono-download-button.user.js` (Permanent auto-update link)
 - `Kemono Download Button-0.2.1.user.js`
 - `Kemono Download Button-0.2.1.txt`
 
