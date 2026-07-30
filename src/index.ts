@@ -5,6 +5,8 @@
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
+// @updateURL    https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js
+// @downloadURL  https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js
 // @match        https://kemono.su/*
 // @match        https://*.kemono.su/*
 // @match        https://kemono.cr/*

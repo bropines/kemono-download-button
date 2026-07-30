@@ -9,11 +9,11 @@ A powerful, high-performance UserScript for batch and single-item downloading fr
 
 ---
 
-## ⚡ Direct Installation
+## ⚡ Direct Installation (Permanent Auto-Update Link)
 
-Click the link below to install directly into your UserScript manager (**Tampermonkey**, **Violentmonkey**, or **Greasemonkey**):
+Click the link below to install directly into your UserScript manager (**Tampermonkey**, **Violentmonkey**, or **Greasemonkey**). It will automatically check for future updates on GitHub:
 
-👉 [**Install UserScript (v0.2.1)**](https://raw.githubusercontent.com/bropines/kemono-download-button/main/Kemono%20Download%20Button-0.2.1.user.js)
+👉 [**Install / Update UserScript**](https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js)
 
 ---
 

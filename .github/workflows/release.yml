@@ -36,7 +36,7 @@ jobs:
 
       - name: Validate Compiled JavaScript Syntax
         run: |
-          for f in Kemono\ Download\ Button-*.user.js; do
+          for f in *.user.js; do
             echo "Checking syntax for $f..."
             node -c "$f"
           done
@@ -46,6 +46,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
+            kemono-download-button.user.js
             Kemono Download Button-*.user.js
             Kemono Download Button-*.txt
           generate_release_notes: true
