@@ -1,17 +1,17 @@
-name: Create Release
+name: CI Build Check
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  release:
-    name: Build & Publish Release
+  build-check:
+    name: Build & Validate Syntax
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
 
     steps:
       - name: Checkout Code
@@ -35,12 +35,3 @@ jobs:
             echo "Checking syntax for $f..."
             node -c "$f"
           done
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            kemono-download-button.user.js
-            Kemono Download Button-*.user.js
-            Kemono Download Button-*.txt
-          generate_release_notes: true
