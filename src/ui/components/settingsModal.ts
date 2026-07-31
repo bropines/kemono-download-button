@@ -8,6 +8,131 @@ import { showMessage } from '../toast';
 let settingsModalElement: HTMLElement | null = null;
 let settingsOverlayElement: HTMLElement | null = null;
 
+function tooltipSpan(text: string): HTMLElement {
+  return el('span', { className: 'kdl-tooltip-trigger', dataset: { tooltip: text } }, ['ℹ️']);
+}
+
+function checkboxItem(id: string, text: string, tooltipText?: string): HTMLElement {
+  const checkbox = el('input', { type: 'checkbox', id });
+  const labelChildren: Array<string | HTMLElement> = [checkbox, ` ${text}`];
+  if (tooltipText) labelChildren.push(' ', tooltipSpan(tooltipText));
+  return el('div', { className: 'kdl-setting-item' }, [el('label', {}, labelChildren)]);
+}
+
+function inputItem(
+  id: string,
+  type: string,
+  labelText: string,
+  props: Record<string, any> = {},
+  tooltipText?: string,
+  containerId?: string
+): HTMLElement {
+  const inputElem = el('input', { type, id, ...props });
+  const labelChildren: Array<string | HTMLElement> = [labelText];
+  if (tooltipText) labelChildren.push(' ', tooltipSpan(tooltipText));
+  const labelElem = el('label', { htmlFor: id }, labelChildren);
+  const containerProps: Record<string, any> = { className: 'kdl-setting-item' };
+  if (containerId) containerProps.id = containerId;
+  return el('div', containerProps, [labelElem, inputElem]);
+}
+
+function selectItem(
+  id: string,
+  labelText: string,
+  options: Array<{ value: string; text: string }>,
+  tooltipText?: string
+): HTMLElement {
+  const selectElem = el(
+    'select',
+    { id },
+    options.map((opt) => el('option', { value: opt.value }, [opt.text]))
+  );
+  const labelChildren: Array<string | HTMLElement> = [labelText];
+  if (tooltipText) labelChildren.push(' ', tooltipSpan(tooltipText));
+  const labelElem = el('label', { htmlFor: id }, labelChildren);
+  return el('div', { className: 'kdl-setting-item' }, [labelElem, selectElem]);
+}
+
+let renderIgnoredExtChipsFn: ((vals: string[]) => void) | null = null;
+
+function createChipsInputItem(
+  id: string,
+  labelText: string,
+  tooltipText?: string
+): HTMLElement {
+  const chipsWrapper = el('div', { className: 'kdl-chips-wrapper' });
+  const inputElem = el('input', {
+    type: 'text',
+    id: `${id}-input`,
+    placeholder: 'Type ext (e.g. txt, psd) & press Enter...',
+    className: 'kdl-chips-input'
+  });
+
+  const renderChips = (values: string[]) => {
+    const uniqueVals = [...new Set(values.map((v) => v.toLowerCase().replace(/^\./, '').trim()).filter(Boolean))];
+    state.settings.ignoredFileExtensions = uniqueVals;
+
+    chipsWrapper.replaceChildren(
+      ...uniqueVals.map((val) => {
+        const removeBtn = el(
+          'span',
+          {
+            className: 'kdl-chip-remove',
+            onClick: (e: MouseEvent) => {
+              e.stopPropagation();
+              const updated = (state.settings.ignoredFileExtensions || []).filter((v) => v !== val);
+              renderChips(updated);
+            }
+          },
+          ['✖']
+        );
+        return el('span', { className: 'kdl-chip' }, [val, removeBtn]);
+      })
+    );
+  };
+
+  renderIgnoredExtChipsFn = renderChips;
+
+  const addExtension = (raw: string) => {
+    const cleaned = raw.toLowerCase().replace(/^\./, '').trim();
+    if (cleaned) {
+      const current = state.settings.ignoredFileExtensions || [];
+      if (!current.includes(cleaned)) {
+        renderChips([...current, cleaned]);
+      }
+    }
+    inputElem.value = '';
+  };
+
+  inputElem.addEventListener('keydown', (e: KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addExtension(inputElem.value);
+    }
+  });
+
+  inputElem.addEventListener('blur', () => {
+    if (inputElem.value.trim()) {
+      addExtension(inputElem.value);
+    }
+  });
+
+  const labelChildren: Array<string | HTMLElement> = [labelText];
+  if (tooltipText) labelChildren.push(' ', tooltipSpan(tooltipText));
+
+  return el('div', { className: 'kdl-setting-item', id }, [
+    el('label', { htmlFor: `${id}-input` }, labelChildren),
+    el('div', { className: 'kdl-chips-container' }, [chipsWrapper, inputElem])
+  ]);
+}
+
+function cardContainer(title: string, children: HTMLElement[]): HTMLElement {
+  return el('div', { className: 'kdl-settings-card' }, [
+    el('h3', {}, [title]),
+    ...children
+  ]);
+}
+
 export async function toggleSettingsModal(forceShow?: boolean): Promise<void> {
   try {
     await getSettings();
@@ -31,139 +156,162 @@ export function createSettingsModal(): void {
   if (settingsModalElement) return;
 
   const langCodeMap: Record<string, string> = {
-    auto: 'auto',
-    russian: 'ru',
-    english: 'en',
-    chinese: 'zh',
-    japanese: 'ja',
-    korean: 'ko'
+    auto: 'Auto',
+    russian: 'Russian',
+    english: 'English',
+    chinese: 'Chinese',
+    japanese: 'Japanese',
+    korean: 'Korean'
   };
 
-  const languageOptions = Object.keys(langCodeMap)
-    .map((name) => `<option value="${name}">${name.charAt(0).toUpperCase() + name.slice(1)}</option>`)
-    .join('');
+  const langOptions = Object.entries(langCodeMap).map(([value, text]) => ({ value, text }));
 
   settingsOverlayElement = el('div', { id: 'kdl-settings-overlay' });
   settingsModalElement = el('div', { id: 'kdl-settings-modal' });
 
-  settingsModalElement.innerHTML = `
-    <div id="kdl-settings-modal-content">
-        <h2>Downloader Settings</h2>
-        <h3>General</h3>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableAPIFetch"> Enable Site API Fetching</label></div>
-        <div class="kdl-setting-item"><label>Session Cookie <input type="password" id="kdl-setting-sessionCookie" placeholder="Paste session cookie here"></label><small>Needed for API requests that require login.</small></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostContentAsText"> Save Post Content as .txt in ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-addMetadataFile"> Add metadata.json to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-addHtmlIndexInZip"> Add _index.html to Bulk ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostTags"> Add tags.txt to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostComments"> Add comments.txt to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDebugLogging"> Enable Debug Logging (Console)</label></div>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-zipCompressionLevel">ZIP Compression Level</label>
-            <select id="kdl-setting-zipCompressionLevel">
-                <option value="0">0 - Store (Instant, 0% CPU - Recommended for Videos & Images)</option>
-                <option value="1">1 - Fast (Light Compression)</option>
-                <option value="4">4 - Normal (Balanced)</option>
-                <option value="6">6 - Standard (Medium Deflate)</option>
-                <option value="9">9 - Maximum (Highest Compression)</option>
-            </select>
-        </div>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-cacheDurationHours">Post List Cache Duration (Hours)</label>
-            <input type="number" id="kdl-setting-cacheDurationHours" min="0" step="1">
-            <small>0 = disable caching. How long to store the full post list before re-fetching.</small>
-        </div>
+  // 1. General & Cache Card
+  const generalCard = cardContainer('⚙️ General & Cache', [
+    checkboxItem('kdl-setting-enableAPIFetch', 'Enable Site API Fetching', 'Use fast site REST API instead of parsing HTML pages'),
+    inputItem('kdl-setting-sessionCookie', 'password', 'Session Cookie', { placeholder: 'Paste session cookie here' }, 'Session authentication cookie. Required to access restricted or paywalled posts'),
+    inputItem('kdl-setting-cacheDurationHours', 'number', 'Post List Cache Duration (Hours)', { min: 0, step: 1 }, 'Post list cache retention duration. 0 = disable caching'),
+    checkboxItem('kdl-setting-enableDebugLogging', 'Enable Debug Logging in Console'),
+    el('div', { className: 'kdl-cache-box' }, [
+      el('div', { id: 'kdl-cache-stats-text' }, ['Cached Data: Loading...']),
+      el('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } }, [
+        el('button', { id: 'kdl-clear-incomplete-cache-btn', className: 'kdl-btn-warn', style: { flex: '1' } }, ['Clear Incomplete']),
+        el('button', { id: 'kdl-clear-all-cache-btn', className: 'kdl-btn-danger', style: { flex: '1' } }, ['Clear All'])
+      ])
+    ])
+  ]);
 
-        <h3>File Naming & Structure</h3>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-fileNameTemplate">Template for <u>Individual Downloads</u></label>
-            <input type="text" id="kdl-setting-fileNameTemplate">
-            <small>Defines the save path for single files. <b>Example:</b> {author_name}/{post_date}_{post_title}/{file_name}</small>
-        </div>
-        <div class="kdl-setting-item">
-            <label for="kdl-template-select">Saved Templates</label>
-            <div style="display: flex; gap: 5px;">
-                <select id="kdl-template-select" style="flex-grow: 1;"></select>
-                <button id="kdl-template-delete-btn" style="padding: 5px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px;">Delete</button>
-            </div>
-            <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="text" id="kdl-template-name-input" placeholder="New template name..." style="flex-grow: 1;">
-                <button id="kdl-template-save-btn" style="padding: 5px 10px; background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Current</button>
-            </div>
-        </div>
+  // 2. File Naming & Templates Card
+  const templatesCard = cardContainer('📁 File Naming & Templates', [
+    inputItem('kdl-setting-fileNameTemplate', 'text', 'Template for Individual Downloads', {}, 'Available tags: {author_name}, {post_date}, {post_title}, {file_name}, {service}'),
+    el('div', { className: 'kdl-setting-item' }, [
+      el('label', { htmlFor: 'kdl-template-select' }, ['Saved Templates']),
+      el('div', { style: { display: 'flex', gap: '6px' } }, [
+        el('select', { id: 'kdl-template-select', style: { flexGrow: '1' } }),
+        el('button', { id: 'kdl-template-delete-btn', className: 'kdl-btn-danger' }, ['Delete'])
+      ]),
+      el('div', { style: { display: 'flex', gap: '6px', marginTop: '6px' } }, [
+        el('input', { type: 'text', id: 'kdl-template-name-input', placeholder: 'New template name...', style: { flexGrow: '1' } }),
+        el('button', { id: 'kdl-template-save-btn', className: 'kdl-btn-success' }, ['Save'])
+      ])
+    ]),
+    el('h4', {}, ['Bulk Download Settings ', tooltipSpan('Choose between one big ZIP archive for all posts or individual ZIP archives per post')]),
+    selectItem('kdl-setting-bulkDownloadMode', 'Bulk Download Mode', [
+      { value: 'single', text: 'One Big Archive' },
+      { value: 'multiple', text: 'Multiple Archives (one per post)' }
+    ]),
+    el('div', { id: 'kdl-bulk-single-settings' }, [
+      inputItem('kdl-setting-bulkSingleSystemPathTemplate', 'text', 'System Path for Big Archive'),
+      inputItem('kdl-setting-bulkSingleInternalPathTemplate', 'text', 'Internal Structure inside Big Archive')
+    ]),
+    el('div', { id: 'kdl-bulk-multiple-settings', style: { display: 'none' } }, [
+      inputItem('kdl-setting-bulkMultipleSystemPathTemplate', 'text', 'System Path for Multiple Archives')
+    ])
+  ]);
 
-        <h4>Bulk Download Settings</h4>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-bulkDownloadMode">Bulk Download Mode</label>
-            <select id="kdl-setting-bulkDownloadMode">
-                <option value="single">One Big Archive</option>
-                <option value="multiple">Multiple Archives (one per post)</option>
-            </select>
-        </div>
-        <div id="kdl-bulk-single-settings">
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkSingleSystemPathTemplate"><u>System Path</u> for the Big Archive</label>
-                <input type="text" id="kdl-setting-bulkSingleSystemPathTemplate">
-            </div>
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkSingleInternalPathTemplate"><u>Internal Structure</u> inside the Big Archive</label>
-                <input type="text" id="kdl-setting-bulkSingleInternalPathTemplate">
-            </div>
-        </div>
-        <div id="kdl-bulk-multiple-settings" style="display:none;">
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkMultipleSystemPathTemplate"><u>System Path</u> for Multiple Archives</label>
-                <input type="text" id="kdl-setting-bulkMultipleSystemPathTemplate">
-            </div>
-        </div>
+  // 3. ZIP Engine & Performance Card
+  const zipCard = cardContainer('📦 ZIP Engine & Performance', [
+    selectItem(
+      'kdl-setting-zipCompressionLevel',
+      'ZIP Compression Level',
+      [
+        { value: '0', text: '0 - Store (Instant, 0% CPU - Recommended)' },
+        { value: '1', text: '1 - Fast (Light Compression)' },
+        { value: '4', text: '4 - Normal (Balanced)' },
+        { value: '6', text: '6 - Standard (Medium Deflate)' },
+        { value: '9', text: '9 - Maximum (Highest Compression)' }
+      ],
+      '0 = Store / Instant packaging (0% CPU, best for videos and images). 9 = Maximum compression'
+    ),
+    checkboxItem('kdl-setting-savePostContentAsText', 'Save Post Content as .txt'),
+    checkboxItem('kdl-setting-addMetadataFile', 'Add metadata.json to ZIP'),
+    checkboxItem('kdl-setting-addHtmlIndexInZip', 'Add _index.html to Bulk ZIP'),
+    checkboxItem('kdl-setting-savePostTags', 'Add tags.txt to ZIP'),
+    checkboxItem('kdl-setting-savePostComments', 'Add comments.txt to ZIP'),
+    inputItem('kdl-setting-maxConcurrentIndividualDownloads', 'number', 'Max Concurrent Downloads', { min: 1, max: 10 }, 'Number of concurrent file download streams (1-10)'),
+    inputItem('kdl-setting-zipFileDownloadTimeout', 'number', 'File Timeout (ms)', { min: 10000, step: 1000 }, 'Maximum response timeout when downloading a file inside ZIP'),
+    checkboxItem('kdl-setting-enableDownloadRetries', 'Enable Download Retries', 'Automatically retry failed downloads on network errors'),
+    inputItem('kdl-setting-downloadRetryCount', 'number', 'Number of Retries', { min: 0, max: 5 }, undefined, 'kdl-retry-count-setting'),
+    inputItem('kdl-setting-downloadRetryDelay', 'number', 'Retry Delay (ms)', { min: 500, step: 500 }, undefined, 'kdl-retry-delay-setting'),
+    createChipsInputItem(
+      'kdl-ignored-extensions-setting',
+      'Ignored Extensions in ZIP',
+      'File extensions to exclude from ZIP archives (e.g. txt, psd, mp4). Case-insensitive & auto-deduplicated.'
+    )
+  ]);
 
-        <h3>Visible Buttons</h3>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showZipButton"> Download (ZIP)</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showImagesButton"> Download Images</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showFilesButton"> Download Attachments</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showCopyLinksButton"> Copy Links</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showShareButton"> Share Links (Mobile)</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showTranslateButton"> Translate Button</label></div>
+  // 4. Translation Card
+  const translationCard = cardContainer('🌐 Translation', [
+    selectItem(
+      'kdl-setting-translationProvider',
+      'Translation Provider',
+      [
+        { value: 'none', text: 'None' },
+        { value: 'gemini', text: 'Gemini AI' },
+        { value: 'deepl', text: 'DeepL' },
+        { value: 'yandex', text: 'Yandex (Free)' },
+        { value: 'google', text: 'Google (Free)' }
+      ],
+      'Service for automated translation of post titles and text content'
+    ),
+    selectItem('kdl-setting-translationLanguage', 'Target Language', langOptions),
+    el('div', { id: 'kdl-gemini-settings', style: { display: 'none' } }, [
+      inputItem('kdl-setting-geminiApiKey', 'password', 'Gemini API Key'),
+      inputItem('kdl-setting-translationModelName', 'text', 'Model Name')
+    ]),
+    el('div', { id: 'kdl-deepl-settings', style: { display: 'none' } }, [
+      inputItem('kdl-setting-deeplApiKey', 'password', 'DeepL API Key'),
+      selectItem('kdl-setting-deeplApiTier', 'API Tier', [
+        { value: 'free', text: 'Free' },
+        { value: 'pro', text: 'Pro' }
+      ])
+    ])
+  ]);
 
-        <h3>Downloads</h3>
-        <div class="kdl-setting-item"><label for="kdl-setting-maxConcurrentIndividualDownloads">Max Concurrent "Images/Files" Downloads</label><input type="number" id="kdl-setting-maxConcurrentIndividualDownloads" min="1" max="10"></div>
-        <div class="kdl-setting-item"><label for="kdl-setting-zipFileDownloadTimeout">File Timeout in ZIP (ms)</label><input type="number" id="kdl-setting-zipFileDownloadTimeout" min="10000" step="1000"></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDownloadRetries"> Enable Download Retries</label></div>
-        <div class="kdl-setting-item" id="kdl-retry-count-setting"><label for="kdl-setting-downloadRetryCount">Number of Retries</label><input type="number" id="kdl-setting-downloadRetryCount" min="0" max="5"></div>
-        <div class="kdl-setting-item" id="kdl-retry-delay-setting"><label for="kdl-setting-downloadRetryDelay">Delay Between Retries (ms)</label><input type="number" id="kdl-setting-downloadRetryDelay" min="500" step="500"></div>
+  // 5. Visible Buttons Card
+  const visibleButtonsCard = cardContainer('👁️ Visible Buttons', [
+    el('div', { className: 'kdl-setting-checkbox-grid' }, [
+      checkboxItem('kdl-setting-showZipButton', 'ZIP Download'),
+      checkboxItem('kdl-setting-showImagesButton', 'Images'),
+      checkboxItem('kdl-setting-showFilesButton', 'Attachments'),
+      checkboxItem('kdl-setting-showCopyLinksButton', 'Copy Links'),
+      checkboxItem('kdl-setting-showShareButton', 'Share Links'),
+      checkboxItem('kdl-setting-showTranslateButton', 'Translate')
+    ])
+  ]);
 
-        <h3>Translation</h3>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-translationProvider">Translation Provider</label>
-            <select id="kdl-setting-translationProvider">
-                <option value="none">None</option><option value="gemini">Gemini</option><option value="deepl">DeepL</option><option value="yandex">Yandex (Free)</option><option value="google">Google (Free)</option>
-            </select>
-        </div>
-        <div class="kdl-setting-item"><label for="kdl-setting-translationLanguage">Translate to Language</label><select id="kdl-setting-translationLanguage">${languageOptions}</select></div>
-        <div id="kdl-gemini-settings" style="display:none;"><div class="kdl-setting-item"><label>Gemini API Key</label><input type="password" id="kdl-setting-geminiApiKey"></div><div class="kdl-setting-item"><label>Model Name</label><input type="text" id="kdl-setting-translationModelName"></div></div>
-        <div id="kdl-deepl-settings" style="display:none;"><div class="kdl-setting-item"><label>DeepL API Key</label><input type="password" id="kdl-setting-deeplApiKey"></div><div class="kdl-setting-item"><label>API Tier</label><select id="kdl-setting-deeplApiTier"><option value="free">Free</option><option value="pro">Pro</option></select></div></div>
+  // 3 Columns & Content Grid
+  const col1 = el('div', { className: 'kdl-settings-col' }, [generalCard, templatesCard]);
+  const col2 = el('div', { className: 'kdl-settings-col' }, [zipCard]);
+  const col3 = el('div', { className: 'kdl-settings-col' }, [translationCard, visibleButtonsCard]);
+  const grid = el('div', { className: 'kdl-settings-grid' }, [col1, col2, col3]);
 
-        <h3>Manage Settings & Cache</h3>
-        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
-            <button id="kdl-export-btn" style="padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px;">Export Settings</button>
-            <button id="kdl-import-btn" style="padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 4px;">Import Settings</button>
-            <input type="file" id="kdl-import-file-input" accept=".json" style="display: none;">
-        </div>
+  const modalContent = el('div', { id: 'kdl-settings-modal-content' }, [
+    el('h2', {}, ['⚙️ Downloader Settings']),
+    grid
+  ]);
 
-        <div class="kdl-setting-item" style="display: flex; flex-direction: column; gap: 8px; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
-            <div id="kdl-cache-stats-text" style="font-size: 13px; color: #ccc;">Cached Data: Loading...</div>
-            <div style="display: flex; gap: 10px;">
-                <button id="kdl-clear-incomplete-cache-btn" style="padding: 6px 12px; background-color: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Incomplete Cache</button>
-                <button id="kdl-clear-all-cache-btn" style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear All Cache</button>
-            </div>
-        </div>
-    </div>
-    <div class="kdl-settings-actions"><button class="kdl-close">Close</button><button class="kdl-save">Save</button></div>
-  `;
+  const actionsFooter = el('div', { className: 'kdl-settings-actions' }, [
+    el('div', { className: 'kdl-settings-config-btns' }, [
+      el('button', { id: 'kdl-export-btn', className: 'kdl-btn-primary' }, ['Export Config']),
+      el('button', { id: 'kdl-import-btn', className: 'kdl-btn-info' }, ['Import Config']),
+      el('input', { type: 'file', id: 'kdl-import-file-input', accept: '.json', style: { display: 'none' } })
+    ]),
+    el('div', { className: 'kdl-settings-modal-btns' }, [
+      el('button', { className: 'kdl-close' }, ['Close']),
+      el('button', { className: 'kdl-save' }, ['Save'])
+    ])
+  ]);
 
+  settingsModalElement.appendChild(modalContent);
+  settingsModalElement.appendChild(actionsFooter);
   settingsOverlayElement.appendChild(settingsModalElement);
   document.body.appendChild(settingsOverlayElement);
 
+  // Event Listeners
   settingsModalElement.querySelector('.kdl-save')!.addEventListener('click', async () => {
     for (const key in DEFAULT_SETTINGS) {
       if (key === 'savedFileNameTemplates') continue;
@@ -174,6 +322,7 @@ export function createSettingsModal(): void {
       }
     }
     await saveSetting('savedFileNameTemplates', state.settings.savedFileNameTemplates || []);
+    await saveSetting('ignoredFileExtensions', state.settings.ignoredFileExtensions || []);
     showMessage('Settings saved!', 'info');
     toggleSettingsModal(false);
   });
@@ -254,7 +403,7 @@ export function updateSettingsModalUI(): void {
   refreshCacheStatsUI();
 
   const templateSelect = document.getElementById('kdl-template-select') as HTMLSelectElement;
-  templateSelect.innerHTML = '<option value="">-- Load a saved template --</option>';
+  templateSelect.replaceChildren(el('option', { value: '' }, ['-- Load a saved template --']));
   if (state.settings.savedFileNameTemplates && state.settings.savedFileNameTemplates.length > 0) {
     state.settings.savedFileNameTemplates.forEach((item) => {
       const option = document.createElement('option');
@@ -271,18 +420,26 @@ export function updateSettingsModalUI(): void {
 
   toggleTranslatorSettingsVisibility();
   toggleRetrySettingsVisibility();
+
+  if (renderIgnoredExtChipsFn) {
+    renderIgnoredExtChipsFn(state.settings.ignoredFileExtensions || []);
+  }
 }
 
 function toggleTranslatorSettingsVisibility(): void {
   const provider = (document.getElementById('kdl-setting-translationProvider') as HTMLSelectElement)?.value;
-  document.getElementById('kdl-gemini-settings')!.style.display = provider === 'gemini' ? 'block' : 'none';
-  document.getElementById('kdl-deepl-settings')!.style.display = provider === 'deepl' ? 'block' : 'none';
+  const geminiElem = document.getElementById('kdl-gemini-settings');
+  const deeplElem = document.getElementById('kdl-deepl-settings');
+  if (geminiElem) geminiElem.style.display = provider === 'gemini' ? 'block' : 'none';
+  if (deeplElem) deeplElem.style.display = provider === 'deepl' ? 'block' : 'none';
 }
 
 function toggleRetrySettingsVisibility(): void {
   const enabled = (document.getElementById('kdl-setting-enableDownloadRetries') as HTMLInputElement)?.checked;
-  document.getElementById('kdl-retry-count-setting')!.style.display = enabled ? 'block' : 'none';
-  document.getElementById('kdl-retry-delay-setting')!.style.display = enabled ? 'block' : 'none';
+  const countElem = document.getElementById('kdl-retry-count-setting');
+  const delayElem = document.getElementById('kdl-retry-delay-setting');
+  if (countElem) countElem.style.display = enabled ? 'block' : 'none';
+  if (delayElem) delayElem.style.display = enabled ? 'block' : 'none';
 }
 
 async function refreshCacheStatsUI(): Promise<void> {
