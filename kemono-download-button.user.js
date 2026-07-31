@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.8
+// @version      0.4.9
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1103,14 +1103,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   function getThumbnailUrl(path) {
     if (!path) return "";
-    let cleanPath = path.startsWith("/") ? path.slice(1) : path;
-    if (cleanPath.startsWith("data/")) {
-      cleanPath = cleanPath.slice(5);
+    let cleanPath = path.startsWith("/") ? path : "/" + path;
+    if (!cleanPath.startsWith("/data/")) {
+      cleanPath = "/data" + cleanPath;
     }
     const hostname = window.location.hostname;
     const parts = hostname.split(".");
     const baseDomain = parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
-    return `https://img.${baseDomain}/thumbnail/${cleanPath}`;
+    return `https://img.${baseDomain}/thumbnail${cleanPath}`;
   }
   function sanitizeFilename(filename) {
     return String(filename || "untitled").replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "untitled";
