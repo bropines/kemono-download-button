@@ -242,19 +242,14 @@ export function createAuthorManagerButton(): HTMLElement {
     'button',
     {
       id: 'kdl-author-manager-btn',
+      className: 'user-header__manage',
+      type: 'button',
       title: 'Load all posts from this author into a powerful manager with search and bulk selection.',
-      style: {
-        backgroundColor: '#6f42c1',
-        color: 'white',
-        border: 'none',
-        borderRadius: '4px',
-        padding: '0 12px',
-        height: '32px',
-        fontSize: '14px',
-        cursor: 'pointer'
-      },
       onClick: () => launchAuthorManager()
     },
-    ['🗂️ Manage All Posts']
+    [
+      el('span', { className: 'user-header__fav-icon' }, ['🗂️']),
+      el('span', { className: 'user-header__fav-text' }, ['Manage All Posts'])
+    ]
   );
 }

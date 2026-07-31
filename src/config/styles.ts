@@ -155,6 +155,44 @@ export const CSS_STYLES = `
   color: #111827 !important;
 }
 
+.user-header__manage,
+#kdl-author-manager-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  background-color: #2e3440 !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #4c566a !important;
+  border-radius: 4px !important;
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+  font-family: inherit !important;
+  font-weight: 500 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  text-decoration: none !important;
+  line-height: 1.4 !important;
+  height: auto !important;
+  box-sizing: border-box !important;
+}
+
+.user-header__manage:hover,
+#kdl-author-manager-btn:hover {
+  background-color: #6f42c1 !important;
+  border-color: #6f42c1 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(111, 66, 193, 0.35) !important;
+  outline: none !important;
+  text-shadow: none !important;
+}
+
+.user-header__manage:hover span,
+#kdl-author-manager-btn:hover span {
+  color: #ffffff !important;
+}
+
 /* UserScript 2-Column Action Panel */
 @media (min-width: 850px) {
   .post__header {
