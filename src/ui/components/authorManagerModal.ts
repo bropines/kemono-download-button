@@ -94,11 +94,10 @@ export function populateManagerList(posts: any[]): void {
     const postDate = post.published ? new Date(post.published).toISOString().split('T')[0] : 'No Date';
     const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
 
+    const mainFilePath = post.file?.path || (Array.isArray(post.attachments) && post.attachments[0]?.path);
     let previewElem: HTMLElement;
-    if (post.file?.path) {
-      const pathParts = post.file.path.split('/').filter((p: string) => p);
-      const fileName = pathParts.pop();
-      const thumbUrl = getThumbnailUrl(`${pathParts.join('/')}/${fileName}`);
+    if (mainFilePath) {
+      const thumbUrl = getThumbnailUrl(mainFilePath);
       previewElem = el('img', { src: thumbUrl, className: 'post-item-preview', loading: 'lazy' });
     } else {
       previewElem = el('div', { className: 'post-item-preview' });

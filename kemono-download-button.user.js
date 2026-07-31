@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.7
+// @version      0.4.8
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1102,7 +1102,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     return `${window.location.origin}${cleanPath}`;
   }
   function getThumbnailUrl(path) {
-    const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    if (!path) return "";
+    let cleanPath = path.startsWith("/") ? path.slice(1) : path;
+    if (cleanPath.startsWith("data/")) {
+      cleanPath = cleanPath.slice(5);
+    }
     const hostname = window.location.hostname;
     const parts = hostname.split(".");
     const baseDomain = parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
@@ -4582,14 +4586,13 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const listContainer = document.getElementById("kdl-manager-post-list");
     const fragment = document.createDocumentFragment();
     posts.forEach((post) => {
-      var _a2;
+      var _a2, _b2;
       const postDate = post.published ? new Date(post.published).toISOString().split("T")[0] : "No Date";
       const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
+      const mainFilePath = ((_a2 = post.file) == null ? void 0 : _a2.path) || Array.isArray(post.attachments) && ((_b2 = post.attachments[0]) == null ? void 0 : _b2.path);
       let previewElem;
-      if ((_a2 = post.file) == null ? void 0 : _a2.path) {
-        const pathParts = post.file.path.split("/").filter((p) => p);
-        const fileName = pathParts.pop();
-        const thumbUrl = getThumbnailUrl(`${pathParts.join("/")}/${fileName}`);
+      if (mainFilePath) {
+        const thumbUrl = getThumbnailUrl(mainFilePath);
         previewElem = el("img", { src: thumbUrl, className: "post-item-preview", loading: "lazy" });
       } else {
         previewElem = el("div", { className: "post-item-preview" });

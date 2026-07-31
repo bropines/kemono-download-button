@@ -47,7 +47,11 @@ export function getApiUrl(path: string): string {
 }
 
 export function getThumbnailUrl(path: string): string {
-  const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  if (!path) return '';
+  let cleanPath = path.startsWith('/') ? path.slice(1) : path;
+  if (cleanPath.startsWith('data/')) {
+    cleanPath = cleanPath.slice(5);
+  }
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   const baseDomain = parts.length >= 2 ? parts.slice(-2).join('.') : hostname;
