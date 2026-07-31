@@ -39,14 +39,18 @@ export function initializeShiftClickLogic(): void {
   postCards.forEach((card, index) => {
     const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
     if (!checkbox) return;
+
     checkbox.addEventListener('click', (event: MouseEvent) => {
       if (event.shiftKey && lastCheckedIndex !== null) {
+        event.preventDefault();
         const start = Math.min(index, lastCheckedIndex);
         const end = Math.max(index, lastCheckedIndex);
-        const isChecked = (postCards[lastCheckedIndex].querySelector('.kdl-post-checkbox') as HTMLInputElement).checked;
+        const lastCb = postCards[lastCheckedIndex].querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
+        const targetChecked = lastCb ? lastCb.checked : true;
+
         for (let i = start; i <= end; i++) {
           const cb = postCards[i].querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-          if (cb) cb.checked = isChecked;
+          if (cb) cb.checked = targetChecked;
         }
       }
       lastCheckedIndex = index;

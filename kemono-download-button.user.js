@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.4
+// @version      0.4.5
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4420,12 +4420,14 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       if (!checkbox) return;
       checkbox.addEventListener("click", (event) => {
         if (event.shiftKey && lastCheckedIndex !== null) {
+          event.preventDefault();
           const start = Math.min(index, lastCheckedIndex);
           const end = Math.max(index, lastCheckedIndex);
-          const isChecked = postCards[lastCheckedIndex].querySelector(".kdl-post-checkbox").checked;
+          const lastCb = postCards[lastCheckedIndex].querySelector(".kdl-post-checkbox");
+          const targetChecked = lastCb ? lastCb.checked : true;
           for (let i2 = start; i2 <= end; i2++) {
             const cb = postCards[i2].querySelector(".kdl-post-checkbox");
-            if (cb) cb.checked = isChecked;
+            if (cb) cb.checked = targetChecked;
           }
         }
         lastCheckedIndex = index;
