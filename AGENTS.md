@@ -42,3 +42,7 @@
   - `https://pawchive.pw/*`, `https://*.pawchive.pw/*`
   - `https://pawchive.st/*`, `https://*.pawchive.st/*`
 - Never hardcode domain names (such as `kemono.cr`) in API queries or asset URLs. Use `getApiUrl()` and `getThumbnailUrl()` helper functions that dynamically adapt based on `window.location.origin` and `window.location.hostname`.
+
+### 7. Versioning & Output Files
+- Always bump the patch version (the 3rd digit, e.g. `0.2.1` -> `0.2.2`) in `package.json` and `src/index.ts` header whenever code changes are made.
+- The build process must only generate the single main output file `kemono-download-button.user.js` in the root directory. Do not generate `.txt` or extra version-suffixed `.user.js` files.

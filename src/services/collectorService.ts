@@ -1,8 +1,8 @@
-import { fetchPostDataFromAPI } from '../api/kemonoApi';
+import { getApiAdapter } from '../api';
 import { getCachedPost, setCachedPost } from './cacheService';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
-import { debugLog, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename } from '../utils/helpers';
+import { debugLog, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename, isMediaFile } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 
 export function getPostDetailsFromPage(): PostDetails {
@@ -84,6 +84,21 @@ export function generateFilePath(template: string, fileData: Record<string, any>
   return formatNameFromTemplate(template, combinedData);
 }
 
+export function getWindowPageData(targetPostID?: string): any {
+  try {
+    const winData = (window as any).page_data;
+    if (winData) {
+      const post = winData.post || winData.props?.post || (Array.isArray(winData) ? winData[0] : winData);
+      if (post && post.id && (!targetPostID || String(post.id) === String(targetPostID))) {
+        return post;
+      }
+    }
+  } catch (e) {
+    debugLog('Failed to read page_data from window', e);
+  }
+  return null;
+}
+
 export async function collectFilesForPost(postDetails: PostDetails, options: Record<string, any> = {}): Promise<{ files: FileItem[]; postDate: string }> {
   await getSettings();
   const files: FileItem[] = [];
@@ -99,14 +114,21 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
   if (state.settings.enableAPIFetch && postDetails.service !== 'unknown' && postDetails.userID !== 'unknown' && postDetails.postID !== 'unknown') {
     try {
       const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
-      const cached = await getCachedPost(cacheKey);
-      if (cached) {
-        rawApiData = cached;
-        console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+      const windowPost = getWindowPageData(postDetails.postID);
+
+      if (windowPost) {
+        rawApiData = windowPost;
+        console.log(`[Kemono DL] Post metadata loaded directly from window.page_data: ${postDetails.postID}`);
       } else {
-        console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
-        rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
-        if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+        const cached = await getCachedPost(cacheKey);
+        if (cached) {
+          rawApiData = cached;
+          console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+        } else {
+          console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
+          rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
+          if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+        }
       }
 
       const post = rawApiData?.post || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);
@@ -158,7 +180,8 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
       };
 
       const finalPath = generateFilePath(templateToUse, pathData, postDetails);
-      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: 'url', isMedia: true });
+      const isMedia = isMediaFile(fileObj.name);
+      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: 'url', isMedia });
     });
 
     if (state.settings.savePostContentAsText && post.content) {
@@ -210,10 +233,8 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
       const tagsCacheKey = `tags_${postDetails.service}_${postDetails.userID}`;
       let tagsData = await getCachedPost(tagsCacheKey);
       if (!tagsData) {
-        const tagsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/tags`);
-        const tagsRes = await gmXmlhttpRequestWithRetries({ method: 'GET', url: tagsUrl, responseType: 'json' });
-        if (Array.isArray(tagsRes.response) && tagsRes.response.length > 0) {
-          tagsData = tagsRes.response;
+        tagsData = await getApiAdapter().fetchTags(postDetails.service, postDetails.userID);
+        if (tagsData && tagsData.length > 0) {
           await setCachedPost(tagsCacheKey, tagsData);
         }
       }
@@ -231,10 +252,8 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
       const commentsCacheKey = `comments_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
       let commentsData = await getCachedPost(commentsCacheKey);
       if (!commentsData) {
-        const commentsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`);
-        const commentsRes = await gmXmlhttpRequestWithRetries({ method: 'GET', url: commentsUrl, responseType: 'json' });
-        if (Array.isArray(commentsRes.response) && commentsRes.response.length > 0) {
-          commentsData = commentsRes.response;
+        commentsData = await getApiAdapter().fetchComments(postDetails.service, postDetails.userID, postDetails.postID);
+        if (commentsData && commentsData.length > 0) {
           await setCachedPost(commentsCacheKey, commentsData);
         }
       }

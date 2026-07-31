@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.2.1
+// @version      0.4.3
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -80,9 +80,8 @@ async function handlePageContent(): Promise<void> {
         header.appendChild(actionsDiv);
       }
 
-      if (actionsDiv) {
-        const favButton = Array.from(actionsDiv.querySelectorAll('button, a')).find((b) => b.textContent?.includes('Favorite'));
-        await createAndInsertPostPageButtons(actionsDiv as HTMLElement, favButton);
+      if (header) {
+        await createAndInsertPostPageButtons(header as HTMLElement);
         fetchAndCachePostData();
       }
     } else if (path.includes('/user/')) {

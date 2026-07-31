@@ -18,15 +18,9 @@ let bundleCode = fs.readFileSync(bundlePath, 'utf-8');
 
 const finalScript = `${header}\n\n${bundleCode}`;
 
-// Standard permanent update file name for Tampermonkey / Violentmonkey auto-updates
+// Standard single update file for Tampermonkey / Violentmonkey
 const permanentUserJs = path.join(rootDir, 'kemono-download-button.user.js');
 
-// Versioned output files for release archives
-const versionedUserJs = path.join(rootDir, `Kemono Download Button-${version}.user.js`);
-const versionedTxt = path.join(rootDir, `Kemono Download Button-${version}.txt`);
-
 fs.writeFileSync(permanentUserJs, finalScript, 'utf-8');
-fs.writeFileSync(versionedUserJs, finalScript, 'utf-8');
-fs.writeFileSync(versionedTxt, finalScript, 'utf-8');
 
-console.log(`Successfully generated:\n - ${permanentUserJs}\n - ${versionedUserJs}\n - ${versionedTxt}`);
+console.log(`Successfully generated:\n - ${permanentUserJs}`);

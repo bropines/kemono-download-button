@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.2.1
+// @version      0.4.3
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -99,14 +99,164 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 .post-card .post-card-download-controls button[data-is-downloading=true],
 .post__actions button[data-is-downloading=true] { background-color: #6c757d!important; }
 
+/* Native UI Post Actions (.post__flag & .post__fav) */
 .post__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  padding-top: 5px;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+  align-items: center !important;
+  margin-top: 8px !important;
+  padding: 0 !important;
 }
-.post__actions>* { margin: 0!important; }
+
+.post__actions > * {
+  margin: 0 !important;
+}
+
+.post__flag,
+.post__fav {
+  padding: 6px 14px !important;
+  border-radius: 5px !important;
+  font-size: 0.88em !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  outline: none !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+}
+
+.post__flag,
+.post__flag span,
+.post__flag-icon {
+  color: #f1f5f9 !important;
+}
+
+.post__flag {
+  background-color: #2e3440 !important;
+  border: 1px solid #4c566a !important;
+}
+
+.post__flag .post__flag-icon {
+  color: #ef4444 !important;
+}
+
+.post__flag:hover {
+  background-color: #dc3545 !important;
+  border-color: #dc3545 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(220, 53, 69, 0.35) !important;
+  outline: none !important;
+  text-shadow: none !important;
+}
+
+.post__flag:hover,
+.post__flag:hover span,
+.post__flag:hover .post__flag-icon {
+  color: #ffffff !important;
+}
+
+.post__fav,
+.post__fav span,
+.post__fav-icon {
+  color: #f1f5f9 !important;
+}
+
+.post__fav {
+  background-color: #2e3440 !important;
+  border: 1px solid #4c566a !important;
+}
+
+.post__fav .post__fav-icon {
+  color: #fbbf24 !important;
+}
+
+.post__fav:hover {
+  background-color: #ffc107 !important;
+  border-color: #ffc107 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.35) !important;
+  outline: none !important;
+  text-shadow: none !important;
+}
+
+.post__fav:hover,
+.post__fav:hover span,
+.post__fav:hover .post__fav-icon {
+  color: #111827 !important;
+}
+
+/* UserScript 2-Column Action Panel */
+@media (min-width: 850px) {
+  .post__header {
+    position: relative !important;
+  }
+  .post__info {
+    padding-right: 400px !important;
+  }
+  .kdl-actions-container {
+    position: absolute !important;
+    top: 15px !important;
+    right: 15px !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+    width: 380px !important;
+  }
+}
+
+@media (max-width: 849px) {
+  .kdl-actions-container {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    margin-top: 12px !important;
+    width: 100% !important;
+  }
+}
+
+.kdl-actions-col {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+}
+
+.kdl-button {
+  padding: 7px 12px !important;
+  border: none !important;
+  border-radius: 6px !important;
+  cursor: pointer !important;
+  font-size: 0.86rem !important;
+  font-weight: 600 !important;
+  line-height: 1.3 !important;
+  color: #fff !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  outline: none !important;
+  text-shadow: none !important;
+  transition: opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important;
+}
+
+.kdl-button:hover {
+  opacity: 0.95 !important;
+  filter: brightness(1.1) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+.kdl-button:active {
+  transform: translateY(0) !important;
+}
 
 #kdl-fixed-controls {
   position: fixed;
@@ -150,59 +300,321 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #00000080;
+  background-color: rgba(10, 13, 18, 0.75);
   display: none;
   justify-content: center;
   align-items: center;
   z-index: 10000;
-  -webkit-backdrop-filter: blur(7px);
-  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 #kdl-settings-modal {
-  background-color: #333;
-  color: #f0f0f0;
-  border-radius: 8px;
-  box-shadow: 0 5px 20px #0006;
-  width: 500px;
+  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
+  color: #f8fafc;
+  border-radius: 14px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  width: 1180px;
   max-width: 95vw;
   display: flex;
   flex-direction: column;
-  max-height: 85vh;
+  max-height: 88vh;
+  overflow: hidden;
 }
-#kdl-settings-modal-content { overflow-y: auto; padding: 0 25px; }
-#kdl-settings-modal h2 { margin-top: 25px; margin-bottom: 25px; padding-bottom: 10px; color: #00aeff; border-bottom: 1px solid #555; text-align: center; }
-#kdl-settings-modal h3 { margin-top: 20px; margin-bottom: 10px; color: #f0f0f0; border-bottom: 1px solid #444; padding-bottom: 8px; }
-#kdl-settings-modal label { display: block; margin-top: 15px; margin-bottom: 5px; font-weight: 700; }
-#kdl-settings-modal input[type=checkbox] { margin-right: 8px; vertical-align: middle; }
+#kdl-settings-modal-content {
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+#kdl-settings-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+#kdl-settings-modal-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 4px;
+}
+#kdl-settings-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 4px;
+}
+#kdl-settings-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+#kdl-settings-modal h2 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  color: #38bdf8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+  font-size: 1.3rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* 3-Column Grid Layout */
+.kdl-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .kdl-settings-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .kdl-settings-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kdl-settings-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.kdl-settings-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.kdl-settings-card h3 {
+  margin-top: 0 !important;
+  margin-bottom: 12px !important;
+  color: #f1f5f9 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding-bottom: 6px !important;
+  font-size: 1rem !important;
+  font-weight: 600 !important;
+}
+
+.kdl-settings-card h4 {
+  margin-top: 14px !important;
+  margin-bottom: 8px !important;
+  color: #cbd5e1 !important;
+  font-size: 0.9rem !important;
+  font-weight: 600 !important;
+}
+
+.kdl-setting-item {
+  margin-bottom: 12px;
+}
+
+#kdl-settings-modal label {
+  display: block;
+  margin-top: 6px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.86rem;
+  color: #e2e8f0;
+}
+
+#kdl-settings-modal input[type=checkbox] {
+  margin-right: 8px;
+  vertical-align: middle;
+  width: 16px;
+  height: 16px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+
 #kdl-settings-modal input[type=number],
 #kdl-settings-modal input[type=text],
 #kdl-settings-modal input[type=password],
 #kdl-settings-modal select {
   width: 100%;
-  padding: 8px 10px;
-  border-radius: 4px;
-  border: 1px solid #555;
-  background-color: #444;
-  color: #f0f0f0;
+  padding: 8px 11px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #f8fafc;
   box-sizing: border-box;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
 }
-#kdl-settings-modal input[type=number] { width: 80px; }
-#kdl-settings-modal small { display: block; font-size: .8em; color: #aaa; margin-top: 4px; font-weight: 400; }
+
+#kdl-settings-modal input[type=number]:focus,
+#kdl-settings-modal input[type=text]:focus,
+#kdl-settings-modal input[type=password]:focus,
+#kdl-settings-modal select:focus {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+  outline: none;
+}
+
+#kdl-settings-modal input[type=number] {
+  width: 90px;
+}
+
+#kdl-settings-modal select option {
+  background-color: #1e222b;
+  color: #f8fafc;
+}
+
+.kdl-cache-box {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  font-size: 0.82rem;
+  color: #94a3b8;
+}
+
+.kdl-setting-checkbox-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 10px;
+  margin-top: 6px;
+}
+
+/* Modal Button Classes */
+.kdl-btn-primary, .kdl-btn-info, .kdl-btn-warn, .kdl-btn-danger, .kdl-btn-success {
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 7px 12px !important;
+  font-weight: 600 !important;
+  font-size: 0.82rem !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+  color: #fff !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.kdl-btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important; }
+.kdl-btn-info { background: linear-gradient(135deg, #06b6d4, #0891b2) !important; }
+.kdl-btn-warn { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
+.kdl-btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c) !important; }
+.kdl-btn-success { background: linear-gradient(135deg, #10b981, #047857) !important; }
+
+.kdl-btn-primary:hover, .kdl-btn-info:hover, .kdl-btn-warn:hover, .kdl-btn-danger:hover, .kdl-btn-success:hover {
+  transform: translateY(-1px) !important;
+  filter: brightness(1.12) !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3) !important;
+}
+
+/* Tooltips */
+.kdl-tooltip-trigger {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 0.75rem;
+  color: #38bdf8;
+  cursor: help;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.kdl-tooltip-trigger:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #0f172a;
+  color: #f1f5f9;
+  padding: 8px 12px;
+  border-radius: 7px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  font-size: 0.78rem;
+  font-weight: 400;
+  white-space: normal;
+  width: 230px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+  z-index: 10010;
+  pointer-events: none;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.kdl-tooltip-trigger:hover::before {
+  content: '';
+  position: absolute;
+  bottom: 115%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #0f172a transparent transparent transparent;
+  z-index: 10011;
+  pointer-events: none;
+}
+
 .kdl-settings-actions {
-  text-align: right;
-  padding: 15px 25px;
-  background-color: #3a3a3a;
-  border-top: 1px solid #444;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background-color: rgba(20, 24, 32, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   margin-top: auto;
   position: sticky;
   bottom: 0;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
-#kdl-settings-modal button { padding: 10px 18px; border: none; border-radius: 4px; cursor: pointer; margin-left: 10px; font-weight: 700; }
-#kdl-settings-modal button.kdl-save { background-color: #28a745; color: #fff; }
-#kdl-settings-modal button.kdl-save:hover { background-color: #218838; }
-#kdl-settings-modal button.kdl-close { background-color: #6c757d; color: #fff; }
-#kdl-settings-modal button.kdl-close:hover { background-color: #5a6268; }
-#kdl-settings-modal .kdl-setting-item { margin-bottom: 10px; }
+
+.kdl-settings-config-btns {
+  display: flex;
+  gap: 8px;
+}
+
+.kdl-settings-modal-btns {
+  display: flex;
+  gap: 10px;
+}
+
+#kdl-settings-modal button.kdl-save {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff;
+  padding: 9px 22px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
+}
+
+#kdl-settings-modal button.kdl-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 5px 15px rgba(16, 185, 129, 0.35);
+  filter: brightness(1.1);
+}
+
+#kdl-settings-modal button.kdl-close {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 9px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-left: 10px;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+
+#kdl-settings-modal button.kdl-close:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  transform: translateY(-1px);
+}
 
 #kdl-progress-container {
   position: fixed;
@@ -286,43 +698,68 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #000000b3;
+  background-color: rgba(10, 13, 18, 0.75);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 10003;
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 #kdl-file-picker-modal {
-  background-color: #2b2b2b;
-  color: #f0f0f0;
-  border-radius: 8px;
-  padding: 20px;
-  width: 600px;
-  max-width: 90vw;
-  max-height: 80vh;
+  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
+  color: #f8fafc;
+  border-radius: 14px;
+  padding: 24px;
+  width: 620px;
+  max-width: 92vw;
+  max-height: 82vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 5px 20px #0000004d;
-  border: 1px solid #555;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
-#kdl-file-picker-modal h4 { margin: 0 0 15px; color: #00aeff; border-bottom: 1px solid #444; padding-bottom: 10px; text-align: center; }
-#kdl-file-picker-list { overflow-y: auto; list-style: none; padding: 0; margin: 0; }
-#kdl-file-picker-list li { margin-bottom: 5px; }
+#kdl-file-picker-modal h4 {
+  margin: 0 0 16px;
+  color: #38bdf8;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+#kdl-file-picker-list {
+  overflow-y: auto;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#kdl-file-picker-list li {
+  margin: 0;
+}
 #kdl-file-picker-list a {
   display: block;
-  padding: 8px 12px;
-  background-color: #3a3a3a;
-  border-radius: 4px;
-  color: #e0e0e0;
+  padding: 10px 14px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #cbd5e1;
   text-decoration: none;
-  transition: background-color .2s;
+  transition: all 0.2s ease;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-size: 0.88rem;
 }
-#kdl-file-picker-list a:hover { background-color: #4a4a4a; color: #fff; }
+#kdl-file-picker-list a:hover {
+  background-color: rgba(56, 189, 248, 0.12);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateX(3px);
+}
 
 .kdl-post-info-tooltip {
   position: absolute;
@@ -347,42 +784,150 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #000000b3;
+  background-color: rgba(10, 13, 18, 0.75);
   display: none;
   justify-content: center;
   align-items: center;
   z-index: 10003;
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 #kdl-author-manager-modal {
-  background-color: #2b2b2b;
-  color: #f0f0f0;
-  border-radius: 8px;
-  width: 800px;
+  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
+  color: #f8fafc;
+  border-radius: 14px;
+  width: 840px;
   max-width: 95vw;
-  height: 90vh;
+  height: 88vh;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 5px 20px #0000004d;
-  border: 1px solid #555;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  overflow: hidden;
 }
-#kdl-manager-header { padding: 15px 20px; border-bottom: 1px solid #444; }
-#kdl-manager-header h3 { margin: 0; color: #00aeff; }
-#kdl-manager-controls { display: flex; gap: 10px; padding: 10px 20px; border-bottom: 1px solid #444; align-items: center; }
-#kdl-manager-search { flex-grow: 1; padding: 8px; background-color: #3a3a3a; border: 1px solid #555; border-radius: 4px; color: #f0f0f0; }
-.kdl-manager-btn { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; }
-#kdl-manager-post-list { overflow-y: auto; flex-grow: 1; padding: 10px 20px; }
-#kdl-manager-post-list .post-item { display: flex; align-items: center; padding: 8px; border-radius: 4px; margin-bottom: 5px; cursor: pointer; transition: background-color .2s; }
-#kdl-manager-post-list .post-item:hover { background-color: #3a3a3a; }
-#kdl-manager-post-list .post-item input[type=checkbox] { margin-right: 15px; width: 18px; height: 18px; }
-.post-item-label { display: flex; flex-direction: column; }
-.post-item-title { font-weight: 700; }
-.post-item-date { font-size: .8em; color: #aaa; }
-#kdl-manager-footer { padding: 15px 20px; border-top: 1px solid #444; margin-top: auto; display: flex; justify-content: space-between; align-items: center; }
-.post-item-preview { width: 64px; height: 64px; object-fit: cover; margin-right: 15px; border-radius: 4px; background-color: #3a3a3a; }
-.post-item-open-link { margin-left: auto; padding: 4px 8px; font-size: 1.2em; line-height: 1; text-decoration: none; border-radius: 4px; transition: background-color .2s; color: #f0f0f0; }
-.post-item-open-link:hover { background-color: #4f4f4f; }
+#kdl-manager-header {
+  padding: 18px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background-color: rgba(255, 255, 255, 0.02);
+}
+#kdl-manager-header h3 {
+  margin: 0;
+  color: #38bdf8;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+#kdl-manager-controls {
+  display: flex;
+  gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.15);
+}
+#kdl-manager-search {
+  flex-grow: 1;
+  padding: 9px 14px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+#kdl-manager-search:focus {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: #38bdf8;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+.kdl-manager-btn {
+  padding: 9px 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.88rem;
+  transition: all 0.2s ease;
+}
+#kdl-manager-post-list {
+  overflow-y: auto;
+  flex-grow: 1;
+  padding: 14px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#kdl-manager-post-list .post-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+#kdl-manager-post-list .post-item:hover {
+  background-color: rgba(255, 255, 255, 0.07);
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateY(-1px);
+}
+#kdl-manager-post-list .post-item input[type=checkbox] {
+  margin-right: 15px;
+  width: 18px;
+  height: 18px;
+  accent-color: #38bdf8;
+  cursor: pointer;
+}
+.post-item-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.post-item-title {
+  font-weight: 600;
+  color: #f1f5f9;
+  font-size: 0.92rem;
+}
+.post-item-date {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+#kdl-manager-footer {
+  padding: 14px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: rgba(20, 24, 32, 0.95);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.post-item-preview {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  margin-right: 15px;
+  border-radius: 6px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.post-item-open-link {
+  margin-left: auto;
+  padding: 6px 12px;
+  font-size: 1rem;
+  line-height: 1;
+  text-decoration: none;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  color: #94a3b8;
+}
+.post-item-open-link:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #38bdf8;
+}
 
 .user-card, .post-card { position: relative!important; }
 .kdl-quick-fav-btn {
@@ -411,6 +956,65 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 .kdl-quick-fav-btn:hover { opacity: 1; transform: scale(1.1); }
 .kdl-quick-fav-btn.kdl-favorited { color: #ffeb3b; }
 .kdl-quick-fav-btn:disabled { cursor: wait; color: #888; }
+
+.kdl-chips-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 8px 10px;
+  transition: all 0.2s ease;
+}
+
+.kdl-chips-container:focus-within {
+  background-color: rgba(255, 255, 255, 0.08);
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
+.kdl-chips-wrapper {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kdl-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(14, 165, 233, 0.22));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.kdl-chip-remove {
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
+}
+
+.kdl-chip-remove:hover {
+  opacity: 1;
+  color: #ef4444;
+}
+
+.kdl-chips-input {
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  padding: 4px 0 !important;
+  font-size: 0.85rem !important;
+  color: #f8fafc !important;
+  outline: none !important;
+  width: 100% !important;
+}
 `;
   const DEFAULT_SETTINGS = {
     savePostTags: true,
@@ -447,7 +1051,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     bulkSingleInternalPathTemplate: "{post_date}_{post_title}/{file_index}_{file_name}",
     cacheDurationHours: 24,
     bulkMultipleSystemPathTemplate: "{author_name}/{post_date}_{post_title}.zip",
-    savedFileNameTemplates: []
+    savedFileNameTemplates: [],
+    ignoredFileExtensions: []
   };
   function debugLog(...args) {
     if (state.settings.enableDebugLogging) {
@@ -491,6 +1096,41 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   function sanitizeFilename(filename) {
     return String(filename || "untitled").replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "untitled";
+  }
+  const MEDIA_EXTENSIONS = /* @__PURE__ */ new Set([
+    "jpg",
+    "jpeg",
+    "png",
+    "gif",
+    "webp",
+    "bmp",
+    "svg",
+    "avif",
+    "mp4",
+    "webm",
+    "mkv",
+    "mov",
+    "avi",
+    "wmv",
+    "m4v",
+    "mp3",
+    "wav",
+    "flac",
+    "ogg",
+    "m4a",
+    "aac"
+  ]);
+  function isMediaFile(filename) {
+    var _a2;
+    if (!filename) return false;
+    const ext = ((_a2 = filename.split(".").pop()) == null ? void 0 : _a2.toLowerCase()) || "";
+    return MEDIA_EXTENSIONS.has(ext);
+  }
+  function isFileExtensionIgnored(filename, ignoredExts) {
+    var _a2;
+    if (!ignoredExts || ignoredExts.length === 0 || !filename) return false;
+    const ext = ((_a2 = filename.split(".").pop()) == null ? void 0 : _a2.toLowerCase()) || "";
+    return ignoredExts.some((ignored) => ignored.toLowerCase().replace(/^\./, "").trim() === ext);
   }
   function generateRandomId(length) {
     let result = "";
@@ -671,7 +1311,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
               if (response.status >= 200 && response.status < 300) {
                 resolve(response);
               } else {
-                reject(new Error(`HTTP Status ${response.status}: ${response.statusText}`));
+                const err2 = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
+                err2.status = response.status;
+                reject(err2);
               }
             },
             onerror: (error) => {
@@ -712,6 +1354,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           if (mainMatch && !mainMatch[1].startsWith("c") && !mainMatch[1].startsWith("file")) {
             currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
             debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
+          } else if (error.status === 404 || error.status === 401 || error.status === 403) {
+            throw error;
           }
         }
         if (attempts > maxRetries + 4) {
@@ -722,9 +1366,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
-  async function fetchPostDataFromAPI(service, userID, postID) {
+  async function fetchPostDataFromAPI$1(service, userID, postID) {
     const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
-    debugLog(`Fetching post data from API: ${url}`);
+    debugLog(`[Kemono API] Fetching post data: ${url}`);
     const response = await gmXmlhttpRequestWithRetries({
       method: "GET",
       url,
@@ -739,7 +1383,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const limit = 50;
     while (true) {
       try {
-        if (progressTask) ;
+        if (progressTask) {
+          progressTask.updateStatus(`Fetching page ${offset / limit + 1}... Found ${allPosts.length} posts.`);
+        }
         const url = getApiUrl(`/api/v1/${service}/user/${userID}/posts?o=${offset}`);
         const response = await gmXmlhttpRequestWithRetries({
           method: "GET",
@@ -754,35 +1400,155 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         await new Promise((res) => setTimeout(res, 200));
       } catch (error) {
         if (error.message && error.message.includes("Status 400")) {
-          debugLog("Reached end of posts (API returned 400). This is a normal exit condition.");
+          debugLog("Reached end of posts (API returned 400). Normal exit condition.");
         } else {
           console.error(`Failed to fetch posts at offset ${offset}:`, error);
-          showMessage("Error fetching full post list. The result may be incomplete.", "error");
+          showMessage("Error fetching full post list.", "error");
+          if (progressTask) {
+            progressTask.updateStatus(`Error fetching posts: ${error.message}`);
+          }
         }
         break;
       }
     }
+    if (progressTask) {
+      progressTask.updateStatus(`Complete! Found ${allPosts.length} posts.`);
+      progressTask.finish(3e3);
+    }
     return allPosts;
+  }
+  async function searchPosts(query = "", offset = 0, service = "") {
+    try {
+      let path = `/api/v1/posts?o=${offset}`;
+      if (query) path += `&q=${encodeURIComponent(query)}`;
+      if (service) path += `&service=${encodeURIComponent(service)}`;
+      const url = getApiUrl(path);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : [];
+    } catch (e) {
+      debugLog("[Kemono API] Failed searchPosts", e);
+      return [];
+    }
+  }
+  async function fetchPopularPosts() {
+    try {
+      const url = getApiUrl("/api/v1/posts/popular");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : [];
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchPopularPosts", e);
+      return [];
+    }
+  }
+  async function fetchPostRevisions(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/revisions`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchPostRevisions", e);
+      return null;
+    }
+  }
+  async function fetchCommentsFromAPI(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/comments`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCommentsFromAPI", e);
+      return null;
+    }
+  }
+  async function fetchTagsFromAPI(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/tags`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchTagsFromAPI", e);
+      return null;
+    }
+  }
+  async function flagPost(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/flag`);
+      await gmXmlhttpRequestWithRetries({ method: "POST", url });
+      return true;
+    } catch (e) {
+      debugLog("[Kemono API] Failed flagPost", e);
+      return false;
+    }
+  }
+  async function fetchCreators() {
+    try {
+      const url = getApiUrl("/api/v1/creators.txt");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreators", e);
+      return null;
+    }
+  }
+  async function fetchUpdatedCreators() {
+    try {
+      const url = getApiUrl("/api/v1/creators/updated");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchUpdatedCreators", e);
+      return null;
+    }
+  }
+  async function fetchCreatorProfile(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/profile`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreatorProfile", e);
+      return null;
+    }
+  }
+  async function fetchCreatorAnnouncements(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/announcements`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreatorAnnouncements", e);
+      return null;
+    }
+  }
+  async function fetchCreatorFancards(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/fancards`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreatorFancards", e);
+      return null;
+    }
+  }
+  async function fetchCreatorLinks(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/links`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreatorLinks", e);
+      return null;
+    }
   }
   async function fetchUserFavorites() {
     if (appState.favoritesFetched) return true;
     await getSettings();
-    if (!state.settings.sessionCookie) {
-      return false;
-    }
-    debugLog("Fetching user favorites from API...");
+    if (!state.settings.sessionCookie) return false;
+    debugLog("[Kemono API] Fetching user favorites...");
     try {
       const [artistsRes, postsRes] = await Promise.all([
-        gmXmlhttpRequestWithRetries({
-          method: "GET",
-          url: getApiUrl("/api/v1/account/favorites?type=artist"),
-          responseType: "json"
-        }),
-        gmXmlhttpRequestWithRetries({
-          method: "GET",
-          url: getApiUrl("/api/v1/account/favorites?type=post"),
-          responseType: "json"
-        })
+        gmXmlhttpRequestWithRetries({ method: "GET", url: getApiUrl("/api/v1/account/favorites?type=artist"), responseType: "json" }),
+        gmXmlhttpRequestWithRetries({ method: "GET", url: getApiUrl("/api/v1/account/favorites?type=post"), responseType: "json" })
       ]);
       if (artistsRes.response && Array.isArray(artistsRes.response)) {
         artistsRes.response.forEach((artist) => appState.favoritedArtists.add(`${artist.service}-${artist.id}`));
@@ -791,21 +1557,29 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         postsRes.response.forEach((post) => appState.favoritedPosts.add(post.id));
       }
       appState.favoritesFetched = true;
-      debugLog(`Favorites loaded: ${appState.favoritedArtists.size} artists, ${appState.favoritedPosts.size} posts.`);
+      debugLog(`[Kemono API] Favorites loaded: ${appState.favoritedArtists.size} artists, ${appState.favoritedPosts.size} posts.`);
       return true;
     } catch (error) {
       if (error.message && error.message.includes("Status 401")) {
         showMessage("Favorites: Auth failed. Check your session cookie.", "error");
-      } else {
-        console.error("Failed to fetch favorites:", error);
       }
       return false;
     }
   }
-  async function toggleFavorite(button, type, service, creatorId, postId = null, updateCardStateFn) {
+  async function fetchAccountProfile() {
+    try {
+      const url = getApiUrl("/api/v1/account/profile");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response || null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchAccountProfile", e);
+      return null;
+    }
+  }
+  async function toggleFavorite$1(button, type, service, creatorId, postId = null, updateCardStateFn) {
     await getSettings();
     if (!state.settings.sessionCookie) {
-      showMessage("Session cookie is required to manage favorites. Please set it in the script settings.", "error");
+      showMessage("Session cookie is required to manage favorites.", "error");
       return;
     }
     const artistKey = `${service}-${creatorId}`;
@@ -815,10 +1589,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     button.textContent = "⏳";
     button.disabled = true;
     try {
-      await gmXmlhttpRequestWithRetries({
-        method,
-        url: getApiUrl(apiUrl)
-      });
+      await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
       if (isFavorited) {
         if (type === "creator") appState.favoritedArtists.delete(artistKey);
         else if (postId) appState.favoritedPosts.delete(postId);
@@ -831,13 +1602,110 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
       showMessage(`Successfully ${isFavorited ? "removed from" : "added to"} favorites!`, "info");
     } catch (error) {
-      console.error("Favorite toggle failed:", error);
-      showMessage("Failed to update favorites. Check console for details.", "error");
+      console.error("[Kemono API] Favorite toggle failed:", error);
+      showMessage("Failed to update favorites.", "error");
     } finally {
       button.textContent = "⭐";
       button.disabled = false;
     }
   }
+  async function fetchDMs() {
+    try {
+      const url = getApiUrl("/api/v1/dms");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchDMs", e);
+      return null;
+    }
+  }
+  async function fetchCreatorDMs(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/dms`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchCreatorDMs", e);
+      return null;
+    }
+  }
+  async function fetchShares() {
+    try {
+      const url = getApiUrl("/api/v1/shares");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchShares", e);
+      return null;
+    }
+  }
+  async function lookupHash(fileHash) {
+    try {
+      const url = getApiUrl(`/api/v1/search_hash/${encodeURIComponent(fileHash)}`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response || null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed lookupHash", e);
+      return null;
+    }
+  }
+  async function fetchAppVersion() {
+    try {
+      const url = getApiUrl("/api/v1/app_version");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response || null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchAppVersion", e);
+      return null;
+    }
+  }
+  async function fetchDiscordChannels() {
+    try {
+      const url = getApiUrl("/api/v1/discord/channels");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchDiscordChannels", e);
+      return null;
+    }
+  }
+  async function fetchDiscordChannelMessages(channelId) {
+    try {
+      const url = getApiUrl(`/api/v1/discord/channel/${encodeURIComponent(channelId)}`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("[Kemono API] Failed fetchDiscordChannelMessages", e);
+      return null;
+    }
+  }
+  const kemonoApiAdapter = {
+    name: "kemono",
+    fetchCreators,
+    fetchUpdatedCreators,
+    fetchCreatorProfile,
+    fetchCreatorAnnouncements,
+    fetchCreatorFancards,
+    fetchCreatorLinks,
+    fetchPostData: fetchPostDataFromAPI$1,
+    fetchAllAuthorPosts,
+    searchPosts,
+    fetchPopularPosts,
+    fetchPostRevisions,
+    fetchComments: fetchCommentsFromAPI,
+    fetchTags: fetchTagsFromAPI,
+    flagPost,
+    fetchUserFavorites,
+    fetchAccountProfile,
+    toggleFavorite: toggleFavorite$1,
+    fetchDMs,
+    fetchCreatorDMs,
+    fetchShares,
+    lookupHash,
+    fetchAppVersion,
+    fetchDiscordChannels,
+    fetchDiscordChannelMessages
+  };
   const DB_NAME = "KemonoDownloaderCache";
   const DB_VERSION = 1;
   const STORE_FILES = "files";
@@ -1033,6 +1901,100 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
+  function tooltipSpan(text) {
+    return el("span", { className: "kdl-tooltip-trigger", dataset: { tooltip: text } }, ["ℹ️"]);
+  }
+  function checkboxItem(id, text, tooltipText) {
+    const checkbox = el("input", { type: "checkbox", id });
+    const labelChildren = [checkbox, ` ${text}`];
+    if (tooltipText) labelChildren.push(" ", tooltipSpan(tooltipText));
+    return el("div", { className: "kdl-setting-item" }, [el("label", {}, labelChildren)]);
+  }
+  function inputItem(id, type, labelText, props = {}, tooltipText, containerId) {
+    const inputElem = el("input", { type, id, ...props });
+    const labelChildren = [labelText];
+    if (tooltipText) labelChildren.push(" ", tooltipSpan(tooltipText));
+    const labelElem = el("label", { htmlFor: id }, labelChildren);
+    const containerProps = { className: "kdl-setting-item" };
+    if (containerId) containerProps.id = containerId;
+    return el("div", containerProps, [labelElem, inputElem]);
+  }
+  function selectItem(id, labelText, options, tooltipText) {
+    const selectElem = el(
+      "select",
+      { id },
+      options.map((opt) => el("option", { value: opt.value }, [opt.text]))
+    );
+    const labelChildren = [labelText];
+    if (tooltipText) labelChildren.push(" ", tooltipSpan(tooltipText));
+    const labelElem = el("label", { htmlFor: id }, labelChildren);
+    return el("div", { className: "kdl-setting-item" }, [labelElem, selectElem]);
+  }
+  let renderIgnoredExtChipsFn = null;
+  function createChipsInputItem(id, labelText, tooltipText) {
+    const chipsWrapper = el("div", { className: "kdl-chips-wrapper" });
+    const inputElem = el("input", {
+      type: "text",
+      id: `${id}-input`,
+      placeholder: "Type ext (e.g. txt, psd) & press Enter...",
+      className: "kdl-chips-input"
+    });
+    const renderChips = (values) => {
+      const uniqueVals = [...new Set(values.map((v) => v.toLowerCase().replace(/^\./, "").trim()).filter(Boolean))];
+      state.settings.ignoredFileExtensions = uniqueVals;
+      chipsWrapper.replaceChildren(
+        ...uniqueVals.map((val) => {
+          const removeBtn = el(
+            "span",
+            {
+              className: "kdl-chip-remove",
+              onClick: (e) => {
+                e.stopPropagation();
+                const updated = (state.settings.ignoredFileExtensions || []).filter((v) => v !== val);
+                renderChips(updated);
+              }
+            },
+            ["✖"]
+          );
+          return el("span", { className: "kdl-chip" }, [val, removeBtn]);
+        })
+      );
+    };
+    renderIgnoredExtChipsFn = renderChips;
+    const addExtension = (raw) => {
+      const cleaned = raw.toLowerCase().replace(/^\./, "").trim();
+      if (cleaned) {
+        const current = state.settings.ignoredFileExtensions || [];
+        if (!current.includes(cleaned)) {
+          renderChips([...current, cleaned]);
+        }
+      }
+      inputElem.value = "";
+    };
+    inputElem.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === ",") {
+        e.preventDefault();
+        addExtension(inputElem.value);
+      }
+    });
+    inputElem.addEventListener("blur", () => {
+      if (inputElem.value.trim()) {
+        addExtension(inputElem.value);
+      }
+    });
+    const labelChildren = [labelText];
+    labelChildren.push(" ", tooltipSpan(tooltipText));
+    return el("div", { className: "kdl-setting-item", id }, [
+      el("label", { htmlFor: `${id}-input` }, labelChildren),
+      el("div", { className: "kdl-chips-container" }, [chipsWrapper, inputElem])
+    ]);
+  }
+  function cardContainer(title, children) {
+    return el("div", { className: "kdl-settings-card" }, [
+      el("h3", {}, [title]),
+      ...children
+    ]);
+  }
   async function toggleSettingsModal(forceShow) {
     try {
       await getSettings();
@@ -1053,130 +2015,141 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   function createSettingsModal() {
     if (settingsModalElement) return;
     const langCodeMap = {
-      auto: "auto",
-      russian: "ru",
-      english: "en",
-      chinese: "zh",
-      japanese: "ja",
-      korean: "ko"
+      auto: "Auto",
+      russian: "Russian",
+      english: "English",
+      chinese: "Chinese",
+      japanese: "Japanese",
+      korean: "Korean"
     };
-    const languageOptions = Object.keys(langCodeMap).map((name) => `<option value="${name}">${name.charAt(0).toUpperCase() + name.slice(1)}</option>`).join("");
+    const langOptions = Object.entries(langCodeMap).map(([value, text]) => ({ value, text }));
     settingsOverlayElement = el("div", { id: "kdl-settings-overlay" });
     settingsModalElement = el("div", { id: "kdl-settings-modal" });
-    settingsModalElement.innerHTML = `
-    <div id="kdl-settings-modal-content">
-        <h2>Downloader Settings</h2>
-        <h3>General</h3>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableAPIFetch"> Enable Site API Fetching</label></div>
-        <div class="kdl-setting-item"><label>Session Cookie <input type="password" id="kdl-setting-sessionCookie" placeholder="Paste session cookie here"></label><small>Needed for API requests that require login.</small></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostContentAsText"> Save Post Content as .txt in ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-addMetadataFile"> Add metadata.json to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-addHtmlIndexInZip"> Add _index.html to Bulk ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostTags"> Add tags.txt to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-savePostComments"> Add comments.txt to ZIP</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDebugLogging"> Enable Debug Logging (Console)</label></div>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-zipCompressionLevel">ZIP Compression Level</label>
-            <select id="kdl-setting-zipCompressionLevel">
-                <option value="0">0 - Store (Instant, 0% CPU - Recommended for Videos & Images)</option>
-                <option value="1">1 - Fast (Light Compression)</option>
-                <option value="4">4 - Normal (Balanced)</option>
-                <option value="6">6 - Standard (Medium Deflate)</option>
-                <option value="9">9 - Maximum (Highest Compression)</option>
-            </select>
-        </div>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-cacheDurationHours">Post List Cache Duration (Hours)</label>
-            <input type="number" id="kdl-setting-cacheDurationHours" min="0" step="1">
-            <small>0 = disable caching. How long to store the full post list before re-fetching.</small>
-        </div>
-
-        <h3>File Naming & Structure</h3>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-fileNameTemplate">Template for <u>Individual Downloads</u></label>
-            <input type="text" id="kdl-setting-fileNameTemplate">
-            <small>Defines the save path for single files. <b>Example:</b> {author_name}/{post_date}_{post_title}/{file_name}</small>
-        </div>
-        <div class="kdl-setting-item">
-            <label for="kdl-template-select">Saved Templates</label>
-            <div style="display: flex; gap: 5px;">
-                <select id="kdl-template-select" style="flex-grow: 1;"></select>
-                <button id="kdl-template-delete-btn" style="padding: 5px 10px; background-color: #dc3545; color: white; border: none; border-radius: 4px;">Delete</button>
-            </div>
-            <div style="display: flex; gap: 5px; margin-top: 5px;">
-                <input type="text" id="kdl-template-name-input" placeholder="New template name..." style="flex-grow: 1;">
-                <button id="kdl-template-save-btn" style="padding: 5px 10px; background-color: #28a745; color: white; border: none; border-radius: 4px;">Save Current</button>
-            </div>
-        </div>
-
-        <h4>Bulk Download Settings</h4>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-bulkDownloadMode">Bulk Download Mode</label>
-            <select id="kdl-setting-bulkDownloadMode">
-                <option value="single">One Big Archive</option>
-                <option value="multiple">Multiple Archives (one per post)</option>
-            </select>
-        </div>
-        <div id="kdl-bulk-single-settings">
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkSingleSystemPathTemplate"><u>System Path</u> for the Big Archive</label>
-                <input type="text" id="kdl-setting-bulkSingleSystemPathTemplate">
-            </div>
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkSingleInternalPathTemplate"><u>Internal Structure</u> inside the Big Archive</label>
-                <input type="text" id="kdl-setting-bulkSingleInternalPathTemplate">
-            </div>
-        </div>
-        <div id="kdl-bulk-multiple-settings" style="display:none;">
-            <div class="kdl-setting-item">
-                <label for="kdl-setting-bulkMultipleSystemPathTemplate"><u>System Path</u> for Multiple Archives</label>
-                <input type="text" id="kdl-setting-bulkMultipleSystemPathTemplate">
-            </div>
-        </div>
-
-        <h3>Visible Buttons</h3>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showZipButton"> Download (ZIP)</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showImagesButton"> Download Images</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showFilesButton"> Download Attachments</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showCopyLinksButton"> Copy Links</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showShareButton"> Share Links (Mobile)</label></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-showTranslateButton"> Translate Button</label></div>
-
-        <h3>Downloads</h3>
-        <div class="kdl-setting-item"><label for="kdl-setting-maxConcurrentIndividualDownloads">Max Concurrent "Images/Files" Downloads</label><input type="number" id="kdl-setting-maxConcurrentIndividualDownloads" min="1" max="10"></div>
-        <div class="kdl-setting-item"><label for="kdl-setting-zipFileDownloadTimeout">File Timeout in ZIP (ms)</label><input type="number" id="kdl-setting-zipFileDownloadTimeout" min="10000" step="1000"></div>
-        <div class="kdl-setting-item"><label><input type="checkbox" id="kdl-setting-enableDownloadRetries"> Enable Download Retries</label></div>
-        <div class="kdl-setting-item" id="kdl-retry-count-setting"><label for="kdl-setting-downloadRetryCount">Number of Retries</label><input type="number" id="kdl-setting-downloadRetryCount" min="0" max="5"></div>
-        <div class="kdl-setting-item" id="kdl-retry-delay-setting"><label for="kdl-setting-downloadRetryDelay">Delay Between Retries (ms)</label><input type="number" id="kdl-setting-downloadRetryDelay" min="500" step="500"></div>
-
-        <h3>Translation</h3>
-        <div class="kdl-setting-item">
-            <label for="kdl-setting-translationProvider">Translation Provider</label>
-            <select id="kdl-setting-translationProvider">
-                <option value="none">None</option><option value="gemini">Gemini</option><option value="deepl">DeepL</option><option value="yandex">Yandex (Free)</option><option value="google">Google (Free)</option>
-            </select>
-        </div>
-        <div class="kdl-setting-item"><label for="kdl-setting-translationLanguage">Translate to Language</label><select id="kdl-setting-translationLanguage">${languageOptions}</select></div>
-        <div id="kdl-gemini-settings" style="display:none;"><div class="kdl-setting-item"><label>Gemini API Key</label><input type="password" id="kdl-setting-geminiApiKey"></div><div class="kdl-setting-item"><label>Model Name</label><input type="text" id="kdl-setting-translationModelName"></div></div>
-        <div id="kdl-deepl-settings" style="display:none;"><div class="kdl-setting-item"><label>DeepL API Key</label><input type="password" id="kdl-setting-deeplApiKey"></div><div class="kdl-setting-item"><label>API Tier</label><select id="kdl-setting-deeplApiTier"><option value="free">Free</option><option value="pro">Pro</option></select></div></div>
-
-        <h3>Manage Settings & Cache</h3>
-        <div class="kdl-setting-item" style="display: flex; gap: 10px; justify-content: center; margin-bottom: 15px;">
-            <button id="kdl-export-btn" style="padding: 8px 15px; background-color: #007bff; color: white; border: none; border-radius: 4px;">Export Settings</button>
-            <button id="kdl-import-btn" style="padding: 8px 15px; background-color: #17a2b8; color: white; border: none; border-radius: 4px;">Import Settings</button>
-            <input type="file" id="kdl-import-file-input" accept=".json" style="display: none;">
-        </div>
-
-        <div class="kdl-setting-item" style="display: flex; flex-direction: column; gap: 8px; align-items: center; background: rgba(255,255,255,0.05); padding: 10px; border-radius: 6px;">
-            <div id="kdl-cache-stats-text" style="font-size: 13px; color: #ccc;">Cached Data: Loading...</div>
-            <div style="display: flex; gap: 10px;">
-                <button id="kdl-clear-incomplete-cache-btn" style="padding: 6px 12px; background-color: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear Incomplete Cache</button>
-                <button id="kdl-clear-all-cache-btn" style="padding: 6px 12px; background-color: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">Clear All Cache</button>
-            </div>
-        </div>
-    </div>
-    <div class="kdl-settings-actions"><button class="kdl-close">Close</button><button class="kdl-save">Save</button></div>
-  `;
+    const generalCard = cardContainer("⚙️ General & Cache", [
+      checkboxItem("kdl-setting-enableAPIFetch", "Enable Site API Fetching", "Use fast site REST API instead of parsing HTML pages"),
+      inputItem("kdl-setting-sessionCookie", "password", "Session Cookie", { placeholder: "Paste session cookie here" }, "Session authentication cookie. Required to access restricted or paywalled posts"),
+      inputItem("kdl-setting-cacheDurationHours", "number", "Post List Cache Duration (Hours)", { min: 0, step: 1 }, "Post list cache retention duration. 0 = disable caching"),
+      checkboxItem("kdl-setting-enableDebugLogging", "Enable Debug Logging in Console"),
+      el("div", { className: "kdl-cache-box" }, [
+        el("div", { id: "kdl-cache-stats-text" }, ["Cached Data: Loading..."]),
+        el("div", { style: { display: "flex", gap: "8px", marginTop: "6px" } }, [
+          el("button", { id: "kdl-clear-incomplete-cache-btn", className: "kdl-btn-warn", style: { flex: "1" } }, ["Clear Incomplete"]),
+          el("button", { id: "kdl-clear-all-cache-btn", className: "kdl-btn-danger", style: { flex: "1" } }, ["Clear All"])
+        ])
+      ])
+    ]);
+    const templatesCard = cardContainer("📁 File Naming & Templates", [
+      inputItem("kdl-setting-fileNameTemplate", "text", "Template for Individual Downloads", {}, "Available tags: {author_name}, {post_date}, {post_title}, {file_name}, {service}"),
+      el("div", { className: "kdl-setting-item" }, [
+        el("label", { htmlFor: "kdl-template-select" }, ["Saved Templates"]),
+        el("div", { style: { display: "flex", gap: "6px" } }, [
+          el("select", { id: "kdl-template-select", style: { flexGrow: "1" } }),
+          el("button", { id: "kdl-template-delete-btn", className: "kdl-btn-danger" }, ["Delete"])
+        ]),
+        el("div", { style: { display: "flex", gap: "6px", marginTop: "6px" } }, [
+          el("input", { type: "text", id: "kdl-template-name-input", placeholder: "New template name...", style: { flexGrow: "1" } }),
+          el("button", { id: "kdl-template-save-btn", className: "kdl-btn-success" }, ["Save"])
+        ])
+      ]),
+      el("h4", {}, ["Bulk Download Settings ", tooltipSpan("Choose between one big ZIP archive for all posts or individual ZIP archives per post")]),
+      selectItem("kdl-setting-bulkDownloadMode", "Bulk Download Mode", [
+        { value: "single", text: "One Big Archive" },
+        { value: "multiple", text: "Multiple Archives (one per post)" }
+      ]),
+      el("div", { id: "kdl-bulk-single-settings" }, [
+        inputItem("kdl-setting-bulkSingleSystemPathTemplate", "text", "System Path for Big Archive"),
+        inputItem("kdl-setting-bulkSingleInternalPathTemplate", "text", "Internal Structure inside Big Archive")
+      ]),
+      el("div", { id: "kdl-bulk-multiple-settings", style: { display: "none" } }, [
+        inputItem("kdl-setting-bulkMultipleSystemPathTemplate", "text", "System Path for Multiple Archives")
+      ])
+    ]);
+    const zipCard = cardContainer("📦 ZIP Engine & Performance", [
+      selectItem(
+        "kdl-setting-zipCompressionLevel",
+        "ZIP Compression Level",
+        [
+          { value: "0", text: "0 - Store (Instant, 0% CPU - Recommended)" },
+          { value: "1", text: "1 - Fast (Light Compression)" },
+          { value: "4", text: "4 - Normal (Balanced)" },
+          { value: "6", text: "6 - Standard (Medium Deflate)" },
+          { value: "9", text: "9 - Maximum (Highest Compression)" }
+        ],
+        "0 = Store / Instant packaging (0% CPU, best for videos and images). 9 = Maximum compression"
+      ),
+      checkboxItem("kdl-setting-savePostContentAsText", "Save Post Content as .txt"),
+      checkboxItem("kdl-setting-addMetadataFile", "Add metadata.json to ZIP"),
+      checkboxItem("kdl-setting-addHtmlIndexInZip", "Add _index.html to Bulk ZIP"),
+      checkboxItem("kdl-setting-savePostTags", "Add tags.txt to ZIP"),
+      checkboxItem("kdl-setting-savePostComments", "Add comments.txt to ZIP"),
+      inputItem("kdl-setting-maxConcurrentIndividualDownloads", "number", "Max Concurrent Downloads", { min: 1, max: 10 }, "Number of concurrent file download streams (1-10)"),
+      inputItem("kdl-setting-zipFileDownloadTimeout", "number", "File Timeout (ms)", { min: 1e4, step: 1e3 }, "Maximum response timeout when downloading a file inside ZIP"),
+      checkboxItem("kdl-setting-enableDownloadRetries", "Enable Download Retries", "Automatically retry failed downloads on network errors"),
+      inputItem("kdl-setting-downloadRetryCount", "number", "Number of Retries", { min: 0, max: 5 }, void 0, "kdl-retry-count-setting"),
+      inputItem("kdl-setting-downloadRetryDelay", "number", "Retry Delay (ms)", { min: 500, step: 500 }, void 0, "kdl-retry-delay-setting"),
+      createChipsInputItem(
+        "kdl-ignored-extensions-setting",
+        "Ignored Extensions in ZIP",
+        "File extensions to exclude from ZIP archives (e.g. txt, psd, mp4). Case-insensitive & auto-deduplicated."
+      )
+    ]);
+    const translationCard = cardContainer("🌐 Translation", [
+      selectItem(
+        "kdl-setting-translationProvider",
+        "Translation Provider",
+        [
+          { value: "none", text: "None" },
+          { value: "gemini", text: "Gemini AI" },
+          { value: "deepl", text: "DeepL" },
+          { value: "yandex", text: "Yandex (Free)" },
+          { value: "google", text: "Google (Free)" }
+        ],
+        "Service for automated translation of post titles and text content"
+      ),
+      selectItem("kdl-setting-translationLanguage", "Target Language", langOptions),
+      el("div", { id: "kdl-gemini-settings", style: { display: "none" } }, [
+        inputItem("kdl-setting-geminiApiKey", "password", "Gemini API Key"),
+        inputItem("kdl-setting-translationModelName", "text", "Model Name")
+      ]),
+      el("div", { id: "kdl-deepl-settings", style: { display: "none" } }, [
+        inputItem("kdl-setting-deeplApiKey", "password", "DeepL API Key"),
+        selectItem("kdl-setting-deeplApiTier", "API Tier", [
+          { value: "free", text: "Free" },
+          { value: "pro", text: "Pro" }
+        ])
+      ])
+    ]);
+    const visibleButtonsCard = cardContainer("👁️ Visible Buttons", [
+      el("div", { className: "kdl-setting-checkbox-grid" }, [
+        checkboxItem("kdl-setting-showZipButton", "ZIP Download"),
+        checkboxItem("kdl-setting-showImagesButton", "Images"),
+        checkboxItem("kdl-setting-showFilesButton", "Attachments"),
+        checkboxItem("kdl-setting-showCopyLinksButton", "Copy Links"),
+        checkboxItem("kdl-setting-showShareButton", "Share Links"),
+        checkboxItem("kdl-setting-showTranslateButton", "Translate")
+      ])
+    ]);
+    const col1 = el("div", { className: "kdl-settings-col" }, [generalCard, templatesCard]);
+    const col2 = el("div", { className: "kdl-settings-col" }, [zipCard]);
+    const col3 = el("div", { className: "kdl-settings-col" }, [translationCard, visibleButtonsCard]);
+    const grid = el("div", { className: "kdl-settings-grid" }, [col1, col2, col3]);
+    const modalContent = el("div", { id: "kdl-settings-modal-content" }, [
+      el("h2", {}, ["⚙️ Downloader Settings"]),
+      grid
+    ]);
+    const actionsFooter = el("div", { className: "kdl-settings-actions" }, [
+      el("div", { className: "kdl-settings-config-btns" }, [
+        el("button", { id: "kdl-export-btn", className: "kdl-btn-primary" }, ["Export Config"]),
+        el("button", { id: "kdl-import-btn", className: "kdl-btn-info" }, ["Import Config"]),
+        el("input", { type: "file", id: "kdl-import-file-input", accept: ".json", style: { display: "none" } })
+      ]),
+      el("div", { className: "kdl-settings-modal-btns" }, [
+        el("button", { className: "kdl-close" }, ["Close"]),
+        el("button", { className: "kdl-save" }, ["Save"])
+      ])
+    ]);
+    settingsModalElement.appendChild(modalContent);
+    settingsModalElement.appendChild(actionsFooter);
     settingsOverlayElement.appendChild(settingsModalElement);
     document.body.appendChild(settingsOverlayElement);
     settingsModalElement.querySelector(".kdl-save").addEventListener("click", async () => {
@@ -1189,6 +2162,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         }
       }
       await saveSetting("savedFileNameTemplates", state.settings.savedFileNameTemplates || []);
+      await saveSetting("ignoredFileExtensions", state.settings.ignoredFileExtensions || []);
       showMessage("Settings saved!", "info");
       toggleSettingsModal(false);
     });
@@ -1260,7 +2234,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     refreshCacheStatsUI();
     const templateSelect = document.getElementById("kdl-template-select");
-    templateSelect.innerHTML = '<option value="">-- Load a saved template --</option>';
+    templateSelect.replaceChildren(el("option", { value: "" }, ["-- Load a saved template --"]));
     if (state.settings.savedFileNameTemplates && state.settings.savedFileNameTemplates.length > 0) {
       state.settings.savedFileNameTemplates.forEach((item) => {
         const option = document.createElement("option");
@@ -1275,18 +2249,25 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     document.getElementById("kdl-bulk-multiple-settings").style.display = isSingleMode ? "none" : "block";
     toggleTranslatorSettingsVisibility();
     toggleRetrySettingsVisibility();
+    if (renderIgnoredExtChipsFn) {
+      renderIgnoredExtChipsFn(state.settings.ignoredFileExtensions || []);
+    }
   }
   function toggleTranslatorSettingsVisibility() {
     var _a2;
     const provider = (_a2 = document.getElementById("kdl-setting-translationProvider")) == null ? void 0 : _a2.value;
-    document.getElementById("kdl-gemini-settings").style.display = provider === "gemini" ? "block" : "none";
-    document.getElementById("kdl-deepl-settings").style.display = provider === "deepl" ? "block" : "none";
+    const geminiElem = document.getElementById("kdl-gemini-settings");
+    const deeplElem = document.getElementById("kdl-deepl-settings");
+    if (geminiElem) geminiElem.style.display = provider === "gemini" ? "block" : "none";
+    if (deeplElem) deeplElem.style.display = provider === "deepl" ? "block" : "none";
   }
   function toggleRetrySettingsVisibility() {
     var _a2;
     const enabled = (_a2 = document.getElementById("kdl-setting-enableDownloadRetries")) == null ? void 0 : _a2.checked;
-    document.getElementById("kdl-retry-count-setting").style.display = enabled ? "block" : "none";
-    document.getElementById("kdl-retry-delay-setting").style.display = enabled ? "block" : "none";
+    const countElem = document.getElementById("kdl-retry-count-setting");
+    const delayElem = document.getElementById("kdl-retry-delay-setting");
+    if (countElem) countElem.style.display = enabled ? "block" : "none";
+    if (delayElem) delayElem.style.display = enabled ? "block" : "none";
   }
   async function refreshCacheStatsUI() {
     const statsElem = document.getElementById("kdl-cache-stats-text");
@@ -1321,6 +2302,242 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       appState.queueIndicatorElement.style.display = "block";
       appState.queueIndicatorElement.textContent = `Queue: ${appState.activeOperations} active, ${total} waiting`;
     }
+  }
+  async function fetchPostDataFromPawchive(service, userID, postID) {
+    const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
+    debugLog(`Fetching post data from Pawchive API: ${url}`);
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "GET",
+      url,
+      responseType: "json",
+      timeout: 3e4
+    });
+    return response.response;
+  }
+  async function fetchAllAuthorPostsPawchive(service, userID, progressTask) {
+    let allPosts = [];
+    let offset = 0;
+    const limit = 50;
+    while (true) {
+      try {
+        if (progressTask) {
+          progressTask.updateStatus(`Fetching page ${offset / limit + 1}... Found ${allPosts.length} posts.`);
+        }
+        const url = getApiUrl(`/api/v1/${service}/user/${userID}?o=${offset}`);
+        const response = await gmXmlhttpRequestWithRetries({
+          method: "GET",
+          url,
+          responseType: "json",
+          timeout: 3e4
+        });
+        const postsOnPage = response.response;
+        if (!Array.isArray(postsOnPage) || postsOnPage.length === 0) break;
+        allPosts = allPosts.concat(postsOnPage);
+        offset += limit;
+        await new Promise((res) => setTimeout(res, 200));
+      } catch (error) {
+        if (error.message && error.message.includes("Status 400")) {
+          debugLog("Reached end of posts (API returned 400). Normal exit condition.");
+        } else {
+          console.error(`Failed to fetch posts at offset ${offset}:`, error);
+          showMessage("Error fetching full post list.", "error");
+          if (progressTask) {
+            progressTask.updateStatus(`Error fetching posts: ${error.message}`);
+          }
+        }
+        break;
+      }
+    }
+    if (progressTask) {
+      progressTask.updateStatus(`Complete! Found ${allPosts.length} posts.`);
+      progressTask.finish(3e3);
+    }
+    return allPosts;
+  }
+  async function fetchUserFavoritesPawchive() {
+    if (appState.favoritesFetched) return true;
+    await getSettings();
+    if (!state.settings.sessionCookie) return false;
+    debugLog("Fetching user favorites from Pawchive API...");
+    try {
+      const [artistsRes, postsRes] = await Promise.all([
+        gmXmlhttpRequestWithRetries({ method: "GET", url: getApiUrl("/api/v1/account/favorites?type=artist"), responseType: "json" }),
+        gmXmlhttpRequestWithRetries({ method: "GET", url: getApiUrl("/api/v1/account/favorites?type=post"), responseType: "json" })
+      ]);
+      if (artistsRes.response && Array.isArray(artistsRes.response)) {
+        artistsRes.response.forEach((artist) => appState.favoritedArtists.add(`${artist.service}-${artist.id}`));
+      }
+      if (postsRes.response && Array.isArray(postsRes.response)) {
+        postsRes.response.forEach((post) => appState.favoritedPosts.add(post.id));
+      }
+      appState.favoritesFetched = true;
+      debugLog(`Favorites loaded: ${appState.favoritedArtists.size} artists, ${appState.favoritedPosts.size} posts.`);
+      return true;
+    } catch (error) {
+      if (error.message && error.message.includes("Status 401")) {
+        showMessage("Favorites: Auth failed. Check your session cookie.", "error");
+      }
+      return false;
+    }
+  }
+  async function toggleFavoritePawchive(button, type, service, creatorId, postId = null, updateCardStateFn) {
+    await getSettings();
+    if (!state.settings.sessionCookie) {
+      showMessage("Session cookie is required to manage favorites.", "error");
+      return;
+    }
+    const artistKey = `${service}-${creatorId}`;
+    const isFavorited = type === "creator" ? appState.favoritedArtists.has(artistKey) : postId ? appState.favoritedPosts.has(postId) : false;
+    const method = isFavorited ? "DELETE" : "POST";
+    const apiUrl = type === "creator" ? `/api/v1/favorites/creator/${service}/${creatorId}` : `/api/v1/favorites/post/${service}/${creatorId}/${postId}`;
+    button.textContent = "⏳";
+    button.disabled = true;
+    try {
+      await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
+      if (isFavorited) {
+        if (type === "creator") appState.favoritedArtists.delete(artistKey);
+        else if (postId) appState.favoritedPosts.delete(postId);
+      } else {
+        if (type === "creator") appState.favoritedArtists.add(artistKey);
+        else if (postId) appState.favoritedPosts.add(postId);
+      }
+      if (updateCardStateFn) {
+        updateCardStateFn(button.closest(".user-card, .post-card"), !isFavorited, type);
+      }
+      showMessage(`Successfully ${isFavorited ? "removed from" : "added to"} favorites!`, "info");
+    } catch (error) {
+      console.error("Favorite toggle failed:", error);
+      showMessage("Failed to update favorites.", "error");
+    } finally {
+      button.textContent = "⭐";
+      button.disabled = false;
+    }
+  }
+  async function fetchCommentsPawchive(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/comments`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive comments", e);
+      return null;
+    }
+  }
+  async function fetchCreatorProfilePawchive(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/profile`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive profile", e);
+      return null;
+    }
+  }
+  async function fetchCreatorAnnouncementsPawchive(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/announcements`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive announcements", e);
+      return null;
+    }
+  }
+  async function fetchCreatorFancardsPawchive(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/fancards`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive fancards", e);
+      return null;
+    }
+  }
+  async function fetchCreatorLinksPawchive(service, userID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/links`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive links", e);
+      return null;
+    }
+  }
+  async function fetchCreatorsPawchive() {
+    try {
+      const url = getApiUrl("/api/v1/creators");
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive creators", e);
+      return null;
+    }
+  }
+  async function searchPostsPawchive(query, offset = 0) {
+    try {
+      const url = getApiUrl(`/api/v1/posts?q=${encodeURIComponent(query)}&o=${offset}`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : [];
+    } catch (e) {
+      debugLog("Failed to search Pawchive posts", e);
+      return [];
+    }
+  }
+  async function fetchPostRevisionsPawchive(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/revisions`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return Array.isArray(res.response) ? res.response : null;
+    } catch (e) {
+      debugLog("Failed to fetch Pawchive revisions", e);
+      return null;
+    }
+  }
+  async function lookupHashPawchive(fileHash) {
+    try {
+      const url = getApiUrl(`/api/v1/search_hash/${encodeURIComponent(fileHash)}`);
+      const res = await gmXmlhttpRequestWithRetries({ method: "GET", url, responseType: "json" });
+      return res.response || null;
+    } catch (e) {
+      debugLog("Failed Pawchive hash lookup", e);
+      return null;
+    }
+  }
+  async function flagPostPawchive(service, userID, postID) {
+    try {
+      const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}/flag`);
+      await gmXmlhttpRequestWithRetries({ method: "POST", url });
+      return true;
+    } catch (e) {
+      debugLog("Failed flag post Pawchive", e);
+      return false;
+    }
+  }
+  const pawchiveApiAdapter = {
+    name: "pawchive",
+    fetchPostData: fetchPostDataFromPawchive,
+    fetchAllAuthorPosts: fetchAllAuthorPostsPawchive,
+    fetchCreatorProfile: fetchCreatorProfilePawchive,
+    fetchCreatorAnnouncements: fetchCreatorAnnouncementsPawchive,
+    fetchCreatorFancards: fetchCreatorFancardsPawchive,
+    fetchCreatorLinks: fetchCreatorLinksPawchive,
+    fetchCreators: fetchCreatorsPawchive,
+    searchPosts: searchPostsPawchive,
+    fetchUserFavorites: fetchUserFavoritesPawchive,
+    toggleFavorite: toggleFavoritePawchive,
+    // Pawchive does NOT have a tags endpoint - returns null immediately
+    fetchTags: async () => null,
+    fetchComments: fetchCommentsPawchive,
+    fetchPostRevisions: fetchPostRevisionsPawchive,
+    lookupHash: lookupHashPawchive,
+    flagPost: flagPostPawchive
+  };
+  function getApiAdapter() {
+    const hostname = window.location.hostname;
+    if (hostname.includes("pawchive")) {
+      return pawchiveApiAdapter;
+    }
+    return kemonoApiAdapter;
   }
   function getPostDetailsFromPage() {
     var _a2, _b2, _c, _d, _e, _f;
@@ -1388,6 +2605,21 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     };
     return formatNameFromTemplate(template, combinedData);
   }
+  function getWindowPageData(targetPostID) {
+    var _a2;
+    try {
+      const winData = window.page_data;
+      if (winData) {
+        const post = winData.post || ((_a2 = winData.props) == null ? void 0 : _a2.post) || (Array.isArray(winData) ? winData[0] : winData);
+        if (post && post.id && (!targetPostID || String(post.id) === String(targetPostID))) {
+          return post;
+        }
+      }
+    } catch (e) {
+      debugLog("Failed to read page_data from window", e);
+    }
+    return null;
+  }
   async function collectFilesForPost(postDetails, options = {}) {
     var _a2;
     await getSettings();
@@ -1402,14 +2634,20 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (state.settings.enableAPIFetch && postDetails.service !== "unknown" && postDetails.userID !== "unknown" && postDetails.postID !== "unknown") {
       try {
         const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
-        const cached = await getCachedPost(cacheKey);
-        if (cached) {
-          rawApiData = cached;
-          console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+        const windowPost = getWindowPageData(postDetails.postID);
+        if (windowPost) {
+          rawApiData = windowPost;
+          console.log(`[Kemono DL] Post metadata loaded directly from window.page_data: ${postDetails.postID}`);
         } else {
-          console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
-          rawApiData = await fetchPostDataFromAPI(postDetails.service, postDetails.userID, postDetails.postID);
-          if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+          const cached = await getCachedPost(cacheKey);
+          if (cached) {
+            rawApiData = cached;
+            console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+          } else {
+            console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
+            rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
+            if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+          }
         }
         const post = (rawApiData == null ? void 0 : rawApiData.post) || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);
         if (post) {
@@ -1454,7 +2692,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           bulk_post_index: options.bulk_post_index ? String(options.bulk_post_index).padStart(3, "0") : ""
         };
         const finalPath = generateFilePath(templateToUse, pathData, postDetails);
-        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: "url", isMedia: true });
+        const isMedia = isMediaFile(fileObj.name);
+        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: "url", isMedia });
       });
       if (state.settings.savePostContentAsText && post.content) {
         const formattedContent = htmlToFormattedText(post.content);
@@ -1499,10 +2738,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         const tagsCacheKey = `tags_${postDetails.service}_${postDetails.userID}`;
         let tagsData = await getCachedPost(tagsCacheKey);
         if (!tagsData) {
-          const tagsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/tags`);
-          const tagsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: tagsUrl, responseType: "json" });
-          if (Array.isArray(tagsRes.response) && tagsRes.response.length > 0) {
-            tagsData = tagsRes.response;
+          tagsData = await getApiAdapter().fetchTags(postDetails.service, postDetails.userID);
+          if (tagsData && tagsData.length > 0) {
             await setCachedPost(tagsCacheKey, tagsData);
           }
         }
@@ -1519,10 +2756,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         const commentsCacheKey = `comments_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
         let commentsData = await getCachedPost(commentsCacheKey);
         if (!commentsData) {
-          const commentsUrl = getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`);
-          const commentsRes = await gmXmlhttpRequestWithRetries({ method: "GET", url: commentsUrl, responseType: "json" });
-          if (Array.isArray(commentsRes.response) && commentsRes.response.length > 0) {
-            commentsData = commentsRes.response;
+          commentsData = await getApiAdapter().fetchComments(postDetails.service, postDetails.userID, postDetails.postID);
+          if (commentsData && commentsData.length > 0) {
             await setCachedPost(commentsCacheKey, commentsData);
           }
         }
@@ -2352,8 +3587,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     console.log(`[Kemono DL] Initiating ZIP task for post ${postDetails.postID}: "${postDetails.postTitle}"`);
     try {
       const isPostPage = window.location.pathname.includes("/post/");
-      const { files } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      if (files.length === 0) throw new Error("No content to ZIP.");
+      const { files: rawFiles } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
+      const ignoredExts = state.settings.ignoredFileExtensions || [];
+      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+      if (files.length === 0) throw new Error("No content to ZIP (all files filtered or empty).");
       let successCount = 0;
       let failCount = 0;
       const urlFiles = files.filter((t) => t.source === "url");
@@ -2467,7 +3704,10 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     try {
       const isPostPage = window.location.pathname.includes("/post/");
       const { files } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      const targetFiles = files.filter((f) => f.source === "url" && (type === "Images" ? f.isMedia : !f.isMedia));
+      let targetFiles = files.filter((f) => f.source === "url" && (type === "Images" ? f.isMedia : !f.isMedia));
+      if (type === "Attachments" && targetFiles.length === 0) {
+        targetFiles = files.filter((f) => f.source === "url");
+      }
       if (targetFiles.length === 0) {
         task.updateStatus(`No ${type.toLowerCase()} to download.`);
         task.finish(3e3);
@@ -2499,10 +3739,12 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
   async function downloadPostAsZip(details) {
     const postTask = progressManager.createTask(`zip-multi-${details.postID}`, `ZIP: ${details.postTitle}`);
     try {
-      const { files } = await collectFilesForPost(details, {
+      const { files: rawFiles } = await collectFilesForPost(details, {
         isBulk: false,
         template: "{file_index}_{file_name}"
       });
+      const ignoredExts = state.settings.ignoredFileExtensions || [];
+      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
       if (files.length === 0) throw new Error("No content to ZIP.");
       const zip = new JSZip();
       let failedFileCount = 0;
@@ -2581,11 +3823,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         if (!postCard) continue;
         const postDetails = getPostCardDetails(postCard, authorName);
         task.updateStatus(`[${i2 + 1}/${postIds.length}] Fetching: ${postDetails.postTitle}`);
-        const { files } = await collectFilesForPost(postDetails, {
+        const { files: rawFiles } = await collectFilesForPost(postDetails, {
           isBulk: true,
           bulk_post_index: i2 + 1,
           template: state.settings.bulkSingleInternalPathTemplate
         });
+        const ignoredExts = state.settings.ignoredFileExtensions || [];
+        const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
         if (state.settings.addHtmlIndexInZip) {
           const postLink = ((_a2 = postCard.querySelector("a")) == null ? void 0 : _a2.href) || "#";
           htmlIndexString += `<div class="post-entry">h2><a href="${postLink}" target="_blank">[${postDetails.postDate || "N/A"}] ${postDetails.postTitle}</a></h2><ul>`;
@@ -2875,24 +4119,30 @@ ${text}`;
   }
   async function createAndInsertPostPageButtons(container, referenceElement) {
     await getSettings();
-    document.querySelectorAll(".kdl-button").forEach((node) => node.remove());
+    document.querySelectorAll(".kdl-actions-container, .kdl-button").forEach((node) => node.remove());
     const postDetails = getPostDetailsFromPage();
-    const fragment = document.createDocumentFragment();
-    const createButton = (text, title, bgColor, onClick, onContext) => {
+    const createButton = (text, title, bgGradient, onClick, onContext) => {
       return el(
         "button",
         {
           className: "kdl-button",
           title,
           style: {
-            padding: "8px 12px",
+            padding: "7px 12px",
             border: "none",
-            borderRadius: "4px",
+            borderRadius: "6px",
             cursor: "pointer",
-            fontSize: "0.9em",
+            fontSize: "0.86rem",
+            fontWeight: "600",
             color: "#fff",
-            boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
-            backgroundColor: bgColor
+            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
+            background: bgGradient,
+            width: "100%",
+            boxSizing: "border-box",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "5px"
           },
           onClick,
           onContextMenu: onContext
@@ -2900,63 +4150,67 @@ ${text}`;
         [text]
       );
     };
-    if (state.settings.showTranslateButton && state.settings.translationProvider !== "none" && (state.settings.geminiApiKey || state.settings.deeplApiKey)) {
-      fragment.appendChild(createButton("Translate 📝", "Translate", "#5856d6", (e) => executeTranslation(e.target)));
-    }
+    const toolsCol = el("div", { className: "kdl-actions-col kdl-actions-tools" });
+    const downloadsCol = el("div", { className: "kdl-actions-col kdl-actions-downloads" });
     if (state.settings.showCopyLinksButton) {
-      const btn = createButton(
-        "Copy Links",
-        "Left-click: Copy for aria2c/IDM. Right-click: Get .txt for ADM.",
-        "#17a2b8",
-        (e) => executeLinkAction("copy-aria", postDetails, e.target),
-        (e) => {
-          e.preventDefault();
-          executeLinkAction("download-txt", postDetails, e.target);
-        }
+      toolsCol.appendChild(
+        createButton(
+          "📋 Copy Links",
+          "Left-click: Copy for aria2c/IDM. Right-click: Get .txt for ADM.",
+          "linear-gradient(135deg, #06b6d4, #0891b2)",
+          (e) => executeLinkAction("copy-aria", postDetails, e.target),
+          (e) => {
+            e.preventDefault();
+            executeLinkAction("download-txt", postDetails, e.target);
+          }
+        )
       );
-      fragment.appendChild(btn);
     }
     if (state.settings.showShareButton && typeof navigator.share === "function") {
-      fragment.appendChild(
+      toolsCol.appendChild(
         createButton(
+          "🔗 Share Links",
           "Share Links",
-          "Share Links",
-          "#6f42c1",
+          "linear-gradient(135deg, #8b5cf6, #7c3aed)",
           (e) => executeLinkAction("share", postDetails, e.target)
         )
       );
     }
+    if (state.settings.showTranslateButton && state.settings.translationProvider !== "none" && (state.settings.geminiApiKey || state.settings.deeplApiKey)) {
+      toolsCol.appendChild(createButton("📝 Translate", "Translate", "linear-gradient(135deg, #6366f1, #4f46e5)", (e) => executeTranslation(e.target)));
+    }
     if (state.settings.showImagesButton) {
-      fragment.appendChild(
+      downloadsCol.appendChild(
         createButton(
+          "🖼️ Download Images",
           "Download Images",
-          "Download Images",
-          "#007bff",
-          (e) => addTaskToQueue("Images", (pd) => executeIndividualDownload("Images", pd), postDetails, e.target, "Download Images")
+          "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+          (e) => addTaskToQueue("Images", (pd) => executeIndividualDownload("Images", pd), postDetails, e.target, "🖼️ Download Images")
         )
       );
     }
     if (state.settings.showFilesButton) {
       const btn = createButton(
+        "📎 Download Attachments",
         "Download Attachments",
-        "Download Attachments",
-        "#ffc107",
-        (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.target, "Download Attachments")
+        "linear-gradient(135deg, #f59e0b, #d97706)",
+        (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.target, "📎 Download Attachments")
       );
-      btn.style.color = "#212529";
-      fragment.appendChild(btn);
+      btn.style.color = "#ffffff";
+      downloadsCol.appendChild(btn);
     }
     if (state.settings.showZipButton) {
-      fragment.appendChild(
+      downloadsCol.appendChild(
         createButton(
+          "📦 Download (ZIP)",
           "Download (ZIP)",
-          "Download (ZIP)",
-          "#28a745",
-          (e) => addTaskToQueue("ZIP", executeZipDownload, postDetails, e.target, "Download (ZIP)")
+          "linear-gradient(135deg, #10b981, #047857)",
+          (e) => addTaskToQueue("ZIP", executeZipDownload, postDetails, e.target, "📦 Download (ZIP)")
         )
       );
     }
-    container.insertBefore(fragment, referenceElement ? referenceElement.nextSibling : container.firstChild);
+    const kdlContainer = el("div", { className: "kdl-actions-container" }, [toolsCol, downloadsCol]);
+    container.appendChild(kdlContainer);
   }
   async function showFilePickerModal(postDetails) {
     const overlay = el("div", {
@@ -2970,31 +4224,34 @@ ${text}`;
     document.body.appendChild(overlay);
     try {
       const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      const attachments = files.filter((t) => !t.isMedia && t.source === "url");
+      const attachments = files.filter((t) => t.source === "url");
       if (attachments.length === 0) {
-        modal.innerHTML = "<h4>No attachments found for this post.</h4>";
+        modal.replaceChildren(el("h4", {}, ["No attachments found for this post."]));
         return;
       }
-      modal.innerHTML = '<h4>Select an attachment to download</h4><ul id="kdl-file-picker-list"></ul>';
-      const list = modal.querySelector("#kdl-file-picker-list");
+      const list = el("ul", { id: "kdl-file-picker-list" });
       attachments.forEach((file) => {
-        const li = el("li");
-        const a = el("a", { href: "#", dataset: { url: file.data, name: file.name } }, [file.name.split("/").pop()]);
-        li.appendChild(a);
-        list.appendChild(li);
+        const fileName = file.name.split("/").pop() || file.name;
+        const a = el("a", { href: "#", dataset: { url: file.data, name: file.name } }, [fileName]);
+        list.appendChild(el("li", {}, [a]));
       });
       list.addEventListener("click", (e) => {
         e.preventDefault();
         const link = e.target.closest("a");
         if (link) {
-          const fileName = link.dataset.name.split("/").pop();
+          const fullPath = link.dataset.name;
+          const fileName = fullPath.split("/").pop() || fullPath;
           showMessage(`Starting download for ${fileName}`, "info");
-          GM_download({ url: link.dataset.url, name: link.dataset.name, saveAs: false });
+          GM_download({ url: link.dataset.url, name: fileName, saveAs: false });
           overlay.remove();
         }
       });
+      modal.replaceChildren(el("h4", {}, [`Select a file to download (${attachments.length})`]), list);
     } catch (error) {
-      modal.innerHTML = `<h4>Failed to load attachments.</h4><p style="color:#ccc;font-size:0.9em;">${error.message}</p>`;
+      modal.replaceChildren(
+        el("h4", {}, ["Failed to load attachments."]),
+        el("p", { style: { color: "#ccc", fontSize: "0.9em" } }, [error.message])
+      );
     }
   }
   async function injectPostCardButtons(postCardNode, pageAuthorName) {
@@ -3034,12 +4291,12 @@ ${text}`;
       infoBtn.addEventListener("mouseover", async () => {
         tooltip.style.display = "block";
         if (postCardNode.dataset.postInfo) {
-          tooltip.innerHTML = postCardNode.dataset.postInfo;
+          tooltip.textContent = postCardNode.dataset.postInfo;
           return;
         }
         if (isFetching) return;
         isFetching = true;
-        tooltip.innerHTML = "<em>Loading...</em>";
+        tooltip.replaceChildren(el("em", {}, ["Loading..."]));
         try {
           const apiResponse = await fetchPostDataFromAPI(details.service, details.userID, details.postID);
           const post = (apiResponse == null ? void 0 : apiResponse.post) || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
@@ -3047,11 +4304,13 @@ ${text}`;
           const fileCount = post.file ? 1 : 0;
           const attachmentCount = post.attachments ? post.attachments.length : 0;
           const totalFiles = fileCount + attachmentCount;
-          const infoHTML = `<b>Title:</b> ${post.title}<br><b>Published:</b> ${new Date(post.published).toLocaleDateString()}<br><b>Total Files:</b> ${totalFiles}<br><em>(${attachmentCount} attachments, ${fileCount} main file)</em>`;
-          tooltip.innerHTML = infoHTML;
-          postCardNode.dataset.postInfo = infoHTML;
+          const infoText = `Title: ${post.title}
+Published: ${new Date(post.published).toLocaleDateString()}
+Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main file)`;
+          tooltip.textContent = infoText;
+          postCardNode.dataset.postInfo = infoText;
         } catch (err2) {
-          tooltip.innerHTML = "<em>Failed to load info.</em>";
+          tooltip.replaceChildren(el("em", {}, ["Failed to load info."]));
         } finally {
           isFetching = false;
         }
@@ -3089,10 +4348,7 @@ ${text}`;
     const creatorId = cardNode.dataset.id;
     if (!service || !creatorId) return;
     const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);
-    const favBtn = document.createElement("button");
-    favBtn.className = "kdl-quick-fav-btn";
-    favBtn.innerHTML = "⭐";
-    favBtn.title = "Toggle Favorite";
+    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, ["⭐"]);
     cardNode.appendChild(favBtn);
     updateCardFavoriteState(cardNode, isFavorited, "creator");
     favBtn.addEventListener("click", (e) => {
@@ -3108,10 +4364,7 @@ ${text}`;
     const postId = cardNode.dataset.id;
     if (!service || !creatorId || !postId) return;
     const isFavorited = appState.favoritedPosts.has(postId);
-    const favBtn = document.createElement("button");
-    favBtn.className = "kdl-quick-fav-btn";
-    favBtn.innerHTML = "⭐";
-    favBtn.title = "Toggle Favorite";
+    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, ["⭐"]);
     cardNode.appendChild(favBtn);
     updateCardFavoriteState(cardNode, isFavorited, "post");
     favBtn.addEventListener("click", (e) => {
@@ -3204,31 +4457,36 @@ ${text}`;
     var _a2, _b2;
     let overlay = document.getElementById("kdl-author-manager-overlay");
     if (!overlay) {
-      overlay = el("div", { id: "kdl-author-manager-overlay" });
-      overlay.innerHTML = `
-      <div id="kdl-author-manager-modal">
-        <div id="kdl-manager-header"><h3 id="kdl-manager-title"></h3><em id="kdl-manager-cache-status" style="font-size: 0.8em; color: #aaa; margin-left: 10px;"></em></div>
-        <div id="kdl-manager-controls" style="flex-wrap: wrap;">
-            <button id="kdl-manager-refresh" class="kdl-manager-btn" title="Force Refresh" style="background-color: #17a2b8;">🔄</button>
-            <input type="text" id="kdl-manager-search" placeholder="Search by title...">
-            <select id="kdl-manager-sort" class="kdl-manager-btn" style="padding: 8px 6px;">
-                <option value="date-desc">Newest First</option><option value="date-asc">Oldest First</option>
-                <option value="files-desc">Most Files</option><option value="files-asc">Fewest Files</option>
-                <option value="title-asc">Title (A-Z)</option><option value="title-desc">Title (Z-A)</option>
-            </select>
-            <button id="kdl-manager-select-all" class="kdl-manager-btn" style="background-color: #007bff;">Select Visible</button>
-            <button id="kdl-manager-deselect-all" class="kdl-manager-btn" style="background-color: #dc3545;">Deselect All</button>
-        </div>
-        <div id="kdl-manager-post-list"></div>
-        <div id="kdl-manager-footer">
-            <span id="kdl-manager-counter">Selected: 0</span>
-            <div>
-                <button id="kdl-manager-download" class="kdl-manager-btn" style="background-color: #28a745;" disabled>Download Selected</button>
-                <button id="kdl-manager-close" class="kdl-manager-btn" style="background-color: #6c757d;">Close</button>
-            </div>
-        </div>
-      </div>
-    `;
+      overlay = el("div", { id: "kdl-author-manager-overlay" }, [
+        el("div", { id: "kdl-author-manager-modal" }, [
+          el("div", { id: "kdl-manager-header" }, [
+            el("h3", { id: "kdl-manager-title" }),
+            el("em", { id: "kdl-manager-cache-status", style: { fontSize: "0.8em", color: "#aaa", marginLeft: "10px" } })
+          ]),
+          el("div", { id: "kdl-manager-controls", style: { flexWrap: "wrap" } }, [
+            el("button", { id: "kdl-manager-refresh", className: "kdl-manager-btn", title: "Force Refresh", style: { backgroundColor: "#17a2b8" } }, ["🔄"]),
+            el("input", { type: "text", id: "kdl-manager-search", placeholder: "Search by title..." }),
+            el("select", { id: "kdl-manager-sort", className: "kdl-manager-btn", style: { padding: "8px 6px" } }, [
+              el("option", { value: "date-desc" }, ["Newest First"]),
+              el("option", { value: "date-asc" }, ["Oldest First"]),
+              el("option", { value: "files-desc" }, ["Most Files"]),
+              el("option", { value: "files-asc" }, ["Fewest Files"]),
+              el("option", { value: "title-asc" }, ["Title (A-Z)"]),
+              el("option", { value: "title-desc" }, ["Title (Z-A)"])
+            ]),
+            el("button", { id: "kdl-manager-select-all", className: "kdl-manager-btn", style: { backgroundColor: "#007bff" } }, ["Select Visible"]),
+            el("button", { id: "kdl-manager-deselect-all", className: "kdl-manager-btn", style: { backgroundColor: "#dc3545" } }, ["Deselect All"])
+          ]),
+          el("div", { id: "kdl-manager-post-list" }),
+          el("div", { id: "kdl-manager-footer" }, [
+            el("span", { id: "kdl-manager-counter" }, ["Selected: 0"]),
+            el("div", {}, [
+              el("button", { id: "kdl-manager-download", className: "kdl-manager-btn", style: { backgroundColor: "#28a745" }, disabled: true }, ["Download Selected"]),
+              el("button", { id: "kdl-manager-close", className: "kdl-manager-btn", style: { backgroundColor: "#6c757d" } }, ["Close"])
+            ])
+          ])
+        ])
+      ]);
       document.body.appendChild(overlay);
       overlay.querySelector("#kdl-manager-close").addEventListener("click", () => overlay.style.display = "none");
       overlay.addEventListener("click", (e) => {
@@ -3258,8 +4516,8 @@ ${text}`;
       }
     }
     title.textContent = `Loading posts for: ${authorName}`;
-    listContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Fetching all post data from API...</p>';
-    const allPosts = await fetchAllAuthorPosts(service, userID);
+    listContainer.replaceChildren(el("p", { style: { textAlign: "center", padding: "20px" } }, ["Fetching all post data from API..."]));
+    const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID);
     if (allPosts.length > 0) {
       if (state.settings.cacheDurationHours > 0) {
         await GM_setValue(cacheKey, { timestamp: Date.now(), postList: allPosts });
@@ -3269,7 +4527,7 @@ ${text}`;
       setupManagerEventListeners();
     } else {
       title.textContent = `Failed to load posts for ${authorName}`;
-      listContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Could not retrieve post list.</p>';
+      listContainer.replaceChildren(el("p", { style: { textAlign: "center", padding: "20px" } }, ["Could not retrieve post list."]));
     }
   }
   function populateManagerList(posts) {
@@ -3279,36 +4537,40 @@ ${text}`;
       var _a2;
       const postDate = post.published ? new Date(post.published).toISOString().split("T")[0] : "No Date";
       const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
-      const item = el("div", {
-        className: "post-item",
-        dataset: {
-          id: post.id,
-          title: post.title.toLowerCase(),
-          date: post.published || "0",
-          files: String(fileCount)
-        }
-      });
-      let previewHtml = '<div class="post-item-preview"></div>';
+      let previewElem;
       if ((_a2 = post.file) == null ? void 0 : _a2.path) {
         const pathParts = post.file.path.split("/").filter((p) => p);
         const fileName = pathParts.pop();
         const thumbUrl = getThumbnailUrl(`${pathParts.join("/")}/${fileName}`);
-        previewHtml = `<img src="${thumbUrl}" class="post-item-preview" loading="lazy">`;
+        previewElem = el("img", { src: thumbUrl, className: "post-item-preview", loading: "lazy" });
+      } else {
+        previewElem = el("div", { className: "post-item-preview" });
       }
       const postUrl = getApiUrl(`/${post.service}/user/${post.user}/post/${post.id}`);
-      item.innerHTML = `
-      ${previewHtml}
-      <input type="checkbox" data-id="${post.id}">
-      <div class="post-item-label">
-          <span class="post-item-title">${sanitizeFilename(post.title)}</span>
-          <span class="post-item-date">${postDate} | Files: ${fileCount} | ID: ${post.id}</span>
-      </div>
-      <a href="${postUrl}" target="_blank" class="post-item-open-link" title="Open post in new tab">↗️</a>
-    `;
+      const item = el(
+        "div",
+        {
+          className: "post-item",
+          dataset: {
+            id: post.id,
+            title: post.title.toLowerCase(),
+            date: post.published || "0",
+            files: String(fileCount)
+          }
+        },
+        [
+          previewElem,
+          el("input", { type: "checkbox", dataset: { id: post.id } }),
+          el("div", { className: "post-item-label" }, [
+            el("span", { className: "post-item-title" }, [sanitizeFilename(post.title)]),
+            el("span", { className: "post-item-date" }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
+          ]),
+          el("a", { href: postUrl, target: "_blank", className: "post-item-open-link", title: "Open post in new tab" }, ["↗️"])
+        ]
+      );
       fragment.appendChild(item);
     });
-    listContainer.innerHTML = "";
-    listContainer.appendChild(fragment);
+    listContainer.replaceChildren(fragment);
   }
   function setupManagerEventListeners() {
     const searchInput = document.getElementById("kdl-manager-search");
@@ -3446,12 +4708,8 @@ ${text}`;
           actionsDiv = el("div", { className: "post__actions" });
           header.appendChild(actionsDiv);
         }
-        if (actionsDiv) {
-          const favButton = Array.from(actionsDiv.querySelectorAll("button, a")).find((b) => {
-            var _a3;
-            return (_a3 = b.textContent) == null ? void 0 : _a3.includes("Favorite");
-          });
-          await createAndInsertPostPageButtons(actionsDiv, favButton);
+        if (header) {
+          await createAndInsertPostPageButtons(header);
           fetchAndCachePostData();
         }
       } else if (path.includes("/user/")) {
