@@ -4,24 +4,37 @@ import { el } from '../../utils/dom';
 
 let lastCheckedIndex: number | null = null;
 
+export function updateSelectionState(): void {
+  const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
+  appState.selectedPostIds.clear();
+  postCards.forEach((card) => {
+    const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
+    if (checkbox && checkbox.checked) {
+      appState.selectedPostIds.add(checkbox.dataset.id!);
+    }
+  });
+
+  const selectedCount = appState.selectedPostIds.size;
+  const btn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
+  const panel = document.getElementById('kdl-bulk-panel');
+
+  if (btn) {
+    btn.textContent = `Download Selected (${selectedCount})`;
+    btn.disabled = selectedCount === 0;
+  }
+
+  if (panel) {
+    if (selectedCount > 0) {
+      panel.classList.add('kdl-visible');
+    } else {
+      panel.classList.remove('kdl-visible');
+    }
+  }
+}
+
 export function initializeShiftClickLogic(): void {
   const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
   if (postCards.length === 0) return;
-
-  const updateSelectionState = () => {
-    appState.selectedPostIds.clear();
-    postCards.forEach((card) => {
-      const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-      if (checkbox && checkbox.checked) {
-        appState.selectedPostIds.add(checkbox.dataset.id!);
-      }
-    });
-    const btn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
-    if (btn) {
-      btn.textContent = `Download Selected (${appState.selectedPostIds.size})`;
-      btn.disabled = appState.selectedPostIds.size === 0;
-    }
-  };
 
   postCards.forEach((card, index) => {
     const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
@@ -47,6 +60,8 @@ export function initializeShiftClickLogic(): void {
       lastCheckedIndex = null;
     });
   }
+
+  updateSelectionState();
 }
 
 export function createBulkDownloadPanel(): void {
@@ -89,5 +104,5 @@ export function createBulkDownloadPanel(): void {
     el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload() }, ['Download Selected (0)'])
   ]);
 
-  cardList.parentElement!.insertBefore(panel, cardList);
+  document.body.appendChild(panel);
 }

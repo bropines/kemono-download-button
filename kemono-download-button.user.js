@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.3
+// @version      0.4.4
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -658,26 +658,40 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 .kdl-progress-bar-inner.kdl-error { background-color: #dc3545!important; }
 
 #kdl-bulk-panel {
-  position: sticky;
-  top: 10px;
-  background-color: #282828e6;
-  padding: 10px;
-  border-radius: 8px;
-  z-index: 800;
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(140%);
+  opacity: 0;
+  pointer-events: none;
+  background-color: #1e1e1ef2;
+  padding: 10px 20px;
+  border-radius: 30px;
+  z-index: 9999;
   display: flex;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
   justify-content: center;
-  border: 1px solid #555;
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
-  margin-bottom: 10px;
+  border: 1px solid #444;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
 }
-#kdl-bulk-panel button { padding: 8px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: .9em; color: #fff; }
+#kdl-bulk-panel.kdl-visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+#kdl-bulk-panel button { padding: 8px 14px; border: none; border-radius: 20px; cursor: pointer; font-size: .9em; font-weight: 500; color: #fff; transition: background-color .2s, transform .1s; }
+#kdl-bulk-panel button:active { transform: scale(0.96); }
 #kdl-bulk-download-btn { background-color: #28a745; }
-#kdl-bulk-download-btn:disabled { background-color: #6c757d; cursor: not-allowed; }
+#kdl-bulk-download-btn:hover { background-color: #218838; }
+#kdl-bulk-download-btn:disabled { background-color: #555; cursor: not-allowed; opacity: 0.7; }
 #kdl-bulk-select-all { background-color: #007bff; }
+#kdl-bulk-select-all:hover { background-color: #0069d9; }
 #kdl-bulk-deselect-all { background-color: #dc3545; }
+#kdl-bulk-deselect-all:hover { background-color: #c82333; }
 
 .kdl-post-checkbox {
   position: absolute;
@@ -4374,23 +4388,33 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     });
   }
   let lastCheckedIndex = null;
+  function updateSelectionState() {
+    const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
+    appState.selectedPostIds.clear();
+    postCards.forEach((card) => {
+      const checkbox = card.querySelector(".kdl-post-checkbox");
+      if (checkbox && checkbox.checked) {
+        appState.selectedPostIds.add(checkbox.dataset.id);
+      }
+    });
+    const selectedCount = appState.selectedPostIds.size;
+    const btn = document.getElementById("kdl-bulk-download-btn");
+    const panel = document.getElementById("kdl-bulk-panel");
+    if (btn) {
+      btn.textContent = `Download Selected (${selectedCount})`;
+      btn.disabled = selectedCount === 0;
+    }
+    if (panel) {
+      if (selectedCount > 0) {
+        panel.classList.add("kdl-visible");
+      } else {
+        panel.classList.remove("kdl-visible");
+      }
+    }
+  }
   function initializeShiftClickLogic() {
     const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
     if (postCards.length === 0) return;
-    const updateSelectionState = () => {
-      appState.selectedPostIds.clear();
-      postCards.forEach((card) => {
-        const checkbox = card.querySelector(".kdl-post-checkbox");
-        if (checkbox && checkbox.checked) {
-          appState.selectedPostIds.add(checkbox.dataset.id);
-        }
-      });
-      const btn = document.getElementById("kdl-bulk-download-btn");
-      if (btn) {
-        btn.textContent = `Download Selected (${appState.selectedPostIds.size})`;
-        btn.disabled = appState.selectedPostIds.size === 0;
-      }
-    };
     postCards.forEach((card, index) => {
       const checkbox = card.querySelector(".kdl-post-checkbox");
       if (!checkbox) return;
@@ -4414,6 +4438,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         lastCheckedIndex = null;
       });
     }
+    updateSelectionState();
   }
   function createBulkDownloadPanel() {
     if (document.getElementById("kdl-bulk-panel")) return;
@@ -4451,7 +4476,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       ),
       el("button", { id: "kdl-bulk-download-btn", disabled: true, onClick: () => executeBulkDownload() }, ["Download Selected (0)"])
     ]);
-    cardList.parentElement.insertBefore(panel, cardList);
+    document.body.appendChild(panel);
   }
   async function launchAuthorManager(forceRefresh = false) {
     var _a2, _b2;
