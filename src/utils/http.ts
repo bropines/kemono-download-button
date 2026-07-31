@@ -23,7 +23,9 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
             if (response.status >= 200 && response.status < 300) {
               resolve(response);
             } else {
-              reject(new Error(`HTTP Status ${response.status}: ${response.statusText}`));
+              const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
+              err.status = response.status;
+              reject(err);
             }
           },
           onerror: (error: any) => {
@@ -67,6 +69,8 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
         if (mainMatch && !mainMatch[1].startsWith('c') && !mainMatch[1].startsWith('file')) {
           currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
           debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
+        } else if (error.status === 404 || error.status === 401 || error.status === 403) {
+          throw error;
         }
       }
 
