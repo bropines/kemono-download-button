@@ -1,4 +1,4 @@
-import { fetchAllAuthorPosts } from '../../api/kemonoApi';
+import { getApiAdapter } from '../../api';
 import { executeBulkDownload } from '../../services/downloadService';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
@@ -7,31 +7,36 @@ import { getApiUrl, getThumbnailUrl, sanitizeFilename } from '../../utils/helper
 export async function launchAuthorManager(forceRefresh = false): Promise<void> {
   let overlay = document.getElementById('kdl-author-manager-overlay');
   if (!overlay) {
-    overlay = el('div', { id: 'kdl-author-manager-overlay' });
-    overlay.innerHTML = `
-      <div id="kdl-author-manager-modal">
-        <div id="kdl-manager-header"><h3 id="kdl-manager-title"></h3><em id="kdl-manager-cache-status" style="font-size: 0.8em; color: #aaa; margin-left: 10px;"></em></div>
-        <div id="kdl-manager-controls" style="flex-wrap: wrap;">
-            <button id="kdl-manager-refresh" class="kdl-manager-btn" title="Force Refresh" style="background-color: #17a2b8;">🔄</button>
-            <input type="text" id="kdl-manager-search" placeholder="Search by title...">
-            <select id="kdl-manager-sort" class="kdl-manager-btn" style="padding: 8px 6px;">
-                <option value="date-desc">Newest First</option><option value="date-asc">Oldest First</option>
-                <option value="files-desc">Most Files</option><option value="files-asc">Fewest Files</option>
-                <option value="title-asc">Title (A-Z)</option><option value="title-desc">Title (Z-A)</option>
-            </select>
-            <button id="kdl-manager-select-all" class="kdl-manager-btn" style="background-color: #007bff;">Select Visible</button>
-            <button id="kdl-manager-deselect-all" class="kdl-manager-btn" style="background-color: #dc3545;">Deselect All</button>
-        </div>
-        <div id="kdl-manager-post-list"></div>
-        <div id="kdl-manager-footer">
-            <span id="kdl-manager-counter">Selected: 0</span>
-            <div>
-                <button id="kdl-manager-download" class="kdl-manager-btn" style="background-color: #28a745;" disabled>Download Selected</button>
-                <button id="kdl-manager-close" class="kdl-manager-btn" style="background-color: #6c757d;">Close</button>
-            </div>
-        </div>
-      </div>
-    `;
+    overlay = el('div', { id: 'kdl-author-manager-overlay' }, [
+      el('div', { id: 'kdl-author-manager-modal' }, [
+        el('div', { id: 'kdl-manager-header' }, [
+          el('h3', { id: 'kdl-manager-title' }),
+          el('em', { id: 'kdl-manager-cache-status', style: { fontSize: '0.8em', color: '#aaa', marginLeft: '10px' } })
+        ]),
+        el('div', { id: 'kdl-manager-controls', style: { flexWrap: 'wrap' } }, [
+          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh', style: { backgroundColor: '#17a2b8' } }, ['🔄']),
+          el('input', { type: 'text', id: 'kdl-manager-search', placeholder: 'Search by title...' }),
+          el('select', { id: 'kdl-manager-sort', className: 'kdl-manager-btn', style: { padding: '8px 6px' } }, [
+            el('option', { value: 'date-desc' }, ['Newest First']),
+            el('option', { value: 'date-asc' }, ['Oldest First']),
+            el('option', { value: 'files-desc' }, ['Most Files']),
+            el('option', { value: 'files-asc' }, ['Fewest Files']),
+            el('option', { value: 'title-asc' }, ['Title (A-Z)']),
+            el('option', { value: 'title-desc' }, ['Title (Z-A)'])
+          ]),
+          el('button', { id: 'kdl-manager-select-all', className: 'kdl-manager-btn', style: { backgroundColor: '#007bff' } }, ['Select Visible']),
+          el('button', { id: 'kdl-manager-deselect-all', className: 'kdl-manager-btn', style: { backgroundColor: '#dc3545' } }, ['Deselect All'])
+        ]),
+        el('div', { id: 'kdl-manager-post-list' }),
+        el('div', { id: 'kdl-manager-footer' }, [
+          el('span', { id: 'kdl-manager-counter' }, ['Selected: 0']),
+          el('div', {}, [
+            el('button', { id: 'kdl-manager-download', className: 'kdl-manager-btn', style: { backgroundColor: '#28a745' }, disabled: true }, ['Download Selected']),
+            el('button', { id: 'kdl-manager-close', className: 'kdl-manager-btn', style: { backgroundColor: '#6c757d' } }, ['Close'])
+          ])
+        ])
+      ])
+    ]);
     document.body.appendChild(overlay);
     overlay.querySelector('#kdl-manager-close')!.addEventListener('click', () => (overlay!.style.display = 'none'));
     overlay.addEventListener('click', (e) => {
@@ -65,8 +70,8 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
   }
 
   title.textContent = `Loading posts for: ${authorName}`;
-  listContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Fetching all post data from API...</p>';
-  const allPosts = await fetchAllAuthorPosts(service, userID);
+  listContainer.replaceChildren(el('p', { style: { textAlign: 'center', padding: '20px' } }, ['Fetching all post data from API...']));
+  const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID);
 
   if (allPosts.length > 0) {
     if (state.settings.cacheDurationHours > 0) {
@@ -77,7 +82,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
     setupManagerEventListeners();
   } else {
     title.textContent = `Failed to load posts for ${authorName}`;
-    listContainer.innerHTML = '<p style="text-align:center; padding: 20px;">Could not retrieve post list.</p>';
+    listContainer.replaceChildren(el('p', { style: { textAlign: 'center', padding: '20px' } }, ['Could not retrieve post list.']));
   }
 }
 
@@ -88,40 +93,45 @@ export function populateManagerList(posts: any[]): void {
   posts.forEach((post) => {
     const postDate = post.published ? new Date(post.published).toISOString().split('T')[0] : 'No Date';
     const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
-    const item = el('div', {
-      className: 'post-item',
-      dataset: {
-        id: post.id,
-        title: post.title.toLowerCase(),
-        date: post.published || '0',
-        files: String(fileCount)
-      }
-    });
 
-    let previewHtml = '<div class="post-item-preview"></div>';
+    let previewElem: HTMLElement;
     if (post.file?.path) {
       const pathParts = post.file.path.split('/').filter((p: string) => p);
       const fileName = pathParts.pop();
       const thumbUrl = getThumbnailUrl(`${pathParts.join('/')}/${fileName}`);
-      previewHtml = `<img src="${thumbUrl}" class="post-item-preview" loading="lazy">`;
+      previewElem = el('img', { src: thumbUrl, className: 'post-item-preview', loading: 'lazy' });
+    } else {
+      previewElem = el('div', { className: 'post-item-preview' });
     }
 
     const postUrl = getApiUrl(`/${post.service}/user/${post.user}/post/${post.id}`);
 
-    item.innerHTML = `
-      ${previewHtml}
-      <input type="checkbox" data-id="${post.id}">
-      <div class="post-item-label">
-          <span class="post-item-title">${sanitizeFilename(post.title)}</span>
-          <span class="post-item-date">${postDate} | Files: ${fileCount} | ID: ${post.id}</span>
-      </div>
-      <a href="${postUrl}" target="_blank" class="post-item-open-link" title="Open post in new tab">↗️</a>
-    `;
+    const item = el(
+      'div',
+      {
+        className: 'post-item',
+        dataset: {
+          id: post.id,
+          title: post.title.toLowerCase(),
+          date: post.published || '0',
+          files: String(fileCount)
+        }
+      },
+      [
+        previewElem,
+        el('input', { type: 'checkbox', dataset: { id: post.id } }),
+        el('div', { className: 'post-item-label' }, [
+          el('span', { className: 'post-item-title' }, [sanitizeFilename(post.title)]),
+          el('span', { className: 'post-item-date' }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
+        ]),
+        el('a', { href: postUrl, target: '_blank', className: 'post-item-open-link', title: 'Open post in new tab' }, ['↗️'])
+      ]
+    );
+
     fragment.appendChild(item);
   });
 
-  listContainer.innerHTML = '';
-  listContainer.appendChild(fragment);
+  listContainer.replaceChildren(fragment);
 }
 
 export function setupManagerEventListeners(): void {

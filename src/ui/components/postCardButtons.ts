@@ -1,4 +1,4 @@
-import { fetchPostDataFromAPI, toggleFavorite } from '../../api/kemonoApi';
+import { getApiAdapter } from '../../api';
 import { getPostCardDetails } from '../../services/collectorService';
 import { executeIndividualDownload, executeZipDownload } from '../../services/downloadService';
 import { addTaskToQueue } from '../../services/queueService';
@@ -45,38 +45,38 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
     let isFetching = false;
     const infoBtn = el('button', { className: 'post-card-dl-info', title: 'Show post info' }, ['ℹ️']);
 
-    infoBtn.addEventListener('mouseover', async () => {
-      tooltip.style.display = 'block';
-      if (postCardNode.dataset.postInfo) {
-        tooltip.innerHTML = postCardNode.dataset.postInfo;
-        return;
-      }
-      if (isFetching) return;
-      isFetching = true;
-      tooltip.innerHTML = '<em>Loading...</em>';
-      try {
-        const apiResponse = await fetchPostDataFromAPI(details.service, details.userID, details.postID);
-        const post = apiResponse?.post || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
-        if (!post) throw new Error('No post data');
-        const fileCount = post.file ? 1 : 0;
-        const attachmentCount = post.attachments ? post.attachments.length : 0;
-        const totalFiles = fileCount + attachmentCount;
-        const infoHTML = `<b>Title:</b> ${post.title}<br><b>Published:</b> ${new Date(post.published).toLocaleDateString()}<br><b>Total Files:</b> ${totalFiles}<br><em>(${attachmentCount} attachments, ${fileCount} main file)</em>`;
-        tooltip.innerHTML = infoHTML;
-        postCardNode.dataset.postInfo = infoHTML;
-      } catch (err) {
-        tooltip.innerHTML = '<em>Failed to load info.</em>';
-      } finally {
-        isFetching = false;
-      }
-    });
+  infoBtn.addEventListener('mouseover', async () => {
+    tooltip.style.display = 'block';
+    if (postCardNode.dataset.postInfo) {
+      tooltip.textContent = postCardNode.dataset.postInfo;
+      return;
+    }
+    if (isFetching) return;
+    isFetching = true;
+    tooltip.replaceChildren(el('em', {}, ['Loading...']));
+    try {
+      const apiResponse = await fetchPostDataFromAPI(details.service, details.userID, details.postID);
+      const post = apiResponse?.post || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
+      if (!post) throw new Error('No post data');
+      const fileCount = post.file ? 1 : 0;
+      const attachmentCount = post.attachments ? post.attachments.length : 0;
+      const totalFiles = fileCount + attachmentCount;
+      const infoText = `Title: ${post.title}\nPublished: ${new Date(post.published).toLocaleDateString()}\nTotal Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main file)`;
+      tooltip.textContent = infoText;
+      postCardNode.dataset.postInfo = infoText;
+    } catch (err) {
+      tooltip.replaceChildren(el('em', {}, ['Failed to load info.']));
+    } finally {
+      isFetching = false;
+    }
+  });
 
-    infoBtn.addEventListener('mouseout', () => {
-      tooltip.style.display = 'none';
-    });
+  infoBtn.addEventListener('mouseout', () => {
+    tooltip.style.display = 'none';
+  });
 
-    controlsContainer.appendChild(infoBtn);
-    postCardNode.appendChild(controlsContainer);
+  controlsContainer.appendChild(infoBtn);
+  postCardNode.appendChild(controlsContainer);
   }
 }
 
@@ -107,10 +107,7 @@ export function injectArtistFavoriteButton(cardNode: HTMLElement): void {
   if (!service || !creatorId) return;
 
   const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);
-  const favBtn = document.createElement('button');
-  favBtn.className = 'kdl-quick-fav-btn';
-  favBtn.innerHTML = '⭐';
-  favBtn.title = 'Toggle Favorite';
+  const favBtn = el('button', { className: 'kdl-quick-fav-btn', title: 'Toggle Favorite' }, ['⭐']);
   cardNode.appendChild(favBtn);
 
   updateCardFavoriteState(cardNode, isFavorited, 'creator');
@@ -130,10 +127,7 @@ export function injectPostFavoriteButton(cardNode: HTMLElement): void {
   if (!service || !creatorId || !postId) return;
 
   const isFavorited = appState.favoritedPosts.has(postId);
-  const favBtn = document.createElement('button');
-  favBtn.className = 'kdl-quick-fav-btn';
-  favBtn.innerHTML = '⭐';
-  favBtn.title = 'Toggle Favorite';
+  const favBtn = el('button', { className: 'kdl-quick-fav-btn', title: 'Toggle Favorite' }, ['⭐']);
   cardNode.appendChild(favBtn);
 
   updateCardFavoriteState(cardNode, isFavorited, 'post');
