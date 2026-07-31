@@ -160,37 +160,43 @@ export const CSS_STYLES = `
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 6px !important;
-  background-color: #2e3440 !important;
+  gap: 0.4rem !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-family: Helvetica, sans-serif !important;
+  font-size: 1.1rem !important;
+  font-weight: 700 !important;
   color: #f1f5f9 !important;
-  border: 1px solid #4c566a !important;
-  border-radius: 4px !important;
-  padding: 6px 12px !important;
-  font-size: 14px !important;
-  font-family: inherit !important;
-  font-weight: 500 !important;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8) !important;
   cursor: pointer !important;
-  transition: all 0.2s ease !important;
+  transition: color 0.2s ease, transform 0.1s ease !important;
   text-decoration: none !important;
-  line-height: 1.4 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
   height: auto !important;
-  box-sizing: border-box !important;
 }
 
 .user-header__manage:hover,
 #kdl-author-manager-btn:hover {
-  background-color: #6f42c1 !important;
-  border-color: #6f42c1 !important;
-  color: #ffffff !important;
+  color: #c084fc !important;
+  text-shadow: 0 0 10px rgba(192, 132, 252, 0.8), 0 1px 4px rgba(0, 0, 0, 0.9) !important;
   transform: translateY(-1px) !important;
-  box-shadow: 0 4px 10px rgba(111, 66, 193, 0.35) !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
   outline: none !important;
-  text-shadow: none !important;
 }
 
-.user-header__manage:hover span,
-#kdl-author-manager-btn:hover span {
-  color: #ffffff !important;
+.user-header__manage span,
+#kdl-author-manager-btn span {
+  font-family: Helvetica, sans-serif !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+  color: inherit !important;
+  text-shadow: inherit !important;
 }
 
 /* UserScript 2-Column Action Panel */
