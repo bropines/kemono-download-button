@@ -208,13 +208,15 @@ export function setupManagerEventListeners(): void {
     const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
     const currentIndex = checkboxes.indexOf(checkbox);
 
-    if (target.tagName !== 'INPUT') checkbox.checked = !checkbox.checked;
+    const desiredState = target.tagName === 'INPUT' ? checkbox.checked : !checkbox.checked;
+    checkbox.checked = desiredState;
 
     if (e.shiftKey && lastCheckedIndex !== null) {
       const start = Math.min(currentIndex, lastCheckedIndex);
       const end = Math.max(currentIndex, lastCheckedIndex);
-      const isChecked = checkboxes[lastCheckedIndex].checked;
-      for (let i = start; i <= end; i++) checkboxes[i].checked = isChecked;
+      for (let i = start; i <= end; i++) {
+        checkboxes[i].checked = desiredState;
+      }
     }
     lastCheckedIndex = currentIndex;
     updateCounter();

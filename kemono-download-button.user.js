@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.6
+// @version      0.4.7
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4682,12 +4682,14 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       const checkboxes = getCheckboxes();
       const checkbox = item.querySelector('input[type="checkbox"]');
       const currentIndex = checkboxes.indexOf(checkbox);
-      if (target.tagName !== "INPUT") checkbox.checked = !checkbox.checked;
+      const desiredState = target.tagName === "INPUT" ? checkbox.checked : !checkbox.checked;
+      checkbox.checked = desiredState;
       if (e.shiftKey && lastCheckedIndex2 !== null) {
         const start = Math.min(currentIndex, lastCheckedIndex2);
         const end = Math.max(currentIndex, lastCheckedIndex2);
-        const isChecked = checkboxes[lastCheckedIndex2].checked;
-        for (let i2 = start; i2 <= end; i2++) checkboxes[i2].checked = isChecked;
+        for (let i2 = start; i2 <= end; i2++) {
+          checkboxes[i2].checked = desiredState;
+        }
       }
       lastCheckedIndex2 = currentIndex;
       updateCounter();
