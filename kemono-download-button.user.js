@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.4.5
+// @version      0.4.6
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4418,13 +4418,34 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     postCards.forEach((card, index) => {
       const checkbox = card.querySelector(".kdl-post-checkbox");
       if (!checkbox) return;
+      card.addEventListener(
+        "click",
+        (event) => {
+          if (!event.shiftKey) return;
+          const target = event.target;
+          if (target.closest(".post-card-download-controls")) return;
+          event.preventDefault();
+          event.stopPropagation();
+          const desiredState = !checkbox.checked;
+          checkbox.checked = desiredState;
+          if (lastCheckedIndex !== null) {
+            const start = Math.min(index, lastCheckedIndex);
+            const end = Math.max(index, lastCheckedIndex);
+            for (let i2 = start; i2 <= end; i2++) {
+              const cb = postCards[i2].querySelector(".kdl-post-checkbox");
+              if (cb) cb.checked = desiredState;
+            }
+          }
+          lastCheckedIndex = index;
+          updateSelectionState();
+        },
+        true
+      );
       checkbox.addEventListener("click", (event) => {
         if (event.shiftKey && lastCheckedIndex !== null) {
-          event.preventDefault();
           const start = Math.min(index, lastCheckedIndex);
           const end = Math.max(index, lastCheckedIndex);
-          const lastCb = postCards[lastCheckedIndex].querySelector(".kdl-post-checkbox");
-          const targetChecked = lastCb ? lastCb.checked : true;
+          const targetChecked = checkbox.checked;
           for (let i2 = start; i2 <= end; i2++) {
             const cb = postCards[i2].querySelector(".kdl-post-checkbox");
             if (cb) cb.checked = targetChecked;

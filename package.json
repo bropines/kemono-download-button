@@ -1,6 +1,6 @@
 {
   "name": "kemono-download-button",
-  "version": "0.4.5",
+  "version": "0.4.6",
   "description": "Kemono and Pawchive Download Button userscript module",
   "type": "module",
   "scripts": {
