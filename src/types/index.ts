@@ -39,10 +39,28 @@ export interface DownloaderSettings {
   cacheDurationHours: number;
   bulkMultipleSystemPathTemplate: string;
   savedFileNameTemplates: SavedTemplate[];
+  ignoredFileExtensions: string[];
 }
 
+export type SupportedService =
+  | 'patreon'
+  | 'fanbox'
+  | 'fantia'
+  | 'boosty'
+  | 'subscribestar'
+  | 'dlsite'
+  | 'gumroad'
+  | 'afdian'
+  | 'candystand'
+  | 'pixiv'
+  | 'onlyfans'
+  | 'fansly'
+  | 'candyfuns'
+  | 'discord'
+  | (string & {});
+
 export interface PostDetails {
-  service: string;
+  service: SupportedService;
   userID: string;
   authorName: string;
   postID: string;

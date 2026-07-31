@@ -18,34 +18,37 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
 
   try {
     const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-    const attachments = files.filter((t) => !t.isMedia && t.source === 'url');
+    const attachments = files.filter((t) => t.source === 'url');
 
     if (attachments.length === 0) {
-      modal.innerHTML = '<h4>No attachments found for this post.</h4>';
+      modal.replaceChildren(el('h4', {}, ['No attachments found for this post.']));
       return;
     }
 
-    modal.innerHTML = '<h4>Select an attachment to download</h4><ul id="kdl-file-picker-list"></ul>';
-    const list = modal.querySelector('#kdl-file-picker-list') as HTMLUListElement;
-
+    const list = el('ul', { id: 'kdl-file-picker-list' });
     attachments.forEach((file) => {
-      const li = el('li');
-      const a = el('a', { href: '#', dataset: { url: file.data, name: file.name } }, [file.name.split('/').pop()]);
-      li.appendChild(a);
-      list.appendChild(li);
+      const fileName = file.name.split('/').pop() || file.name;
+      const a = el('a', { href: '#', dataset: { url: file.data, name: file.name } }, [fileName]);
+      list.appendChild(el('li', {}, [a]));
     });
 
     list.addEventListener('click', (e: MouseEvent) => {
       e.preventDefault();
       const link = (e.target as HTMLElement).closest('a');
       if (link) {
-        const fileName = link.dataset.name!.split('/').pop();
+        const fullPath = link.dataset.name!;
+        const fileName = fullPath.split('/').pop() || fullPath;
         showMessage(`Starting download for ${fileName}`, 'info');
-        GM_download({ url: link.dataset.url!, name: link.dataset.name!, saveAs: false });
+        GM_download({ url: link.dataset.url!, name: fileName, saveAs: false });
         overlay.remove();
       }
     });
+
+    modal.replaceChildren(el('h4', {}, [`Select a file to download (${attachments.length})`]), list);
   } catch (error: any) {
-    modal.innerHTML = `<h4>Failed to load attachments.</h4><p style="color:#ccc;font-size:0.9em;">${error.message}</p>`;
+    modal.replaceChildren(
+      el('h4', {}, ['Failed to load attachments.']),
+      el('p', { style: { color: '#ccc', fontSize: '0.9em' } }, [error.message])
+    );
   }
 }

@@ -35,5 +35,23 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   bulkSingleInternalPathTemplate: '{post_date}_{post_title}/{file_index}_{file_name}',
   cacheDurationHours: 24,
   bulkMultipleSystemPathTemplate: '{author_name}/{post_date}_{post_title}.zip',
-  savedFileNameTemplates: []
+  savedFileNameTemplates: [],
+  ignoredFileExtensions: []
 };
+
+export const SUPPORTED_SERVICES = [
+  'patreon',
+  'fanbox',
+  'fantia',
+  'boosty',
+  'subscribestar',
+  'dlsite',
+  'gumroad',
+  'afdian',
+  'candystand',
+  'pixiv',
+  'onlyfans',
+  'fansly',
+  'candyfuns',
+  'discord'
+] as const;

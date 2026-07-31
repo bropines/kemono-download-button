@@ -61,6 +61,24 @@ export function sanitizeFilename(filename: string): string {
     .trim() || 'untitled';
 }
 
+const MEDIA_EXTENSIONS = new Set([
+  'jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg', 'avif',
+  'mp4', 'webm', 'mkv', 'mov', 'avi', 'wmv', 'm4v',
+  'mp3', 'wav', 'flac', 'ogg', 'm4a', 'aac'
+]);
+
+export function isMediaFile(filename: string): boolean {
+  if (!filename) return false;
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return MEDIA_EXTENSIONS.has(ext);
+}
+
+export function isFileExtensionIgnored(filename: string, ignoredExts: string[]): boolean {
+  if (!ignoredExts || ignoredExts.length === 0 || !filename) return false;
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  return ignoredExts.some((ignored) => ignored.toLowerCase().replace(/^\./, '').trim() === ext);
+}
+
 export function generateRandomId(length: number): string {
   let result = '';
   const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';

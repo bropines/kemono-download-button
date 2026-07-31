@@ -5,7 +5,7 @@ import { showMessage } from '../ui/toast';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { PostDetails } from '../types';
-import { generateRandomId, sanitizeFilename } from '../utils/helpers';
+import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
@@ -16,11 +16,14 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
   console.log(`[Kemono DL] Initiating ZIP task for post ${postDetails.postID}: "${postDetails.postTitle}"`);
   try {
     const isPostPage = window.location.pathname.includes('/post/');
-    const { files } = isPostPage && appState.cachedPostFiles
+    const { files: rawFiles } = isPostPage && appState.cachedPostFiles
       ? { files: appState.cachedPostFiles }
       : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
 
-    if (files.length === 0) throw new Error('No content to ZIP.');
+    const ignoredExts = state.settings.ignoredFileExtensions || [];
+    const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+
+    if (files.length === 0) throw new Error('No content to ZIP (all files filtered or empty).');
 
     let successCount = 0;
     let failCount = 0;
@@ -154,7 +157,10 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       ? { files: appState.cachedPostFiles }
       : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
 
-    const targetFiles = files.filter((f) => f.source === 'url' && (type === 'Images' ? f.isMedia : !f.isMedia));
+    let targetFiles = files.filter((f) => f.source === 'url' && (type === 'Images' ? f.isMedia : !f.isMedia));
+    if (type === 'Attachments' && targetFiles.length === 0) {
+      targetFiles = files.filter((f) => f.source === 'url');
+    }
 
     if (targetFiles.length === 0) {
       task.updateStatus(`No ${type.toLowerCase()} to download.`);
@@ -194,10 +200,13 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
 export async function downloadPostAsZip(details: PostDetails): Promise<void> {
   const postTask = progressManager.createTask(`zip-multi-${details.postID}`, `ZIP: ${details.postTitle}`);
   try {
-    const { files } = await collectFilesForPost(details, {
+    const { files: rawFiles } = await collectFilesForPost(details, {
       isBulk: false,
       template: '{file_index}_{file_name}'
     });
+
+    const ignoredExts = state.settings.ignoredFileExtensions || [];
+    const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
 
     if (files.length === 0) throw new Error('No content to ZIP.');
 
@@ -291,11 +300,14 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
       const postDetails = getPostCardDetails(postCard, authorName);
       task.updateStatus(`[${i + 1}/${postIds.length}] Fetching: ${postDetails.postTitle}`);
 
-      const { files } = await collectFilesForPost(postDetails, {
+      const { files: rawFiles } = await collectFilesForPost(postDetails, {
         isBulk: true,
         bulk_post_index: i + 1,
         template: state.settings.bulkSingleInternalPathTemplate
       });
+
+      const ignoredExts = state.settings.ignoredFileExtensions || [];
+      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
 
       if (state.settings.addHtmlIndexInZip) {
         const postLink = (postCard.querySelector('a') as HTMLAnchorElement)?.href || '#';
