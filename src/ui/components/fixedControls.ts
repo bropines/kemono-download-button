@@ -1,6 +1,6 @@
 import { appState } from '../../state/store';
 import { el, getOrCreateContainer } from '../../utils/dom';
-import { toggleSettingsModal } from './settingsModal';
+import { setupNavigationSettings } from './navigationSettings';
 
 export function createFixedControls(): void {
   const container = getOrCreateContainer('kdl-fixed-controls');
@@ -8,30 +8,16 @@ export function createFixedControls(): void {
     document.body.appendChild(container);
   }
 
-  if (container.querySelector('#kdl-settings-btn')) return;
-
-  appState.queueIndicatorElement = (container.querySelector('#kdl-queue-indicator') as HTMLElement) || el('div', { id: 'kdl-queue-indicator' });
-  updateQueueIndicator();
-
-  const settingsBtn = el(
-    'button',
-    {
-      id: 'kdl-settings-btn',
-      title: 'Kemono Downloader Settings',
-      type: 'button',
-      onClick: (e: MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-        toggleSettingsModal();
-      }
-    },
-    ['⚙️']
-  );
+  if (!appState.queueIndicatorElement) {
+    appState.queueIndicatorElement = (container.querySelector('#kdl-queue-indicator') as HTMLElement) || el('div', { id: 'kdl-queue-indicator', style: 'display: none;' });
+  }
 
   if (!container.contains(appState.queueIndicatorElement)) {
     container.appendChild(appState.queueIndicatorElement);
   }
-  container.appendChild(settingsBtn);
+
+  updateQueueIndicator();
+  setupNavigationSettings();
 }
 
 export function updateQueueIndicator(): void {

@@ -100,6 +100,33 @@ export interface AppState {
   queueIndicatorElement: HTMLElement | null;
 }
 
+export type EmbedAction = 'button' | 'hide';
+export type EmbedRules = Record<string, EmbedAction | string>;
+
+export interface KuiAppState {
+  isDebugModeEnabled: boolean;
+  isVerboseDebugEnabled: boolean;
+  isPreloadEnabled: boolean;
+  isHideEmptySectionsEnabled: boolean;
+  isPostPageModuleActive: boolean;
+  embedRules: EmbedRules;
+  sessionKey: string;
+}
+
+export interface PostFileData {
+  name: string;
+  path: string;
+}
+
+export interface VideoData {
+  title: string;
+  src: string;
+}
+
+export interface GalleryLayoutElement extends HTMLDivElement {
+  navigate?: (direction: number) => void;
+}
+
 declare global {
   var JSZip: any;
   function GM_addStyle(css: string): void;
@@ -109,4 +136,15 @@ declare global {
   function GM_registerMenuCommand(name: string, fn: () => void): void;
   function GM_setClipboard(text: string): void;
   function GM_xmlhttpRequest(details: any): any;
+
+  class Plyr {
+    constructor(targets: HTMLElement | string, options?: Record<string, any>);
+    on(event: string, callback: (event: any) => void): void;
+    elements: {
+      video?: HTMLVideoElement;
+      container?: HTMLElement;
+    };
+    source: any;
+  }
 }
+

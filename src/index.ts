@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.7
+// @version      0.8.8
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -19,6 +19,7 @@
 // @match        https://*.pawchive.pw/*
 // @match        https://pawchive.st/*
 // @match        https://*.pawchive.st/*
+// @require      https://cdn.plyr.io/3.7.8/plyr.js
 // @connect      *
 // @grant        GM_addStyle
 // @grant        GM_download
@@ -30,15 +31,25 @@
 // ==/UserScript==
 
 import { CSS_STYLES } from './config/styles';
+import { SELECTORS } from './config/selectors';
 import { getSettings, appState } from './state/store';
+import { kuiState } from './state/kuiState';
 import { fetchUserFavorites } from './api/kemonoApi';
 import { el } from './utils/dom';
 import { debugLog, waitForElement } from './utils/helpers';
+import { debugModule } from './utils/logger';
+import { sanitizeDuplicates } from './utils/domChecker';
 import { createFixedControls } from './ui/components/fixedControls';
 import { createAndInsertPostPageButtons } from './ui/components/postPageButtons';
 import { injectPostCardButtons, injectArtistFavoriteButton, injectPostFavoriteButton } from './ui/components/postCardButtons';
 import { createBulkDownloadPanel, initializeShiftClickLogic } from './ui/components/bulkPanel';
 import { createAuthorManagerButton } from './ui/components/authorManagerModal';
+import { injectUI } from './ui/components/kui/settingsPanel';
+import { setupGridControls } from './ui/components/kui/gridControls';
+import { lightboxModule } from './features/kui/lightbox';
+import { markViewedPosts, setupGlobalClickListener } from './features/kui/viewedPosts';
+import { userPageModule } from './features/kui/userPageModule';
+import { postPageModule } from './features/kui/postPageModule';
 import { fetchAndCachePostData } from './services/collectorService';
 
 export function ensureStylesInjected(): void {
@@ -61,6 +72,40 @@ ensureStylesInjected();
 
 let lastUrl = '';
 let isInitializing = false;
+
+function runKuiPageLogic(): void {
+  try {
+    const postBody = document.querySelector(SELECTORS.postBody);
+    const isOnPostPage = !!document.querySelector(SELECTORS.postPageContainer);
+    const isOnUserPage = !!document.querySelector(SELECTORS.userHeaderName);
+
+    if (isOnPostPage && postBody) {
+      if (!postBody.classList.contains("kui-processed")) {
+        postPageModule.init();
+      }
+    } else {
+      if (kuiState.isPostPageModuleActive) {
+        postPageModule.cleanup();
+      }
+    }
+
+    if (isOnUserPage) {
+      userPageModule.init();
+    }
+
+    if (document.querySelector(SELECTORS.postCard)) {
+      markViewedPosts();
+    }
+
+    if (document.querySelector(SELECTORS.postGridContainer)) {
+      setupGridControls();
+    }
+
+    sanitizeDuplicates();
+  } catch (error) {
+    debugLog('Error during KUI page logic execution:', error);
+  }
+}
 
 async function handlePageContent(): Promise<void> {
   try {
@@ -134,6 +179,8 @@ async function handlePageContent(): Promise<void> {
 const runInitializationLogic = async (force = false) => {
   ensureStylesInjected();
   createFixedControls();
+  runKuiPageLogic();
+
   if (isInitializing) return;
   const currentUrl = window.location.href;
   const path = window.location.pathname;
@@ -173,24 +220,39 @@ const runInitializationLogic = async (force = false) => {
 };
 
 function init(): void {
+  ensureStylesInjected();
+  debugModule.init();
+  injectUI();
+  lightboxModule.init();
+  setupGlobalClickListener();
   createFixedControls();
+
   runInitializationLogic();
 
   // HTMX & PWA SPA Navigation Listeners
+  document.addEventListener("htmx:beforeHistorySave", () => postPageModule.cleanup());
+  document.addEventListener("htmx:beforeSwap", () => postPageModule.cleanup());
+  document.addEventListener("htmx:beforeRequest", () => postPageModule.cleanup());
+  document.addEventListener("htmx:beforeCleanupElement", () => postPageModule.cleanup());
   document.addEventListener('htmx:afterSettle', () => runInitializationLogic(true));
   document.addEventListener('htmx:afterSwap', () => runInitializationLogic(true));
   document.addEventListener('htmx:historyRestore', () => runInitializationLogic(true));
-  window.addEventListener('popstate', () => runInitializationLogic(true));
+  window.addEventListener('popstate', () => {
+    postPageModule.cleanup();
+    runInitializationLogic(true);
+  });
 
   // Intercept PushState and ReplaceState for SPA/PWA client routing
   const originalPushState = history.pushState;
   history.pushState = function (...args) {
+    postPageModule.cleanup();
     originalPushState.apply(this, args);
     setTimeout(() => runInitializationLogic(true), 50);
   };
 
   const originalReplaceState = history.replaceState;
   history.replaceState = function (...args) {
+    postPageModule.cleanup();
     originalReplaceState.apply(this, args);
     setTimeout(() => runInitializationLogic(true), 50);
   };

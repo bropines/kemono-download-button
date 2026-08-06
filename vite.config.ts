@@ -11,6 +11,13 @@ export default defineConfig({
       fileName: () => 'bundle.js'
     },
     minify: false,
-    rollupOptions: {}
+    rollupOptions: {
+      external: ['plyr'],
+      output: {
+        globals: {
+          plyr: 'Plyr'
+        }
+      }
+    }
   }
 });

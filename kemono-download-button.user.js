@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.7
+// @version      0.8.8
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -19,6 +19,7 @@
 // @match        https://*.pawchive.pw/*
 // @match        https://pawchive.st/*
 // @match        https://*.pawchive.st/*
+// @require      https://cdn.plyr.io/3.7.8/plyr.js
 // @connect      *
 // @grant        GM_addStyle
 // @grant        GM_download
@@ -34,1046 +35,2614 @@ var KemonoDownloadButton = function(exports) {
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-  const CSS_STYLES = `
-#kemono-download-message-box {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  padding: 10px 20px;
-  background-color: #333;
-  color: #fff;
-  border-radius: 5px;
-  z-index: 10001;
-  opacity: 0;
-  transition: opacity .5s ease-in-out, transform .3s ease-in-out;
-  box-shadow: 0 2px 10px #0003;
-  transform: translate(110%);
-}
-.post-card { position: relative; }
-.post-card .post-card-download-controls {
-  position: absolute;
-  top: 5px;
-  right: 5px;
-  display: none;
-  flex-direction: column;
-  gap: 4px;
-  background-color: #282828d9;
-  padding: 5px;
-  border-radius: 4px;
-  z-index: 10;
-  border: 1px solid rgba(255,255,255,.1);
-}
-.post-card:hover .post-card-download-controls { display: flex; }
-.post-card .post-card-download-controls button {
-  padding: 4px 8px;
-  font-size: .8em;
-  min-width: 65px;
-  margin: 0;
-  border: none;
-  border-radius: 3px;
-  color: #fff;
-  cursor: pointer;
-  text-align: center;
-  opacity: .9;
-  transition: opacity .2s, background-color .2s;
-}
-.post-card .post-card-download-controls button:hover { opacity: 1; }
-.post-card .post-card-dl-zip { background-color: #28a745; }
-.post-card .post-card-dl-zip:hover { background-color: #218838; }
-.post-card .post-card-dl-img { background-color: #007bff; }
-.post-card .post-card-dl-img:hover { background-color: #0069d9; }
-.post-card .post-card-dl-att { background-color: #ffc107; color: #212529!important; }
-.post-card .post-card-dl-att:hover { background-color: #e0a800; }
-.post-card .post-card-dl-pick { background-color: #6f42c1; }
-.post-card .post-card-dl-pick:hover { background-color: #5a32a3; }
-.post-card .post-card-dl-info { background-color: #6c757d; }
-.post-card .post-card-dl-info:hover { background-color: #5a6268; }
-.post-card .post-card-download-controls button:disabled,
-.post__actions button[data-is-downloading=true],
-.post__actions button[data-is-queued=true] {
-  opacity: .6!important;
-  cursor: not-allowed!important;
-}
-.post-card .post-card-download-controls button[data-is-queued=true],
-.post__actions button[data-is-queued=true] { background-color: #fd7e14!important; }
-.post-card .post-card-download-controls button[data-is-downloading=true],
-.post__actions button[data-is-downloading=true] { background-color: #6c757d!important; }
-
-/* Native UI Post Actions (.post__flag & .post__fav) */
-.post__actions {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  gap: 8px !important;
-  align-items: center !important;
-  margin-top: 8px !important;
-  padding: 0 !important;
-}
-
-.post__actions > * {
-  margin: 0 !important;
-}
-
-.post__flag,
-.post__fav {
-  padding: 6px 14px !important;
-  border-radius: 5px !important;
-  font-size: 0.88em !important;
-  font-weight: 600 !important;
-  line-height: 1.3 !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.25) !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  outline: none !important;
-  text-shadow: none !important;
-  opacity: 1 !important;
-}
-
-.post__flag,
-.post__flag span,
-.post__flag-icon {
-  color: #f1f5f9 !important;
-}
-
-.post__flag {
-  background-color: #2e3440 !important;
-  border: 1px solid #4c566a !important;
-}
-
-.post__flag .post__flag-icon {
-  color: #ef4444 !important;
-}
-
-.post__flag:hover {
-  background-color: #dc3545 !important;
-  border-color: #dc3545 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 10px rgba(220, 53, 69, 0.35) !important;
-  outline: none !important;
-  text-shadow: none !important;
-}
-
-.post__flag:hover,
-.post__flag:hover span,
-.post__flag:hover .post__flag-icon {
-  color: #ffffff !important;
-}
-
-.post__fav,
-.post__fav span,
-.post__fav-icon {
-  color: #f1f5f9 !important;
-}
-
-.post__fav {
-  background-color: #2e3440 !important;
-  border: 1px solid #4c566a !important;
-}
-
-.post__fav .post__fav-icon {
-  color: #fbbf24 !important;
-}
-
-.post__fav:hover {
-  background-color: #ffc107 !important;
-  border-color: #ffc107 !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 10px rgba(255, 193, 7, 0.35) !important;
-  outline: none !important;
-  text-shadow: none !important;
-}
-
-.post__fav:hover,
-.post__fav:hover span,
-.post__fav:hover .post__fav-icon {
-  color: #111827 !important;
-}
-
-.user-header__manage,
-#kdl-author-manager-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 0.4rem !important;
-  background: transparent !important;
-  border: none !important;
-  outline: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  font-family: Helvetica, sans-serif !important;
-  font-size: 1.1rem !important;
-  font-weight: 700 !important;
-  color: #f1f5f9 !important;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8) !important;
-  cursor: pointer !important;
-  transition: color 0.2s ease, transform 0.1s ease !important;
-  text-decoration: none !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-  height: auto !important;
-}
-
-.user-header__manage:hover,
-#kdl-author-manager-btn:hover {
-  color: #c084fc !important;
-  text-shadow: 0 0 10px rgba(192, 132, 252, 0.8), 0 1px 4px rgba(0, 0, 0, 0.9) !important;
-  transform: translateY(-1px) !important;
-  background: transparent !important;
-  border: none !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-.user-header__manage span,
-#kdl-author-manager-btn span {
-  font-family: Helvetica, sans-serif !important;
-  font-size: inherit !important;
-  font-weight: 700 !important;
-  color: inherit !important;
-  text-shadow: inherit !important;
-}
-
-/* UserScript 2-Column Action Panel */
-@media (min-width: 850px) {
-  .post__header {
-    position: relative !important;
-  }
-  .post__info {
-    padding-right: 400px !important;
-  }
-  .kdl-actions-container {
-    position: absolute !important;
-    top: 15px !important;
-    right: 15px !important;
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 10px !important;
-    width: 380px !important;
-  }
-}
-
-@media (max-width: 849px) {
-  .kdl-actions-container {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr !important;
-    gap: 8px !important;
-    margin-top: 12px !important;
-    width: 100% !important;
-  }
-}
-
-.kdl-actions-col {
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 8px !important;
-}
-
-.kdl-button {
-  padding: 7px 12px !important;
-  border: none !important;
-  border-radius: 6px !important;
-  cursor: pointer !important;
-  font-size: 0.86rem !important;
-  font-weight: 600 !important;
-  line-height: 1.3 !important;
-  color: #fff !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  gap: 5px !important;
-  outline: none !important;
-  text-shadow: none !important;
-  transition: opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important;
-}
-
-.kdl-button:hover {
-  opacity: 0.95 !important;
-  filter: brightness(1.1) !important;
-  transform: translateY(-1px) !important;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-}
-
-.kdl-button:active {
-  transform: translateY(0) !important;
-}
-
-#kdl-fixed-controls {
-  position: fixed;
-  bottom: 15px;
-  right: 15px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 8px;
-  z-index: 9998;
-}
-#kdl-queue-indicator {
-  background-color: #000000b3;
-  color: #fff;
-  padding: 5px 10px;
-  border-radius: 5px;
-  font-size: .9em;
-  box-shadow: 0 1px 5px #0000004d;
-}
-#kdl-settings-btn {
-  background-color: #007bff;
-  color: #fff;
-  border: none;
-  padding: 8px;
-  border-radius: 50%;
-  cursor: pointer;
-  font-size: 1.2em;
-  line-height: 1;
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 5px #0000004d;
-}
-#kdl-settings-btn:hover { background-color: #0056b3; }
-
-#kdl-settings-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(10, 13, 18, 0.75);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 10000;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-#kdl-settings-modal {
-  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
-  color: #f8fafc;
-  border-radius: 14px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  width: 1180px;
-  max-width: 95vw;
-  display: flex;
-  flex-direction: column;
-  max-height: 88vh;
-  overflow: hidden;
-}
-#kdl-settings-modal-content {
-  overflow-y: auto;
-  padding: 20px 24px;
-}
-#kdl-settings-modal-content::-webkit-scrollbar {
-  width: 8px;
-}
-#kdl-settings-modal-content::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 4px;
-}
-#kdl-settings-modal-content::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
-}
-#kdl-settings-modal-content::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-#kdl-settings-modal h2 {
-  margin-top: 0;
-  margin-bottom: 16px;
-  padding-bottom: 10px;
-  color: #38bdf8;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  text-align: center;
-  font-size: 1.3rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-}
-
-/* 3-Column Grid Layout */
-.kdl-settings-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 1100px) {
-  .kdl-settings-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 768px) {
-  .kdl-settings-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.kdl-settings-col {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.kdl-settings-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 10px;
-  padding: 14px 16px;
-}
-
-.kdl-settings-card h3 {
-  margin-top: 0 !important;
-  margin-bottom: 12px !important;
-  color: #f1f5f9 !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
-  padding-bottom: 6px !important;
-  font-size: 1rem !important;
-  font-weight: 600 !important;
-}
-
-.kdl-settings-card h4 {
-  margin-top: 14px !important;
-  margin-bottom: 8px !important;
-  color: #cbd5e1 !important;
-  font-size: 0.9rem !important;
-  font-weight: 600 !important;
-}
-
-.kdl-setting-item {
-  margin-bottom: 12px;
-}
-
-#kdl-settings-modal label {
-  display: block;
-  margin-top: 6px;
-  margin-bottom: 4px;
-  font-weight: 600;
-  font-size: 0.86rem;
-  color: #e2e8f0;
-}
-
-#kdl-settings-modal input[type=checkbox] {
-  margin-right: 8px;
-  vertical-align: middle;
-  width: 16px;
-  height: 16px;
-  accent-color: #38bdf8;
-  cursor: pointer;
-}
-
-#kdl-settings-modal input[type=number],
-#kdl-settings-modal input[type=text],
-#kdl-settings-modal input[type=password],
-#kdl-settings-modal select {
-  width: 100%;
-  padding: 8px 11px;
-  border-radius: 7px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background-color: rgba(255, 255, 255, 0.05);
-  color: #f8fafc;
-  box-sizing: border-box;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-}
-
-#kdl-settings-modal input[type=number]:focus,
-#kdl-settings-modal input[type=text]:focus,
-#kdl-settings-modal input[type=password]:focus,
-#kdl-settings-modal select:focus {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-  outline: none;
-}
-
-#kdl-settings-modal input[type=number] {
-  width: 90px;
-}
-
-#kdl-settings-modal select option {
-  background-color: #1e222b;
-  color: #f8fafc;
-}
-
-.kdl-cache-box {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 8px;
-  padding: 10px 12px;
-  margin-top: 10px;
-  font-size: 0.82rem;
-  color: #94a3b8;
-}
-
-.kdl-setting-checkbox-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px 10px;
-  margin-top: 6px;
-}
-
-/* Modal Button Classes */
-.kdl-btn-primary, .kdl-btn-info, .kdl-btn-warn, .kdl-btn-danger, .kdl-btn-success {
-  border: none !important;
-  border-radius: 6px !important;
-  padding: 7px 12px !important;
-  font-weight: 600 !important;
-  font-size: 0.82rem !important;
-  cursor: pointer !important;
-  transition: all 0.2s ease !important;
-  color: #fff !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.kdl-btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8) !important; }
-.kdl-btn-info { background: linear-gradient(135deg, #06b6d4, #0891b2) !important; }
-.kdl-btn-warn { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
-.kdl-btn-danger { background: linear-gradient(135deg, #ef4444, #b91c1c) !important; }
-.kdl-btn-success { background: linear-gradient(135deg, #10b981, #047857) !important; }
-
-.kdl-btn-primary:hover, .kdl-btn-info:hover, .kdl-btn-warn:hover, .kdl-btn-danger:hover, .kdl-btn-success:hover {
-  transform: translateY(-1px) !important;
-  filter: brightness(1.12) !important;
-  box-shadow: 0 3px 8px rgba(0,0,0,0.3) !important;
-}
-
-/* Tooltips */
-.kdl-tooltip-trigger {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 16px;
-  height: 16px;
-  font-size: 0.75rem;
-  color: #38bdf8;
-  cursor: help;
-  margin-left: 4px;
-  vertical-align: middle;
-}
-
-.kdl-tooltip-trigger:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  bottom: 130%;
-  left: 50%;
-  transform: translateX(-50%);
-  background-color: #0f172a;
-  color: #f1f5f9;
-  padding: 8px 12px;
-  border-radius: 7px;
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  font-size: 0.78rem;
-  font-weight: 400;
-  white-space: normal;
-  width: 230px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
-  z-index: 10010;
-  pointer-events: none;
-  line-height: 1.4;
-  text-align: left;
-}
-
-.kdl-tooltip-trigger:hover::before {
-  content: '';
-  position: absolute;
-  bottom: 115%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 5px;
-  border-style: solid;
-  border-color: #0f172a transparent transparent transparent;
-  z-index: 10011;
-  pointer-events: none;
-}
-
-.kdl-settings-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 24px;
-  background-color: rgba(20, 24, 32, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  margin-top: auto;
-  position: sticky;
-  bottom: 0;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-
-.kdl-settings-config-btns {
-  display: flex;
-  gap: 8px;
-}
-
-.kdl-settings-modal-btns {
-  display: flex;
-  gap: 10px;
-}
-
-#kdl-settings-modal button.kdl-save {
-  background: linear-gradient(135deg, #10b981, #059669);
-  color: #fff;
-  padding: 9px 22px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-left: 10px;
-  font-weight: 600;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
-  box-shadow: 0 3px 10px rgba(16, 185, 129, 0.25);
-}
-
-#kdl-settings-modal button.kdl-save:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 5px 15px rgba(16, 185, 129, 0.35);
-  filter: brightness(1.1);
-}
-
-#kdl-settings-modal button.kdl-close {
-  background-color: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  padding: 9px 18px;
-  border-radius: 8px;
-  cursor: pointer;
-  margin-left: 10px;
-  font-weight: 600;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
-}
-
-#kdl-settings-modal button.kdl-close:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #fff;
-  transform: translateY(-1px);
-}
-
-#kdl-progress-container {
-  position: fixed;
-  bottom: 0;
-  left: 50%;
-  transform: translate(-50%);
-  width: 80vw;
-  max-width: 800px;
-  max-height: 40vh;
-  overflow-y: auto;
-  z-index: 10002;
-  display: flex;
-  flex-direction: column-reverse;
-  gap: 8px;
-  padding-bottom: 10px;
-}
-.kdl-progress-task {
-  background-color: #282b30e6;
-  -webkit-backdrop-filter: blur(5px);
-  backdrop-filter: blur(5px);
-  color: #f0f0f0;
-  border-radius: 6px;
-  padding: 8px 12px;
-  box-shadow: 0 2px 8px #0000004d;
-  border: 1px solid rgba(255,255,255,.1);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-.kdl-task-header { display: flex; justify-content: space-between; align-items: center; font-weight: 700; }
-.kdl-task-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: .95em; }
-.kdl-task-status { font-size: .85em; color: #ccc; }
-.kdl-task-files { max-height: 150px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding-right: 5px; }
-.kdl-progress-bar-wrapper { width: 100%; }
-.kdl-progress-bar-label { color: #ddd; font-size: .8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
-.kdl-progress-bar-label.kdl-success { color: #28a745; }
-.kdl-progress-bar-label.kdl-error { color: #dc3545; }
-.kdl-progress-bar { width: 100%; height: 8px; background-color: #555; border-radius: 4px; overflow: hidden; }
-.kdl-progress-bar-inner { width: 0%; height: 100%; background-color: #007bff; transition: width .1s linear, background-color .3s; }
-.kdl-progress-bar-inner.kdl-success { background-color: #28a745!important; }
-.kdl-progress-bar-inner.kdl-error { background-color: #dc3545!important; }
-
-#kdl-bulk-panel {
-  position: fixed;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%) translateY(140%);
-  opacity: 0;
-  pointer-events: none;
-  background-color: #1e1e1ef2;
-  padding: 10px 20px;
-  border-radius: 30px;
-  z-index: 9999;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid #444;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-  transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease;
-}
-#kdl-bulk-panel.kdl-visible {
-  transform: translateX(-50%) translateY(0);
-  opacity: 1;
-  pointer-events: auto;
-}
-#kdl-bulk-panel button { padding: 8px 14px; border: none; border-radius: 20px; cursor: pointer; font-size: .9em; font-weight: 500; color: #fff; transition: background-color .2s, transform .1s; }
-#kdl-bulk-panel button:active { transform: scale(0.96); }
-#kdl-bulk-download-btn { background-color: #28a745; }
-#kdl-bulk-download-btn:hover { background-color: #218838; }
-#kdl-bulk-download-btn:disabled { background-color: #555; cursor: not-allowed; opacity: 0.7; }
-#kdl-bulk-select-all { background-color: #007bff; }
-#kdl-bulk-select-all:hover { background-color: #0069d9; }
-#kdl-bulk-deselect-all { background-color: #dc3545; }
-#kdl-bulk-deselect-all:hover { background-color: #c82333; }
-
-.kdl-post-checkbox {
-  position: absolute;
-  top: 5px;
-  left: 5px;
-  z-index: 11;
-  width: 20px;
-  height: 20px;
-  cursor: pointer;
-  padding: 5px;
-  margin: 0;
-  background-clip: content-box;
-}
-
-#kdl-file-picker-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(10, 13, 18, 0.75);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 10003;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-#kdl-file-picker-modal {
-  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
-  color: #f8fafc;
-  border-radius: 14px;
-  padding: 24px;
-  width: 620px;
-  max-width: 92vw;
-  max-height: 82vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-}
-#kdl-file-picker-modal h4 {
-  margin: 0 0 16px;
-  color: #38bdf8;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding-bottom: 12px;
-  text-align: center;
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-#kdl-file-picker-list {
-  overflow-y: auto;
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-#kdl-file-picker-list li {
-  margin: 0;
-}
-#kdl-file-picker-list a {
-  display: block;
-  padding: 10px 14px;
-  background-color: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 8px;
-  color: #cbd5e1;
-  text-decoration: none;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.88rem;
-}
-#kdl-file-picker-list a:hover {
-  background-color: rgba(56, 189, 248, 0.12);
-  border-color: #38bdf8;
-  color: #ffffff;
-  transform: translateX(3px);
-}
-
-.kdl-post-info-tooltip {
-  position: absolute;
-  bottom: 100%;
-  right: 0;
-  background-color: #1a1a1a;
-  color: #f0f0f0;
-  padding: 8px;
-  border-radius: 5px;
-  border: 1px solid #555;
-  z-index: 801;
-  width: 200px;
-  font-size: .85em;
-  display: none;
-  pointer-events: none;
-  box-shadow: 0 3px 10px #00000080;
-}
-
-#kdl-author-manager-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(10, 13, 18, 0.75);
-  display: none;
-  justify-content: center;
-  align-items: center;
-  z-index: 10003;
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
-}
-#kdl-author-manager-modal {
-  background: linear-gradient(145deg, #1c2029 0%, #151820 100%);
-  color: #f8fafc;
-  border-radius: 14px;
-  width: 840px;
-  max-width: 95vw;
-  height: 88vh;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  overflow: hidden;
-}
-#kdl-manager-header {
-  padding: 18px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  background-color: rgba(255, 255, 255, 0.02);
-}
-#kdl-manager-header h3 {
-  margin: 0;
-  color: #38bdf8;
-  font-size: 1.25rem;
-  font-weight: 700;
-}
-#kdl-manager-controls {
-  display: flex;
-  gap: 12px;
-  padding: 12px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  align-items: center;
-  background-color: rgba(0, 0, 0, 0.15);
-}
-#kdl-manager-search {
-  flex-grow: 1;
-  padding: 9px 14px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  color: #f8fafc;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
-}
-#kdl-manager-search:focus {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: #38bdf8;
-  outline: none;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-}
-.kdl-manager-btn {
-  padding: 9px 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
-}
-#kdl-manager-post-list {
-  overflow-y: auto;
-  flex-grow: 1;
-  padding: 14px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-#kdl-manager-post-list .post-item {
-  display: flex;
-  align-items: center;
-  padding: 10px 14px;
-  border-radius: 8px;
-  margin-bottom: 0;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  background-color: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-}
-#kdl-manager-post-list .post-item:hover {
-  background-color: rgba(255, 255, 255, 0.07);
-  border-color: rgba(56, 189, 248, 0.3);
-  transform: translateY(-1px);
-}
-#kdl-manager-post-list .post-item input[type=checkbox] {
-  margin-right: 15px;
-  width: 18px;
-  height: 18px;
-  accent-color: #38bdf8;
-  cursor: pointer;
-}
-.post-item-label {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.post-item-title {
-  font-weight: 600;
-  color: #f1f5f9;
-  font-size: 0.92rem;
-}
-.post-item-date {
-  font-size: 0.8rem;
-  color: #94a3b8;
-}
-#kdl-manager-footer {
-  padding: 14px 24px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-  margin-top: auto;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background-color: rgba(20, 24, 32, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-}
-.post-item-preview {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  margin-right: 15px;
-  border-radius: 6px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-.post-item-open-link {
-  margin-left: auto;
-  padding: 6px 12px;
-  font-size: 1rem;
-  line-height: 1;
-  text-decoration: none;
-  border-radius: 6px;
-  transition: all 0.2s ease;
-  color: #94a3b8;
-}
-.post-item-open-link:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-  color: #38bdf8;
-}
-
-.user-card, .post-card { position: relative!important; }
-.kdl-quick-fav-btn {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 12;
-  background: #141414b3;
-  border: 1px solid rgba(255,255,255,.2);
-  color: #fff;
-  border-radius: 5px;
-  width: 28px;
-  height: 28px;
-  font-size: 16px;
-  line-height: 1;
-  padding: 0;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform .2s, color .2s, opacity .2s;
-  opacity: 0;
-  pointer-events: none;
-}
-.user-card:hover .kdl-quick-fav-btn, .post-card:hover .kdl-quick-fav-btn { opacity: .9; pointer-events: auto; }
-.kdl-quick-fav-btn:hover { opacity: 1; transform: scale(1.1); }
-.kdl-quick-fav-btn.kdl-favorited { color: #ffeb3b; }
-.kdl-quick-fav-btn:disabled { cursor: wait; color: #888; }
-
-.kdl-chips-container {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 8px;
-  padding: 8px 10px;
-  transition: all 0.2s ease;
-}
-
-.kdl-chips-container:focus-within {
-  background-color: rgba(255, 255, 255, 0.08);
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
-}
-
-.kdl-chips-wrapper {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.kdl-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(14, 165, 233, 0.22));
-  border: 1px solid rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
-  padding: 3px 10px;
-  border-radius: 14px;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.kdl-chip-remove {
-  cursor: pointer;
-  font-size: 0.75rem;
-  opacity: 0.7;
-  transition: opacity 0.2s, color 0.2s;
-}
-
-.kdl-chip-remove:hover {
-  opacity: 1;
-  color: #ef4444;
-}
-
-.kdl-chips-input {
-  border: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  padding: 4px 0 !important;
-  font-size: 0.85rem !important;
-  color: #f8fafc !important;
-  outline: none !important;
-  width: 100% !important;
-}
+  function css(rules) {
+    let cssString = "";
+    for (const [selector, properties] of Object.entries(rules)) {
+      if (selector.startsWith("@media")) {
+        cssString += `${selector} {
 `;
+        for (const [subSelector, subProps] of Object.entries(properties)) {
+          cssString += `  ${subSelector} {
+`;
+          for (const [prop, value] of Object.entries(subProps)) {
+            const kebabProp = prop.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+            cssString += `    ${kebabProp}: ${value};
+`;
+          }
+          cssString += `  }
+`;
+        }
+        cssString += `}
+`;
+      } else if (selector.startsWith("@keyframes")) {
+        cssString += `${selector} {
+`;
+        for (const [step, stepProps] of Object.entries(properties)) {
+          cssString += `  ${step} {
+`;
+          for (const [prop, value] of Object.entries(stepProps)) {
+            const kebabProp = prop.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+            cssString += `    ${kebabProp}: ${value};
+`;
+          }
+          cssString += `  }
+`;
+        }
+        cssString += `}
+`;
+      } else {
+        cssString += `${selector} {
+`;
+        for (const [prop, value] of Object.entries(properties)) {
+          const kebabProp = prop.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
+          cssString += `  ${kebabProp}: ${value};
+`;
+        }
+        cssString += `}
+`;
+      }
+    }
+    return cssString;
+  }
+  const THEME = {
+    colors: {
+      // Brand & Status Colors
+      primary: "#38bdf8",
+      success: "#28a745",
+      successGradient: "linear-gradient(135deg, #10b981, #059669)",
+      successDark: "#218838",
+      danger: "#ef4444",
+      dangerDark: "#dc3545",
+      warning: "#ffc107",
+      warningDark: "#e0a800",
+      info: "#007bff",
+      infoDark: "#0069d9",
+      purple: "#6f42c1",
+      purpleDark: "#5a32a3",
+      secondary: "#6c757d",
+      secondaryDark: "#5a6268",
+      orange: "#fd7e14",
+      // Gradient Buttons
+      btnPrimaryGradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
+      btnInfoGradient: "linear-gradient(135deg, #06b6d4, #0891b2)",
+      btnWarnGradient: "linear-gradient(135deg, #f59e0b, #d97706)",
+      btnDangerGradient: "linear-gradient(135deg, #ef4444, #b91c1c)",
+      btnSuccessGradient: "linear-gradient(135deg, #10b981, #047857)",
+      // Neutral & Backgrounds
+      bgDark: "#1e1e1e80",
+      panelBg: "#2e2e2e",
+      inputBg: "#444444",
+      modalBg: "linear-gradient(145deg, #1c2029 0%, #151820 100%)",
+      overlayBg: "rgba(10, 13, 18, 0.75)",
+      cardBg: "rgba(255, 255, 255, 0.03)",
+      cardHoverBg: "rgba(255, 255, 255, 0.07)",
+      nordBg: "#2e3440",
+      nordBorder: "#4c566a",
+      // Text & Borders
+      textMain: "#f8fafc",
+      textMuted: "#94a3b8",
+      textSubtle: "#cbd5e1",
+      borderDark: "#444444",
+      borderLight: "#555555",
+      borderSubtle: "rgba(255, 255, 255, 0.12)",
+      tagBg: "#4b5563",
+      buttonGradStart: "#374151",
+      buttonGradEnd: "#1f2937",
+      accentBlue: "#3b82f6",
+      accentOrange: "#e16d2d"
+    },
+    borderRadius: {
+      xs: "3px",
+      sm: "4px",
+      md: "6px",
+      lg: "8px",
+      xl: "10px",
+      modal: "14px",
+      pill: "26px",
+      full: "50%"
+    },
+    shadows: {
+      subtle: "0 2px 4px rgba(0, 0, 0, 0.25)",
+      modal: "0 25px 60px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15)"
+    },
+    zIndex: {
+      dropdown: 801,
+      fixedControls: 9998,
+      bulkPanel: 9999,
+      panel: 1e4,
+      toast: 10001,
+      lightbox: 10001,
+      lightboxNav: 10002,
+      modalOverlay: 10003
+    },
+    transitions: {
+      fast: "0.2s ease",
+      panel: "transform 0.3s ease-in-out"
+    },
+    scrollbars: {
+      width: "8px",
+      trackBg: "rgba(0, 0, 0, 0.15)",
+      thumbBg: "rgba(255, 255, 255, 0.18)",
+      thumbHoverBg: "rgba(255, 255, 255, 0.3)"
+    }
+  };
+  const messageBoxStyles = css({
+    "#kemono-download-message-box": {
+      position: "fixed",
+      top: "20px",
+      right: "20px",
+      padding: "10px 20px",
+      backgroundColor: "#333",
+      color: THEME.colors.textMain,
+      borderRadius: THEME.borderRadius.sm,
+      zIndex: THEME.zIndex.toast,
+      opacity: 0,
+      transition: "opacity .5s ease-in-out, transform .3s ease-in-out",
+      boxShadow: "0 2px 10px #0003",
+      transform: "translate(110%)"
+    }
+  });
+  const postCardStyles = css({
+    ".user-card, .post-card": {
+      position: "relative !important"
+    },
+    ".post-card .post-card-download-controls": {
+      position: "absolute",
+      top: "5px",
+      right: "5px",
+      display: "none",
+      flexDirection: "column",
+      gap: "4px",
+      backgroundColor: "#282828d9",
+      padding: "5px",
+      borderRadius: THEME.borderRadius.sm,
+      zIndex: 10,
+      border: "1px solid rgba(255,255,255,.1)"
+    },
+    ".post-card:hover .post-card-download-controls": {
+      display: "flex"
+    },
+    ".post-card .post-card-download-controls button": {
+      padding: "4px 8px",
+      fontSize: ".8em",
+      minWidth: "65px",
+      margin: 0,
+      border: "none",
+      borderRadius: THEME.borderRadius.xs,
+      color: "#fff",
+      cursor: "pointer",
+      textAlign: "center",
+      opacity: 0.9,
+      transition: "opacity .2s, background-color .2s"
+    },
+    ".post-card .post-card-download-controls button:hover": {
+      opacity: 1
+    },
+    ".post-card .post-card-dl-zip": {
+      backgroundColor: THEME.colors.success
+    },
+    ".post-card .post-card-dl-zip:hover": {
+      backgroundColor: THEME.colors.successDark
+    },
+    ".post-card .post-card-dl-img": {
+      backgroundColor: THEME.colors.info
+    },
+    ".post-card .post-card-dl-img:hover": {
+      backgroundColor: THEME.colors.infoDark
+    },
+    ".post-card .post-card-dl-att": {
+      backgroundColor: THEME.colors.warning,
+      color: "#212529 !important"
+    },
+    ".post-card .post-card-dl-att:hover": {
+      backgroundColor: THEME.colors.warningDark
+    },
+    ".post-card .post-card-dl-pick": {
+      backgroundColor: THEME.colors.purple
+    },
+    ".post-card .post-card-dl-pick:hover": {
+      backgroundColor: THEME.colors.purpleDark
+    },
+    ".post-card .post-card-dl-info": {
+      backgroundColor: THEME.colors.secondary
+    },
+    ".post-card .post-card-dl-info:hover": {
+      backgroundColor: THEME.colors.secondaryDark
+    },
+    ".post-card .post-card-download-controls button:disabled, .post__actions button[data-is-downloading=true], .post__actions button[data-is-queued=true]": {
+      opacity: "0.6 !important",
+      cursor: "not-allowed !important"
+    },
+    ".post-card .post-card-download-controls button[data-is-queued=true], .post__actions button[data-is-queued=true]": {
+      backgroundColor: `${THEME.colors.orange} !important`
+    },
+    ".post-card .post-card-download-controls button[data-is-downloading=true], .post__actions button[data-is-downloading=true]": {
+      backgroundColor: `${THEME.colors.secondary} !important`
+    },
+    ".kdl-post-checkbox": {
+      position: "absolute",
+      top: "5px",
+      left: "5px",
+      zIndex: 11,
+      width: "20px",
+      height: "20px",
+      cursor: "pointer",
+      padding: "5px",
+      margin: 0,
+      backgroundClip: "content-box"
+    },
+    ".kdl-quick-fav-btn": {
+      position: "absolute",
+      top: "8px",
+      right: "8px",
+      zIndex: 12,
+      background: "#141414b3",
+      border: "1px solid rgba(255,255,255,.2)",
+      color: "#fff",
+      borderRadius: THEME.borderRadius.sm,
+      width: "28px",
+      height: "28px",
+      fontSize: "16px",
+      lineHeight: 1,
+      padding: 0,
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "transform .2s, color .2s, opacity .2s",
+      opacity: 0,
+      pointerEvents: "none"
+    },
+    ".user-card:hover .kdl-quick-fav-btn, .post-card:hover .kdl-quick-fav-btn": {
+      opacity: 0.9,
+      pointerEvents: "auto"
+    },
+    ".kdl-quick-fav-btn:hover": {
+      opacity: 1,
+      transform: "scale(1.1)"
+    },
+    ".kdl-quick-fav-btn.kdl-favorited": {
+      color: "#ffeb3b"
+    },
+    ".kdl-quick-fav-btn:disabled": {
+      cursor: "wait",
+      color: "#888"
+    },
+    ".kdl-post-info-tooltip": {
+      position: "absolute",
+      bottom: "100%",
+      right: 0,
+      backgroundColor: "#1a1a1a",
+      color: "#f0f0f0",
+      padding: "8px",
+      borderRadius: THEME.borderRadius.sm,
+      border: `1px solid ${THEME.colors.borderLight}`,
+      zIndex: THEME.zIndex.dropdown,
+      width: "200px",
+      fontSize: ".85em",
+      display: "none",
+      pointerEvents: "none",
+      boxShadow: "0 3px 10px #00000080"
+    }
+  });
+  const postActionsStyles = css({
+    ".post__actions": {
+      display: "flex !important",
+      flexWrap: "wrap !important",
+      gap: "8px !important",
+      alignItems: "center !important",
+      marginTop: "8px !important",
+      padding: "0 !important"
+    },
+    ".post__actions > *": {
+      margin: "0 !important"
+    },
+    ".post__flag, .post__fav": {
+      padding: "6px 14px !important",
+      borderRadius: `${THEME.borderRadius.sm} !important`,
+      fontSize: "0.88em !important",
+      fontWeight: "600 !important",
+      lineHeight: "1.3 !important",
+      cursor: "pointer !important",
+      transition: "all 0.2s ease !important",
+      boxShadow: `${THEME.shadows.subtle} !important`,
+      display: "inline-flex !important",
+      alignItems: "center !important",
+      gap: "6px !important",
+      outline: "none !important",
+      textShadow: "none !important",
+      opacity: "1 !important"
+    },
+    ".post__flag, .post__flag span, .post__flag-icon": {
+      color: "#f1f5f9 !important"
+    },
+    ".post__flag": {
+      backgroundColor: `${THEME.colors.nordBg} !important`,
+      border: `1px solid ${THEME.colors.nordBorder} !important`
+    },
+    ".post__flag .post__flag-icon": {
+      color: `${THEME.colors.danger} !important`
+    },
+    ".post__flag:hover": {
+      backgroundColor: `${THEME.colors.dangerDark} !important`,
+      borderColor: `${THEME.colors.dangerDark} !important`,
+      transform: "translateY(-1px) !important",
+      boxShadow: "0 4px 10px rgba(220, 53, 69, 0.35) !important",
+      outline: "none !important",
+      textShadow: "none !important"
+    },
+    ".post__flag:hover, .post__flag:hover span, .post__flag:hover .post__flag-icon": {
+      color: "#ffffff !important"
+    },
+    ".post__fav, .post__fav span, .post__fav-icon": {
+      color: "#f1f5f9 !important"
+    },
+    ".post__fav": {
+      backgroundColor: `${THEME.colors.nordBg} !important`,
+      border: `1px solid ${THEME.colors.nordBorder} !important`
+    },
+    ".post__fav .post__fav-icon": {
+      color: "#fbbf24 !important"
+    },
+    ".post__fav:hover": {
+      backgroundColor: `${THEME.colors.warning} !important`,
+      borderColor: `${THEME.colors.warning} !important`,
+      transform: "translateY(-1px) !important",
+      boxShadow: "0 4px 10px rgba(255, 193, 7, 0.35) !important",
+      outline: "none !important",
+      textShadow: "none !important"
+    },
+    ".post__fav:hover, .post__fav:hover span, .post__fav:hover .post__fav-icon": {
+      color: "#111827 !important"
+    },
+    ".user-header__manage, #kdl-author-manager-btn": {
+      display: "inline-flex !important",
+      alignItems: "center !important",
+      justifyContent: "center !important",
+      gap: "0.4rem !important",
+      background: "transparent !important",
+      border: "none !important",
+      outline: "none !important",
+      padding: "0 !important",
+      margin: "0 !important",
+      fontFamily: "Helvetica, sans-serif !important",
+      fontSize: "1.1rem !important",
+      fontWeight: "700 !important",
+      color: "#f1f5f9 !important",
+      textShadow: "0 1px 4px rgba(0, 0, 0, 0.9), 0 2px 8px rgba(0, 0, 0, 0.8) !important",
+      cursor: "pointer !important",
+      transition: "color 0.2s ease, transform 0.1s ease !important",
+      textDecoration: "none !important",
+      boxShadow: "none !important",
+      borderRadius: "0 !important",
+      height: "auto !important"
+    },
+    ".user-header__manage:hover, #kdl-author-manager-btn:hover": {
+      color: "#c084fc !important",
+      textShadow: "0 0 10px rgba(192, 132, 252, 0.8), 0 1px 4px rgba(0, 0, 0, 0.9) !important",
+      transform: "translateY(-1px) !important",
+      background: "transparent !important",
+      border: "none !important",
+      boxShadow: "none !important",
+      outline: "none !important"
+    },
+    ".user-header__manage span, #kdl-author-manager-btn span": {
+      fontFamily: "Helvetica, sans-serif !important",
+      fontSize: "inherit !important",
+      fontWeight: "700 !important",
+      color: "inherit !important",
+      textShadow: "inherit !important"
+    },
+    /* UserScript 2-Column Action Panel */
+    "@media (min-width: 850px)": {
+      ".post__header": {
+        position: "relative !important"
+      },
+      ".post__info": {
+        paddingRight: "400px !important"
+      },
+      ".kdl-actions-container": {
+        position: "absolute !important",
+        top: "15px !important",
+        right: "15px !important",
+        display: "grid !important",
+        gridTemplateColumns: "1fr 1fr !important",
+        gap: "10px !important",
+        width: "380px !important"
+      }
+    },
+    "@media (max-width: 849px)": {
+      ".kdl-actions-container": {
+        display: "grid !important",
+        gridTemplateColumns: "1fr 1fr !important",
+        gap: "8px !important",
+        marginTop: "12px !important",
+        width: "100% !important"
+      }
+    },
+    ".kdl-actions-col": {
+      display: "flex !important",
+      flexDirection: "column !important",
+      gap: "8px !important"
+    },
+    ".kdl-button": {
+      padding: "7px 12px !important",
+      border: "none !important",
+      borderRadius: `${THEME.borderRadius.md} !important`,
+      cursor: "pointer !important",
+      fontSize: "0.86rem !important",
+      fontWeight: "600 !important",
+      lineHeight: "1.3 !important",
+      color: "#fff !important",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.2) !important",
+      width: "100% !important",
+      boxSizing: "border-box !important",
+      display: "inline-flex !important",
+      alignItems: "center !important",
+      justifyContent: "center !important",
+      gap: "5px !important",
+      outline: "none !important",
+      textShadow: "none !important",
+      transition: "opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important"
+    },
+    ".kdl-button:hover": {
+      opacity: "0.95 !important",
+      filter: "brightness(1.1) !important",
+      transform: "translateY(-1px) !important",
+      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.3) !important"
+    },
+    ".kdl-button:active": {
+      transform: "translateY(0) !important"
+    }
+  });
+  const fixedControlsStyles = css({
+    "#kdl-fixed-controls": {
+      position: "fixed",
+      bottom: "15px",
+      right: "15px",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "flex-end",
+      gap: "8px",
+      zIndex: THEME.zIndex.fixedControls
+    },
+    "#kdl-queue-indicator": {
+      backgroundColor: "#000000b3",
+      color: "#fff",
+      padding: "5px 10px",
+      borderRadius: THEME.borderRadius.sm,
+      fontSize: ".9em",
+      boxShadow: "0 1px 5px #0000004d"
+    },
+    "#kdl-settings-btn": {
+      backgroundColor: THEME.colors.info,
+      color: "#fff",
+      border: "none",
+      padding: "8px",
+      borderRadius: THEME.borderRadius.full,
+      cursor: "pointer",
+      fontSize: "1.2em",
+      lineHeight: 1,
+      width: "40px",
+      height: "40px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      boxShadow: "0 1px 5px #0000004d"
+    },
+    "#kdl-settings-btn:hover": {
+      backgroundColor: THEME.colors.infoDark
+    }
+  });
+  const settingsModalStyles = css({
+    "#kdl-settings-overlay": {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: THEME.colors.overlayBg,
+      display: "none",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: THEME.zIndex.panel,
+      WebkitBackdropFilter: "blur(12px)",
+      backdropFilter: "blur(12px)"
+    },
+    "#kdl-settings-modal": {
+      background: THEME.colors.modalBg,
+      color: THEME.colors.textMain,
+      borderRadius: THEME.borderRadius.modal,
+      boxShadow: THEME.shadows.modal,
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      width: "1180px",
+      maxWidth: "95vw",
+      display: "flex",
+      flexDirection: "column",
+      maxHeight: "88vh",
+      overflow: "hidden"
+    },
+    "#kdl-settings-modal-content": {
+      overflowY: "auto",
+      padding: "20px 24px"
+    },
+    "#kdl-settings-modal-content::-webkit-scrollbar": {
+      width: THEME.scrollbars.width
+    },
+    "#kdl-settings-modal-content::-webkit-scrollbar-track": {
+      background: THEME.scrollbars.trackBg,
+      borderRadius: "4px"
+    },
+    "#kdl-settings-modal-content::-webkit-scrollbar-thumb": {
+      background: THEME.scrollbars.thumbBg,
+      borderRadius: "4px"
+    },
+    "#kdl-settings-modal-content::-webkit-scrollbar-thumb:hover": {
+      background: THEME.scrollbars.thumbHoverBg
+    },
+    "#kdl-settings-modal h2": {
+      marginTop: 0,
+      marginBottom: "16px",
+      paddingBottom: "10px",
+      color: THEME.colors.primary,
+      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+      textAlign: "center",
+      fontSize: "1.3rem",
+      fontWeight: "700",
+      letterSpacing: "-0.01em"
+    },
+    ".kdl-settings-grid": {
+      display: "grid",
+      gridTemplateColumns: "repeat(3, 1fr)",
+      gap: "16px",
+      alignItems: "start"
+    },
+    "@media (max-width: 1100px)": {
+      ".kdl-settings-grid": {
+        gridTemplateColumns: "1fr 1fr"
+      }
+    },
+    "@media (max-width: 768px)": {
+      ".kdl-settings-grid": {
+        gridTemplateColumns: "1fr"
+      }
+    },
+    ".kdl-settings-col": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "14px"
+    },
+    ".kdl-settings-card": {
+      background: THEME.colors.cardBg,
+      border: "1px solid rgba(255, 255, 255, 0.07)",
+      borderRadius: THEME.borderRadius.xl,
+      padding: "14px 16px"
+    },
+    ".kdl-settings-card h3": {
+      marginTop: "0 !important",
+      marginBottom: "12px !important",
+      color: `${THEME.colors.textSubtle} !important`,
+      fontSize: "0.9rem !important",
+      fontWeight: "600 !important"
+    },
+    ".kdl-settings-card h4": {
+      marginTop: "14px !important",
+      marginBottom: "8px !important",
+      color: `${THEME.colors.textSubtle} !important`,
+      fontSize: "0.9rem !important",
+      fontWeight: "600 !important"
+    },
+    ".kdl-setting-item": {
+      marginBottom: "12px"
+    },
+    "#kdl-settings-modal label": {
+      display: "block",
+      marginTop: "6px",
+      marginBottom: "4px",
+      fontWeight: "600",
+      fontSize: "0.86rem",
+      color: "#e2e8f0"
+    },
+    "#kdl-settings-modal input[type=checkbox]": {
+      marginRight: "8px",
+      verticalAlign: "middle",
+      width: "16px",
+      height: "16px",
+      accentColor: THEME.colors.primary,
+      cursor: "pointer"
+    },
+    "#kdl-settings-modal input[type=number], #kdl-settings-modal input[type=text], #kdl-settings-modal input[type=password], #kdl-settings-modal select": {
+      width: "100%",
+      padding: "8px 11px",
+      borderRadius: "7px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      color: THEME.colors.textMain,
+      boxSizing: "border-box",
+      fontSize: "0.85rem",
+      transition: "all 0.2s ease"
+    },
+    "#kdl-settings-modal input[type=number]:focus, #kdl-settings-modal input[type=text]:focus, #kdl-settings-modal input[type=password]:focus, #kdl-settings-modal select:focus": {
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      borderColor: THEME.colors.primary,
+      boxShadow: "0 0 0 3px rgba(56, 189, 248, 0.2)",
+      outline: "none"
+    },
+    "#kdl-settings-modal input[type=number]": {
+      width: "90px"
+    },
+    "#kdl-settings-modal select option": {
+      backgroundColor: "#1e222b",
+      color: THEME.colors.textMain
+    },
+    ".kdl-cache-box": {
+      background: "rgba(0, 0, 0, 0.2)",
+      border: "1px solid rgba(255, 255, 255, 0.06)",
+      borderRadius: THEME.borderRadius.lg,
+      padding: "10px 12px",
+      marginTop: "10px",
+      fontSize: "0.82rem",
+      color: THEME.colors.textMuted
+    },
+    ".kdl-setting-checkbox-grid": {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "6px 10px",
+      marginTop: "6px"
+    },
+    ".kdl-btn-primary, .kdl-btn-info, .kdl-btn-warn, .kdl-btn-danger, .kdl-btn-success": {
+      border: "none !important",
+      borderRadius: `${THEME.borderRadius.md} !important`,
+      padding: "7px 12px !important",
+      fontWeight: "600 !important",
+      fontSize: "0.82rem !important",
+      cursor: "pointer !important",
+      transition: "all 0.2s ease !important",
+      color: "#fff !important",
+      display: "inline-flex !important",
+      alignItems: "center !important",
+      justifyContent: "center !important"
+    },
+    ".kdl-btn-primary": { background: `${THEME.colors.btnPrimaryGradient} !important` },
+    ".kdl-btn-info": { background: `${THEME.colors.btnInfoGradient} !important` },
+    ".kdl-btn-warn": { background: `${THEME.colors.btnWarnGradient} !important` },
+    ".kdl-btn-danger": { background: `${THEME.colors.btnDangerGradient} !important` },
+    ".kdl-btn-success": { background: `${THEME.colors.btnSuccessGradient} !important` },
+    ".kdl-btn-primary:hover, .kdl-btn-info:hover, .kdl-btn-warn:hover, .kdl-btn-danger:hover, .kdl-btn-success:hover": {
+      transform: "translateY(-1px) !important",
+      filter: "brightness(1.12) !important",
+      boxShadow: "0 3px 8px rgba(0,0,0,0.3) !important"
+    },
+    ".kdl-tooltip-trigger": {
+      position: "relative",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "16px",
+      height: "16px",
+      fontSize: "0.75rem",
+      color: THEME.colors.primary,
+      cursor: "help",
+      marginLeft: "4px",
+      verticalAlign: "middle"
+    },
+    ".kdl-tooltip-trigger:hover::after": {
+      content: "attr(data-tooltip)",
+      position: "absolute",
+      bottom: "130%",
+      left: "50%",
+      transform: "translateX(-50%)",
+      backgroundColor: "#0f172a",
+      color: "#f1f5f9",
+      padding: "8px 12px",
+      borderRadius: "7px",
+      border: "1px solid rgba(56, 189, 248, 0.35)",
+      fontSize: "0.78rem",
+      fontWeight: "400",
+      whiteSpace: "normal",
+      width: "230px",
+      boxShadow: "0 10px 25px rgba(0, 0, 0, 0.6)",
+      zIndex: 10010,
+      pointerEvents: "none",
+      lineHeight: "1.4",
+      textAlign: "left"
+    },
+    ".kdl-tooltip-trigger:hover::before": {
+      content: '""',
+      position: "absolute",
+      bottom: "115%",
+      left: "50%",
+      transform: "translateX(-50%)",
+      borderWidth: "5px",
+      borderStyle: "solid",
+      borderColor: "#0f172a transparent transparent transparent",
+      zIndex: 10011,
+      pointerEvents: "none"
+    },
+    ".kdl-settings-actions": {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "14px 24px",
+      backgroundColor: "rgba(20, 24, 32, 0.95)",
+      borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+      marginTop: "auto",
+      position: "sticky",
+      bottom: 0,
+      backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)"
+    },
+    ".kdl-settings-config-btns": {
+      display: "flex",
+      gap: "8px"
+    },
+    ".kdl-settings-modal-btns": {
+      display: "flex",
+      gap: "10px"
+    },
+    "#kdl-settings-modal button.kdl-save": {
+      background: THEME.colors.successGradient,
+      color: "#fff",
+      padding: "9px 22px",
+      border: "none",
+      borderRadius: THEME.borderRadius.lg,
+      cursor: "pointer",
+      marginLeft: "10px",
+      fontWeight: "600",
+      fontSize: "0.88rem",
+      transition: "all 0.2s ease",
+      boxShadow: "0 3px 10px rgba(16, 185, 129, 0.25)"
+    },
+    "#kdl-settings-modal button.kdl-save:hover": {
+      transform: "translateY(-1px)",
+      boxShadow: "0 5px 15px rgba(16, 185, 129, 0.35)",
+      filter: "brightness(1.1)"
+    },
+    "#kdl-settings-modal button.kdl-close": {
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      color: THEME.colors.textSubtle,
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      padding: "9px 18px",
+      borderRadius: THEME.borderRadius.lg,
+      cursor: "pointer",
+      marginLeft: "10px",
+      fontWeight: "600",
+      fontSize: "0.88rem",
+      transition: "all 0.2s ease"
+    },
+    "#kdl-settings-modal button.kdl-close:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.15)",
+      color: "#fff",
+      transform: "translateY(-1px)"
+    }
+  });
+  const bulkPanelStyles = css({
+    "#kdl-bulk-panel": {
+      position: "fixed",
+      bottom: "24px",
+      left: "50%",
+      transform: "translateX(-50%) translateY(140%)",
+      opacity: 0,
+      pointerEvents: "none",
+      backgroundColor: "#1e1e1ef2",
+      padding: "10px 20px",
+      borderRadius: "30px",
+      zIndex: THEME.zIndex.bulkPanel,
+      display: "flex",
+      gap: "12px",
+      alignItems: "center",
+      justifyContent: "center",
+      border: `1px solid ${THEME.colors.borderDark}`,
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.4)",
+      WebkitBackdropFilter: "blur(12px)",
+      backdropFilter: "blur(12px)",
+      transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease"
+    },
+    "#kdl-bulk-panel.kdl-visible": {
+      transform: "translateX(-50%) translateY(0)",
+      opacity: 1,
+      pointerEvents: "auto"
+    },
+    "#kdl-bulk-panel button": {
+      padding: "8px 14px",
+      border: "none",
+      borderRadius: "20px",
+      cursor: "pointer",
+      fontSize: ".9em",
+      fontWeight: "500",
+      color: "#fff",
+      transition: "background-color .2s, transform .1s"
+    },
+    "#kdl-bulk-panel button:active": {
+      transform: "scale(0.96)"
+    },
+    "#kdl-bulk-download-btn": {
+      backgroundColor: THEME.colors.success
+    },
+    "#kdl-bulk-download-btn:hover": {
+      backgroundColor: THEME.colors.successDark
+    },
+    "#kdl-bulk-download-btn:disabled": {
+      backgroundColor: "#555",
+      cursor: "not-allowed",
+      opacity: 0.7
+    },
+    "#kdl-bulk-select-all": {
+      backgroundColor: THEME.colors.info
+    },
+    "#kdl-bulk-select-all:hover": {
+      backgroundColor: THEME.colors.infoDark
+    },
+    "#kdl-bulk-deselect-all": {
+      backgroundColor: THEME.colors.danger
+    },
+    "#kdl-bulk-deselect-all:hover": {
+      backgroundColor: THEME.colors.dangerDark
+    }
+  });
+  const filePickerModalStyles = css({
+    "#kdl-file-picker-overlay": {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: THEME.colors.overlayBg,
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: THEME.zIndex.modalOverlay,
+      WebkitBackdropFilter: "blur(12px)",
+      backdropFilter: "blur(12px)"
+    },
+    "#kdl-file-picker-modal": {
+      background: THEME.colors.modalBg,
+      color: THEME.colors.textMain,
+      borderRadius: THEME.borderRadius.modal,
+      padding: "24px",
+      width: "620px",
+      maxWidth: "92vw",
+      maxHeight: "82vh",
+      display: "flex",
+      flexDirection: "column",
+      boxShadow: THEME.shadows.modal,
+      border: `1px solid ${THEME.colors.borderSubtle}`
+    },
+    "#kdl-file-picker-modal h4": {
+      margin: "0 0 16px",
+      color: THEME.colors.primary,
+      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+      paddingBottom: "12px",
+      textAlign: "center",
+      fontSize: "1.2rem",
+      fontWeight: "700"
+    },
+    "#kdl-file-picker-list": {
+      overflowY: "auto",
+      listStyle: "none",
+      padding: 0,
+      margin: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px"
+    },
+    "#kdl-file-picker-list li": {
+      margin: 0
+    },
+    "#kdl-file-picker-list a": {
+      display: "block",
+      padding: "10px 14px",
+      backgroundColor: THEME.colors.cardBg,
+      border: "1px solid rgba(255, 255, 255, 0.08)",
+      borderRadius: THEME.borderRadius.lg,
+      color: THEME.colors.textSubtle,
+      textDecoration: "none",
+      transition: "all 0.2s ease",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      fontSize: "0.88rem"
+    },
+    "#kdl-file-picker-list a:hover": {
+      backgroundColor: "rgba(56, 189, 248, 0.12)",
+      borderColor: THEME.colors.primary,
+      color: "#ffffff",
+      transform: "translateX(3px)"
+    }
+  });
+  const authorManagerModalStyles = css({
+    "#kdl-author-manager-overlay": {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: THEME.colors.overlayBg,
+      display: "none",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: THEME.zIndex.modalOverlay,
+      WebkitBackdropFilter: "blur(12px)",
+      backdropFilter: "blur(12px)"
+    },
+    "#kdl-author-manager-modal": {
+      background: THEME.colors.modalBg,
+      color: THEME.colors.textMain,
+      borderRadius: THEME.borderRadius.modal,
+      width: "840px",
+      maxWidth: "95vw",
+      height: "88vh",
+      display: "flex",
+      flexDirection: "column",
+      boxShadow: THEME.shadows.modal,
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      overflow: "hidden"
+    },
+    "#kdl-manager-header": {
+      padding: "18px 24px",
+      borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+      backgroundColor: "rgba(255, 255, 255, 0.02)"
+    },
+    "#kdl-manager-header h3": {
+      margin: 0,
+      color: THEME.colors.primary,
+      fontSize: "1.25rem",
+      fontWeight: "700"
+    },
+    "#kdl-manager-controls": {
+      display: "flex",
+      gap: "12px",
+      padding: "12px 24px",
+      borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+      alignItems: "center",
+      backgroundColor: "rgba(0, 0, 0, 0.15)"
+    },
+    "#kdl-manager-search": {
+      flexGrow: 1,
+      padding: "9px 14px",
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.lg,
+      color: THEME.colors.textMain,
+      fontSize: "0.88rem",
+      transition: "all 0.2s ease"
+    },
+    "#kdl-manager-search:focus": {
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      borderColor: THEME.colors.primary,
+      outline: "none",
+      boxShadow: "0 0 0 3px rgba(56, 189, 248, 0.2)"
+    },
+    ".kdl-manager-btn": {
+      padding: "9px 16px",
+      border: "none",
+      borderRadius: THEME.borderRadius.lg,
+      cursor: "pointer",
+      fontWeight: "600",
+      fontSize: "0.88rem",
+      transition: "all 0.2s ease"
+    },
+    "#kdl-manager-post-list": {
+      overflowY: "auto",
+      flexGrow: 1,
+      padding: "14px 24px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px"
+    },
+    "#kdl-manager-post-list .post-item": {
+      display: "flex",
+      alignItems: "center",
+      padding: "10px 14px",
+      borderRadius: THEME.borderRadius.lg,
+      marginBottom: 0,
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+      backgroundColor: THEME.colors.cardBg,
+      border: "1px solid rgba(255, 255, 255, 0.06)"
+    },
+    "#kdl-manager-post-list .post-item:hover": {
+      backgroundColor: THEME.colors.cardHoverBg,
+      borderColor: "rgba(56, 189, 248, 0.3)",
+      transform: "translateY(-1px)"
+    },
+    "#kdl-manager-post-list .post-item input[type=checkbox]": {
+      marginRight: "15px",
+      width: "18px",
+      height: "18px",
+      accentColor: THEME.colors.primary,
+      cursor: "pointer"
+    },
+    ".post-item-label": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px"
+    },
+    ".post-item-title": {
+      fontWeight: "600",
+      color: "#f1f5f9",
+      fontSize: "0.92rem"
+    },
+    ".post-item-date": {
+      fontSize: "0.8rem",
+      color: THEME.colors.textMuted
+    },
+    "#kdl-manager-footer": {
+      padding: "14px 24px",
+      borderTop: "1px solid rgba(255, 255, 255, 0.08)",
+      marginTop: "auto",
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      backgroundColor: "rgba(20, 24, 32, 0.95)",
+      backdropFilter: "blur(8px)",
+      WebkitBackdropFilter: "blur(8px)"
+    },
+    ".post-item-preview": {
+      width: "60px",
+      height: "60px",
+      objectFit: "cover",
+      marginRight: "15px",
+      borderRadius: THEME.borderRadius.md,
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      border: "1px solid rgba(255, 255, 255, 0.1)"
+    },
+    ".post-item-open-link": {
+      marginLeft: "auto",
+      padding: "6px 12px",
+      fontSize: "1rem",
+      lineHeight: 1,
+      textDecoration: "none",
+      borderRadius: THEME.borderRadius.md,
+      transition: "all 0.2s ease",
+      color: THEME.colors.textMuted
+    },
+    ".post-item-open-link:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.1)",
+      color: THEME.colors.primary
+    }
+  });
+  const progressBarStyles = css({
+    "#kdl-progress-container": {
+      position: "fixed",
+      bottom: 0,
+      left: "50%",
+      transform: "translate(-50%)",
+      width: "80vw",
+      maxWidth: "800px",
+      maxHeight: "40vh",
+      overflowY: "auto",
+      zIndex: THEME.zIndex.lightboxNav,
+      display: "flex",
+      flexDirection: "column-reverse",
+      gap: "8px",
+      paddingBottom: "10px"
+    },
+    ".kdl-progress-task": {
+      backgroundColor: "#282b30e6",
+      WebkitBackdropFilter: "blur(5px)",
+      backdropFilter: "blur(5px)",
+      color: "#f0f0f0",
+      borderRadius: THEME.borderRadius.md,
+      padding: "8px 12px",
+      boxShadow: "0 2px 8px #0000004d",
+      border: "1px solid rgba(255,255,255,.1)",
+      display: "flex",
+      flexDirection: "column",
+      gap: "5px"
+    },
+    ".kdl-task-header": {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      fontWeight: "700"
+    },
+    ".kdl-task-title": {
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      fontSize: ".95em"
+    },
+    ".kdl-task-status": {
+      fontSize: ".85em",
+      color: "#ccc"
+    },
+    ".kdl-task-files": {
+      maxHeight: "150px",
+      overflowY: "auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px",
+      paddingRight: "5px"
+    },
+    ".kdl-progress-bar-wrapper": {
+      width: "100%"
+    },
+    ".kdl-progress-bar-label": {
+      color: "#ddd",
+      fontSize: ".8em",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      marginBottom: "2px"
+    },
+    ".kdl-progress-bar-label.kdl-success": {
+      color: THEME.colors.success
+    },
+    ".kdl-progress-bar-label.kdl-error": {
+      color: THEME.colors.danger
+    },
+    ".kdl-progress-bar": {
+      width: "100%",
+      height: "8px",
+      backgroundColor: "#555",
+      borderRadius: THEME.borderRadius.sm,
+      overflow: "hidden"
+    },
+    ".kdl-progress-bar-inner": {
+      width: "0%",
+      height: "100%",
+      backgroundColor: THEME.colors.info,
+      transition: "width .1s linear, background-color .3s"
+    },
+    ".kdl-progress-bar-inner.kdl-success": {
+      backgroundColor: `${THEME.colors.success} !important`
+    },
+    ".kdl-progress-bar-inner.kdl-error": {
+      backgroundColor: `${THEME.colors.danger} !important`
+    }
+  });
+  const chipsStyles = css({
+    ".kdl-chips-container": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.lg,
+      padding: "8px 10px",
+      transition: "all 0.2s ease"
+    },
+    ".kdl-chips-container:focus-within": {
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      borderColor: THEME.colors.primary,
+      boxShadow: "0 0 0 3px rgba(56, 189, 248, 0.2)"
+    },
+    ".kdl-chips-wrapper": {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "6px"
+    },
+    ".kdl-chip": {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      background: "linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(14, 165, 233, 0.22))",
+      border: "1px solid rgba(56, 189, 248, 0.35)",
+      color: THEME.colors.primary,
+      padding: "3px 10px",
+      borderRadius: "14px",
+      fontSize: "0.8rem",
+      fontWeight: "600"
+    },
+    ".kdl-chip-remove": {
+      cursor: "pointer",
+      fontSize: "0.75rem",
+      opacity: 0.7,
+      transition: "opacity 0.2s, color 0.2s"
+    },
+    ".kdl-chip-remove:hover": {
+      opacity: 1,
+      color: THEME.colors.danger
+    },
+    ".kdl-chips-input": {
+      border: "none !important",
+      background: "transparent !important",
+      boxShadow: "none !important",
+      padding: "4px 0 !important",
+      fontSize: "0.85rem !important",
+      color: "#f8fafc !important",
+      outline: "none !important",
+      width: "100% !important"
+    }
+  });
+  const downloadButtonStyles = [
+    messageBoxStyles,
+    postCardStyles,
+    postActionsStyles,
+    fixedControlsStyles,
+    settingsModalStyles,
+    bulkPanelStyles,
+    filePickerModalStyles,
+    authorManagerModalStyles,
+    progressBarStyles,
+    chipsStyles
+  ].join("\n\n");
+  const kuiMainStyles = css({
+    "#kui-settings-btn-sidebar": {
+      cursor: "pointer"
+    },
+    ".post__content > ._content_59c5c91": {
+      marginTop: "0 !important",
+      paddingTop: "0 !important"
+    },
+    /* Settings Panel */
+    "#kui-settings-panel": {
+      position: "fixed",
+      top: 0,
+      right: 0,
+      width: "300px",
+      height: "100%",
+      backgroundColor: THEME.colors.panelBg,
+      borderLeft: `1px solid ${THEME.colors.borderDark}`,
+      boxShadow: "-5px 0 15px #0000004d",
+      zIndex: THEME.zIndex.panel,
+      transform: "translate(100%)",
+      transition: THEME.transitions.panel,
+      padding: "20px",
+      boxSizing: "border-box",
+      color: THEME.colors.textMain,
+      fontFamily: "sans-serif",
+      display: "flex",
+      flexDirection: "column"
+    },
+    "#kui-settings-panel.kui-panel-active": {
+      transform: "translate(0)"
+    },
+    ".kui-settings-content": {
+      flexGrow: 1,
+      overflowY: "auto",
+      paddingRight: "5px"
+    },
+    ".kui-setting": {
+      marginTop: "20px"
+    },
+    ".kui-setting label": {
+      display: "block",
+      marginBottom: "8px"
+    },
+    '.kui-setting input[type="text"]': {
+      width: "100%",
+      boxSizing: "border-box",
+      backgroundColor: THEME.colors.inputBg,
+      border: `1px solid ${THEME.colors.borderLight}`,
+      color: "#fff",
+      padding: "8px",
+      borderRadius: THEME.borderRadius.sm
+    },
+    ".kui-setting small": {
+      color: THEME.colors.textMuted,
+      marginTop: "5px",
+      display: "block"
+    },
+    /* Grid & Toggle Switches */
+    ".kui-grid-size-control": {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    },
+    ".kui-toggle-switch": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    },
+    ".kui-switch": {
+      position: "relative",
+      display: "inline-block",
+      width: "50px",
+      height: "26px"
+    },
+    ".kui-switch input": {
+      opacity: 0,
+      width: 0,
+      height: 0
+    },
+    ".kui-slider": {
+      position: "absolute",
+      cursor: "pointer",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      backgroundColor: "#555",
+      transition: "0.4s",
+      borderRadius: THEME.borderRadius.pill
+    },
+    ".kui-slider:before": {
+      position: "absolute",
+      content: '""',
+      height: "20px",
+      width: "20px",
+      left: "3px",
+      bottom: "3px",
+      backgroundColor: "#fff",
+      transition: "0.4s",
+      borderRadius: THEME.borderRadius.full
+    },
+    "input:checked + .kui-slider": {
+      backgroundColor: THEME.colors.accentBlue
+    },
+    "input:checked + .kui-slider:before": {
+      transform: "translate(24px)"
+    },
+    ".kui-viewed": {
+      opacity: 0.5
+    },
+    /* User Profile Header */
+    "h1.user-header__name": {
+      display: "flex",
+      alignItems: "center"
+    },
+    "#kui-copy-username-btn": {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "28px",
+      height: "28px",
+      marginLeft: "10px",
+      backgroundColor: THEME.colors.buttonGradStart,
+      border: "1px solid #4b5563",
+      color: "#d1d5db",
+      borderRadius: "5px",
+      cursor: "pointer",
+      fontSize: "14px",
+      transition: THEME.transitions.fast,
+      verticalAlign: "middle"
+    },
+    "#kui-copy-username-btn:hover": {
+      backgroundColor: "#4b5563",
+      color: "#f9fafb"
+    },
+    "#kui-copy-username-btn:active": {
+      transform: "scale(0.95)"
+    },
+    /* Post Sections */
+    ".kui-post-section": {
+      backgroundColor: THEME.colors.bgDark,
+      border: `1px solid ${THEME.colors.borderDark}`,
+      borderRadius: THEME.borderRadius.lg,
+      padding: "15px",
+      marginTop: "20px"
+    },
+    ".kui-post-section h2": {
+      marginTop: "0 !important",
+      marginBottom: "15px !important",
+      paddingBottom: "10px !important",
+      borderBottom: `1px solid ${THEME.colors.borderLight} !important`
+    },
+    /* Action Buttons */
+    ".kui-action-btn": {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "#14141499",
+      color: "#fff !important",
+      border: "1px solid rgba(255, 255, 255, 0.2)",
+      cursor: "pointer",
+      textDecoration: "none !important",
+      borderRadius: THEME.borderRadius.lg,
+      transition: "background-color 0.2s, transform 0.2s"
+    },
+    ".kui-action-btn:hover": {
+      background: "#000c",
+      transform: "scale(1.1)"
+    },
+    ".kui-action-btn svg": {
+      width: "20px",
+      height: "20px",
+      fill: "currentColor"
+    },
+    /* Image Gallery Component */
+    ".kui-gallery-layout": {
+      display: "flex",
+      gap: "15px",
+      alignItems: "stretch",
+      height: "80vh",
+      maxHeight: "80vh"
+    },
+    ".kui-gallery-thumbnails": {
+      width: "200px",
+      flexShrink: 0,
+      height: "100%",
+      maxHeight: "100%",
+      overflowY: "auto",
+      paddingRight: "5px",
+      transition: "width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease, padding 0.3s ease"
+    },
+    ".kui-gallery-thumbnails.kui-collapsed": {
+      width: 0,
+      opacity: 0,
+      marginLeft: "-15px",
+      paddingRight: 0,
+      pointerEvents: "none"
+    },
+    ".kui-gallery-thumbnails a": {
+      display: "block",
+      marginBottom: "10px",
+      border: "2px solid transparent",
+      borderRadius: THEME.borderRadius.sm
+    },
+    ".kui-gallery-thumbnails img": {
+      width: "100%",
+      display: "block",
+      borderRadius: "2px"
+    },
+    ".kui-thumb-active": {
+      borderColor: `${THEME.colors.accentBlue} !important`
+    },
+    ".kui-gallery-preview": {
+      flexGrow: 1,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      position: "relative",
+      height: "100%",
+      width: "100%",
+      minWidth: 0,
+      overflow: "hidden"
+    },
+    ".kui-gallery-preview-image": {
+      maxWidth: "100%",
+      maxHeight: "100%",
+      width: "auto",
+      height: "auto",
+      objectFit: "contain",
+      cursor: "zoom-in",
+      touchAction: "pan-y"
+    },
+    ".kui-gallery-thumb-toggle": {
+      position: "absolute",
+      top: "10px",
+      right: "10px",
+      zIndex: 10,
+      cursor: "pointer",
+      backgroundColor: "#3a3a3acc",
+      border: `1px solid ${THEME.colors.borderLight}`,
+      color: "#fff",
+      borderRadius: THEME.borderRadius.sm,
+      width: "30px",
+      height: "30px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "20px",
+      transition: "transform 0.2s ease, background-color 0.2s"
+    },
+    ".kui-gallery-thumb-toggle:hover": {
+      transform: "scale(1.1)",
+      backgroundColor: "#505050e6"
+    },
+    ".kui-gallery-thumb-toggle:after": {
+      content: '"✕"'
+    },
+    ".kui-gallery-thumbnails.kui-collapsed ~ .kui-gallery-preview .kui-gallery-thumb-toggle:after": {
+      content: '"☰"'
+    },
+    ".kui-thumb-wrapper": {
+      position: "relative"
+    },
+    ".kui-thumb-actions": {
+      position: "absolute",
+      top: "4px",
+      right: "4px",
+      zIndex: 2,
+      display: "flex",
+      gap: "4px",
+      opacity: 0,
+      transition: "opacity 0.2s"
+    },
+    ".kui-thumb-wrapper:hover .kui-thumb-actions": {
+      opacity: 1
+    },
+    ".kui-thumb-actions .kui-action-btn": {
+      width: "28px",
+      height: "28px",
+      fontSize: "16px"
+    },
+    ".kui-thumb-actions .kui-action-btn svg": {
+      width: "16px",
+      height: "16px"
+    },
+    /* Video Gallery Component */
+    ".kui-video-gallery-layout": {
+      display: "flex",
+      gap: "10px",
+      alignItems: "flex-start"
+    },
+    ".kui-video-list": {
+      width: "300px",
+      flexShrink: 0,
+      maxHeight: "60vh",
+      overflowY: "auto",
+      paddingRight: "5px",
+      transition: "width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease",
+      marginLeft: 0
+    },
+    ".kui-video-list.kui-collapsed": {
+      width: 0,
+      opacity: 0,
+      marginLeft: "-10px",
+      pointerEvents: "none"
+    },
+    ".kui-video-list-item": {
+      padding: "10px",
+      backgroundColor: "#3a3a3a",
+      borderRadius: THEME.borderRadius.sm,
+      marginBottom: "8px",
+      cursor: "pointer",
+      transition: "background-color 0.2s",
+      border: `1px solid ${THEME.colors.borderLight}`,
+      userSelect: "none",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis"
+    },
+    ".kui-video-item-active": {
+      backgroundColor: THEME.colors.accentOrange
+    },
+    ".kui-video-player-area": {
+      flexGrow: 1,
+      minWidth: 0,
+      maxWidth: "100%"
+    },
+    ".kui-video-player-container": {
+      position: "relative",
+      width: "100%",
+      backgroundColor: "#000",
+      borderRadius: THEME.borderRadius.sm,
+      overflow: "hidden",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      minHeight: "150px"
+    },
+    "#kui-main-video-player": {
+      width: "100% !important",
+      height: "100% !important",
+      objectFit: "contain"
+    },
+    ".kui-video-player-area .plyr": {
+      maxWidth: "100%",
+      maxHeight: "85vh"
+    },
+    ".kui-video-playlist-toggle": {
+      position: "absolute",
+      top: "10px",
+      right: "10px",
+      zIndex: 10,
+      cursor: "pointer",
+      backgroundColor: "#3a3a3acc",
+      border: `1px solid ${THEME.colors.borderLight}`,
+      color: "#fff",
+      borderRadius: THEME.borderRadius.sm,
+      width: "30px",
+      height: "30px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "20px",
+      transition: "transform 0.2s ease, background-color 0.2s"
+    },
+    ".kui-video-playlist-toggle:hover": {
+      transform: "scale(1.1)",
+      backgroundColor: "#505050e6"
+    },
+    ".kui-video-playlist-toggle:after": {
+      content: '"✕"'
+    },
+    ".kui-video-list.kui-collapsed ~ .kui-video-player-area .kui-video-playlist-toggle:after": {
+      content: '"☰"'
+    },
+    /* Embeds & Attachments Buttons */
+    ".kui-embed-container, .post__attachments": {
+      display: "flex !important",
+      flexWrap: "wrap !important",
+      gap: "10px !important",
+      listStyle: "none !important",
+      padding: "0 !important",
+      margin: "10px 0 15px 0 !important",
+      paddingBottom: "10px !important",
+      borderBottom: `1px solid ${THEME.colors.borderDark} !important`
+    },
+    ".post__attachment": {
+      margin: "0 !important",
+      display: "inline-block !important"
+    },
+    ".kui-embed-button, .post__attachment-link": {
+      display: "inline-flex !important",
+      alignItems: "center !important",
+      gap: "8px !important",
+      padding: "8px 14px !important",
+      maxWidth: "320px !important",
+      borderRadius: `${THEME.borderRadius.md} !important`,
+      fontSize: "13px !important",
+      fontWeight: "500 !important",
+      textDecoration: "none !important",
+      boxShadow: "0 2px 4px #00000040 !important",
+      transition: "transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease !important",
+      whiteSpace: "nowrap !important",
+      overflow: "hidden !important",
+      background: `linear-gradient(135deg, ${THEME.colors.buttonGradStart}, ${THEME.colors.buttonGradEnd})`,
+      color: "#f3f4f6 !important",
+      border: "1px solid #4b5563 !important"
+    },
+    ".kui-embed-button:hover, .post__attachment-link:hover": {
+      transform: "translateY(-2px) !important",
+      boxShadow: "0 4px 10px #00000059 !important",
+      filter: "brightness(1.1) !important",
+      color: "#fff !important"
+    },
+    ".kui-embed-button:active, .post__attachment-link:active": {
+      transform: "translateY(0) !important"
+    },
+    ".kui-embed-button img, .post__attachment-link img": {
+      width: "16px !important",
+      height: "16px !important",
+      borderRadius: "3px !important",
+      flexShrink: 0,
+      objectFit: "contain !important"
+    },
+    ".post__attachment-link span:first-child svg": {
+      width: "14px !important",
+      height: "14px !important",
+      fill: "currentColor"
+    },
+    ".kui-embed-button-text, .post__attachment-link span:last-child": {
+      overflow: "hidden !important",
+      textOverflow: "ellipsis !important",
+      whiteSpace: "nowrap !important"
+    },
+    /* Embed Rules UI */
+    ".kui-rule-input-group": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      marginTop: "8px"
+    },
+    ".kui-rule-input-group input, .kui-rule-input-group select, .kui-rule-input-group button": {
+      width: "100%",
+      boxSizing: "border-box",
+      backgroundColor: THEME.colors.inputBg,
+      border: `1px solid ${THEME.colors.borderLight}`,
+      color: "#fff",
+      padding: "8px",
+      borderRadius: THEME.borderRadius.sm
+    },
+    ".kui-rule-input-group button": {
+      backgroundColor: THEME.colors.accentBlue,
+      borderColor: THEME.colors.accentBlue,
+      cursor: "pointer",
+      fontSize: "18px",
+      lineHeight: 1
+    },
+    "#kui-rules-container": {
+      marginTop: "15px",
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "8px"
+    },
+    ".kui-rule-tag": {
+      display: "inline-flex",
+      alignItems: "center",
+      backgroundColor: THEME.colors.tagBg,
+      padding: "5px 10px",
+      borderRadius: THEME.borderRadius.sm,
+      fontSize: "13px"
+    },
+    ".kui-rule-tag-action": {
+      fontStyle: "italic",
+      color: "#ccc",
+      marginRight: "8px",
+      cursor: "pointer",
+      userSelect: "none"
+    },
+    ".kui-rule-tag-delete": {
+      marginLeft: "8px",
+      color: THEME.colors.danger,
+      fontWeight: "bold",
+      cursor: "pointer",
+      userSelect: "none"
+    },
+    "#kui-save-rules-btn": {
+      width: "100%",
+      padding: "10px",
+      marginTop: "20px",
+      backgroundColor: THEME.colors.success,
+      border: "none",
+      color: "#fff",
+      borderRadius: THEME.borderRadius.sm,
+      cursor: "pointer",
+      fontSize: "16px"
+    },
+    "#kui-save-toast": {
+      position: "fixed",
+      bottom: "20px",
+      right: "20px",
+      backgroundColor: THEME.colors.success,
+      color: "#fff",
+      padding: "10px 20px",
+      borderRadius: "5px",
+      zIndex: THEME.zIndex.toast,
+      opacity: 0,
+      transition: "opacity 0.3s",
+      pointerEvents: "none"
+    },
+    "#kui-save-toast.show": {
+      opacity: 1
+    },
+    /* Lightbox Modal */
+    "#kui-lightbox": {
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      backgroundColor: THEME.colors.overlayBg,
+      zIndex: THEME.zIndex.lightbox,
+      opacity: 0,
+      visibility: "hidden",
+      transition: "opacity 0.2s, visibility 0.2s"
+    },
+    "#kui-lightbox.kui-active": {
+      opacity: 1,
+      visibility: "visible"
+    },
+    ".kui-lightbox-top-actions": {
+      position: "fixed",
+      top: "15px",
+      right: "15px",
+      zIndex: THEME.zIndex.lightboxNav,
+      display: "flex",
+      gap: "10px"
+    },
+    ".kui-lightbox-top-actions .kui-action-btn": {
+      width: "40px",
+      height: "40px",
+      fontSize: "20px",
+      borderRadius: THEME.borderRadius.lg,
+      background: "#1e1e1ecc"
+    },
+    ".kui-lightbox-top-actions .kui-action-btn svg": {
+      width: "22px",
+      height: "22px",
+      fill: "currentColor"
+    },
+    "#kui-lightbox-img-container": {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      width: "100%",
+      height: "100%",
+      overflow: "hidden",
+      touchAction: "none"
+    },
+    "#kui-image-canvas": {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      transformOrigin: "0 0",
+      cursor: "grab",
+      transition: "opacity 0.2s linear"
+    },
+    "#kui-image-canvas:active": {
+      cursor: "grabbing"
+    },
+    ".kui-lightbox-nav": {
+      position: "fixed",
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: "50px",
+      height: "80px",
+      background: "#0008",
+      color: "#fff",
+      border: "1px solid #ffffff33",
+      borderRadius: THEME.borderRadius.md,
+      fontSize: "32px",
+      cursor: "pointer",
+      zIndex: THEME.zIndex.lightboxNav,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      transition: "background 0.2s"
+    },
+    ".kui-lightbox-nav:hover": {
+      background: "#000c"
+    },
+    ".kui-lightbox-nav.prev": {
+      left: "15px"
+    },
+    ".kui-lightbox-nav.next": {
+      right: "15px"
+    },
+    /* Custom Scrollbars */
+    ".kui-gallery-thumbnails::-webkit-scrollbar, .kui-video-list::-webkit-scrollbar, .kui-settings-content::-webkit-scrollbar": {
+      width: THEME.scrollbars.width,
+      height: THEME.scrollbars.width
+    },
+    ".kui-gallery-thumbnails::-webkit-scrollbar-track, .kui-video-list::-webkit-scrollbar-track, .kui-settings-content::-webkit-scrollbar-track": {
+      background: THEME.scrollbars.trackBg,
+      borderRadius: "10px"
+    },
+    ".kui-gallery-thumbnails::-webkit-scrollbar-thumb, .kui-video-list::-webkit-scrollbar-thumb, .kui-settings-content::-webkit-scrollbar-thumb": {
+      background: THEME.scrollbars.thumbBg,
+      borderRadius: "10px"
+    },
+    ".kui-gallery-thumbnails::-webkit-scrollbar-thumb:hover, .kui-video-list::-webkit-scrollbar-thumb:hover, .kui-settings-content::-webkit-scrollbar-thumb:hover": {
+      background: THEME.scrollbars.thumbHoverBg
+    },
+    /* Responsive Media Queries */
+    "@media (max-width: 768px)": {
+      ".kui-gallery-layout": {
+        flexDirection: "column",
+        height: "auto",
+        maxHeight: "none"
+      },
+      ".kui-gallery-preview": {
+        height: "60vh",
+        order: 1
+      },
+      ".kui-gallery-thumbnails": {
+        order: 2,
+        width: "100%",
+        height: "120px",
+        overflowY: "hidden",
+        overflowX: "auto",
+        display: "flex",
+        flexDirection: "row",
+        gap: "10px",
+        paddingRight: 0
+      },
+      ".kui-gallery-thumbnails a": {
+        marginBottom: 0,
+        flexShrink: 0,
+        width: "100px"
+      },
+      ".kui-gallery-thumb-toggle": {
+        display: "none"
+      },
+      ".kui-thumb-actions": {
+        flexDirection: "column",
+        gap: "2px"
+      },
+      ".kui-thumb-actions .kui-action-btn": {
+        width: "22px",
+        height: "22px",
+        fontSize: "14px"
+      },
+      ".kui-thumb-actions .kui-action-btn svg": {
+        width: "14px",
+        height: "14px"
+      },
+      ".kui-video-gallery-layout": {
+        flexDirection: "column"
+      },
+      ".kui-video-gallery-layout .kui-video-list, .kui-video-gallery-layout .kui-video-player-area": {
+        width: "100%",
+        maxWidth: "100%"
+      },
+      ".kui-video-gallery-layout .kui-video-list": {
+        order: 2,
+        marginTop: "8px",
+        marginLeft: 0,
+        maxHeight: "30vh",
+        transition: "max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out"
+      },
+      ".kui-video-gallery-layout .kui-video-player-area": {
+        order: 1
+      },
+      ".kui-video-gallery-layout .kui-video-list.kui-collapsed": {
+        maxHeight: 0,
+        paddingTop: 0,
+        paddingBottom: 0,
+        marginTop: 0,
+        borderWidth: 0,
+        transform: "none"
+      }
+    },
+    ".card-list__items:has(.post-card), .card-list:has(.post-card)": {
+      gridTemplateColumns: "repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important"
+    },
+    ".kui-hidden-original": {
+      display: "none !important"
+    }
+  });
+  const kuiPlyrStyles = css({
+    "@keyframes plyr-progress": {
+      to: {
+        backgroundPosition: "var(--plyr-progress-loading-size, 25px) 0"
+      }
+    },
+    "@keyframes plyr-popup": {
+      "0%": { opacity: 0.5, transform: "translateY(10px)" },
+      to: { opacity: 1, transform: "translateY(0)" }
+    },
+    "@keyframes plyr-fade-in": {
+      "0%": { opacity: 0 },
+      to: { opacity: 1 }
+    },
+    ".plyr": {
+      MozOsxFontSmoothing: "grayscale",
+      WebkitFontSmoothing: "antialiased",
+      alignItems: "center",
+      direction: "ltr",
+      display: "flex",
+      flexDirection: "column",
+      fontFamily: "var(--plyr-font-family, inherit)",
+      fontVariantNumeric: "tabular-nums",
+      fontWeight: "var(--plyr-font-weight-regular, 400)",
+      lineHeight: "var(--plyr-line-height, 1.7)",
+      maxWidth: "100%",
+      minWidth: "200px",
+      position: "relative",
+      textShadow: "none",
+      transition: "box-shadow .3s ease",
+      zIndex: 0
+    },
+    ".plyr audio, .plyr iframe, .plyr video": {
+      display: "block",
+      height: "100%",
+      width: "100%"
+    },
+    ".plyr button": {
+      font: "inherit",
+      lineHeight: "inherit",
+      width: "auto"
+    },
+    ".plyr:focus": {
+      outline: 0
+    },
+    ".plyr--full-ui": {
+      boxSizing: "border-box"
+    },
+    ".plyr--full-ui *, .plyr--full-ui :after, .plyr--full-ui :before": {
+      boxSizing: "inherit"
+    },
+    ".plyr--full-ui a, .plyr--full-ui button, .plyr--full-ui input, .plyr--full-ui label": {
+      touchAction: "manipulation"
+    },
+    ".plyr__badge": {
+      background: "var(--plyr-badge-background, #4a5464)",
+      borderRadius: "var(--plyr-badge-border-radius, 2px)",
+      color: "var(--plyr-badge-text-color, #fff)",
+      fontSize: "var(--plyr-font-size-badge, 9px)",
+      lineHeight: 1,
+      padding: "3px 4px"
+    },
+    ".plyr--full-ui ::-webkit-media-text-track-container": {
+      display: "none"
+    },
+    ".plyr__captions": {
+      animation: "plyr-fade-in .3s ease",
+      bottom: 0,
+      display: "none",
+      fontSize: "var(--plyr-font-size-small, 13px)",
+      left: 0,
+      padding: "var(--plyr-control-spacing, 10px)",
+      position: "absolute",
+      textAlign: "center",
+      transition: "transform .4s ease-in-out",
+      width: "100%"
+    },
+    ".plyr__captions span:empty": {
+      display: "none"
+    },
+    "@media (min-width: 480px)": {
+      ".plyr__captions": {
+        fontSize: "var(--plyr-font-size-base, 15px)",
+        padding: "calc(var(--plyr-control-spacing, 10px)*2)"
+      }
+    },
+    "@media (min-width: 768px)": {
+      ".plyr__captions": {
+        fontSize: "var(--plyr-font-size-large, 18px)"
+      }
+    },
+    ".plyr--captions-active .plyr__captions": {
+      display: "block"
+    },
+    ".plyr:not(.plyr--hide-controls) .plyr__controls:not(:empty)~.plyr__captions": {
+      transform: "translateY(calc(var(--plyr-control-spacing, 10px)*-4))"
+    },
+    ".plyr__caption": {
+      background: "var(--plyr-captions-background, #000c)",
+      borderRadius: "2px",
+      WebkitBoxDecorationBreak: "clone",
+      boxDecorationBreak: "clone",
+      color: "var(--plyr-captions-text-color, #fff)",
+      lineHeight: "185%",
+      padding: ".2em .5em",
+      whiteSpace: "pre-wrap"
+    },
+    ".plyr__caption div": {
+      display: "inline"
+    },
+    ".plyr__control": {
+      background: "#0000",
+      border: 0,
+      borderRadius: "var(--plyr-control-radius, 4px)",
+      color: "inherit",
+      cursor: "pointer",
+      flexShrink: 0,
+      overflow: "visible",
+      padding: "calc(var(--plyr-control-spacing, 10px)*.7)",
+      position: "relative",
+      transition: "all .1s ease-in-out"
+    },
+    ".plyr__control svg": {
+      display: "block",
+      fill: "currentColor",
+      height: "var(--plyr-control-icon-size, 18px)",
+      pointerEvents: "none",
+      width: "var(--plyr-control-icon-size, 18px)"
+    },
+    ".plyr__control:focus": {
+      outline: 0
+    },
+    ".plyr__control:focus-visible": {
+      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outlineOffset: "2px"
+    },
+    "a.plyr__control": {
+      textDecoration: "none"
+    },
+    ".plyr__control.plyr__control--pressed .icon--not-pressed, .plyr__control.plyr__control--pressed .label--not-pressed, .plyr__control:not(.plyr__control--pressed) .icon--pressed, .plyr__control:not(.plyr__control--pressed) .label--pressed, a.plyr__control:after, a.plyr__control:before": {
+      display: "none"
+    },
+    ".plyr--full-ui ::-webkit-media-controls": {
+      display: "none"
+    },
+    ".plyr__controls": {
+      alignItems: "center",
+      display: "flex",
+      justifyContent: "flex-end",
+      textAlign: "center"
+    },
+    ".plyr__controls .plyr__progress__container": {
+      flex: "1",
+      minWidth: 0
+    },
+    ".plyr__controls .plyr__controls__item": {
+      marginLeft: "calc(var(--plyr-control-spacing, 10px)/4)"
+    },
+    ".plyr__controls .plyr__controls__item:first-child": {
+      marginLeft: 0,
+      marginRight: "auto"
+    },
+    ".plyr__controls .plyr__controls__item.plyr__progress__container": {
+      paddingLeft: "calc(var(--plyr-control-spacing, 10px)/4)"
+    },
+    ".plyr__controls .plyr__controls__item.plyr__time": {
+      padding: "0 calc(var(--plyr-control-spacing, 10px)/2)"
+    },
+    ".plyr__controls .plyr__controls__item.plyr__progress__container:first-child, .plyr__controls .plyr__controls__item.plyr__time+.plyr__time, .plyr__controls .plyr__controls__item.plyr__time:first-child": {
+      paddingLeft: 0
+    },
+    ".plyr [data-plyr=airplay], .plyr [data-plyr=captions], .plyr [data-plyr=fullscreen], .plyr [data-plyr=pip], .plyr__controls:empty": {
+      display: "none"
+    },
+    ".plyr--airplay-supported [data-plyr=airplay], .plyr--captions-enabled [data-plyr=captions], .plyr--fullscreen-enabled [data-plyr=fullscreen], .plyr--pip-supported [data-plyr=pip]": {
+      display: "inline-block"
+    },
+    ".plyr__menu": {
+      display: "flex",
+      position: "relative"
+    },
+    ".plyr__menu .plyr__control svg": {
+      transition: "transform .3s ease"
+    },
+    ".plyr__menu .plyr__control[aria-expanded=true] svg": {
+      transform: "rotate(90deg)"
+    },
+    ".plyr__menu .plyr__control[aria-expanded=true] .plyr__tooltip": {
+      display: "none"
+    },
+    ".plyr__menu__container": {
+      animation: "plyr-popup .2s ease",
+      background: "var(--plyr-menu-background, #ffffffe6)",
+      borderRadius: "var(--plyr-menu-radius, 8px)",
+      bottom: "100%",
+      boxShadow: "var(--plyr-menu-shadow, 0 1px 2px #00000026)",
+      color: "var(--plyr-menu-color, #4a5464)",
+      fontSize: "var(--plyr-font-size-base, 15px)",
+      marginBottom: "10px",
+      position: "absolute",
+      right: "-3px",
+      textAlign: "left",
+      whiteSpace: "nowrap",
+      zIndex: 3
+    },
+    ".plyr__menu__container>div": {
+      overflow: "hidden",
+      transition: "height .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1)"
+    },
+    ".plyr__menu__container:after": {
+      border: "var(--plyr-menu-arrow-size, 4px) solid #0000",
+      borderTopColor: "var(--plyr-menu-background, #ffffffe6)",
+      content: '""',
+      height: 0,
+      position: "absolute",
+      right: "calc(var(--plyr-control-icon-size, 18px)/2 + var(--plyr-control-spacing, 10px)*.7 - var(--plyr-menu-arrow-size, 4px)/2)",
+      top: "100%",
+      width: 0
+    },
+    ".plyr__menu__container [role=menu]": {
+      padding: "calc(var(--plyr-control-spacing, 10px)*.7)"
+    },
+    ".plyr__menu__container [role=menuitem], .plyr__menu__container [role=menuitemradio]": {
+      marginTop: "2px"
+    },
+    ".plyr__menu__container [role=menuitem]:first-child, .plyr__menu__container [role=menuitemradio]:first-child": {
+      marginTop: 0
+    },
+    ".plyr__menu__container .plyr__control": {
+      alignItems: "center",
+      color: "var(--plyr-menu-color, #4a5464)",
+      display: "flex",
+      fontSize: "var(--plyr-font-size-menu, var(--plyr-font-size-small, 13px))",
+      padding: "calc(var(--plyr-control-spacing, 10px)*.7/1.5) calc(var(--plyr-control-spacing, 10px)*.7*1.5)",
+      userSelect: "none",
+      width: "100%"
+    },
+    ".plyr__menu__container .plyr__control>span": {
+      alignItems: "inherit",
+      display: "flex",
+      width: "100%"
+    },
+    ".plyr__menu__container .plyr__control:after": {
+      border: "var(--plyr-menu-item-arrow-size, 4px) solid #0000",
+      content: '""',
+      position: "absolute",
+      top: "50%",
+      transform: "translateY(-50%)"
+    },
+    ".plyr__menu__container .plyr__control--forward": {
+      paddingRight: "calc(var(--plyr-control-spacing, 10px)*.7*4)"
+    },
+    ".plyr__menu__container .plyr__control--forward:after": {
+      borderLeftColor: "var(--plyr-menu-arrow-color, #728197)",
+      right: "calc(var(--plyr-control-spacing, 10px)*.7*1.5 - var(--plyr-menu-item-arrow-size, 4px))"
+    },
+    ".plyr__menu__container .plyr__control--forward:focus-visible:after, .plyr__menu__container .plyr__control--forward:hover:after": {
+      borderLeftColor: "initial"
+    },
+    ".plyr__menu__container .plyr__control--back": {
+      fontWeight: "var(--plyr-font-weight-regular, 400)",
+      margin: "calc(var(--plyr-control-spacing, 10px)*.7)",
+      marginBottom: "calc(var(--plyr-control-spacing, 10px)*.7/2)",
+      paddingLeft: "calc(var(--plyr-control-spacing, 10px)*.7*4)",
+      position: "relative",
+      width: "calc(100% - var(--plyr-control-spacing, 10px)*.7*2)"
+    },
+    ".plyr__menu__container .plyr__control--back:after": {
+      borderRightColor: "var(--plyr-menu-arrow-color, #728197)",
+      left: "calc(var(--plyr-control-spacing, 10px)*.7*1.5 - var(--plyr-menu-item-arrow-size, 4px))"
+    },
+    ".plyr__menu__container .plyr__control--back:before": {
+      background: "var(--plyr-menu-back-border-color, #dcdfe5)",
+      boxShadow: "0 1px 0 var(--plyr-menu-back-border-shadow-color, #fff)",
+      content: '""',
+      height: "1px",
+      left: 0,
+      marginTop: "calc(var(--plyr-control-spacing, 10px)*.7/2)",
+      overflow: "hidden",
+      position: "absolute",
+      right: 0,
+      top: "100%"
+    },
+    ".plyr__menu__container .plyr__control--back:focus-visible:after, .plyr__menu__container .plyr__control--back:hover:after": {
+      borderRightColor: "initial"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio]": {
+      paddingLeft: "calc(var(--plyr-control-spacing, 10px)*.7)"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio]:after, .plyr__menu__container .plyr__control[role=menuitemradio]:before": {
+      borderRadius: "100%"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio]:before": {
+      background: "#0000001a",
+      content: '""',
+      display: "block",
+      flexShrink: 0,
+      height: "16px",
+      marginRight: "var(--plyr-control-spacing, 10px)",
+      transition: "all .3s ease",
+      width: "16px"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio]:after": {
+      background: "#fff",
+      border: 0,
+      height: "6px",
+      left: "12px",
+      opacity: 0,
+      top: "50%",
+      transform: "translateY(-50%) scale(0)",
+      transition: "transform .3s ease,opacity .3s ease",
+      width: "6px"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio][aria-checked=true]:before": {
+      background: "var(--plyr-control-toggle-checked-background, var(--plyr-color-main, #00b2ff))"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio][aria-checked=true]:after": {
+      opacity: 1,
+      transform: "translateY(-50%) scale(1)"
+    },
+    ".plyr__menu__container .plyr__control[role=menuitemradio]:focus-visible:before, .plyr__menu__container .plyr__control[role=menuitemradio]:hover:before": {
+      background: "#23282f1a"
+    },
+    ".plyr__menu__container .plyr__menu__value": {
+      alignItems: "center",
+      display: "flex",
+      marginLeft: "auto",
+      marginRight: "calc(var(--plyr-control-spacing, 10px)*.7*-1 - -2px)",
+      overflow: "hidden",
+      paddingLeft: "calc(var(--plyr-control-spacing, 10px)*.7*3.5)",
+      pointerEvents: "none"
+    },
+    ".plyr--full-ui input[type=range]": {
+      appearance: "none",
+      background: "#0000",
+      border: 0,
+      borderRadius: "calc(var(--plyr-range-thumb-height, 13px)*2)",
+      color: "var(--plyr-range-fill-background, var(--plyr-color-main, #00b2ff))",
+      display: "block",
+      height: "calc(var(--plyr-range-thumb-active-shadow-width, 3px)*2 + var(--plyr-range-thumb-height, 13px))",
+      margin: 0,
+      minWidth: 0,
+      padding: 0,
+      transition: "box-shadow .3s ease",
+      width: "100%"
+    },
+    ".plyr--full-ui input[type=range]::-webkit-slider-runnable-track": {
+      background: "#0000",
+      backgroundImage: "linear-gradient(to right,currentColor var(--value, 0),#0000 var(--value, 0))",
+      border: 0,
+      borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
+      height: "var(--plyr-range-track-height, 5px)",
+      transition: "box-shadow .3s ease",
+      userSelect: "none"
+    },
+    ".plyr--full-ui input[type=range]::-webkit-slider-thumb": {
+      appearance: "none",
+      background: "var(--plyr-range-thumb-background, #fff)",
+      border: 0,
+      borderRadius: "100%",
+      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height, 13px)",
+      marginTop: "calc((var(--plyr-range-thumb-height, 13px) - var(--plyr-range-track-height, 5px))/2*-1)",
+      position: "relative",
+      transition: "all .2s ease",
+      width: "var(--plyr-range-thumb-height, 13px)"
+    },
+    ".plyr--full-ui input[type=range]::-moz-range-track": {
+      background: "#0000",
+      border: 0,
+      borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
+      height: "var(--plyr-range-track-height, 5px)",
+      transition: "box-shadow .3s ease",
+      userSelect: "none"
+    },
+    ".plyr--full-ui input[type=range]::-moz-range-thumb": {
+      background: "var(--plyr-range-thumb-background, #fff)",
+      border: 0,
+      borderRadius: "100%",
+      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height, 13px)",
+      position: "relative",
+      transition: "all .2s ease",
+      width: "var(--plyr-range-thumb-height, 13px)"
+    },
+    ".plyr--full-ui input[type=range]::-moz-range-progress": {
+      background: "currentColor",
+      borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
+      height: "var(--plyr-range-track-height, 5px)"
+    },
+    ".plyr--full-ui input[type=range]::-ms-track": {
+      color: "#0000"
+    },
+    ".plyr--full-ui input[type=range]::-ms-fill-upper, .plyr--full-ui input[type=range]::-ms-track": {
+      background: "#0000",
+      border: 0,
+      borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
+      height: "var(--plyr-range-track-height, 5px)",
+      transition: "box-shadow .3s ease",
+      userSelect: "none"
+    },
+    ".plyr--full-ui input[type=range]::-ms-fill-lower": {
+      background: "currentColor",
+      border: 0,
+      borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
+      height: "var(--plyr-range-track-height, 5px)",
+      transition: "box-shadow .3s ease",
+      userSelect: "none"
+    },
+    ".plyr--full-ui input[type=range]::-ms-thumb": {
+      background: "var(--plyr-range-thumb-background, #fff)",
+      border: 0,
+      borderRadius: "100%",
+      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height, 13px)",
+      marginTop: 0,
+      position: "relative",
+      transition: "all .2s ease",
+      width: "var(--plyr-range-thumb-height, 13px)"
+    },
+    ".plyr--full-ui input[type=range]::-ms-tooltip": {
+      display: "none"
+    },
+    ".plyr--full-ui input[type=range]::-moz-focus-outer": {
+      border: 0
+    },
+    ".plyr--full-ui input[type=range]:focus": {
+      outline: 0
+    },
+    ".plyr--full-ui input[type=range]:focus-visible::-webkit-slider-runnable-track": {
+      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outlineOffset: "2px"
+    },
+    ".plyr--full-ui input[type=range]:focus-visible::-moz-range-track": {
+      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outlineOffset: "2px"
+    },
+    ".plyr--full-ui input[type=range]:focus-visible::-ms-track": {
+      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outlineOffset: "2px"
+    },
+    ".plyr__poster": {
+      backgroundColor: "var(--plyr-video-background, #000)",
+      backgroundPosition: "50% 50%",
+      backgroundRepeat: "no-repeat",
+      backgroundSize: "contain",
+      height: "100%",
+      left: 0,
+      opacity: 0,
+      position: "absolute",
+      top: 0,
+      transition: "opacity .2s ease",
+      width: "100%",
+      zIndex: 1
+    },
+    ".plyr--stopped.plyr__poster-enabled .plyr__poster": {
+      opacity: 1
+    },
+    ".plyr--youtube.plyr--paused.plyr__poster-enabled:not(.plyr--stopped) .plyr__poster": {
+      display: "none"
+    },
+    ".plyr__time": {
+      fontSize: "var(--plyr-font-size-time, var(--plyr-font-size-small, 13px))"
+    },
+    ".plyr__time+.plyr__time:before": {
+      content: '"⁄"',
+      marginRight: "var(--plyr-control-spacing, 10px)"
+    },
+    ".plyr__tooltip": {
+      background: "var(--plyr-tooltip-background, #fff)",
+      borderRadius: "var(--plyr-tooltip-radius, 5px)",
+      bottom: "100%",
+      boxShadow: "var(--plyr-tooltip-shadow, 0 1px 2px #00000026)",
+      color: "var(--plyr-tooltip-color, #4a5464)",
+      fontSize: "var(--plyr-font-size-small, 13px)",
+      fontWeight: "var(--plyr-font-weight-regular, 400)",
+      left: "50%",
+      lineHeight: 1.3,
+      marginBottom: "calc(var(--plyr-control-spacing, 10px)/2*2)",
+      opacity: 0,
+      padding: "calc(var(--plyr-control-spacing, 10px)/2) calc(var(--plyr-control-spacing, 10px)/2*1.5)",
+      pointerEvents: "none",
+      position: "absolute",
+      transform: "translate(-50%,10px) scale(.8)",
+      transformOrigin: "50% 100%",
+      transition: "transform .2s ease .1s,opacity .2s ease .1s",
+      whiteSpace: "nowrap",
+      zIndex: 2
+    },
+    ".plyr__tooltip:before": {
+      borderLeft: "var(--plyr-tooltip-arrow-size, 4px) solid #0000",
+      borderRight: "var(--plyr-tooltip-arrow-size, 4px) solid #0000",
+      borderTop: "var(--plyr-tooltip-arrow-size, 4px) solid var(--plyr-tooltip-background, #fff)",
+      bottom: "calc(var(--plyr-tooltip-arrow-size, 4px)*-1)",
+      content: '""',
+      height: 0,
+      left: "50%",
+      position: "absolute",
+      transform: "translate(-50%)",
+      width: 0,
+      zIndex: 2
+    },
+    ".plyr .plyr__control:focus-visible .plyr__tooltip, .plyr .plyr__control:hover .plyr__tooltip, .plyr__tooltip--visible": {
+      opacity: 1,
+      transform: "translate(-50%) scale(1)"
+    },
+    ".plyr .plyr__control:hover .plyr__tooltip": {
+      zIndex: 3
+    },
+    ".plyr__controls>.plyr__control:first-child .plyr__tooltip, .plyr__controls>.plyr__control:first-child+.plyr__control .plyr__tooltip": {
+      left: 0,
+      transform: "translateY(10px) scale(.8)",
+      transformOrigin: "0 100%"
+    },
+    ".plyr__controls>.plyr__control:first-child .plyr__tooltip:before, .plyr__controls>.plyr__control:first-child+.plyr__control .plyr__tooltip:before": {
+      left: "calc(var(--plyr-control-icon-size, 18px)/2 + var(--plyr-control-spacing, 10px)*.7)"
+    },
+    ".plyr__controls>.plyr__control:last-child .plyr__tooltip": {
+      left: "auto",
+      right: 0,
+      transform: "translateY(10px) scale(.8)",
+      transformOrigin: "100% 100%"
+    },
+    ".plyr__controls>.plyr__control:last-child .plyr__tooltip:before": {
+      left: "auto",
+      right: "calc(var(--plyr-control-icon-size, 18px)/2 + var(--plyr-control-spacing, 10px)*.7)",
+      transform: "translate(50%)"
+    },
+    ".plyr__progress": {
+      left: "calc(var(--plyr-range-thumb-height, 13px)*.5)",
+      marginRight: "var(--plyr-range-thumb-height, 13px)",
+      position: "relative"
+    },
+    ".plyr__progress input[type=range], .plyr__progress__buffer": {
+      marginLeft: "calc(var(--plyr-range-thumb-height, 13px)*-.5)",
+      marginRight: "calc(var(--plyr-range-thumb-height, 13px)*-.5)",
+      width: "calc(100% + var(--plyr-range-thumb-height, 13px))"
+    },
+    ".plyr__progress input[type=range]": {
+      position: "relative",
+      zIndex: 2
+    },
+    ".plyr__progress .plyr__tooltip": {
+      left: 0,
+      maxWidth: "120px",
+      overflowWrap: "break-word"
+    },
+    ".plyr__progress__buffer": {
+      appearance: "none",
+      background: "#0000",
+      border: 0,
+      borderRadius: "100px",
+      height: "var(--plyr-range-track-height, 5px)",
+      left: 0,
+      marginTop: "calc(var(--plyr-range-track-height, 5px)/2*-1)",
+      padding: 0,
+      position: "absolute",
+      top: "50%"
+    },
+    ".plyr__progress__buffer::-webkit-progress-bar": {
+      background: "#0000"
+    },
+    ".plyr__progress__buffer::-webkit-progress-value": {
+      background: "currentColor",
+      borderRadius: "100px",
+      minWidth: "var(--plyr-range-track-height, 5px)",
+      transition: "width .2s ease"
+    },
+    ".plyr__progress__buffer::-moz-progress-bar": {
+      background: "currentColor",
+      borderRadius: "100px",
+      minWidth: "var(--plyr-range-track-height, 5px)",
+      transition: "width .2s ease"
+    },
+    ".plyr--video": {
+      overflow: "hidden"
+    },
+    ".plyr--video.plyr--menu-open": {
+      overflow: "visible"
+    },
+    ".plyr__video-wrapper": {
+      background: "var(--plyr-video-background, #000)",
+      borderRadius: "inherit",
+      height: "100%",
+      margin: "auto",
+      overflow: "hidden",
+      position: "relative",
+      width: "100%"
+    },
+    ".plyr__video-embed, .plyr__video-wrapper--fixed-ratio": {
+      aspectRatio: "16/9"
+    },
+    ".plyr__video-embed iframe, .plyr__video-wrapper--fixed-ratio video": {
+      border: 0,
+      height: "100%",
+      left: 0,
+      position: "absolute",
+      top: 0,
+      width: "100%"
+    },
+    ".plyr--video .plyr__controls": {
+      background: "var(--plyr-video-controls-background, linear-gradient(#0000, #000000bf))",
+      borderBottomLeftRadius: "inherit",
+      borderBottomRightRadius: "inherit",
+      bottom: 0,
+      color: "var(--plyr-video-control-color, #fff)",
+      left: 0,
+      padding: "calc(var(--plyr-control-spacing, 10px)/2)",
+      paddingTop: "calc(var(--plyr-control-spacing, 10px)*2)",
+      position: "absolute",
+      right: 0,
+      transition: "opacity .4s ease-in-out, transform .4s ease-in-out",
+      zIndex: 3
+    },
+    ".plyr--video.plyr--hide-controls .plyr__controls": {
+      opacity: 0,
+      pointerEvents: "none",
+      transform: "translateY(100%)"
+    },
+    ".plyr--video .plyr__control:focus-visible, .plyr--video .plyr__control:hover, .plyr--video .plyr__control[aria-expanded=true]": {
+      background: "var(--plyr-video-control-background-hover, var(--plyr-color-main, #00b2ff))",
+      color: "var(--plyr-video-control-color-hover, #fff)"
+    },
+    ".plyr__control--overlaid": {
+      background: "var(--plyr-video-control-background-hover, var(--plyr-color-main, #00b2ff))",
+      border: 0,
+      borderRadius: "100%",
+      color: "var(--plyr-video-control-color, #fff)",
+      display: "none",
+      left: "50%",
+      opacity: 0.9,
+      padding: "calc(var(--plyr-control-spacing, 10px)*1.5)",
+      position: "absolute",
+      top: "50%",
+      transform: "translate(-50%,-50%)",
+      transition: ".3s",
+      zIndex: 2
+    },
+    ".plyr__control--overlaid svg": {
+      left: "2px",
+      position: "relative"
+    },
+    ".plyr__control--overlaid:focus, .plyr__control--overlaid:hover": {
+      opacity: 1
+    },
+    ".plyr--playing .plyr__control--overlaid": {
+      opacity: 0,
+      visibility: "hidden"
+    },
+    ".plyr--full-ui.plyr--video .plyr__control--overlaid": {
+      display: "block"
+    },
+    ".plyr:fullscreen": {
+      background: "#000",
+      borderRadius: "0!important",
+      height: "100%",
+      margin: 0,
+      width: "100%"
+    },
+    ".plyr:fullscreen video": {
+      height: "100%"
+    },
+    ".plyr:fullscreen .plyr__control .icon--exit-fullscreen": {
+      display: "block"
+    },
+    ".plyr:fullscreen .plyr__control .icon--exit-fullscreen+svg": {
+      display: "none"
+    },
+    ".plyr:fullscreen.plyr--hide-controls": {
+      cursor: "none"
+    },
+    ".plyr [hidden]": {
+      display: "none!important"
+    }
+  });
+  const KEMONO_DOWNLOADER_STYLES = downloadButtonStyles;
+  const KUI_STYLES = kuiMainStyles;
+  const KUI_PLYR_STYLES = kuiPlyrStyles;
+  const CSS_STYLES = [
+    KEMONO_DOWNLOADER_STYLES,
+    KUI_STYLES,
+    KUI_PLYR_STYLES
+  ].join("\n\n");
+  const SELECTORS = {
+    mainContent: "main#main",
+    sidebarCommunitySection: "div.global-sidebar-entry.stuck-bottom",
+    postGridContainer: ".card-list__items:has(.post-card), .card-list:has(.post-card)",
+    postCard: "article.post-card",
+    postLink: "article.post-card > a.fancy-link",
+    postPageContainer: "section.site-section--post, section.site-section, div.post__body",
+    postBody: "div.post__body",
+    postContent: ".post__content",
+    postFilesContainer: ".post__files",
+    postComments: "footer.post__footer",
+    userHeaderName: "h1.user-header__name",
+    videoSection: ".kui-video-section"
+  };
   const DEFAULT_PRESET_TEMPLATES = [
     { name: "Default (Date + Author + Title)", template: "{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}" },
     { name: "Author Folder (Author/Date_Title/File)", template: "{author_name}/{post_date}_{post_title}/{file_name}" },
@@ -1311,6 +2880,45 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     settingsLoadPromise = null;
     await getSettings();
     return importCount;
+  }
+  const KUI_STORAGE_KEYS = {
+    POSTS: "kemono_viewed_posts",
+    GRID_SIZE: "kemono_grid_size",
+    DEBUG_MODE: "kui_debug_mode",
+    EMBED_RULES: "kui_embed_rules",
+    VERBOSE_DEBUG: "kui_verbose_debug",
+    SESSION_KEY: "kui_session_key",
+    PRELOAD_IMAGES: "kui_preload_images",
+    HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections"
+  };
+  const kuiState = {
+    isDebugModeEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.DEBUG_MODE, false) : false,
+    isVerboseDebugEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false) : false,
+    isPreloadEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false) : false,
+    isHideEmptySectionsEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false) : false,
+    isPostPageModuleActive: false,
+    embedRules: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.EMBED_RULES, {}) : {},
+    sessionKey: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.SESSION_KEY, "") : ""
+  };
+  function setDebugMode(enabled) {
+    kuiState.isDebugModeEnabled = enabled;
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.DEBUG_MODE, enabled);
+  }
+  function setVerboseDebugMode(enabled) {
+    kuiState.isVerboseDebugEnabled = enabled;
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, enabled);
+  }
+  function setHideEmptySections(enabled) {
+    kuiState.isHideEmptySectionsEnabled = enabled;
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, enabled);
+  }
+  function setEmbedRules(rules) {
+    kuiState.embedRules = rules;
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.EMBED_RULES, rules);
+  }
+  function setSessionKey(key) {
+    kuiState.sessionKey = key;
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.SESSION_KEY, key);
   }
   function el(tag, props = {}, children = []) {
     const element = document.createElement(tag);
@@ -1778,6 +3386,73 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     fetchDiscordChannels,
     fetchDiscordChannelMessages
   };
+  const debugModule = {
+    init() {
+      if (document.getElementById("kui-debugger")) return;
+      const debuggerOverlay = document.createElement("div");
+      debuggerOverlay.id = "kui-debugger";
+      if (typeof GM_addStyle === "function") {
+        GM_addStyle(`
+        #kui-debugger { display: none; position: fixed; bottom: 10px; left: 10px; background-color: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 99999; pointer-events: none; line-height: 1.5; }
+        #kui-debugger.kui-active { display: block; }
+      `);
+      }
+      document.body.appendChild(debuggerOverlay);
+      if (kuiState.isDebugModeEnabled) this.show();
+    },
+    update(data) {
+      if (!kuiState.isDebugModeEnabled) return;
+      const overlay = document.getElementById("kui-debugger");
+      if (!overlay) return;
+      let content = "--- KUI DEBUGGER ---<br>";
+      for (const key in data) {
+        content += `${key.padEnd(18, " ")}: ${data[key]}<br>`;
+      }
+      overlay.innerHTML = content;
+    },
+    hide() {
+      const overlay = document.getElementById("kui-debugger");
+      if (overlay) overlay.classList.remove("kui-active");
+    },
+    show() {
+      const overlay = document.getElementById("kui-debugger");
+      if (overlay) overlay.classList.add("kui-active");
+    }
+  };
+  function sanitizeDuplicates() {
+    const galleryLayouts = document.querySelectorAll(".kui-gallery-layout");
+    if (galleryLayouts.length > 1) {
+      debugModule.update({ warn: `Found ${galleryLayouts.length} duplicate .kui-gallery-layout elements. Purging...` });
+      for (let i2 = 0; i2 < galleryLayouts.length - 1; i2++) {
+        galleryLayouts[i2].remove();
+      }
+    }
+    const videoLayouts = document.querySelectorAll(".kui-video-gallery-layout");
+    if (videoLayouts.length > 1) {
+      debugModule.update({ warn: `Found ${videoLayouts.length} duplicate .kui-video-gallery-layout elements. Purging...` });
+      for (let i2 = 0; i2 < videoLayouts.length - 1; i2++) {
+        videoLayouts[i2].remove();
+      }
+    }
+    const embedContainers = document.querySelectorAll(".kui-embed-container");
+    if (embedContainers.length > 1) {
+      debugModule.update({ warn: `Found ${embedContainers.length} duplicate .kui-embed-container elements. Purging...` });
+      for (let i2 = 0; i2 < embedContainers.length - 1; i2++) {
+        embedContainers[i2].remove();
+      }
+    }
+    document.querySelectorAll(".kui-thumb-wrapper").forEach((wrapper) => {
+      if (!wrapper.closest(".kui-gallery-layout")) {
+        wrapper.remove();
+      }
+    });
+    const settingsPanels = document.querySelectorAll("#kui-settings-panel");
+    if (settingsPanels.length > 1) {
+      for (let i2 = 0; i2 < settingsPanels.length - 1; i2++) {
+        settingsPanels[i2].remove();
+      }
+    }
+  }
   const DB_NAME = "KemonoDownloaderCache";
   const DB_VERSION = 1;
   const STORE_FILES = "files";
@@ -2384,32 +4059,92 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const sizeMb = (totalSizeBytes / (1024 * 1024)).toFixed(1);
     statsElem.textContent = `Cached Data: ${count} files (${sizeMb} MB)`;
   }
+  function setupNavigationSettings() {
+    var _a2, _b2, _c, _d;
+    const sidebar = document.querySelector(".global-sidebar");
+    if (sidebar) {
+      const stuckBottom = sidebar.querySelector(SELECTORS.sidebarCommunitySection) || sidebar.querySelector(".global-sidebar-entry.account");
+      if (!document.getElementById("kdl-settings-btn-sidebar")) {
+        const kdlEntry = document.createElement("div");
+        kdlEntry.className = "global-sidebar-entry";
+        kdlEntry.innerHTML = `<a id="kdl-settings-btn-sidebar" class="global-sidebar-entry-item" href="#">Downloader Settings</a>`;
+        if (stuckBottom) {
+          (_a2 = stuckBottom.parentNode) == null ? void 0 : _a2.insertBefore(kdlEntry, stuckBottom);
+        } else {
+          sidebar.appendChild(kdlEntry);
+        }
+        (_b2 = document.getElementById("kdl-settings-btn-sidebar")) == null ? void 0 : _b2.addEventListener("click", (e) => {
+          e.preventDefault();
+          toggleSettingsModal(true);
+        });
+      }
+      if (!document.getElementById("kui-settings-btn-sidebar")) {
+        const kuiEntry = document.createElement("div");
+        kuiEntry.className = "global-sidebar-entry";
+        kuiEntry.innerHTML = `<a id="kui-settings-btn-sidebar" class="global-sidebar-entry-item" href="#">UI Settings</a>`;
+        if (stuckBottom) {
+          (_c = stuckBottom.parentNode) == null ? void 0 : _c.insertBefore(kuiEntry, stuckBottom);
+        } else {
+          sidebar.appendChild(kuiEntry);
+        }
+        (_d = document.getElementById("kui-settings-btn-sidebar")) == null ? void 0 : _d.addEventListener("click", (e) => {
+          e.preventDefault();
+          const settingsPanel = document.getElementById("kui-settings-panel");
+          if (settingsPanel) settingsPanel.classList.toggle("kui-panel-active");
+        });
+      }
+    }
+    const header = document.querySelector(".header");
+    if (header) {
+      const logoutBtn = header.querySelector("a.logout") || header.querySelector("a.login") || header.querySelector("a.logged-in-only");
+      if (!document.getElementById("kdl-settings-btn-header")) {
+        const kdlHeaderBtn = document.createElement("a");
+        kdlHeaderBtn.id = "kdl-settings-btn-header";
+        kdlHeaderBtn.className = "header-link kdl-settings-header-link";
+        kdlHeaderBtn.href = "#";
+        kdlHeaderBtn.textContent = "Downloader";
+        kdlHeaderBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          toggleSettingsModal(true);
+        });
+        if (logoutBtn) {
+          header.insertBefore(kdlHeaderBtn, logoutBtn);
+        } else {
+          header.appendChild(kdlHeaderBtn);
+        }
+      }
+      if (!document.getElementById("kui-settings-btn-header")) {
+        const kuiHeaderBtn = document.createElement("a");
+        kuiHeaderBtn.id = "kui-settings-btn-header";
+        kuiHeaderBtn.className = "header-link kui-settings-header-link";
+        kuiHeaderBtn.href = "#";
+        kuiHeaderBtn.textContent = "UI Settings";
+        kuiHeaderBtn.addEventListener("click", (e) => {
+          e.preventDefault();
+          const settingsPanel = document.getElementById("kui-settings-panel");
+          if (settingsPanel) settingsPanel.classList.toggle("kui-panel-active");
+        });
+        if (logoutBtn) {
+          header.insertBefore(kuiHeaderBtn, logoutBtn);
+        } else {
+          header.appendChild(kuiHeaderBtn);
+        }
+      }
+    }
+  }
   function createFixedControls() {
     const container = getOrCreateContainer("kdl-fixed-controls");
     if (!document.body.contains(container)) {
       document.body.appendChild(container);
     }
-    if (container.querySelector("#kdl-settings-btn")) return;
-    appState.queueIndicatorElement = container.querySelector("#kdl-queue-indicator") || el("div", { id: "kdl-queue-indicator" });
-    updateQueueIndicator();
-    const settingsBtn = el(
-      "button",
-      {
-        id: "kdl-settings-btn",
-        title: "Kemono Downloader Settings",
-        type: "button",
-        onClick: (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          toggleSettingsModal();
-        }
-      },
-      ["⚙️"]
-    );
+    if (!appState.queueIndicatorElement) {
+      appState.queueIndicatorElement = container.querySelector("#kdl-queue-indicator") || el("div", { id: "kdl-queue-indicator", style: "display: none;" });
+    }
     if (!container.contains(appState.queueIndicatorElement)) {
       container.appendChild(appState.queueIndicatorElement);
     }
-    container.appendChild(settingsBtn);
+    updateQueueIndicator();
+    setupNavigationSettings();
   }
   function updateQueueIndicator() {
     if (!appState.queueIndicatorElement) return;
@@ -4846,6 +6581,1210 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       ]
     );
   }
+  function getServiceBrand(hostname) {
+    const host = hostname.toLowerCase().replace(/^www\./, "");
+    if (host.includes("mega.nz") || host.includes("mega.co.nz")) {
+      return { name: "Mega", gradient: "linear-gradient(135deg, #d9272e, #a81c22)", textColor: "#ffffff", borderColor: "#f87171" };
+    }
+    if (host.includes("drive.google.com") || host.includes("docs.google.com")) {
+      return { name: "Google Drive", gradient: "linear-gradient(135deg, #1a73e8, #1254ad)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    }
+    if (host.includes("dropbox.com")) {
+      return { name: "Dropbox", gradient: "linear-gradient(135deg, #0061ff, #0046b8)", textColor: "#ffffff", borderColor: "#3b82f6" };
+    }
+    if (host.includes("mediafire.com")) {
+      return { name: "MediaFire", gradient: "linear-gradient(135deg, #1271ff, #0b4db8)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    }
+    if (host.includes("pixeldrain.com")) {
+      return { name: "Pixeldrain", gradient: "linear-gradient(135deg, #6366f1, #4338ca)", textColor: "#ffffff", borderColor: "#818cf8" };
+    }
+    if (host.includes("workupload.com")) {
+      return { name: "Workupload", gradient: "linear-gradient(135deg, #0d9488, #0f766e)", textColor: "#ffffff", borderColor: "#2dd4bf" };
+    }
+    if (host.includes("gofile.io")) {
+      return { name: "Gofile", gradient: "linear-gradient(135deg, #d97706, #b45309)", textColor: "#ffffff", borderColor: "#fbbf24" };
+    }
+    if (host.includes("terabox.com") || host.includes("teraboxapp.com")) {
+      return { name: "Terabox", gradient: "linear-gradient(135deg, #0284c7, #0369a1)", textColor: "#ffffff", borderColor: "#38bdf8" };
+    }
+    if (host.includes("onedrive") || host.includes("1drv.ms")) {
+      return { name: "OneDrive", gradient: "linear-gradient(135deg, #0078d4, #004e8c)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    }
+    if (host.includes("catbox.moe")) {
+      return { name: "Catbox", gradient: "linear-gradient(135deg, #e11d48, #9f1239)", textColor: "#ffffff", borderColor: "#fda4af" };
+    }
+    if (host.includes("x.com") || host.includes("twitter.com")) {
+      return { name: "X (Twitter)", gradient: "linear-gradient(135deg, #1f2937, #111827)", textColor: "#f9fafb", borderColor: "#4b5563" };
+    }
+    if (host.includes("patreon.com")) {
+      return { name: "Patreon", gradient: "linear-gradient(135deg, #f96854, #c43e2b)", textColor: "#ffffff", borderColor: "#fca5a5" };
+    }
+    if (host.includes("fanbox.cc") || host.includes("pixiv.net")) {
+      return { name: "Fanbox", gradient: "linear-gradient(135deg, #d97706, #92400e)", textColor: "#ffffff", borderColor: "#fde047" };
+    }
+    if (host.includes("subscribestar")) {
+      return { name: "SubscribeStar", gradient: "linear-gradient(135deg, #164e63, #083344)", textColor: "#ffffff", borderColor: "#22d3ee" };
+    }
+    if (host.includes("discord.com") || host.includes("discord.gg")) {
+      return { name: "Discord", gradient: "linear-gradient(135deg, #5865f2, #3742fa)", textColor: "#ffffff", borderColor: "#a5b4fc" };
+    }
+    if (host.includes("t.me") || host.includes("telegram.org")) {
+      return { name: "Telegram", gradient: "linear-gradient(135deg, #0284c7, #0369a1)", textColor: "#ffffff", borderColor: "#38bdf8" };
+    }
+    if (host.includes("youtube.com") || host.includes("youtu.be")) {
+      return { name: "YouTube", gradient: "linear-gradient(135deg, #dc2626, #991b1b)", textColor: "#ffffff", borderColor: "#fca5a5" };
+    }
+    return { name: host, gradient: "linear-gradient(135deg, #374151, #1f2937)", textColor: "#f3f4f6", borderColor: "#4b5563" };
+  }
+  function linkifyTextNodes(container) {
+    const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+      acceptNode(node) {
+        if (node.parentElement && ["A", "SCRIPT", "STYLE", "TEXTAREA"].includes(node.parentElement.tagName)) {
+          return NodeFilter.FILTER_REJECT;
+        }
+        return urlRegex.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+    });
+    const nodesToReplace = [];
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      nodesToReplace.push(currentNode);
+      currentNode = walker.nextNode();
+    }
+    nodesToReplace.forEach((node) => {
+      const parent = node.parentNode;
+      if (!parent) return;
+      const text = node.nodeValue || "";
+      const fragment = document.createDocumentFragment();
+      let lastIndex = 0;
+      urlRegex.lastIndex = 0;
+      let match;
+      while ((match = urlRegex.exec(text)) !== null) {
+        const matchIndex = match.index;
+        const url = match[0];
+        if (matchIndex > lastIndex) {
+          fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
+        }
+        const a = document.createElement("a");
+        a.href = url;
+        a.textContent = url;
+        fragment.appendChild(a);
+        lastIndex = urlRegex.lastIndex;
+      }
+      if (lastIndex < text.length) {
+        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+      }
+      parent.replaceChild(fragment, node);
+    });
+  }
+  function restructureLayout(processEmbedsCallback) {
+    const postBody = document.querySelector(SELECTORS.postBody);
+    if (!postBody || postBody.classList.contains("kui-processed"))
+      return;
+    const findNextProperSibling = (element) => {
+      let sibling = element.nextElementSibling;
+      while (sibling) {
+        if (sibling.tagName !== "SCRIPT") return sibling;
+        sibling = sibling.nextElementSibling;
+      }
+      return null;
+    };
+    const wrapGroup = (h2, content, customClass = "") => {
+      var _a2;
+      if (h2 && content && h2.parentNode && !((_a2 = h2.parentNode.parentElement) == null ? void 0 : _a2.classList.contains("kui-post-section")) && !h2.parentNode.classList.contains("kui-post-section")) {
+        const wrapper = document.createElement("div");
+        wrapper.className = `kui-post-section ${customClass}`.trim();
+        h2.parentNode.insertBefore(wrapper, h2);
+        wrapper.appendChild(h2);
+        wrapper.appendChild(content);
+      }
+    };
+    postBody.querySelectorAll("h2").forEach((h2) => {
+      var _a2;
+      const title = (_a2 = h2.textContent) == null ? void 0 : _a2.trim().toLowerCase();
+      const content = findNextProperSibling(h2);
+      if (!content) return;
+      if (title === "downloads" && content.matches(".post__attachments")) {
+        wrapGroup(h2, content);
+      } else if (title === "content" && content.matches(SELECTORS.postContent)) {
+        wrapGroup(h2, content);
+        if (typeof processEmbedsCallback === "function") processEmbedsCallback();
+      } else if (title === "files" && content.matches(SELECTORS.postFilesContainer)) {
+        wrapGroup(h2, content);
+      } else if (title === "videos" && content.tagName === "UL") {
+        wrapGroup(h2, content, "kui-video-section");
+      }
+    });
+    const comments = document.querySelector(SELECTORS.postComments);
+    if (comments && comments.parentNode && !comments.closest(".kui-post-section")) {
+      const wrapper = document.createElement("div");
+      wrapper.className = "kui-post-section";
+      comments.parentNode.insertBefore(wrapper, comments);
+      wrapper.appendChild(comments);
+    }
+    postBody.classList.add("kui-processed");
+    formatAttachmentButtons();
+    hideEmptySections();
+  }
+  function formatAttachmentButtons() {
+    const attachmentLinks = document.querySelectorAll(".post__attachment-link");
+    attachmentLinks.forEach((link) => {
+      var _a2;
+      if (link.classList.contains("kui-attachment-styled")) return;
+      link.classList.add("kui-attachment-styled");
+      const rawText = ((_a2 = link.textContent) == null ? void 0 : _a2.trim()) || "";
+      let rawFileName = link.getAttribute("download") || rawText.replace(/^Download\s+/i, "").trim() || "file";
+      try {
+        rawFileName = decodeURIComponent(rawFileName);
+      } catch (e) {
+      }
+      const iconSpan = document.createElement("span");
+      iconSpan.style.display = "inline-flex";
+      iconSpan.style.alignItems = "center";
+      iconSpan.style.justifyContent = "center";
+      iconSpan.style.width = "14px";
+      iconSpan.style.height = "14px";
+      iconSpan.style.flexShrink = "0";
+      iconSpan.innerHTML = `<svg viewBox="0 0 24 24" style="width: 100%; height: 100%;"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>`;
+      const textSpan = document.createElement("span");
+      textSpan.style.overflow = "hidden";
+      textSpan.style.textOverflow = "ellipsis";
+      textSpan.style.whiteSpace = "nowrap";
+      textSpan.textContent = `Download ${rawFileName}`;
+      link.innerHTML = "";
+      link.title = `Download ${rawFileName}`;
+      link.appendChild(iconSpan);
+      link.appendChild(textSpan);
+    });
+  }
+  function processEmbeds() {
+    const content = document.querySelector(SELECTORS.postContent);
+    if (!content || content.classList.contains("kui-embed-processed")) return;
+    linkifyTextNodes(content);
+    const links = Array.from(content.querySelectorAll("a[href]"));
+    const linkActions = /* @__PURE__ */ new Map();
+    const elementsToRemove = /* @__PURE__ */ new Set();
+    links.forEach((link) => {
+      try {
+        if (!link.href || !link.protocol.startsWith("http")) return;
+        const url = new URL(link.href);
+        const linkHostname = url.hostname.replace(/^www\./, "");
+        if (linkHostname.includes("kemono") || linkHostname.includes("coomer") || linkHostname.includes("pawchive")) {
+          return;
+        }
+        let bestMatch = null;
+        const domainParts = linkHostname.split(".");
+        const domainsToCheck = [linkHostname];
+        if (domainParts.length > 2) {
+          for (let i2 = 1; i2 < domainParts.length - 1; i2++) {
+            const parentDomain = domainParts.slice(i2).join(".");
+            domainsToCheck.push("*." + parentDomain);
+            domainsToCheck.push(parentDomain);
+          }
+        }
+        for (const domain of [...new Set(domainsToCheck)]) {
+          if (kuiState.embedRules[domain]) {
+            bestMatch = { domain, action: kuiState.embedRules[domain] };
+            break;
+          }
+        }
+        const action = bestMatch ? bestMatch.action : "button";
+        if (action === "hide" || action === "button") {
+          elementsToRemove.add(link);
+          if (!linkActions.has(link.href)) {
+            linkActions.set(link.href, action);
+          }
+        }
+      } catch (e) {
+      }
+    });
+    const urlsToConvert = [];
+    linkActions.forEach((action, url) => {
+      if (action === "button") urlsToConvert.push(url);
+    });
+    if (urlsToConvert.length > 0) {
+      const buttonContainer = document.createElement("div");
+      buttonContainer.className = "kui-embed-container";
+      urlsToConvert.forEach((url) => {
+        try {
+          const urlObject = new URL(url);
+          const brand = getServiceBrand(urlObject.hostname);
+          const button = document.createElement("a");
+          button.href = url;
+          button.className = "kui-embed-button";
+          button.target = "_blank";
+          button.rel = "noopener noreferrer";
+          button.title = url;
+          button.style.background = brand.gradient;
+          button.style.color = brand.textColor;
+          button.style.borderColor = brand.borderColor;
+          const favicon = document.createElement("img");
+          favicon.src = `https://www.google.com/s2/favicons?sz=64&domain_url=${urlObject.origin}`;
+          favicon.onerror = () => {
+            favicon.style.display = "none";
+          };
+          const text = document.createElement("span");
+          text.className = "kui-embed-button-text";
+          text.textContent = brand.name;
+          button.appendChild(favicon);
+          button.appendChild(text);
+          buttonContainer.appendChild(button);
+        } catch (e) {
+        }
+      });
+      content.prepend(buttonContainer);
+    }
+    elementsToRemove.forEach((link) => {
+      var _a2, _b2;
+      const parent = link.parentElement;
+      if (parent && (parent.tagName === "P" || parent.tagName === "DIV") && ((_a2 = parent.textContent) == null ? void 0 : _a2.trim()) === ((_b2 = link.textContent) == null ? void 0 : _b2.trim())) {
+        parent.remove();
+      } else {
+        link.remove();
+      }
+    });
+    let changed;
+    do {
+      changed = false;
+      content.querySelectorAll("p, div, h3").forEach((el2) => {
+        if (el2.innerHTML.trim() === "" || el2.innerHTML.trim().toLowerCase() === "<br>") {
+          el2.remove();
+          changed = true;
+        }
+      });
+    } while (changed);
+    content.querySelectorAll("br").forEach((br) => br.remove());
+    content.classList.add("kui-embed-processed");
+    hideEmptySections();
+  }
+  function hideEmptySections() {
+    if (!kuiState.isHideEmptySectionsEnabled) {
+      document.querySelectorAll(".kui-post-section-empty-hidden").forEach((el2) => {
+        el2.classList.remove("kui-post-section-empty-hidden");
+        el2.style.removeProperty("display");
+      });
+      return;
+    }
+    document.querySelectorAll(".kui-post-section").forEach((section) => {
+      var _a2, _b2, _c;
+      const h2 = section.querySelector("h2");
+      const title = ((_a2 = h2 == null ? void 0 : h2.textContent) == null ? void 0 : _a2.trim().toLowerCase()) || "";
+      let isEmpty = false;
+      if (title === "content") {
+        const content = section.querySelector(SELECTORS.postContent);
+        if (content) {
+          const text = ((_b2 = content.textContent) == null ? void 0 : _b2.trim()) || "";
+          const hasImgs = content.querySelector("img, video, iframe, canvas") !== null;
+          const hasEmbeds = content.querySelector(".kui-embed-button, a[href]") !== null;
+          if (!text && !hasImgs && !hasEmbeds) {
+            isEmpty = true;
+          }
+        } else {
+          isEmpty = true;
+        }
+      } else if (title === "comments" || section.querySelector(SELECTORS.postComments)) {
+        const noComments = section.querySelector(".post__comments--no-comments") !== null || ((_c = section.textContent) == null ? void 0 : _c.toLowerCase().includes("no comments found")) || !section.querySelector(".post__comment");
+        if (noComments) {
+          isEmpty = true;
+        }
+      } else if (title === "downloads") {
+        const attachments = section.querySelector(".post__attachments");
+        if (!attachments || attachments.children.length === 0) {
+          isEmpty = true;
+        }
+      } else if (title === "files") {
+        const files = section.querySelector(SELECTORS.postFilesContainer);
+        if (!files || files.children.length === 0) {
+          isEmpty = true;
+        }
+      }
+      if (isEmpty) {
+        section.classList.add("kui-post-section-empty-hidden");
+        section.style.display = "none";
+      } else {
+        section.classList.remove("kui-post-section-empty-hidden");
+        section.style.removeProperty("display");
+      }
+    });
+  }
+  const ICONS = {
+    DOWNLOAD: `<svg viewBox="0 0 24 24" style="width: 100%; height: 100%;"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>`,
+    LINK: "🔗",
+    CLOSE: "✕",
+    LENS: `<svg viewBox="0 -960 960 960" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;"><path fill="currentColor" d="M480-320q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm240 160q-33 0-56.5-23.5T640-240q0-33 23.5-56.5T720-320q33 0 56.5 23.5T800-240q0 33-23.5 56.5T720-160Zm-440 40q-66 0-113-47t-47-113v-80h80v80q0 33 23.5 56.5T280-200h200v80H280Zm480-320v-160q0-33-23.5-56.5T680-680H280q-33 0-56.5 23.5T200-600v120h-80v-120q0-66 47-113t113-47h80l40-80h160l40 80h80q66 0 113 47t47 113v160h-80Z"></path></svg>`,
+    SUCCESS: "✅"
+  };
+  async function fetchPostFileData() {
+    var _a2, _b2;
+    const urlMatch = window.location.pathname.match(/\/(?<service>[^/]+)\/user\/(?<creator_id>[^/]+)\/post\/(?<post_id>[^/]+)/);
+    const fileDataMap = /* @__PURE__ */ new Map();
+    if (!urlMatch || !urlMatch.groups) return fileDataMap;
+    const { service, creator_id, post_id } = urlMatch.groups;
+    const apiUrl = `/api/v1/${service}/user/${creator_id}/post/${post_id}`;
+    const fetchOptions = { headers: {} };
+    if (kuiState.sessionKey) {
+      fetchOptions.headers["Cookie"] = `session=${kuiState.sessionKey}`;
+    } else {
+      fetchOptions.credentials = "include";
+    }
+    try {
+      const response = await fetch(apiUrl, fetchOptions);
+      if (!response.ok) throw new Error(`API request failed: ${response.status}`);
+      const postData = await response.json();
+      const allFiles = [
+        ...((_a2 = postData.post) == null ? void 0 : _a2.file) ? [postData.post.file] : [],
+        ...((_b2 = postData.post) == null ? void 0 : _b2.attachments) ?? []
+      ];
+      allFiles.forEach((file) => {
+        if ((file == null ? void 0 : file.name) && file.path) {
+          fileDataMap.set(file.name, file.path);
+        }
+      });
+    } catch (error) {
+      if (kuiState.isVerboseDebugEnabled) {
+        console.error("[KUI API] Error fetching file data.", error);
+      }
+    }
+    return fileDataMap;
+  }
+  const lightboxModule = {
+    isActive: false,
+    imageLinks: [],
+    currentIndex: 0,
+    zoom: 1,
+    offsetX: 0,
+    offsetY: 0,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    lastTap: 0,
+    canvas: null,
+    ctx: null,
+    image: new Image(),
+    boundHandleKeydown: null,
+    init() {
+      this.isActive = false;
+      this.imageLinks = [];
+      this.currentIndex = 0;
+    },
+    open(links, index) {
+      if (this.isActive) return;
+      this.isActive = true;
+      this.imageLinks = links;
+      this.currentIndex = index;
+      const lightboxHTML = `
+      <div id="kui-lightbox" class="kui-active">
+          <div class="kui-lightbox-top-actions">
+              <a id="kui-lightbox-download-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" download title="Download Original">${ICONS.DOWNLOAD}</a>
+              <button id="kui-lightbox-copy-btn" class="kui-action-btn" title="Copy Link to Original">${ICONS.LINK}</button>
+              <a id="kui-lightbox-lens-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" title="Search with Google Lens">
+                  ${ICONS.LENS}
+              </a>
+              <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
+          </div>
+          <button class="kui-lightbox-nav prev" title="Previous (←)">‹</button>
+          <button class="kui-lightbox-nav next" title="Next (→)">›</button>
+          <div id="kui-lightbox-img-container">
+              <canvas id="kui-image-canvas"></canvas>
+          </div>
+      </div>
+    `;
+      document.body.insertAdjacentHTML("beforeend", lightboxHTML);
+      this.canvas = document.getElementById("kui-image-canvas");
+      this.ctx = this.canvas.getContext("2d");
+      this.image = new Image();
+      this.updateContent();
+      this.addEventListeners();
+      document.body.style.overflow = "hidden";
+    },
+    close() {
+      if (!this.isActive) return;
+      const lightboxEl = document.getElementById("kui-lightbox");
+      if (lightboxEl) {
+        lightboxEl.classList.remove("kui-active");
+        setTimeout(() => lightboxEl.remove(), 200);
+      }
+      this.removeEventListeners();
+      this.isActive = false;
+      document.body.style.overflow = "";
+    },
+    updateContent() {
+      const currentLinkData = this.imageLinks[this.currentIndex];
+      if (!currentLinkData || !this.canvas) return;
+      const originalPath = currentLinkData.dataset.originalPath || currentLinkData.href;
+      const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(originalPath)}`;
+      const downloadBtn = document.getElementById("kui-lightbox-download-btn");
+      const lensBtn = document.getElementById("kui-lightbox-lens-btn");
+      if (downloadBtn) downloadBtn.href = originalPath;
+      if (lensBtn) lensBtn.href = lensLink;
+      this.resetPanZoom();
+      this.canvas.style.opacity = "0.5";
+      this.image.src = "";
+      this.image.onload = () => {
+        if (this.canvas) this.canvas.style.opacity = "1";
+        this.resizeCanvas();
+        this.resetPanZoom();
+        this.drawImage();
+      };
+      this.image.src = originalPath;
+    },
+    navigate(direction) {
+      this.currentIndex = (this.currentIndex + this.imageLinks.length + direction) % this.imageLinks.length;
+      this.updateContent();
+    },
+    handleCopyLink() {
+      const btn = document.getElementById("kui-lightbox-copy-btn");
+      if (!btn || btn.disabled) return;
+      const currentLink = this.imageLinks[this.currentIndex];
+      const urlToCopy = currentLink.dataset.originalPath || currentLink.href;
+      navigator.clipboard.writeText(urlToCopy).then(() => {
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = ICONS.SUCCESS;
+        btn.disabled = true;
+        setTimeout(() => {
+          btn.innerHTML = originalIcon;
+          btn.disabled = false;
+        }, 1500);
+      });
+    },
+    addEventListeners() {
+      var _a2, _b2, _c, _d;
+      this.boundHandleKeydown = this.handleKeydown.bind(this);
+      document.addEventListener("keydown", this.boundHandleKeydown, true);
+      const container = document.getElementById("kui-lightbox-img-container");
+      if (container) {
+        container.addEventListener("wheel", this.handleWheel.bind(this), { passive: false });
+        container.addEventListener("mousedown", this.handleMouseDown.bind(this));
+        container.addEventListener("mousemove", this.handleMouseMove.bind(this));
+        container.addEventListener("mouseup", this.handleMouseUp.bind(this));
+        container.addEventListener("mouseleave", this.handleMouseUp.bind(this));
+        container.addEventListener("touchstart", this.handleTouchStart.bind(this), { passive: false });
+        container.addEventListener("touchmove", this.handleTouchMove.bind(this), { passive: false });
+        container.addEventListener("touchend", this.handleTouchEnd.bind(this));
+      }
+      window.addEventListener("resize", this.resizeCanvas.bind(this));
+      (_a2 = document.getElementById("kui-lightbox-close-btn")) == null ? void 0 : _a2.addEventListener("click", this.close.bind(this));
+      (_b2 = document.querySelector(".kui-lightbox-nav.prev")) == null ? void 0 : _b2.addEventListener("click", () => this.navigate(-1));
+      (_c = document.querySelector(".kui-lightbox-nav.next")) == null ? void 0 : _c.addEventListener("click", () => this.navigate(1));
+      (_d = document.getElementById("kui-lightbox-copy-btn")) == null ? void 0 : _d.addEventListener("click", this.handleCopyLink.bind(this));
+    },
+    removeEventListeners() {
+      if (this.boundHandleKeydown) {
+        document.removeEventListener("keydown", this.boundHandleKeydown, true);
+      }
+    },
+    handleKeydown(e) {
+      if (!this.isActive) return;
+      if (["ArrowLeft", "ArrowRight", "Escape"].includes(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+      if (e.key === "Escape") this.close();
+      if (e.key === "ArrowLeft") this.navigate(-1);
+      if (e.key === "ArrowRight") this.navigate(1);
+    },
+    resizeCanvas() {
+      const container = document.getElementById("kui-lightbox-img-container");
+      if (!this.canvas) return;
+      const width = (container == null ? void 0 : container.clientWidth) || window.innerWidth;
+      const height = (container == null ? void 0 : container.clientHeight) || window.innerHeight;
+      this.canvas.width = width;
+      this.canvas.height = height;
+      this.drawImage();
+    },
+    drawImage() {
+      if (!this.image.src || !this.ctx || !this.canvas) return;
+      this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+      this.ctx.save();
+      this.ctx.translate(this.offsetX, this.offsetY);
+      this.ctx.scale(this.zoom, this.zoom);
+      this.ctx.drawImage(this.image, 0, 0);
+      this.ctx.restore();
+    },
+    resetPanZoom() {
+      if (!this.image.src || !this.canvas) return;
+      const hRatio = this.canvas.width / this.image.width;
+      const vRatio = this.canvas.height / this.image.height;
+      this.zoom = Math.min(hRatio, vRatio, 1);
+      this.offsetX = (this.canvas.width - this.image.width * this.zoom) / 2;
+      this.offsetY = (this.canvas.height - this.image.height * this.zoom) / 2;
+      this.drawImage();
+    },
+    handleWheel(e) {
+      e.preventDefault();
+      if (!this.canvas) return;
+      const delta = e.deltaY > 0 ? -0.15 : 0.15;
+      const newZoom = Math.max(0.1, this.zoom + delta * this.zoom);
+      const rect = this.canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      this.offsetX = mouseX - (mouseX - this.offsetX) * (newZoom / this.zoom);
+      this.offsetY = mouseY - (mouseY - this.offsetY) * (newZoom / this.zoom);
+      this.zoom = newZoom;
+      this.drawImage();
+    },
+    handleMouseDown(e) {
+      if (e.button !== 0 || !this.canvas) return;
+      e.preventDefault();
+      this.isDragging = true;
+      this.dragStartX = e.clientX - this.offsetX;
+      this.dragStartY = e.clientY - this.offsetY;
+      this.canvas.style.cursor = "grabbing";
+    },
+    handleMouseMove(e) {
+      if (this.isDragging) {
+        this.offsetX = e.clientX - this.dragStartX;
+        this.offsetY = e.clientY - this.dragStartY;
+        this.drawImage();
+      }
+    },
+    handleMouseUp() {
+      this.isDragging = false;
+      if (this.canvas) {
+        this.canvas.style.cursor = "grab";
+      }
+    },
+    handleTouchStart(e) {
+      const now = (/* @__PURE__ */ new Date()).getTime();
+      const timeSince = now - this.lastTap;
+      if (timeSince < 300 && timeSince > 0) {
+        this.resetPanZoom();
+        e.preventDefault();
+        return;
+      }
+      this.lastTap = now;
+      if (e.touches.length === 1) {
+        const touch = e.touches[0];
+        this.isDragging = true;
+        this.dragStartX = touch.clientX - this.offsetX;
+        this.dragStartY = touch.clientY - this.offsetY;
+      }
+    },
+    handleTouchMove(e) {
+      if (e.touches.length === 1 && this.isDragging) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        this.offsetX = touch.clientX - this.dragStartX;
+        this.offsetY = touch.clientY - this.dragStartY;
+        this.drawImage();
+      }
+    },
+    handleTouchEnd() {
+      this.isDragging = false;
+    }
+  };
+  let isInitializingGallery = false;
+  async function initializeImageGallery() {
+    const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
+    if (!originalFilesContainer || originalFilesContainer.classList.contains("kui-gallery-processed"))
+      return;
+    if (isInitializingGallery) {
+      debugModule.update({ warn: "[Image Gallery] Initialization already in progress. Skipping concurrent execution." });
+      return;
+    }
+    isInitializingGallery = true;
+    originalFilesContainer.classList.add("kui-gallery-processed");
+    try {
+      const imageLinks = Array.from(originalFilesContainer.querySelectorAll("a.fileThumb"));
+      if (imageLinks.length === 0) return;
+      const fileDataMap = await fetchPostFileData();
+      if (!originalFilesContainer.isConnected) {
+        debugModule.update({ warn: "[Image Gallery] Container was disconnected during API fetch. Aborting gallery insertion." });
+        return;
+      }
+      const targetSection = originalFilesContainer.closest(".kui-post-section") || originalFilesContainer.parentNode;
+      if (!targetSection) return;
+      targetSection.querySelectorAll(".kui-gallery-layout").forEach((el2) => el2.remove());
+      const galleryLayout = document.createElement("div");
+      galleryLayout.className = "kui-gallery-layout";
+      const thumbList = document.createElement("div");
+      thumbList.className = "kui-gallery-thumbnails";
+      const previewContainer = document.createElement("div");
+      previewContainer.className = "kui-gallery-preview";
+      const previewImage = document.createElement("img");
+      previewImage.className = "kui-gallery-preview-image";
+      const thumbToggle = document.createElement("div");
+      thumbToggle.className = "kui-gallery-thumb-toggle";
+      thumbToggle.addEventListener("click", () => thumbList.classList.toggle("kui-collapsed"));
+      previewContainer.appendChild(previewImage);
+      previewContainer.appendChild(thumbToggle);
+      galleryLayout.appendChild(thumbList);
+      galleryLayout.appendChild(previewContainer);
+      targetSection.appendChild(galleryLayout);
+      originalFilesContainer.style.display = "none";
+      let currentIndex = 0;
+      let thumbLinks = [];
+      const setActive = (index) => {
+        currentIndex = (index + imageLinks.length) % imageLinks.length;
+        const activeThumbLink = thumbLinks[currentIndex];
+        const originalPageLink = imageLinks[currentIndex];
+        if (!activeThumbLink || !originalPageLink) return;
+        const imgEl = originalPageLink.querySelector("img");
+        if (!imgEl) return;
+        const previewSrc = imgEl.src;
+        if (previewImage.src !== previewSrc) {
+          previewImage.src = previewSrc;
+        }
+        thumbLinks.forEach((link) => link.classList.remove("kui-thumb-active"));
+        activeThumbLink.classList.add("kui-thumb-active");
+        activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      };
+      galleryLayout.navigate = (direction) => setActive(currentIndex + direction);
+      let touchStartX = 0;
+      previewImage.addEventListener("touchstart", (e) => {
+        touchStartX = e.changedTouches[0].clientX;
+      });
+      previewImage.addEventListener("touchend", (e) => {
+        const deltaX = e.changedTouches[0].clientX - touchStartX;
+        if (Math.abs(deltaX) > 40 && galleryLayout.navigate)
+          galleryLayout.navigate(deltaX < 0 ? 1 : -1);
+      });
+      thumbLinks = imageLinks.map((thumbLink, index) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "kui-thumb-wrapper";
+        const imgChild = thumbLink.querySelector("img");
+        const newThumb = imgChild ? imgChild.cloneNode(true) : document.createElement("img");
+        const newThumbLink = document.createElement("a");
+        newThumbLink.href = "#";
+        newThumbLink.addEventListener("click", (e) => {
+          e.preventDefault();
+          setActive(index);
+        });
+        newThumbLink.appendChild(newThumb);
+        wrapper.appendChild(newThumbLink);
+        const fileName = thumbLink.getAttribute("download");
+        if (fileName) {
+          const relativePath = fileDataMap.get(fileName);
+          if (relativePath) {
+            const fullOriginalPath = `${window.location.origin}/data${relativePath}`;
+            thumbLink.dataset.originalPath = fullOriginalPath;
+            const actionsContainer = document.createElement("div");
+            actionsContainer.className = "kui-thumb-actions";
+            const originalLinkBtn = document.createElement("a");
+            originalLinkBtn.className = "kui-action-btn";
+            originalLinkBtn.href = fullOriginalPath;
+            originalLinkBtn.innerHTML = ICONS.DOWNLOAD;
+            originalLinkBtn.title = "Download original";
+            originalLinkBtn.target = "_blank";
+            originalLinkBtn.rel = "noopener noreferrer";
+            originalLinkBtn.addEventListener("click", (e) => e.stopPropagation());
+            actionsContainer.appendChild(originalLinkBtn);
+            const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
+            const lensBtn = document.createElement("a");
+            lensBtn.className = "kui-action-btn";
+            lensBtn.href = lensLink;
+            lensBtn.title = "Search with Google Lens";
+            lensBtn.target = "_blank";
+            lensBtn.rel = "noopener noreferrer";
+            lensBtn.innerHTML = ICONS.LENS;
+            lensBtn.addEventListener("click", (e) => e.stopPropagation());
+            actionsContainer.appendChild(lensBtn);
+            wrapper.appendChild(actionsContainer);
+          }
+        }
+        thumbList.appendChild(wrapper);
+        return newThumbLink;
+      });
+      if (kuiState.isPreloadEnabled) {
+        imageLinks.forEach((link, i2) => {
+          const urlToPreload = link.dataset.originalPath || link.href;
+          if (i2 > 0) {
+            const img = new Image();
+            img.src = urlToPreload;
+          }
+        });
+      }
+      previewImage.addEventListener("click", () => {
+        lightboxModule.open(imageLinks, currentIndex);
+      });
+      setActive(0);
+      sanitizeDuplicates();
+    } finally {
+      isInitializingGallery = false;
+    }
+  }
+  function initializeVideoGallery() {
+    const postBody = document.querySelector(SELECTORS.postBody);
+    if (!postBody) return;
+    if (postBody.classList.contains("kui-video-gallery-processed") || postBody.querySelector(".kui-video-gallery-layout"))
+      return;
+    const videosData = [];
+    let videoSectionContainer = null;
+    const elementsToHide = [];
+    const hideElement = (el2) => {
+      if (!el2 || elementsToHide.includes(el2)) return;
+      elementsToHide.push(el2);
+    };
+    const postVideosList = postBody.querySelector("ul.post__videos, .kui-video-section ul, ul[style*='post__videos']");
+    if (postVideosList) {
+      videoSectionContainer = postVideosList.closest(".kui-video-section") || postVideosList.parentElement;
+      hideElement(postVideosList);
+      const items = Array.from(postVideosList.querySelectorAll("li"));
+      items.forEach((item, index) => {
+        var _a2, _b2, _c;
+        hideElement(item);
+        const summary = (_b2 = (_a2 = item.querySelector("summary")) == null ? void 0 : _a2.textContent) == null ? void 0 : _b2.trim();
+        const sourceEl = item.querySelector("video source") || item.querySelector("video");
+        const linkEl = item.querySelector("a[href]");
+        const src = (sourceEl == null ? void 0 : sourceEl.src) || (linkEl == null ? void 0 : linkEl.href) || "";
+        if (src) {
+          videosData.push({
+            title: summary || ((_c = src.split("/").pop()) == null ? void 0 : _c.split("?")[0]) || `Video ${index + 1}`,
+            src
+          });
+        }
+      });
+    }
+    const rawVideos = Array.from(postBody.querySelectorAll("video"));
+    rawVideos.forEach((video, index) => {
+      var _a2, _b2, _c, _d;
+      if (video.id === "kui-main-video-player" || video.closest(".kui-video-gallery-layout"))
+        return;
+      const parentContainer = video.closest("li, .post__file, .fileThumb, figure, div.post__video, .fluid_video_wrapper") || video;
+      hideElement(parentContainer);
+      hideElement(video);
+      const src = video.src || ((_a2 = video.querySelector("source")) == null ? void 0 : _a2.src) || "";
+      if (src && !videosData.some((v) => v.src === src)) {
+        const titleCandidate = ((_c = (_b2 = parentContainer.querySelector("summary, figcaption, .file-name, a")) == null ? void 0 : _b2.textContent) == null ? void 0 : _c.trim()) || video.getAttribute("title") || ((_d = src.split("/").pop()) == null ? void 0 : _d.split("?")[0]) || `Video ${index + 1}`;
+        videosData.push({
+          title: titleCandidate,
+          src
+        });
+        if (!videoSectionContainer) {
+          videoSectionContainer = parentContainer.parentElement;
+        }
+      }
+    });
+    postBody.querySelectorAll(".fluid_video_wrapper").forEach((wrapper) => {
+      if (!wrapper.closest(".kui-video-gallery-layout")) {
+        hideElement(wrapper);
+      }
+    });
+    if (videosData.length === 0) return;
+    const targetParent = videoSectionContainer || document.querySelector(SELECTORS.postFilesContainer) || postBody;
+    targetParent.classList.add("kui-video-gallery-processed");
+    elementsToHide.forEach((el2) => {
+      el2.classList.add("kui-hidden-original");
+      el2.style.setProperty("display", "none", "important");
+    });
+    const galleryLayout = document.createElement("div");
+    galleryLayout.className = "kui-video-gallery-layout kui-post-section";
+    const videoList = document.createElement("div");
+    videoList.className = "kui-video-list";
+    const playerArea = document.createElement("div");
+    playerArea.className = "kui-video-player-area";
+    const playerContainer = document.createElement("div");
+    playerContainer.className = "kui-video-player-container";
+    const mainPlayerElement = document.createElement("video");
+    mainPlayerElement.id = "kui-main-video-player";
+    mainPlayerElement.preload = "metadata";
+    const playlistToggle = document.createElement("div");
+    playlistToggle.className = "kui-video-playlist-toggle";
+    playlistToggle.addEventListener("click", () => {
+      videoList.classList.toggle("kui-collapsed");
+    });
+    playerContainer.appendChild(mainPlayerElement);
+    playerContainer.appendChild(playlistToggle);
+    playerArea.appendChild(playerContainer);
+    galleryLayout.appendChild(videoList);
+    galleryLayout.appendChild(playerArea);
+    if (videosData.length <= 1) {
+      videoList.classList.add("kui-collapsed");
+    }
+    const player = new Plyr(mainPlayerElement, {
+      tooltips: { controls: true, seek: true },
+      keyboard: { focused: true, global: true },
+      storage: { enabled: true, key: "kui_plyr" }
+    });
+    player.on("loadedmetadata", () => {
+      const videoEl = player.elements.video;
+      const container = player.elements.container;
+      if (!videoEl || !container) return;
+      const { videoWidth, videoHeight } = videoEl;
+      if (videoWidth > 0 && videoHeight > 0) {
+        container.style.aspectRatio = `${videoWidth} / ${videoHeight}`;
+      }
+    });
+    let listItems = [];
+    const setActiveVideo = (index) => {
+      player.source = {
+        type: "video",
+        title: videosData[index].title,
+        sources: [{ src: videosData[index].src, type: "video/mp4" }]
+      };
+      listItems.forEach((item, idx) => item.classList.toggle("kui-video-item-active", idx === index));
+    };
+    videosData.forEach((video, index) => {
+      const listItem = document.createElement("div");
+      listItem.className = "kui-video-list-item";
+      listItem.textContent = video.title;
+      listItem.title = video.title;
+      listItem.addEventListener("click", () => setActiveVideo(index));
+      videoList.appendChild(listItem);
+      listItems.push(listItem);
+    });
+    if (postVideosList && postVideosList.parentElement) {
+      postVideosList.parentElement.appendChild(galleryLayout);
+    } else {
+      targetParent.appendChild(galleryLayout);
+    }
+    setActiveVideo(0);
+  }
+  const postPageModule = {
+    originalContentHTML: null,
+    init() {
+      document.removeEventListener("keydown", this.handleGlobalKeys, true);
+      const content = document.querySelector(SELECTORS.postContent);
+      if (content) {
+        this.originalContentHTML = content.innerHTML;
+      }
+      restructureLayout(processEmbeds);
+      initializeImageGallery();
+      initializeVideoGallery();
+      document.addEventListener("keydown", this.handleGlobalKeys, true);
+      kuiState.isPostPageModuleActive = true;
+    },
+    cleanup() {
+      document.removeEventListener("keydown", this.handleGlobalKeys, true);
+      document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el2) => el2.remove());
+      document.querySelectorAll(".kui-post-section").forEach((section) => {
+        const parent = section.parentNode;
+        if (parent) {
+          while (section.firstChild) {
+            parent.insertBefore(section.firstChild, section);
+          }
+          section.remove();
+        }
+      });
+      const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
+      if (originalFilesContainer) {
+        originalFilesContainer.style.removeProperty("display");
+      }
+      document.querySelectorAll(".kui-hidden-original").forEach((el2) => {
+        el2.classList.remove("kui-hidden-original");
+        el2.style.removeProperty("display");
+      });
+      const processedElements = document.querySelectorAll(".kui-processed, .kui-gallery-processed, .kui-video-gallery-processed, .kui-embed-processed");
+      processedElements.forEach((el2) => {
+        el2.classList.remove("kui-processed", "kui-gallery-processed", "kui-video-gallery-processed", "kui-embed-processed");
+        if (el2.style.display === "none") {
+          el2.style.display = "";
+        }
+      });
+      this.originalContentHTML = null;
+      kuiState.isPostPageModuleActive = false;
+    },
+    refreshContent() {
+      const content = document.querySelector(SELECTORS.postContent);
+      if (content && this.originalContentHTML) {
+        content.innerHTML = this.originalContentHTML;
+        const oldEmbedContainer = content.querySelector(".kui-embed-container");
+        if (oldEmbedContainer) oldEmbedContainer.remove();
+        content.classList.remove("kui-embed-processed");
+        processEmbeds();
+        initializeImageGallery();
+      }
+    },
+    handleGlobalKeys(e) {
+      const target = e.target;
+      if (lightboxModule.isActive || target && ["INPUT", "TEXTAREA"].includes(target.tagName)) {
+        return;
+      }
+      const activeElement = document.activeElement;
+      if (activeElement && activeElement.closest(".plyr")) {
+        return;
+      }
+      const gallery = document.querySelector(".kui-gallery-layout");
+      if (gallery && typeof gallery.navigate === "function") {
+        let direction = 0;
+        if (e.key === "ArrowLeft") direction = -1;
+        if (e.key === "ArrowRight") direction = 1;
+        if (direction !== 0) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          gallery.navigate(direction);
+        }
+      }
+    }
+  };
+  function injectUI() {
+    setupNavigationSettings();
+    if (document.getElementById("kui-settings-panel")) return;
+    const settingsPanel = document.createElement("div");
+    settingsPanel.id = "kui-settings-panel";
+    settingsPanel.innerHTML = `
+      <div class="kui-settings-content">
+          <h2>UI Settings</h2>
+          <div class="kui-setting">
+              <label for="sessionKeyInput">Session Key</label>
+              <input type="text" id="sessionKeyInput" placeholder="Leave empty for auto-mode">
+              <small>A fallback option if automatic file fetching fails. Paste the value of the 'session' cookie here.</small>
+          </div>
+          <div class="kui-setting">
+              <label>Post Card Size</label>
+              <div class="kui-grid-size-control">
+                  <input type="range" id="gridSizeSlider" min="120" max="400">
+                  <input type="number" id="gridSizeInput" min="120" max="400">
+              </div>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="debugModeToggle">Debug Mode</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="debugModeToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="verboseDebugToggle">Verbose Debug (in F12 console)</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="verboseDebugToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="preloadImagesToggle">Preload gallery images</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="preloadImagesToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+              <small>Enables background loading of all post images when the gallery is opened. May consume a lot of traffic.</small>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="hideEmptySectionsToggle">Hide empty post sections</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="hideEmptySectionsToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+              <small>Automatically hides sections like Content or Comments if they contain no text, links, or comments.</small>
+          </div>
+          <div class="kui-setting">
+              <label>Embed Link Rules</label>
+              <div class="kui-rule-input-group">
+                  <input type="text" id="kui-rule-domain-input" placeholder="e.g., *.mega.nz">
+                  <select id="kui-rule-action-select">
+                      <option value="button">Convert to Button</option>
+                      <option value="hide">Hide Link</option>
+                  </select>
+                  <button id="kui-add-rule-btn">+</button>
+              </div>
+              <div id="kui-rules-container"></div>
+          </div>
+      </div>
+      <div class="kui-settings-footer">
+          <button id="kui-save-rules-btn">Save Settings</button>
+      </div>
+  `;
+    document.body.appendChild(settingsPanel);
+    const toast = document.createElement("div");
+    toast.id = "kui-save-toast";
+    toast.textContent = "Saved!";
+    document.body.appendChild(toast);
+    let tempEmbedRules = JSON.parse(JSON.stringify(kuiState.embedRules));
+    let panelMousedownTarget = null;
+    const domainInput = document.getElementById("kui-rule-domain-input");
+    const actionSelect = document.getElementById("kui-rule-action-select");
+    const addBtn = document.getElementById("kui-add-rule-btn");
+    const rulesContainer = document.getElementById("kui-rules-container");
+    const saveBtn = document.getElementById("kui-save-rules-btn");
+    const sessionKeyInput = document.getElementById("sessionKeyInput");
+    if (sessionKeyInput) {
+      sessionKeyInput.value = kuiState.sessionKey;
+    }
+    const renderRules = (rules) => {
+      if (!rulesContainer) return;
+      rulesContainer.innerHTML = "";
+      for (const domain in rules) {
+        const action = rules[domain];
+        const tag = document.createElement("div");
+        tag.className = "kui-rule-tag";
+        const actionText = action === "button" ? "Button" : "Hide";
+        tag.innerHTML = `
+              <span class="kui-rule-tag-action" data-domain="${domain}">${actionText}</span>:
+              <span>${domain}</span>
+              <span class="kui-rule-tag-delete" data-domain="${domain}">×</span>
+          `;
+        rulesContainer.appendChild(tag);
+      }
+    };
+    const addRule = () => {
+      if (!domainInput || !actionSelect) return;
+      const domain = domainInput.value.trim().toLowerCase();
+      if (!domain) return;
+      tempEmbedRules[domain] = actionSelect.value;
+      renderRules(tempEmbedRules);
+      domainInput.value = "";
+    };
+    if (addBtn) addBtn.addEventListener("click", addRule);
+    if (domainInput) {
+      domainInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") addRule();
+      });
+    }
+    if (rulesContainer) {
+      rulesContainer.addEventListener("click", (e) => {
+        const target = e.target;
+        if (!target) return;
+        const domain = target.dataset.domain;
+        if (!domain) return;
+        if (target.classList.contains("kui-rule-tag-delete")) {
+          delete tempEmbedRules[domain];
+        } else if (target.classList.contains("kui-rule-tag-action")) {
+          tempEmbedRules[domain] = tempEmbedRules[domain] === "button" ? "hide" : "button";
+        }
+        renderRules(tempEmbedRules);
+      });
+    }
+    if (saveBtn) {
+      saveBtn.addEventListener("click", () => {
+        if (sessionKeyInput) {
+          setSessionKey(sessionKeyInput.value.trim());
+        }
+        setEmbedRules(JSON.parse(JSON.stringify(tempEmbedRules)));
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2e3);
+        if (kuiState.isPostPageModuleActive) {
+          postPageModule.refreshContent();
+        }
+      });
+    }
+    document.addEventListener("mousedown", (e) => {
+      panelMousedownTarget = e.target;
+    });
+    document.addEventListener("mouseup", (e) => {
+      const sidebarButton = document.getElementById("kui-settings-btn-sidebar");
+      const headerButton = document.getElementById("kui-settings-btn-header");
+      if (settingsPanel.classList.contains("kui-panel-active") && panelMousedownTarget instanceof Node && !settingsPanel.contains(panelMousedownTarget) && e.target instanceof Node && !settingsPanel.contains(e.target) && !(sidebarButton && e.target instanceof Node && sidebarButton.contains(e.target)) && !(sidebarButton && panelMousedownTarget instanceof Node && sidebarButton.contains(panelMousedownTarget)) && !(headerButton && e.target instanceof Node && headerButton.contains(e.target)) && !(headerButton && panelMousedownTarget instanceof Node && headerButton.contains(panelMousedownTarget))) {
+        settingsPanel.classList.remove("kui-panel-active");
+        tempEmbedRules = JSON.parse(JSON.stringify(kuiState.embedRules));
+        renderRules(tempEmbedRules);
+      }
+      panelMousedownTarget = null;
+    });
+    const debugToggle = document.getElementById("debugModeToggle");
+    if (debugToggle) {
+      debugToggle.checked = kuiState.isDebugModeEnabled;
+      debugToggle.addEventListener("change", () => {
+        setDebugMode(debugToggle.checked);
+        kuiState.isDebugModeEnabled ? debugModule.show() : debugModule.hide();
+      });
+    }
+    const verboseDebugToggle = document.getElementById("verboseDebugToggle");
+    if (verboseDebugToggle) {
+      verboseDebugToggle.checked = kuiState.isVerboseDebugEnabled;
+      verboseDebugToggle.addEventListener("change", () => {
+        setVerboseDebugMode(verboseDebugToggle.checked);
+      });
+    }
+    const hideEmptySectionsToggle = document.getElementById("hideEmptySectionsToggle");
+    if (hideEmptySectionsToggle) {
+      hideEmptySectionsToggle.checked = kuiState.isHideEmptySectionsEnabled;
+      hideEmptySectionsToggle.addEventListener("change", () => {
+        setHideEmptySections(hideEmptySectionsToggle.checked);
+        hideEmptySections();
+      });
+    }
+    renderRules(tempEmbedRules);
+  }
+  function setupGridControls() {
+    const slider = document.getElementById("gridSizeSlider");
+    const numberInput = document.getElementById("gridSizeInput");
+    const updateGridSize = (value) => {
+      const containers = document.querySelectorAll(SELECTORS.postGridContainer);
+      if (containers.length === 0) return;
+      const safeValue = Math.max(120, Math.min(400, Number(value)));
+      containers.forEach((container) => {
+        if (container.querySelector(SELECTORS.postCard)) {
+          container.style.setProperty("--card-size", `${safeValue}px`, "important");
+        }
+      });
+      if (slider && document.activeElement !== slider) slider.value = String(safeValue);
+      if (numberInput && document.activeElement !== numberInput) numberInput.value = String(safeValue);
+    };
+    const savedSize = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
+    updateGridSize(savedSize);
+    if (slider) {
+      slider.addEventListener("input", () => updateGridSize(slider.value));
+      slider.addEventListener("change", (e) => {
+        const target = e.target;
+        if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+      });
+    }
+    if (numberInput) {
+      numberInput.addEventListener("input", () => updateGridSize(numberInput.value));
+      numberInput.addEventListener("change", (e) => {
+        const target = e.target;
+        if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+      });
+    }
+  }
+  function markViewedPosts() {
+    const viewedPosts = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
+    document.querySelectorAll(SELECTORS.postCard).forEach((card) => {
+      const postId = card.getAttribute("data-id");
+      if (postId && viewedPosts[postId]) {
+        card.classList.add("kui-viewed");
+      }
+    });
+  }
+  function setupGlobalClickListener() {
+    document.body.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!target) return;
+      const link = target.closest(SELECTORS.postLink);
+      if (!link) return;
+      const card = link.closest(SELECTORS.postCard);
+      const postId = card == null ? void 0 : card.getAttribute("data-id");
+      if (!postId) return;
+      const viewedPosts = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
+      viewedPosts[postId] = true;
+      if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);
+      card.classList.add("kui-viewed");
+    }, true);
+  }
+  const userPageModule = {
+    init() {
+      var _a2;
+      if (document.getElementById("kui-copy-username-btn")) {
+        return;
+      }
+      const nameContainer = document.querySelector(SELECTORS.userHeaderName);
+      const nameSpan = nameContainer == null ? void 0 : nameContainer.querySelector('[itemprop="name"]');
+      if (!nameContainer || !nameSpan) {
+        return;
+      }
+      const username = (_a2 = nameSpan.textContent) == null ? void 0 : _a2.trim();
+      if (!username) return;
+      const copyButton = document.createElement("button");
+      copyButton.id = "kui-copy-username-btn";
+      copyButton.title = "Copy nickname";
+      copyButton.innerHTML = "📋";
+      copyButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        navigator.clipboard.writeText(username).then(() => {
+          copyButton.innerHTML = "✅";
+          setTimeout(() => {
+            copyButton.innerHTML = "📋";
+          }, 1500);
+        }).catch((err2) => {
+          console.error("[KUI] Failed to copy text: ", err2);
+          copyButton.innerHTML = "❌";
+          setTimeout(() => {
+            copyButton.innerHTML = "📋";
+          }, 1500);
+        });
+      });
+      nameContainer.appendChild(copyButton);
+    },
+    cleanup() {
+    }
+  };
   function ensureStylesInjected() {
     if (document.getElementById("kdl-global-styles")) return;
     if (typeof GM_addStyle === "function") {
@@ -4863,6 +7802,34 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   ensureStylesInjected();
   let lastUrl = "";
   let isInitializing = false;
+  function runKuiPageLogic() {
+    try {
+      const postBody = document.querySelector(SELECTORS.postBody);
+      const isOnPostPage = !!document.querySelector(SELECTORS.postPageContainer);
+      const isOnUserPage = !!document.querySelector(SELECTORS.userHeaderName);
+      if (isOnPostPage && postBody) {
+        if (!postBody.classList.contains("kui-processed")) {
+          postPageModule.init();
+        }
+      } else {
+        if (kuiState.isPostPageModuleActive) {
+          postPageModule.cleanup();
+        }
+      }
+      if (isOnUserPage) {
+        userPageModule.init();
+      }
+      if (document.querySelector(SELECTORS.postCard)) {
+        markViewedPosts();
+      }
+      if (document.querySelector(SELECTORS.postGridContainer)) {
+        setupGridControls();
+      }
+      sanitizeDuplicates();
+    } catch (error) {
+      debugLog("Error during KUI page logic execution:", error);
+    }
+  }
   async function handlePageContent() {
     var _a2, _b2;
     try {
@@ -4924,6 +7891,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   const runInitializationLogic = async (force = false) => {
     ensureStylesInjected();
     createFixedControls();
+    runKuiPageLogic();
     if (isInitializing) return;
     const currentUrl = window.location.href;
     const path = window.location.pathname;
@@ -4955,19 +7923,33 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     }
   };
   function init() {
+    ensureStylesInjected();
+    debugModule.init();
+    injectUI();
+    lightboxModule.init();
+    setupGlobalClickListener();
     createFixedControls();
     runInitializationLogic();
+    document.addEventListener("htmx:beforeHistorySave", () => postPageModule.cleanup());
+    document.addEventListener("htmx:beforeSwap", () => postPageModule.cleanup());
+    document.addEventListener("htmx:beforeRequest", () => postPageModule.cleanup());
+    document.addEventListener("htmx:beforeCleanupElement", () => postPageModule.cleanup());
     document.addEventListener("htmx:afterSettle", () => runInitializationLogic(true));
     document.addEventListener("htmx:afterSwap", () => runInitializationLogic(true));
     document.addEventListener("htmx:historyRestore", () => runInitializationLogic(true));
-    window.addEventListener("popstate", () => runInitializationLogic(true));
+    window.addEventListener("popstate", () => {
+      postPageModule.cleanup();
+      runInitializationLogic(true);
+    });
     const originalPushState = history.pushState;
     history.pushState = function(...args) {
+      postPageModule.cleanup();
       originalPushState.apply(this, args);
       setTimeout(() => runInitializationLogic(true), 50);
     };
     const originalReplaceState = history.replaceState;
     history.replaceState = function(...args) {
+      postPageModule.cleanup();
       originalReplaceState.apply(this, args);
       setTimeout(() => runInitializationLogic(true), 50);
     };

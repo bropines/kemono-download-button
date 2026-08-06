@@ -1,6 +1,6 @@
 {
   "name": "kemono-download-button",
-  "version": "0.8.7",
+  "version": "0.8.8",
   "description": "Kemono and Pawchive Download Button & Native Control Center",
   "type": "module",
   "scripts": {
