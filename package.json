@@ -1,18 +1,28 @@
 {
   "name": "kemono-download-button",
-  "version": "0.8.8",
-  "description": "Kemono and Pawchive Download Button & Native Control Center",
-  "type": "module",
+  "version": "0.8.9",
+  "description": "Modular TypeScript UserScript for Kemono, Coomer, and Pawchive downloader & UI Refactor",
+  "main": "src/index.ts",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build && node scripts/postbuild.js"
+    "build": "vite build && node scripts/postbuild.js",
+    "dev": "vite build --watch"
   },
+  "keywords": [
+    "userscript",
+    "kemono",
+    "coomer",
+    "pawchive",
+    "downloader",
+    "typescript"
+  ],
+  "author": "bropines",
+  "license": "MIT",
   "devDependencies": {
-    "typescript": "^5.3.3",
+    "typescript": "^5.0.0",
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "fflate": "^0.8.3",
-    "jszip": "^3.10.1"
+    "jszip": "^3.10.1",
+    "plyr": "^3.7.8"
   }
 }
