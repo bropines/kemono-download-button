@@ -157,12 +157,18 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
     const post = postDetails.rawApiData;
     const allMediaFiles: Array<{ name: string; path: string }> = [];
 
+    const seenPaths = new Set<string>();
+
     if (post.file?.path) {
+      seenPaths.add(post.file.path);
       allMediaFiles.push({ name: post.file.name || post.file.path.split('/').pop(), path: post.file.path });
     }
     if (Array.isArray(post.attachments)) {
       post.attachments.forEach((att: any) => {
-        if (att.path) allMediaFiles.push({ name: att.name || att.path.split('/').pop(), path: att.path });
+        if (att.path && !seenPaths.has(att.path)) {
+          seenPaths.add(att.path);
+          allMediaFiles.push({ name: att.name || att.path.split('/').pop(), path: att.path });
+        }
       });
     }
 

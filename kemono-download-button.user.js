@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.29
+// @version      0.8.30
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4653,12 +4653,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (isApiSuccess && postDetails.rawApiData) {
       const post = postDetails.rawApiData;
       const allMediaFiles = [];
+      const seenPaths = /* @__PURE__ */ new Set();
       if ((_a2 = post.file) == null ? void 0 : _a2.path) {
+        seenPaths.add(post.file.path);
         allMediaFiles.push({ name: post.file.name || post.file.path.split("/").pop(), path: post.file.path });
       }
       if (Array.isArray(post.attachments)) {
         post.attachments.forEach((att) => {
-          if (att.path) allMediaFiles.push({ name: att.name || att.path.split("/").pop(), path: att.path });
+          if (att.path && !seenPaths.has(att.path)) {
+            seenPaths.add(att.path);
+            allMediaFiles.push({ name: att.name || att.path.split("/").pop(), path: att.path });
+          }
         });
       }
       let localMediaCounter = 0;
