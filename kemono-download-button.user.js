@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.31
+// @version      0.8.32
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -914,7 +914,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       left: 0,
       width: "100%",
       height: "100%",
-      backgroundColor: THEME.colors.overlayBg,
+      backgroundColor: "rgba(10, 13, 18, 0.82)",
       display: "flex",
       justifyContent: "center",
       alignItems: "center",
@@ -923,58 +923,111 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       backdropFilter: "blur(12px)"
     },
     "#kdl-file-picker-modal": {
-      background: THEME.colors.modalBg,
-      color: THEME.colors.textMain,
-      borderRadius: THEME.borderRadius.modal,
+      position: "relative",
+      background: "linear-gradient(145deg, #1e2229 0%, #12151a 100%)",
+      color: "#f8fafc",
+      borderRadius: "14px",
       padding: "24px",
-      width: "620px",
+      width: "560px",
       maxWidth: "92vw",
-      maxHeight: "82vh",
+      maxHeight: "80vh",
       display: "flex",
       flexDirection: "column",
-      boxShadow: THEME.shadows.modal,
-      border: `1px solid ${THEME.colors.borderSubtle}`
+      boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15)",
+      border: "1px solid rgba(255, 255, 255, 0.12)",
+      boxSizing: "border-box",
+      overflow: "hidden"
+    },
+    "#kdl-file-picker-modal .kdl-modal-header": {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
+      paddingBottom: "14px",
+      marginBottom: "16px"
     },
     "#kdl-file-picker-modal h4": {
-      margin: "0 0 16px",
-      color: THEME.colors.primary,
-      borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-      paddingBottom: "12px",
-      textAlign: "center",
-      fontSize: "1.2rem",
-      fontWeight: "700"
+      margin: 0,
+      color: "#38bdf8",
+      fontSize: "1.15rem",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      gap: "8px"
+    },
+    "#kdl-file-picker-modal .kdl-modal-close": {
+      background: "transparent",
+      border: "none",
+      color: "#94a3b8",
+      fontSize: "1.25rem",
+      cursor: "pointer",
+      padding: "4px 8px",
+      borderRadius: "6px",
+      transition: "color 0.2s, background-color 0.2s"
+    },
+    "#kdl-file-picker-modal .kdl-modal-close:hover": {
+      color: "#ffffff",
+      backgroundColor: "rgba(255, 255, 255, 0.1)"
     },
     "#kdl-file-picker-list": {
       overflowY: "auto",
+      overflowX: "hidden",
       listStyle: "none",
-      padding: 0,
+      padding: "4px",
       margin: 0,
       display: "flex",
       flexDirection: "column",
-      gap: "6px"
+      gap: "8px",
+      maxHeight: "60vh"
+    },
+    "#kdl-file-picker-list::-webkit-scrollbar": {
+      width: "6px"
+    },
+    "#kdl-file-picker-list::-webkit-scrollbar-track": {
+      background: "rgba(0, 0, 0, 0.2)",
+      borderRadius: "4px"
+    },
+    "#kdl-file-picker-list::-webkit-scrollbar-thumb": {
+      background: "rgba(255, 255, 255, 0.2)",
+      borderRadius: "4px"
+    },
+    "#kdl-file-picker-list::-webkit-scrollbar-thumb:hover": {
+      background: "rgba(255, 255, 255, 0.35)"
     },
     "#kdl-file-picker-list li": {
-      margin: 0
+      margin: 0,
+      width: "100%",
+      boxSizing: "border-box"
     },
     "#kdl-file-picker-list a": {
-      display: "block",
-      padding: "10px 14px",
-      backgroundColor: THEME.colors.cardBg,
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "12px 16px",
+      backgroundColor: "rgba(255, 255, 255, 0.04)",
       border: "1px solid rgba(255, 255, 255, 0.08)",
-      borderRadius: THEME.borderRadius.lg,
-      color: THEME.colors.textSubtle,
+      borderRadius: "8px",
+      color: "#e2e8f0",
       textDecoration: "none",
       transition: "all 0.2s ease",
-      whiteSpace: "nowrap",
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      fontSize: "0.88rem"
+      fontSize: "0.9rem",
+      fontWeight: "500",
+      wordBreak: "break-all",
+      boxSizing: "border-box",
+      width: "100%"
     },
     "#kdl-file-picker-list a:hover": {
       backgroundColor: "rgba(56, 189, 248, 0.12)",
-      borderColor: THEME.colors.primary,
+      borderColor: "rgba(56, 189, 248, 0.4)",
       color: "#ffffff",
       transform: "translateX(3px)"
+    },
+    "#kdl-file-picker-list .kdl-file-icon": {
+      fontSize: "1.1rem",
+      flexShrink: 0
+    },
+    "#kdl-file-picker-list .kdl-file-name": {
+      flexGrow: 1
     }
   });
   const authorManagerModalStyles = css({
@@ -6196,26 +6249,42 @@ ${text}`;
     container.appendChild(kdlContainer);
   }
   async function showFilePickerModal(postDetails) {
+    const closeOverlay = () => overlay.remove();
+    const closeBtn = el("button", {
+      className: "kdl-modal-close",
+      title: "Close",
+      onClick: closeOverlay
+    }, ["✕"]);
+    const header = el("div", { className: "kdl-modal-header" }, [
+      el("h4", {}, ["📎 Loading attachments..."]),
+      closeBtn
+    ]);
     const overlay = el("div", {
       id: "kdl-file-picker-overlay",
       onClick: (e) => {
-        if (e.target === overlay) overlay.remove();
+        if (e.target === overlay) closeOverlay();
       }
     });
-    const modal = el("div", { id: "kdl-file-picker-modal" }, [el("h4", {}, ["Loading attachments..."])]);
+    const modal = el("div", { id: "kdl-file-picker-modal" }, [header]);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     try {
       const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
       const attachments = files.filter((t) => t.source === "url");
       if (attachments.length === 0) {
-        modal.replaceChildren(el("h4", {}, ["No attachments found for this post."]));
+        header.querySelector("h4").textContent = "📎 No attachments found";
+        modal.appendChild(el("p", { style: { color: "#94a3b8", margin: "16px 0 0" } }, ["No attachments or downloadable files available for this post."]));
         return;
       }
+      header.querySelector("h4").textContent = `📎 Select a file to download (${attachments.length})`;
       const list = el("ul", { id: "kdl-file-picker-list" });
       attachments.forEach((file) => {
         const fileName = file.name.split("/").pop() || file.name;
-        const a = el("a", { href: "#", dataset: { url: file.data, name: file.name } }, [fileName]);
+        const fileIcon = file.isMedia ? "🖼️" : "📁";
+        const a = el("a", { href: "#", dataset: { url: file.data, name: file.name } }, [
+          el("span", { className: "kdl-file-icon" }, [fileIcon]),
+          el("span", { className: "kdl-file-name" }, [fileName])
+        ]);
         list.appendChild(el("li", {}, [a]));
       });
       list.addEventListener("click", (e) => {
@@ -6226,15 +6295,13 @@ ${text}`;
           const fileName = fullPath.split("/").pop() || fullPath;
           showMessage(`Starting download for ${fileName}`, "info");
           GM_download({ url: link.dataset.url, name: fileName, saveAs: false });
-          overlay.remove();
+          closeOverlay();
         }
       });
-      modal.replaceChildren(el("h4", {}, [`Select a file to download (${attachments.length})`]), list);
+      modal.appendChild(list);
     } catch (error) {
-      modal.replaceChildren(
-        el("h4", {}, ["Failed to load attachments."]),
-        el("p", { style: { color: "#ccc", fontSize: "0.9em" } }, [error.message])
-      );
+      header.querySelector("h4").textContent = "⚠️ Failed to load attachments";
+      modal.appendChild(el("p", { style: { color: "#f87171", margin: "16px 0 0", fontSize: "0.9rem" } }, [error.message]));
     }
   }
   async function injectPostCardButtons(postCardNode, pageAuthorName) {
