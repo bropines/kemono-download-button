@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.25
+// @version      0.8.26
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -86,21 +86,22 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   const THEME = {
     colors: {
-      // Brand & Status Colors using Native Site CSS Variables with fallback
-      primary: "var(--submit-colour1-primary, #38bdf8)",
-      success: "var(--positive-colour1-primary, #28a745)",
-      successDark: "var(--positive-colour1-secondary, #218838)",
-      danger: "var(--negative-colour1-primary, #ef4444)",
-      dangerDark: "var(--negative-colour1-primary, #dc3545)",
-      warning: "var(--favourite-colour1-primary, #ffc107)",
-      warningDark: "var(--favourite-colour2-primary, #e0a800)",
-      info: "var(--anchour-colour1-primary, #007bff)",
-      infoDark: "var(--anchour-colour1-secondary, #0069d9)",
-      purple: "#6f42c1",
-      purpleDark: "#5a32a3",
-      secondary: "var(--colour0-secondary, #6c757d)",
-      secondaryDark: "var(--colour0-tertirary, #5a6268)",
-      orange: "#fd7e14",
+      // Brand & Status Colors (Sleek, pleasant dark theme tones)
+      primary: "#38bdf8",
+      success: "#10b981",
+      danger: "#f87171",
+      dangerDark: "#dc2626",
+      warning: "#fbbf24",
+      info: "#60a5fa",
+      infoDark: "#2563eb",
+      secondary: "#64748b",
+      orange: "#f97316",
+      // Elegant Button Gradients
+      btnPrimaryGradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+      btnInfoGradient: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+      btnWarnGradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+      btnSuccessGradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+      btnSecondaryGradient: "linear-gradient(135deg, #475569 0%, #334155 100%)",
       // Neutral & Backgrounds (100% Native Site Palette)
       bgDark: "var(--colour1-primary-transparent, rgba(23, 25, 26, 0.85))",
       panelBg: "var(--colour1-secondary, #202324)",
@@ -125,7 +126,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)"
     },
     borderRadius: {
-      xs: "3px",
       sm: "4px",
       md: "6px",
       lg: "8px",
@@ -181,81 +181,75 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".post-card .post-card-download-controls": {
       position: "absolute",
-      top: "5px",
-      right: "5px",
+      top: "6px",
+      right: "6px",
       display: "none",
       flexDirection: "column",
-      gap: "4px",
-      backgroundColor: "#282828d9",
-      padding: "5px",
-      borderRadius: THEME.borderRadius.sm,
+      gap: "5px",
+      backgroundColor: "rgba(20, 23, 28, 0.88)",
+      WebkitBackdropFilter: "blur(8px)",
+      backdropFilter: "blur(8px)",
+      padding: "6px",
+      borderRadius: THEME.borderRadius.md,
       zIndex: 10,
-      border: "1px solid rgba(255,255,255,.1)"
+      border: "1px solid rgba(255, 255, 255, 0.12)",
+      boxShadow: "0 8px 20px rgba(0, 0, 0, 0.4)"
     },
     ".post-card:hover .post-card-download-controls": {
       display: "flex"
     },
     ".post-card .post-card-download-controls button": {
-      padding: "4px 8px",
-      fontSize: ".8em",
+      padding: "5px 10px",
+      fontSize: "0.81rem",
+      fontWeight: "600",
       minWidth: "65px",
       margin: 0,
-      border: "none",
-      borderRadius: THEME.borderRadius.xs,
-      color: "#fff",
+      border: "1px solid rgba(255, 255, 255, 0.12) !important",
+      borderRadius: THEME.borderRadius.sm,
+      color: "#fff !important",
       cursor: "pointer",
       textAlign: "center",
-      opacity: 0.9,
-      transition: "opacity .2s, background-color .2s"
+      transition: "all 0.2s ease",
+      boxShadow: "0 2px 4px rgba(0, 0, 0, 0.25)"
     },
     ".post-card .post-card-download-controls button:hover": {
-      opacity: 1
+      filter: "brightness(1.15)",
+      transform: "translateY(-1px)",
+      boxShadow: "0 4px 8px rgba(0, 0, 0, 0.35)"
+    },
+    ".post-card .post-card-download-controls button:active": {
+      transform: "translateY(1px)"
     },
     ".post-card .post-card-dl-zip": {
-      backgroundColor: THEME.colors.success
-    },
-    ".post-card .post-card-dl-zip:hover": {
-      backgroundColor: THEME.colors.successDark
+      background: `${THEME.colors.btnSuccessGradient} !important`
     },
     ".post-card .post-card-dl-img": {
-      backgroundColor: THEME.colors.info
-    },
-    ".post-card .post-card-dl-img:hover": {
-      backgroundColor: THEME.colors.infoDark
+      background: `${THEME.colors.btnPrimaryGradient} !important`
     },
     ".post-card .post-card-dl-att": {
-      backgroundColor: THEME.colors.warning,
-      color: "#212529 !important"
-    },
-    ".post-card .post-card-dl-att:hover": {
-      backgroundColor: THEME.colors.warningDark
+      background: `${THEME.colors.btnWarnGradient} !important`,
+      color: "#ffffff !important"
     },
     ".post-card .post-card-dl-pick": {
-      backgroundColor: THEME.colors.purple
-    },
-    ".post-card .post-card-dl-pick:hover": {
-      backgroundColor: THEME.colors.purpleDark
+      background: `${THEME.colors.btnInfoGradient} !important`
     },
     ".post-card .post-card-dl-info": {
-      backgroundColor: THEME.colors.secondary
-    },
-    ".post-card .post-card-dl-info:hover": {
-      backgroundColor: THEME.colors.secondaryDark
+      background: `${THEME.colors.btnSecondaryGradient} !important`
     },
     ".post-card .post-card-download-controls button:disabled, .post__actions button[data-is-downloading=true], .post__actions button[data-is-queued=true]": {
       opacity: "0.6 !important",
       cursor: "not-allowed !important"
     },
     ".post-card .post-card-download-controls button[data-is-queued=true], .post__actions button[data-is-queued=true]": {
-      backgroundColor: `${THEME.colors.orange} !important`
+      background: `${THEME.colors.orange} !important`
     },
     ".post-card .post-card-download-controls button[data-is-downloading=true], .post__actions button[data-is-downloading=true]": {
-      backgroundColor: `${THEME.colors.secondary} !important`
+      background: `${THEME.colors.secondary} !important`
     },
     ".kdl-post-checkbox": {
       position: "absolute",
-      top: "5px",
-      left: "5px",
+      top: "6px",
+      left: "6px",
       zIndex: 11,
       width: "20px",
       height: "20px",
@@ -269,8 +263,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       top: "8px",
       right: "8px",
       zIndex: 12,
-      background: "#141414b3",
-      border: "1px solid rgba(255,255,255,.2)",
+      background: "rgba(20, 23, 28, 0.85)",
+      border: "1px solid rgba(255, 255, 255, 0.18)",
       color: "#fff",
       borderRadius: THEME.borderRadius.sm,
       width: "28px",

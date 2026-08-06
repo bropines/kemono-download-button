@@ -1,34 +1,34 @@
 /**
  * Central Design System Tokens for Kemono Download Button & UI Refactor.
- * Uses 100% native site CSS variables (--colour0-primary, --colour1-primary, etc.)
- * with elegant fallbacks so all components perfectly match Kemono, Coomer, and Pawchive themes.
+ * Sleek, elegant dark theme palette for high visual fidelity and pleasant contrast.
  */
 export const THEME = {
   colors: {
-    // Brand & Status Colors using Native Site CSS Variables with fallback
-    primary: "var(--submit-colour1-primary, #38bdf8)",
-    primaryDark: "var(--submit-colour1-secondary, #0284c7)",
-    success: "var(--positive-colour1-primary, #28a745)",
-    successGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #059669))",
-    successDark: "var(--positive-colour1-secondary, #218838)",
-    danger: "var(--negative-colour1-primary, #ef4444)",
-    dangerDark: "var(--negative-colour1-primary, #dc3545)",
-    warning: "var(--favourite-colour1-primary, #ffc107)",
-    warningDark: "var(--favourite-colour2-primary, #e0a800)",
-    info: "var(--anchour-colour1-primary, #007bff)",
-    infoDark: "var(--anchour-colour1-secondary, #0069d9)",
-    purple: "#6f42c1",
-    purpleDark: "#5a32a3",
-    secondary: "var(--colour0-secondary, #6c757d)",
-    secondaryDark: "var(--colour0-tertirary, #5a6268)",
-    orange: "#fd7e14",
+    // Brand & Status Colors (Sleek, pleasant dark theme tones)
+    primary: "#38bdf8",
+    primaryDark: "#0284c7",
+    success: "#10b981",
+    successGradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+    successDark: "#059669",
+    danger: "#f87171",
+    dangerDark: "#dc2626",
+    warning: "#fbbf24",
+    warningDark: "#d97706",
+    info: "#60a5fa",
+    infoDark: "#2563eb",
+    purple: "#a855f7",
+    purpleDark: "#7e22ce",
+    secondary: "#64748b",
+    secondaryDark: "#334155",
+    orange: "#f97316",
 
-    // Gradient Buttons matching site palette
-    btnPrimaryGradient: "linear-gradient(135deg, var(--submit-colour1-primary, #3b82f6), var(--submit-colour1-secondary, #1d4ed8))",
-    btnInfoGradient: "linear-gradient(135deg, var(--anchour-colour1-primary, #06b6d4), var(--anchour-colour1-secondary, #0891b2))",
-    btnWarnGradient: "linear-gradient(135deg, var(--favourite-colour1-primary, #f59e0b), var(--favourite-colour2-primary, #d97706))",
-    btnDangerGradient: "linear-gradient(135deg, var(--negative-colour1-primary, #ef4444), #b91c1c)",
-    btnSuccessGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #047857))",
+    // Elegant Button Gradients
+    btnPrimaryGradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
+    btnInfoGradient: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+    btnWarnGradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+    btnDangerGradient: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
+    btnSuccessGradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+    btnSecondaryGradient: "linear-gradient(135deg, #475569 0%, #334155 100%)",
 
     // Neutral & Backgrounds (100% Native Site Palette)
     bgDark: "var(--colour1-primary-transparent, rgba(23, 25, 26, 0.85))",
