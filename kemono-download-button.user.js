@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.17
+// @version      0.8.18
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -89,7 +89,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       // Brand & Status Colors using Native Site CSS Variables with fallback
       primary: "var(--submit-colour1-primary, #38bdf8)",
       success: "var(--positive-colour1-primary, #28a745)",
-      successGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #059669))",
       successDark: "var(--positive-colour1-secondary, #218838)",
       danger: "var(--negative-colour1-primary, #ef4444)",
       dangerDark: "var(--negative-colour1-primary, #dc3545)",
@@ -102,12 +101,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       secondary: "var(--colour0-secondary, #6c757d)",
       secondaryDark: "var(--colour0-tertirary, #5a6268)",
       orange: "#fd7e14",
-      // Gradient Buttons matching site palette
-      btnPrimaryGradient: "linear-gradient(135deg, var(--submit-colour1-primary, #3b82f6), var(--submit-colour1-secondary, #1d4ed8))",
-      btnInfoGradient: "linear-gradient(135deg, var(--anchour-colour1-primary, #06b6d4), var(--anchour-colour1-secondary, #0891b2))",
-      btnWarnGradient: "linear-gradient(135deg, var(--favourite-colour1-primary, #f59e0b), var(--favourite-colour2-primary, #d97706))",
-      btnDangerGradient: "linear-gradient(135deg, var(--negative-colour1-primary, #ef4444), #b91c1c)",
-      btnSuccessGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #047857))",
       // Neutral & Backgrounds (100% Native Site Palette)
       bgDark: "var(--colour1-primary-transparent, rgba(23, 25, 26, 0.85))",
       panelBg: "var(--colour1-secondary, #202324)",
@@ -664,7 +657,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       color: THEME.colors.textMain,
       boxSizing: "border-box",
       fontSize: "0.85rem",
-      transition: "all 0.2s ease"
+      transition: "all 0.25s ease"
     },
     "#kdl-settings-modal input[type=number]:focus, #kdl-settings-modal input[type=text]:focus, #kdl-settings-modal input[type=password]:focus, #kdl-settings-modal select:focus": {
       backgroundColor: "var(--colour1-secondary, #202324)",
@@ -694,28 +687,52 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       gap: "6px 10px",
       marginTop: "6px"
     },
+    /* Native Site Button Styling System (.form__button & .button--primary inspired) */
     ".kdl-btn-primary, .kdl-btn-info, .kdl-btn-warn, .kdl-btn-danger, .kdl-btn-success": {
-      border: "none !important",
-      borderRadius: `${THEME.borderRadius.md} !important`,
-      padding: "7px 12px !important",
+      borderRadius: "4px !important",
+      padding: "6px 12px !important",
       fontWeight: "600 !important",
-      fontSize: "0.82rem !important",
+      fontSize: "0.84rem !important",
+      lineHeight: "1.15 !important",
       cursor: "pointer !important",
-      transition: "all 0.2s ease !important",
-      color: "#fff !important",
+      transition: "all 0.25s ease !important",
       display: "inline-flex !important",
       alignItems: "center !important",
-      justifyContent: "center !important"
+      justifyContent: "center !important",
+      boxSizing: "border-box !important"
     },
-    ".kdl-btn-primary": { background: `${THEME.colors.btnPrimaryGradient} !important` },
-    ".kdl-btn-info": { background: `${THEME.colors.btnInfoGradient} !important` },
-    ".kdl-btn-warn": { background: `${THEME.colors.btnWarnGradient} !important` },
-    ".kdl-btn-danger": { background: `${THEME.colors.btnDangerGradient} !important` },
-    ".kdl-btn-success": { background: `${THEME.colors.btnSuccessGradient} !important` },
+    ".kdl-btn-primary": {
+      backgroundColor: "var(--submit-colour1-primary, #66ccff) !important",
+      color: "var(--colour1-primary, #17191a) !important",
+      border: "1px solid var(--submit-colour1-primary, #66ccff) !important"
+    },
+    ".kdl-btn-info": {
+      backgroundColor: "var(--colour1-secondary, #202324) !important",
+      color: "var(--anchour-colour1-primary, #99ddff) !important",
+      border: "1px solid var(--colour0-tertirary, #737373) !important"
+    },
+    ".kdl-btn-warn": {
+      backgroundColor: "var(--colour1-secondary, #202324) !important",
+      color: "var(--favourite-colour1-primary, #ffda00) !important",
+      border: "1px solid var(--favourite-colour1-primary, #ffda00) !important"
+    },
+    ".kdl-btn-danger": {
+      backgroundColor: "var(--colour1-secondary, #202324) !important",
+      color: "var(--negative-colour1-primary, #ff3333) !important",
+      border: "1px solid var(--negative-colour1-primary, #ff3333) !important"
+    },
+    ".kdl-btn-success": {
+      backgroundColor: "var(--positive-colour1-primary, #00e600) !important",
+      color: "var(--colour1-primary, #17191a) !important",
+      border: "1px solid var(--positive-colour1-primary, #00e600) !important"
+    },
     ".kdl-btn-primary:hover, .kdl-btn-info:hover, .kdl-btn-warn:hover, .kdl-btn-danger:hover, .kdl-btn-success:hover": {
-      transform: "translateY(-1px) !important",
-      filter: "brightness(1.12) !important",
-      boxShadow: "0 3px 8px rgba(0,0,0,0.3) !important"
+      filter: "brightness(1.15) !important",
+      borderColor: "var(--colour0-primary, #fff) !important",
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3) !important"
+    },
+    ".kdl-btn-primary:active, .kdl-btn-info:active, .kdl-btn-warn:active, .kdl-btn-danger:active, .kdl-btn-success:active": {
+      transform: "translateY(1px) !important"
     },
     ".kdl-tooltip-trigger": {
       position: "relative",
@@ -785,39 +802,43 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       gap: "10px"
     },
     "#kdl-settings-modal button.kdl-save": {
-      background: THEME.colors.successGradient,
-      color: "#fff",
-      padding: "9px 22px",
-      border: "none",
-      borderRadius: THEME.borderRadius.lg,
+      backgroundColor: "var(--positive-colour1-primary, #00e600)",
+      color: "var(--colour1-primary, #17191a)",
+      border: "1px solid var(--positive-colour1-primary, #00e600)",
+      padding: "8px 22px",
+      borderRadius: "4px",
       cursor: "pointer",
       marginLeft: "10px",
       fontWeight: "600",
       fontSize: "0.88rem",
-      transition: "all 0.2s ease",
-      boxShadow: "0 3px 10px rgba(16, 185, 129, 0.25)"
+      transition: "all 0.25s ease"
     },
     "#kdl-settings-modal button.kdl-save:hover": {
-      transform: "translateY(-1px)",
-      boxShadow: "0 5px 15px rgba(16, 185, 129, 0.35)",
-      filter: "brightness(1.1)"
+      filter: "brightness(1.15)",
+      borderColor: "#fff"
+    },
+    "#kdl-settings-modal button.kdl-save:active": {
+      transform: "translateY(1px)"
     },
     "#kdl-settings-modal button.kdl-close": {
-      backgroundColor: "rgba(255, 255, 255, 0.08)",
-      color: THEME.colors.textSubtle,
-      border: `1px solid ${THEME.colors.borderSubtle}`,
-      padding: "9px 18px",
-      borderRadius: THEME.borderRadius.lg,
+      backgroundColor: "var(--colour1-secondary, #202324)",
+      color: "var(--colour0-primary, #f2f2f2)",
+      border: "1px solid var(--colour0-tertirary, #737373)",
+      padding: "8px 18px",
+      borderRadius: "4px",
       cursor: "pointer",
       marginLeft: "10px",
       fontWeight: "600",
       fontSize: "0.88rem",
-      transition: "all 0.2s ease"
+      transition: "all 0.25s ease"
     },
     "#kdl-settings-modal button.kdl-close:hover": {
-      backgroundColor: "rgba(255, 255, 255, 0.15)",
-      color: "#fff",
-      transform: "translateY(-1px)"
+      backgroundColor: "var(--colour1-tertiary, #0b0d0e)",
+      borderColor: "var(--colour0-secondary, #b3b3b3)",
+      color: "#fff"
+    },
+    "#kdl-settings-modal button.kdl-close:active": {
+      transform: "translateY(1px)"
     }
   });
   const bulkPanelStyles = css({
