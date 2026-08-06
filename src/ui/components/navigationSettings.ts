@@ -9,11 +9,17 @@ const HEADER_SLIDERS_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height:
 /**
  * Injects Downloader Settings and UI Settings links into both
  * the Global Sidebar (.global-sidebar) and the Top Header (.header / .header.sidebar-retracted).
- * Preserves clean 2-line formatting, custom SVG icons, and hover highlight effects.
+ * Strictly distinguishes between the top header navigation bar and sidebar header entry items.
  */
 export function setupNavigationSettings(): void {
-  // 1. Sidebar Injection (.global-sidebar)
   const sidebar = document.querySelector('.global-sidebar');
+
+  // Clean up any stray header buttons mistakenly inserted inside global-sidebar
+  if (sidebar) {
+    sidebar.querySelectorAll('#kdl-settings-btn-header, #kui-settings-btn-header').forEach((el) => el.remove());
+  }
+
+  // 1. Sidebar Injection (.global-sidebar)
   if (sidebar) {
     let group = sidebar.querySelector('.kdl-navigation-settings-group');
     if (!group) {
@@ -56,18 +62,22 @@ export function setupNavigationSettings(): void {
     }
   }
 
-  // 2. Top Header Injection (div.header / div.header.sidebar-retracted)
-  const header = document.querySelector('div.header') || document.querySelector('.header');
-  if (header) {
-    const insertTarget =
-      header.querySelector('a.logout') ||
-      header.querySelector('a.login') ||
-      header.querySelector('a.register') ||
-      header.querySelector('a.account') ||
-      header.querySelector('a.logged-in-only') ||
-      header.querySelector('a.logged-out-only');
+  // 2. Top Header Injection (top navigation bar: div.header or div.header.sidebar-retracted)
+  const topHeader = Array.from(document.querySelectorAll<HTMLElement>('.header')).find(
+    (el) => !el.closest('.global-sidebar') && !el.classList.contains('global-sidebar-entry-item')
+  );
 
-    if (!document.getElementById('kdl-settings-btn-header')) {
+  if (topHeader) {
+    const insertTarget =
+      topHeader.querySelector('a.logout') ||
+      topHeader.querySelector('a.login') ||
+      topHeader.querySelector('a.register') ||
+      topHeader.querySelector('a.account') ||
+      topHeader.querySelector('a.logged-in-only') ||
+      topHeader.querySelector('a.logged-out-only') ||
+      topHeader.querySelector('a.header-link:last-of-type');
+
+    if (!topHeader.querySelector('#kdl-settings-btn-header')) {
       const kdlHeaderBtn = document.createElement('a');
       kdlHeaderBtn.id = 'kdl-settings-btn-header';
       kdlHeaderBtn.className = 'header-link kdl-settings-header-link';
@@ -80,13 +90,13 @@ export function setupNavigationSettings(): void {
       });
 
       if (insertTarget) {
-        header.insertBefore(kdlHeaderBtn, insertTarget);
+        topHeader.insertBefore(kdlHeaderBtn, insertTarget);
       } else {
-        header.appendChild(kdlHeaderBtn);
+        topHeader.appendChild(kdlHeaderBtn);
       }
     }
 
-    if (!document.getElementById('kui-settings-btn-header')) {
+    if (!topHeader.querySelector('#kui-settings-btn-header')) {
       const kuiHeaderBtn = document.createElement('a');
       kuiHeaderBtn.id = 'kui-settings-btn-header';
       kuiHeaderBtn.className = 'header-link kui-settings-header-link';
@@ -100,9 +110,9 @@ export function setupNavigationSettings(): void {
       });
 
       if (insertTarget) {
-        header.insertBefore(kuiHeaderBtn, insertTarget);
+        topHeader.insertBefore(kuiHeaderBtn, insertTarget);
       } else {
-        header.appendChild(kuiHeaderBtn);
+        topHeader.appendChild(kuiHeaderBtn);
       }
     }
   }

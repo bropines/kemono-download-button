@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.11
+// @version      0.8.12
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4099,6 +4099,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     var _a2;
     const sidebar = document.querySelector(".global-sidebar");
     if (sidebar) {
+      sidebar.querySelectorAll("#kdl-settings-btn-header, #kui-settings-btn-header").forEach((el2) => el2.remove());
+    }
+    if (sidebar) {
       let group = sidebar.querySelector(".kdl-navigation-settings-group");
       if (!group) {
         group = document.createElement("div");
@@ -4136,10 +4139,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         group.appendChild(kuiLink);
       }
     }
-    const header = document.querySelector("div.header") || document.querySelector(".header");
-    if (header) {
-      const insertTarget = header.querySelector("a.logout") || header.querySelector("a.login") || header.querySelector("a.register") || header.querySelector("a.account") || header.querySelector("a.logged-in-only") || header.querySelector("a.logged-out-only");
-      if (!document.getElementById("kdl-settings-btn-header")) {
+    const topHeader = Array.from(document.querySelectorAll(".header")).find(
+      (el2) => !el2.closest(".global-sidebar") && !el2.classList.contains("global-sidebar-entry-item")
+    );
+    if (topHeader) {
+      const insertTarget = topHeader.querySelector("a.logout") || topHeader.querySelector("a.login") || topHeader.querySelector("a.register") || topHeader.querySelector("a.account") || topHeader.querySelector("a.logged-in-only") || topHeader.querySelector("a.logged-out-only") || topHeader.querySelector("a.header-link:last-of-type");
+      if (!topHeader.querySelector("#kdl-settings-btn-header")) {
         const kdlHeaderBtn = document.createElement("a");
         kdlHeaderBtn.id = "kdl-settings-btn-header";
         kdlHeaderBtn.className = "header-link kdl-settings-header-link";
@@ -4151,12 +4156,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           toggleSettingsModal(true);
         });
         if (insertTarget) {
-          header.insertBefore(kdlHeaderBtn, insertTarget);
+          topHeader.insertBefore(kdlHeaderBtn, insertTarget);
         } else {
-          header.appendChild(kdlHeaderBtn);
+          topHeader.appendChild(kdlHeaderBtn);
         }
       }
-      if (!document.getElementById("kui-settings-btn-header")) {
+      if (!topHeader.querySelector("#kui-settings-btn-header")) {
         const kuiHeaderBtn = document.createElement("a");
         kuiHeaderBtn.id = "kui-settings-btn-header";
         kuiHeaderBtn.className = "header-link kui-settings-header-link";
@@ -4169,9 +4174,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           if (settingsPanel) settingsPanel.classList.toggle("kui-panel-active");
         });
         if (insertTarget) {
-          header.insertBefore(kuiHeaderBtn, insertTarget);
+          topHeader.insertBefore(kuiHeaderBtn, insertTarget);
         } else {
-          header.appendChild(kuiHeaderBtn);
+          topHeader.appendChild(kuiHeaderBtn);
         }
       }
     }
