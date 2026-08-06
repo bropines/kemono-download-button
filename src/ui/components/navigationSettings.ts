@@ -1,71 +1,86 @@
-import { SELECTORS } from '../../config/selectors';
 import { toggleSettingsModal } from './settingsModal';
+
+const GEAR_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 18px; height: 18px; fill: currentColor; margin-right: 8px; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
+const SLIDERS_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 18px; height: 18px; fill: currentColor; margin-right: 8px; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
+
+const HEADER_GEAR_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
+const HEADER_SLIDERS_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
 
 /**
  * Injects Downloader Settings and UI Settings links into both
- * the Global Sidebar (.global-sidebar) and the Top Header (.header).
- * Ensures buttons are accessible whether the sidebar is expanded or retracted.
+ * the Global Sidebar (.global-sidebar) and the Top Header (.header / .header.sidebar-retracted).
+ * Preserves clean 2-line formatting, custom SVG icons, and hover highlight effects.
  */
 export function setupNavigationSettings(): void {
   // 1. Sidebar Injection (.global-sidebar)
   const sidebar = document.querySelector('.global-sidebar');
   if (sidebar) {
-    const stuckBottom = sidebar.querySelector(SELECTORS.sidebarCommunitySection) || sidebar.querySelector('.global-sidebar-entry.account');
+    let group = sidebar.querySelector('.kdl-navigation-settings-group');
+    if (!group) {
+      group = document.createElement('div');
+      group.className = 'global-sidebar-entry kdl-navigation-settings-group';
+
+      const stuckBottom = sidebar.querySelector('.global-sidebar-entry.stuck-bottom') || sidebar.querySelector('.global-sidebar-entry.account');
+      if (stuckBottom) {
+        stuckBottom.parentNode?.insertBefore(group, stuckBottom);
+      } else {
+        sidebar.appendChild(group);
+      }
+    }
 
     if (!document.getElementById('kdl-settings-btn-sidebar')) {
-      const kdlEntry = document.createElement('div');
-      kdlEntry.className = 'global-sidebar-entry';
-      kdlEntry.innerHTML = `<a id="kdl-settings-btn-sidebar" class="global-sidebar-entry-item" href="#">Downloader Settings</a>`;
-
-      if (stuckBottom) {
-        stuckBottom.parentNode?.insertBefore(kdlEntry, stuckBottom);
-      } else {
-        sidebar.appendChild(kdlEntry);
-      }
-
-      document.getElementById('kdl-settings-btn-sidebar')?.addEventListener('click', (e: MouseEvent) => {
+      const kdlLink = document.createElement('a');
+      kdlLink.id = 'kdl-settings-btn-sidebar';
+      kdlLink.className = 'global-sidebar-entry-item kdl-sidebar-link';
+      kdlLink.href = '#';
+      kdlLink.innerHTML = `${GEAR_SVG}<span style="display: inline-block; vertical-align: middle; line-height: 1.25; font-size: 0.85rem;">Downloader<br>Settings</span>`;
+      kdlLink.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         toggleSettingsModal(true);
       });
+      group.appendChild(kdlLink);
     }
 
     if (!document.getElementById('kui-settings-btn-sidebar')) {
-      const kuiEntry = document.createElement('div');
-      kuiEntry.className = 'global-sidebar-entry';
-      kuiEntry.innerHTML = `<a id="kui-settings-btn-sidebar" class="global-sidebar-entry-item" href="#">UI Settings</a>`;
-
-      if (stuckBottom) {
-        stuckBottom.parentNode?.insertBefore(kuiEntry, stuckBottom);
-      } else {
-        sidebar.appendChild(kuiEntry);
-      }
-
-      document.getElementById('kui-settings-btn-sidebar')?.addEventListener('click', (e: MouseEvent) => {
+      const kuiLink = document.createElement('a');
+      kuiLink.id = 'kui-settings-btn-sidebar';
+      kuiLink.className = 'global-sidebar-entry-item kdl-sidebar-link';
+      kuiLink.href = '#';
+      kuiLink.innerHTML = `${SLIDERS_SVG}<span style="display: inline-block; vertical-align: middle; line-height: 1.25; font-size: 0.85rem;">UI<br>Settings</span>`;
+      kuiLink.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         const settingsPanel = document.getElementById('kui-settings-panel');
         if (settingsPanel) settingsPanel.classList.toggle('kui-panel-active');
       });
+      group.appendChild(kuiLink);
     }
   }
 
-  // 2. Top Header Injection (.header / .header.sidebar-retracted)
-  const header = document.querySelector('.header');
+  // 2. Top Header Injection (div.header / div.header.sidebar-retracted)
+  const header = document.querySelector('div.header') || document.querySelector('.header');
   if (header) {
-    const logoutBtn = header.querySelector('a.logout') || header.querySelector('a.login') || header.querySelector('a.logged-in-only');
+    const insertTarget =
+      header.querySelector('a.logout') ||
+      header.querySelector('a.login') ||
+      header.querySelector('a.register') ||
+      header.querySelector('a.account') ||
+      header.querySelector('a.logged-in-only') ||
+      header.querySelector('a.logged-out-only');
 
     if (!document.getElementById('kdl-settings-btn-header')) {
       const kdlHeaderBtn = document.createElement('a');
       kdlHeaderBtn.id = 'kdl-settings-btn-header';
       kdlHeaderBtn.className = 'header-link kdl-settings-header-link';
       kdlHeaderBtn.href = '#';
-      kdlHeaderBtn.textContent = 'Downloader';
+      kdlHeaderBtn.title = 'Downloader Settings';
+      kdlHeaderBtn.innerHTML = `${HEADER_GEAR_SVG}<span>Downloader</span>`;
       kdlHeaderBtn.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         toggleSettingsModal(true);
       });
 
-      if (logoutBtn) {
-        header.insertBefore(kdlHeaderBtn, logoutBtn);
+      if (insertTarget) {
+        header.insertBefore(kdlHeaderBtn, insertTarget);
       } else {
         header.appendChild(kdlHeaderBtn);
       }
@@ -76,15 +91,16 @@ export function setupNavigationSettings(): void {
       kuiHeaderBtn.id = 'kui-settings-btn-header';
       kuiHeaderBtn.className = 'header-link kui-settings-header-link';
       kuiHeaderBtn.href = '#';
-      kuiHeaderBtn.textContent = 'UI Settings';
+      kuiHeaderBtn.title = 'UI Settings';
+      kuiHeaderBtn.innerHTML = `${HEADER_SLIDERS_SVG}<span>UI Settings</span>`;
       kuiHeaderBtn.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         const settingsPanel = document.getElementById('kui-settings-panel');
         if (settingsPanel) settingsPanel.classList.toggle('kui-panel-active');
       });
 
-      if (logoutBtn) {
-        header.insertBefore(kuiHeaderBtn, logoutBtn);
+      if (insertTarget) {
+        header.insertBefore(kuiHeaderBtn, insertTarget);
       } else {
         header.appendChild(kuiHeaderBtn);
       }
