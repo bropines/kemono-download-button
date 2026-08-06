@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.27
+// @version      0.8.28
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -182,33 +182,33 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".post-card .post-card-download-controls": {
       position: "absolute",
-      top: "4px",
-      right: "4px",
+      top: "5px",
+      right: "5px",
       display: "none",
       flexDirection: "column",
-      gap: "clamp(2px, 1.2cqw, 4px)",
+      gap: "clamp(3px, 1.6cqw, 5px)",
       backgroundColor: "rgba(20, 23, 28, 0.88)",
       WebkitBackdropFilter: "blur(8px)",
       backdropFilter: "blur(8px)",
-      padding: "clamp(2px, 1.5cqw, 5px)",
-      borderRadius: "5px",
+      padding: "clamp(3px, 2cqw, 6px)",
+      borderRadius: "6px",
       zIndex: 10,
       border: "1px solid rgba(255, 255, 255, 0.12)",
-      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.4)",
-      maxWidth: "45%",
+      boxShadow: "0 4px 14px rgba(0, 0, 0, 0.4)",
+      maxWidth: "55%",
       boxSizing: "border-box"
     },
     ".post-card:hover .post-card-download-controls": {
       display: "flex"
     },
     ".post-card .post-card-download-controls button": {
-      padding: "clamp(2px, 1.2cqw, 4px) clamp(4px, 2.5cqw, 8px)",
-      fontSize: "clamp(0.62rem, 4.8cqw, 0.76rem)",
+      padding: "clamp(3px, 1.6cqw, 5px) clamp(6px, 3.2cqw, 10px)",
+      fontSize: "clamp(0.75rem, 5.8cqw, 0.92rem)",
       fontWeight: "600",
-      minWidth: "clamp(34px, 18cqw, 58px)",
+      minWidth: "clamp(44px, 22cqw, 72px)",
       margin: 0,
       border: "1px solid rgba(255, 255, 255, 0.12) !important",
-      borderRadius: "3px",
+      borderRadius: "4px",
       color: "#fff !important",
       cursor: "pointer",
       textAlign: "center",
@@ -255,13 +255,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".kdl-post-checkbox": {
       position: "absolute",
-      top: "5px",
-      left: "5px",
+      top: "6px",
+      left: "6px",
       zIndex: 11,
-      width: "clamp(14px, 8cqw, 20px)",
-      height: "clamp(14px, 8cqw, 20px)",
+      width: "clamp(16px, 10cqw, 22px)",
+      height: "clamp(16px, 10cqw, 22px)",
       cursor: "pointer",
-      padding: "3px",
+      padding: "4px",
       margin: 0,
       backgroundClip: "content-box"
     },
@@ -274,9 +274,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       border: "1px solid rgba(255, 255, 255, 0.18)",
       color: "#fff",
       borderRadius: THEME.borderRadius.sm,
-      width: "clamp(20px, 12cqw, 28px)",
-      height: "clamp(20px, 12cqw, 28px)",
-      fontSize: "clamp(12px, 8cqw, 16px)",
+      width: "clamp(24px, 14cqw, 32px)",
+      height: "clamp(24px, 14cqw, 32px)",
+      fontSize: "clamp(14px, 10cqw, 18px)",
       lineHeight: 1,
       padding: 0,
       cursor: "pointer",
