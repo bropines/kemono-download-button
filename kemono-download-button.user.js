@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.12
+// @version      0.8.13
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -533,37 +533,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     "#kdl-settings-btn:hover": {
       backgroundColor: THEME.colors.infoDark
     },
-    /* Navigation Sidebar & Header Settings Items */
-    ".kdl-sidebar-link, #kdl-settings-btn-sidebar, #kui-settings-btn-sidebar": {
-      display: "flex !important",
-      alignItems: "center !important",
-      padding: "8px 12px !important",
-      borderRadius: "6px !important",
-      transition: "all 0.2s ease !important",
-      color: "#cbd5e1 !important",
-      textDecoration: "none !important",
-      lineHeight: "1.25 !important",
-      whiteSpace: "normal !important"
-    },
-    ".kdl-sidebar-link:hover, #kdl-settings-btn-sidebar:hover, #kui-settings-btn-sidebar:hover": {
-      backgroundColor: "rgba(56, 189, 248, 0.16) !important",
-      color: "#38bdf8 !important",
-      transform: "translateX(2px)",
-      boxShadow: "0 2px 8px rgba(0,0,0,0.2)"
-    },
-    ".header-link.kdl-settings-header-link, .header-link.kui-settings-header-link": {
-      display: "inline-flex !important",
-      alignItems: "center !important",
-      padding: "4px 10px !important",
-      borderRadius: "4px !important",
-      cursor: "pointer !important",
-      transition: "all 0.2s ease !important",
-      userSelect: "none"
-    },
-    ".header-link.kdl-settings-header-link:hover, .header-link.kui-settings-header-link:hover": {
-      backgroundColor: "rgba(56, 189, 248, 0.2) !important",
-      color: "#38bdf8 !important",
-      textShadow: "0 0 8px rgba(56, 189, 248, 0.5)"
+    /* Ensure injected sidebar & header buttons match native site cursor & styles */
+    "#kdl-settings-btn-sidebar, #kui-settings-btn-sidebar, #kdl-settings-btn-header, #kui-settings-btn-header": {
+      cursor: "pointer !important"
     }
   });
   const settingsModalStyles = css({
@@ -4091,10 +4063,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const sizeMb = (totalSizeBytes / (1024 * 1024)).toFixed(1);
     statsElem.textContent = `Cached Data: ${count} files (${sizeMb} MB)`;
   }
-  const GEAR_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 18px; height: 18px; fill: currentColor; margin-right: 8px; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
-  const SLIDERS_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 18px; height: 18px; fill: currentColor; margin-right: 8px; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
-  const HEADER_GEAR_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
-  const HEADER_SLIDERS_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
+  const GEAR_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 1rem; height: 1rem; fill: currentColor; margin-right: 0.5rem; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
+  const SLIDERS_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 1rem; height: 1rem; fill: currentColor; margin-right: 0.5rem; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
   function setupNavigationSettings() {
     var _a2;
     const sidebar = document.querySelector(".global-sidebar");
@@ -4102,41 +4072,45 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       sidebar.querySelectorAll("#kdl-settings-btn-header, #kui-settings-btn-header").forEach((el2) => el2.remove());
     }
     if (sidebar) {
-      let group = sidebar.querySelector(".kdl-navigation-settings-group");
-      if (!group) {
-        group = document.createElement("div");
-        group.className = "global-sidebar-entry kdl-navigation-settings-group";
-        const stuckBottom = sidebar.querySelector(".global-sidebar-entry.stuck-bottom") || sidebar.querySelector(".global-sidebar-entry.account");
-        if (stuckBottom) {
-          (_a2 = stuckBottom.parentNode) == null ? void 0 : _a2.insertBefore(group, stuckBottom);
-        } else {
-          sidebar.appendChild(group);
+      let accountGroup = sidebar.querySelector(".global-sidebar-entry.account");
+      if (!accountGroup) {
+        let kdlGroup = sidebar.querySelector(".kdl-navigation-settings-group");
+        if (!kdlGroup) {
+          kdlGroup = document.createElement("div");
+          kdlGroup.className = "global-sidebar-entry kdl-navigation-settings-group";
+          const stuckBottom = sidebar.querySelector(".global-sidebar-entry.stuck-bottom");
+          if (stuckBottom) {
+            (_a2 = stuckBottom.parentNode) == null ? void 0 : _a2.insertBefore(kdlGroup, stuckBottom);
+          } else {
+            sidebar.appendChild(kdlGroup);
+          }
         }
+        accountGroup = kdlGroup;
       }
       if (!document.getElementById("kdl-settings-btn-sidebar")) {
         const kdlLink = document.createElement("a");
         kdlLink.id = "kdl-settings-btn-sidebar";
         kdlLink.className = "global-sidebar-entry-item kdl-sidebar-link";
         kdlLink.href = "#";
-        kdlLink.innerHTML = `${GEAR_SVG}<span style="display: inline-block; vertical-align: middle; line-height: 1.25; font-size: 0.85rem;">Downloader<br>Settings</span>`;
+        kdlLink.innerHTML = `${GEAR_SVG} Downloader Settings`;
         kdlLink.addEventListener("click", (e) => {
           e.preventDefault();
           toggleSettingsModal(true);
         });
-        group.appendChild(kdlLink);
+        accountGroup.appendChild(kdlLink);
       }
       if (!document.getElementById("kui-settings-btn-sidebar")) {
         const kuiLink = document.createElement("a");
         kuiLink.id = "kui-settings-btn-sidebar";
         kuiLink.className = "global-sidebar-entry-item kdl-sidebar-link";
         kuiLink.href = "#";
-        kuiLink.innerHTML = `${SLIDERS_SVG}<span style="display: inline-block; vertical-align: middle; line-height: 1.25; font-size: 0.85rem;">UI<br>Settings</span>`;
+        kuiLink.innerHTML = `${SLIDERS_SVG} UI Settings`;
         kuiLink.addEventListener("click", (e) => {
           e.preventDefault();
           const settingsPanel = document.getElementById("kui-settings-panel");
           if (settingsPanel) settingsPanel.classList.toggle("kui-panel-active");
         });
-        group.appendChild(kuiLink);
+        accountGroup.appendChild(kuiLink);
       }
     }
     const topHeader = Array.from(document.querySelectorAll(".header")).find(
@@ -4150,7 +4124,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         kdlHeaderBtn.className = "header-link kdl-settings-header-link";
         kdlHeaderBtn.href = "#";
         kdlHeaderBtn.title = "Downloader Settings";
-        kdlHeaderBtn.innerHTML = `${HEADER_GEAR_SVG}<span>Downloader</span>`;
+        kdlHeaderBtn.textContent = "Downloader";
         kdlHeaderBtn.addEventListener("click", (e) => {
           e.preventDefault();
           toggleSettingsModal(true);
@@ -4167,7 +4141,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         kuiHeaderBtn.className = "header-link kui-settings-header-link";
         kuiHeaderBtn.href = "#";
         kuiHeaderBtn.title = "UI Settings";
-        kuiHeaderBtn.innerHTML = `${HEADER_SLIDERS_SVG}<span>UI Settings</span>`;
+        kuiHeaderBtn.textContent = "UI Settings";
         kuiHeaderBtn.addEventListener("click", (e) => {
           e.preventDefault();
           const settingsPanel = document.getElementById("kui-settings-panel");
