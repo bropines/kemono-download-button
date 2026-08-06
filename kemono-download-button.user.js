@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.22
+// @version      0.8.23
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -2658,7 +2658,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   const SELECTORS = {
     mainContent: "main#main",
     sidebarCommunitySection: "div.global-sidebar-entry.stuck-bottom",
-    postGridContainer: ".card-list__items:has(.post-card), .card-list:has(.post-card)",
+    postGridContainer: ".card-list__items, .card-list, .user-card-list",
     postCard: "article.post-card",
     postLink: "article.post-card > a.fancy-link",
     postPageContainer: "section.site-section--post, section.site-section, div.post__body",
@@ -7841,7 +7841,8 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       updateGridSize(currentSaved);
     };
     window.addEventListener("resize", window._kuiGridResizeHandler);
-    if (slider) {
+    if (slider && !slider.dataset.kuiListener) {
+      slider.dataset.kuiListener = "true";
       slider.value = String(saved);
       slider.addEventListener("input", () => {
         updateGridSize(slider.value);
@@ -7852,7 +7853,8 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
       });
     }
-    if (numberInput) {
+    if (numberInput && !numberInput.dataset.kuiListener) {
+      numberInput.dataset.kuiListener = "true";
       numberInput.value = String(saved);
       numberInput.addEventListener("input", () => {
         updateGridSize(numberInput.value);
@@ -7963,9 +7965,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       if (document.querySelector(SELECTORS.postCard)) {
         markViewedPosts();
       }
-      if (document.querySelector(SELECTORS.postGridContainer)) {
-        setupGridControls();
-      }
+      setupGridControls();
       sanitizeDuplicates();
     } catch (error) {
       debugLog("Error during KUI page logic execution:", error);

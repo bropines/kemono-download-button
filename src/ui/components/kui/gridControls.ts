@@ -40,7 +40,8 @@ export function setupGridControls(): void {
   };
   window.addEventListener("resize", (window as any)._kuiGridResizeHandler);
 
-  if (slider) {
+  if (slider && !slider.dataset.kuiListener) {
+    slider.dataset.kuiListener = 'true';
     slider.value = String(saved);
     slider.addEventListener("input", () => {
       updateGridSize(slider.value);
@@ -52,7 +53,8 @@ export function setupGridControls(): void {
     });
   }
 
-  if (numberInput) {
+  if (numberInput && !numberInput.dataset.kuiListener) {
+    numberInput.dataset.kuiListener = 'true';
     numberInput.value = String(saved);
     numberInput.addEventListener("input", () => {
       updateGridSize(numberInput.value);
