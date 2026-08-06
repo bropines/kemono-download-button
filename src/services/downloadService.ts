@@ -223,6 +223,104 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
   }
 }
 
+export interface DownloadFileSpec {
+  url: string;
+  fileName: string;
+}
+
+export async function downloadFilesToDiskWithProgress(
+  downloadSpecs: DownloadFileSpec[],
+  taskTitle: string,
+  concurrency?: number
+): Promise<void> {
+  if (downloadSpecs.length === 0) return;
+  await getSettings();
+
+  const taskId = `pick-${generateRandomId()}`;
+  const task = progressManager.createTask(taskId, taskTitle);
+  task.updateStatus(`Queued ${downloadSpecs.length} files...`);
+
+  const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
+  let queueIndex = 0;
+  let completedCount = 0;
+  let failCount = 0;
+
+  async function downloadWorker() {
+    while (queueIndex < downloadSpecs.length) {
+      const i = queueIndex++;
+      const spec = downloadSpecs[i];
+      const cleanName = sanitizeFilename(spec.fileName.split('/').pop() || spec.fileName);
+      const fileTaskId = `pick-${i}`;
+      task.addFile(fileTaskId, cleanName);
+
+      try {
+        // 1. Check IndexedDB cache first
+        let arrayBuffer: ArrayBuffer | null = await getCachedFile(spec.url);
+
+        if (arrayBuffer && arrayBuffer.byteLength > 0) {
+          console.log(`[Kemono DL] [Pick ${i + 1}/${downloadSpecs.length}] Loaded from cache: ${cleanName}`);
+          task.updateFileProgress(fileTaskId, 100);
+        } else {
+          // 2. Download via gmXmlhttpRequest with progress tracking
+          const response = await gmXmlhttpRequestWithRetries({
+            method: 'GET',
+            url: spec.url,
+            responseType: 'arraybuffer',
+            timeout: state.settings.zipFileDownloadTimeout || 120000,
+            onprogress: (e: ProgressEvent) => {
+              if (e.lengthComputable && e.total > 0) {
+                task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
+              }
+            }
+          });
+
+          arrayBuffer = response.response;
+
+          // 3. Cache the downloaded file
+          if (arrayBuffer && arrayBuffer.byteLength > 0) {
+            await setCachedFile(spec.url, arrayBuffer, true);
+            console.log(`[Kemono DL] [Pick ${i + 1}/${downloadSpecs.length}] Downloaded & cached: ${cleanName} (${arrayBuffer.byteLength} bytes)`);
+          }
+        }
+
+        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+          throw new Error('Empty response');
+        }
+
+        // 4. Push from cache/buffer to disk via Blob URL
+        const blob = new Blob([arrayBuffer]);
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = cleanName;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+
+        task.markFileComplete(fileTaskId, true);
+      } catch (err: any) {
+        console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
+        task.markFileComplete(fileTaskId, false);
+        failCount++;
+      } finally {
+        completedCount++;
+        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      }
+    }
+  }
+
+  const workers = Array.from({ length: Math.min(maxConcurrency, downloadSpecs.length) }, () => downloadWorker());
+  await Promise.all(workers);
+
+  task.updateStatus(failCount === 0
+    ? `✓ All ${downloadSpecs.length} files saved!`
+    : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+  );
+  task.finish(5000);
+}
+
 export async function downloadPostAsZip(details: PostDetails): Promise<void> {
   const postTask = progressManager.createTask(`zip-multi-${details.postID}`, `ZIP: ${details.postTitle}`);
   try {

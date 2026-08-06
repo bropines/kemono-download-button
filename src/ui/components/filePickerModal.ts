@@ -1,8 +1,8 @@
 import { collectFilesForPost } from '../../services/collectorService';
+import { downloadFilesToDiskWithProgress, DownloadFileSpec } from '../../services/downloadService';
 import { state } from '../../state/store';
 import { FileItem, PostDetails } from '../../types';
 import { el } from '../../utils/dom';
-import { downloadFileWithFallback } from '../../utils/http';
 import { showMessage } from '../toast';
 
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
@@ -57,17 +57,15 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
       e.preventDefault();
       const link = (e.target as HTMLElement).closest('a');
       if (link) {
-        const fullPath = link.dataset.name!;
-        const fileName = fullPath.split('/').pop() || fullPath;
         const url = link.dataset.url!;
-        showMessage(`Starting download for ${fileName}`, 'info');
+        const fileName = link.dataset.name!.split('/').pop() || link.dataset.name!;
         closeOverlay();
-        try {
-          await downloadFileWithFallback(url, fileName);
-          showMessage(`Downloaded: ${fileName}`, 'info');
-        } catch (err: any) {
-          showMessage(`Download failed: ${err?.message || err}`, 'error');
-        }
+        showMessage(`Starting download for ${fileName}`, 'info');
+        await downloadFilesToDiskWithProgress(
+          [{ url, fileName }],
+          `📎 ${fileName}`,
+          1
+        );
       }
     });
 
@@ -142,39 +140,15 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
           showMessage('Please select at least one file to download.', 'warning');
           return;
         }
-        downloadBtn.disabled = true;
-        downloadBtn.textContent = `Downloading ${checkedBoxes.length} files...`;
-        showMessage(`Initiating download for ${checkedBoxes.length} selected files...`, 'info');
 
-        const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-        let completed = 0;
-        const total = checkedBoxes.length;
-
-        const downloadTasks = checkedBoxes.map((cb) => ({
+        const specs: DownloadFileSpec[] = checkedBoxes.map((cb) => ({
           url: cb.dataset.url!,
           fileName: cb.dataset.name!
         }));
 
-        let queueIndex = 0;
-        async function worker() {
-          while (queueIndex < downloadTasks.length) {
-            const task = downloadTasks[queueIndex++];
-            try {
-              await downloadFileWithFallback(task.url, task.fileName);
-            } catch (e: any) {
-              console.error(`Download error for ${task.fileName}:`, e);
-            } finally {
-              completed++;
-              downloadBtn.textContent = `Downloading ${completed}/${total}...`;
-            }
-          }
-        }
-
-        const workers = Array.from({ length: Math.min(maxConcurrency, total) }, () => worker());
-        await Promise.all(workers);
-
-        showMessage(`All ${total} downloads completed!`, 'info');
         closeOverlay();
+        showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, 'info');
+        await downloadFilesToDiskWithProgress(specs, `📎 Bulk Pick (${specs.length} files)`);
       }
     }, [`Download Selected (${totalFilesCount})`]) as HTMLButtonElement;
 

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.35
+// @version      0.8.36
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -5951,6 +5951,77 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       task.finish();
     }
   }
+  async function downloadFilesToDiskWithProgress(downloadSpecs, taskTitle, concurrency) {
+    if (downloadSpecs.length === 0) return;
+    await getSettings();
+    const taskId = `pick-${generateRandomId()}`;
+    const task = progressManager.createTask(taskId, taskTitle);
+    task.updateStatus(`Queued ${downloadSpecs.length} files...`);
+    const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
+    let queueIndex = 0;
+    let completedCount = 0;
+    let failCount = 0;
+    async function downloadWorker() {
+      while (queueIndex < downloadSpecs.length) {
+        const i2 = queueIndex++;
+        const spec = downloadSpecs[i2];
+        const cleanName = sanitizeFilename(spec.fileName.split("/").pop() || spec.fileName);
+        const fileTaskId = `pick-${i2}`;
+        task.addFile(fileTaskId, cleanName);
+        try {
+          let arrayBuffer = await getCachedFile(spec.url);
+          if (arrayBuffer && arrayBuffer.byteLength > 0) {
+            console.log(`[Kemono DL] [Pick ${i2 + 1}/${downloadSpecs.length}] Loaded from cache: ${cleanName}`);
+            task.updateFileProgress(fileTaskId, 100);
+          } else {
+            const response = await gmXmlhttpRequestWithRetries({
+              method: "GET",
+              url: spec.url,
+              responseType: "arraybuffer",
+              timeout: state.settings.zipFileDownloadTimeout || 12e4,
+              onprogress: (e) => {
+                if (e.lengthComputable && e.total > 0) {
+                  task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
+                }
+              }
+            });
+            arrayBuffer = response.response;
+            if (arrayBuffer && arrayBuffer.byteLength > 0) {
+              await setCachedFile(spec.url, arrayBuffer, true);
+              console.log(`[Kemono DL] [Pick ${i2 + 1}/${downloadSpecs.length}] Downloaded & cached: ${cleanName} (${arrayBuffer.byteLength} bytes)`);
+            }
+          }
+          if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+            throw new Error("Empty response");
+          }
+          const blob = new Blob([arrayBuffer]);
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = blobUrl;
+          a.download = cleanName;
+          a.style.display = "none";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
+          task.markFileComplete(fileTaskId, true);
+        } catch (err2) {
+          console.error(`[Kemono DL] Download error for ${cleanName}:`, err2);
+          task.markFileComplete(fileTaskId, false);
+          failCount++;
+        } finally {
+          completedCount++;
+          task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ""}`);
+        }
+      }
+    }
+    const workers = Array.from({ length: Math.min(maxConcurrency, downloadSpecs.length) }, () => downloadWorker());
+    await Promise.all(workers);
+    task.updateStatus(
+      failCount === 0 ? `✓ All ${downloadSpecs.length} files saved!` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+    );
+    task.finish(5e3);
+  }
   async function downloadPostAsZip(details) {
     const postTask = progressManager.createTask(`zip-multi-${details.postID}`, `ZIP: ${details.postTitle}`);
     try {
@@ -6470,17 +6541,15 @@ ${text}`;
         e.preventDefault();
         const link = e.target.closest("a");
         if (link) {
-          const fullPath = link.dataset.name;
-          const fileName = fullPath.split("/").pop() || fullPath;
           const url = link.dataset.url;
-          showMessage(`Starting download for ${fileName}`, "info");
+          const fileName = link.dataset.name.split("/").pop() || link.dataset.name;
           closeOverlay();
-          try {
-            await downloadFileWithFallback(url, fileName);
-            showMessage(`Downloaded: ${fileName}`, "info");
-          } catch (err2) {
-            showMessage(`Download failed: ${(err2 == null ? void 0 : err2.message) || err2}`, "error");
-          }
+          showMessage(`Starting download for ${fileName}`, "info");
+          await downloadFilesToDiskWithProgress(
+            [{ url, fileName }],
+            `📎 ${fileName}`,
+            1
+          );
         }
       });
       modal.appendChild(list);
@@ -6542,34 +6611,13 @@ ${text}`;
             showMessage("Please select at least one file to download.", "warning");
             return;
           }
-          downloadBtn.disabled = true;
-          downloadBtn.textContent = `Downloading ${checkedBoxes.length} files...`;
-          showMessage(`Initiating download for ${checkedBoxes.length} selected files...`, "info");
-          const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-          let completed = 0;
-          const total = checkedBoxes.length;
-          const downloadTasks = checkedBoxes.map((cb) => ({
+          const specs = checkedBoxes.map((cb) => ({
             url: cb.dataset.url,
             fileName: cb.dataset.name
           }));
-          let queueIndex = 0;
-          async function worker() {
-            while (queueIndex < downloadTasks.length) {
-              const task = downloadTasks[queueIndex++];
-              try {
-                await downloadFileWithFallback(task.url, task.fileName);
-              } catch (e) {
-                console.error(`Download error for ${task.fileName}:`, e);
-              } finally {
-                completed++;
-                downloadBtn.textContent = `Downloading ${completed}/${total}...`;
-              }
-            }
-          }
-          const workers = Array.from({ length: Math.min(maxConcurrency, total) }, () => worker());
-          await Promise.all(workers);
-          showMessage(`All ${total} downloads completed!`, "info");
           closeOverlay();
+          showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, "info");
+          await downloadFilesToDiskWithProgress(specs, `📎 Bulk Pick (${specs.length} files)`);
         }
       }, [`Download Selected (${totalFilesCount})`]);
       const updateCheckedCounter = () => {
