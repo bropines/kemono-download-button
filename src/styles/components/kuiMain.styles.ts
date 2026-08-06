@@ -699,8 +699,13 @@ export const kuiMainStyles = css({
     },
   },
 
-  '.card-list__items, .card-list, .user-card-list': {
+  '.card-list__items:has(article.post-card), .card-list:has(article.post-card)': {
     gridTemplateColumns: 'repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important',
+  },
+  'article.post-card': {
+    width: '100% !important',
+    maxWidth: '100% !important',
+    boxSizing: 'border-box !important',
   },
   '.kui-hidden-original': {
     display: 'none !important',

@@ -13,15 +13,20 @@ export function setupGridControls(): void {
   const updateGridSize = (value: number | string) => {
     const safeValue = Math.max(120, Math.min(400, Number(value) || 180));
 
-    // Set on :root and body so all present & future grid containers inherit --card-size
+    // Set on :root and body so post card grid containers inherit --card-size
     document.documentElement.style.setProperty("--card-size", `${safeValue}px`, "important");
     if (document.body) {
       document.body.style.setProperty("--card-size", `${safeValue}px`, "important");
     }
 
-    // Set directly on all post grid containers in DOM
-    const containers = document.querySelectorAll<HTMLElement>(SELECTORS.postGridContainer);
+    // Set directly on all post grid containers, explicitly excluding creator/artist cards (.user-card)
+    const containers = document.querySelectorAll<HTMLElement>('.card-list__items, .card-list');
     containers.forEach((container) => {
+      // Skip creator/artist lists
+      if (container.querySelector('.user-card, a.user-card')) {
+        container.style.removeProperty("--card-size");
+        return;
+      }
       container.style.setProperty("--card-size", `${safeValue}px`, "important");
     });
 

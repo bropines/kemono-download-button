@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.23
+// @version      0.8.24
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1965,8 +1965,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         transform: "none"
       }
     },
-    ".card-list__items, .card-list, .user-card-list": {
+    ".card-list__items:has(article.post-card), .card-list:has(article.post-card)": {
       gridTemplateColumns: "repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important"
+    },
+    "article.post-card": {
+      width: "100% !important",
+      maxWidth: "100% !important",
+      boxSizing: "border-box !important"
     },
     ".kui-hidden-original": {
       display: "none !important"
@@ -7826,8 +7831,12 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       if (document.body) {
         document.body.style.setProperty("--card-size", `${safeValue}px`, "important");
       }
-      const containers = document.querySelectorAll(SELECTORS.postGridContainer);
+      const containers = document.querySelectorAll(".card-list__items, .card-list");
       containers.forEach((container) => {
+        if (container.querySelector(".user-card, a.user-card")) {
+          container.style.removeProperty("--card-size");
+          return;
+        }
         container.style.setProperty("--card-size", `${safeValue}px`, "important");
       });
       if (slider && document.activeElement !== slider) slider.value = String(safeValue);
