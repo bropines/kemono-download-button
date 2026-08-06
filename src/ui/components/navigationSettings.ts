@@ -3,36 +3,52 @@ import { toggleSettingsModal } from './settingsModal';
 const GEAR_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 1rem; height: 1rem; fill: currentColor; margin-right: 0.5rem; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
 const SLIDERS_SVG = `<svg viewBox="0 0 24 24" class="global-sidebar-entry-item-icon" style="width: 1rem; height: 1rem; fill: currentColor; margin-right: 0.5rem; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
 
+const HEADER_GEAR_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6-3.6z"/></svg>`;
+const HEADER_SLIDERS_SVG = `<svg viewBox="0 0 24 24" style="width: 14px; height: 14px; fill: currentColor; margin-right: 5px; vertical-align: middle; display: inline-block;"><path d="M3 17v2h6v-2H3zM3 5v2h10V5H3zm10 16v-2h8v-2h-8v-2h-2v6h2zM7 9v2H3v2h4v2h2V9H7zm14 4v-2H11v2h10zm-6-4h2V7h4V5h-4V3h-2v6z"/></svg>`;
+
+function checkAndAdjustTextWrapping(linkElem: HTMLElement): void {
+  const textSpan = linkElem.querySelector<HTMLElement>('.kdl-sidebar-link-text');
+  if (!textSpan) return;
+  if (textSpan.scrollWidth > textSpan.clientWidth + 2) {
+    linkElem.classList.add('kdl-wrapped');
+  } else {
+    linkElem.classList.remove('kdl-wrapped');
+  }
+}
+
 /**
  * Injects Downloader Settings and UI Settings links into both
- * the Global Sidebar (.global-sidebar) and the Top Header (.header / .header.sidebar-retracted).
- * Uses 100% native site classes and elements so styling matches native links perfectly.
+ * the Global Sidebar (.global-sidebar) as a NEW dedicated section and the Top Header (.header).
+ * Automatically detects container boundary limits to prevent text overflowing.
  */
 export function setupNavigationSettings(): void {
   const sidebar = document.querySelector('.global-sidebar');
 
-  // Remove any stray header buttons mistakenly placed inside sidebar
+  // Clean up any stray header buttons or misplaced sidebar items from account section
   if (sidebar) {
     sidebar.querySelectorAll('#kdl-settings-btn-header, #kui-settings-btn-header').forEach((el) => el.remove());
+    sidebar.querySelectorAll('.global-sidebar-entry.account #kdl-settings-btn-sidebar, .global-sidebar-entry.account #kui-settings-btn-sidebar').forEach((el) => el.remove());
   }
 
-  // 1. Sidebar Injection (.global-sidebar)
+  // 1. Sidebar Injection (.global-sidebar) - NEW DEDICATED SECTION
   if (sidebar) {
-    let accountGroup = sidebar.querySelector('.global-sidebar-entry.account') as HTMLElement | null;
-    if (!accountGroup) {
-      let kdlGroup = sidebar.querySelector('.kdl-navigation-settings-group');
-      if (!kdlGroup) {
-        kdlGroup = document.createElement('div');
-        kdlGroup.className = 'global-sidebar-entry kdl-navigation-settings-group';
+    let settingsGroup = sidebar.querySelector('.kdl-settings-sidebar-entry');
+    if (!settingsGroup) {
+      settingsGroup = document.createElement('div');
+      settingsGroup.className = 'global-sidebar-entry kdl-settings-sidebar-entry';
 
-        const stuckBottom = sidebar.querySelector('.global-sidebar-entry.stuck-bottom');
-        if (stuckBottom) {
-          stuckBottom.parentNode?.insertBefore(kdlGroup, stuckBottom);
-        } else {
-          sidebar.appendChild(kdlGroup);
-        }
+      // Insert section header title "Settings"
+      const sectionHeader = document.createElement('div');
+      sectionHeader.className = 'global-sidebar-entry-item header';
+      sectionHeader.innerHTML = `${GEAR_SVG} Settings`;
+      settingsGroup.appendChild(sectionHeader);
+
+      const stuckBottom = sidebar.querySelector('.global-sidebar-entry.stuck-bottom');
+      if (stuckBottom) {
+        stuckBottom.parentNode?.insertBefore(settingsGroup, stuckBottom);
+      } else {
+        sidebar.appendChild(settingsGroup);
       }
-      accountGroup = kdlGroup as HTMLElement;
     }
 
     if (!document.getElementById('kdl-settings-btn-sidebar')) {
@@ -40,12 +56,14 @@ export function setupNavigationSettings(): void {
       kdlLink.id = 'kdl-settings-btn-sidebar';
       kdlLink.className = 'global-sidebar-entry-item kdl-sidebar-link';
       kdlLink.href = '#';
-      kdlLink.innerHTML = `${GEAR_SVG} Downloader Settings`;
+      kdlLink.title = 'Downloader Settings';
+      kdlLink.innerHTML = `${GEAR_SVG}<span class="kdl-sidebar-link-text">Downloader Settings</span>`;
       kdlLink.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         toggleSettingsModal(true);
       });
-      accountGroup.appendChild(kdlLink);
+      settingsGroup.appendChild(kdlLink);
+      checkAndAdjustTextWrapping(kdlLink);
     }
 
     if (!document.getElementById('kui-settings-btn-sidebar')) {
@@ -53,13 +71,15 @@ export function setupNavigationSettings(): void {
       kuiLink.id = 'kui-settings-btn-sidebar';
       kuiLink.className = 'global-sidebar-entry-item kdl-sidebar-link';
       kuiLink.href = '#';
-      kuiLink.innerHTML = `${SLIDERS_SVG} UI Settings`;
+      kuiLink.title = 'UI Settings';
+      kuiLink.innerHTML = `${SLIDERS_SVG}<span class="kdl-sidebar-link-text">UI Settings</span>`;
       kuiLink.addEventListener('click', (e: MouseEvent) => {
         e.preventDefault();
         const settingsPanel = document.getElementById('kui-settings-panel');
         if (settingsPanel) settingsPanel.classList.toggle('kui-panel-active');
       });
-      accountGroup.appendChild(kuiLink);
+      settingsGroup.appendChild(kuiLink);
+      checkAndAdjustTextWrapping(kuiLink);
     }
   }
 
