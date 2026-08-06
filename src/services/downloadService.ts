@@ -83,7 +83,20 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
           }
 
           if (arrayBuffer && arrayBuffer.byteLength > 0) {
-            const cleanName = file.name.replace(/^\/+/, '');
+            let cleanName = (file.name || '').replace(/^\/+/, '').trim();
+            if (!cleanName) {
+              try {
+                const urlFileName = file.data.split('/').pop()?.split('?')[0] || `file_${i + 1}.bin`;
+                cleanName = sanitizeFilename(decodeURIComponent(urlFileName));
+              } catch (e) {
+                cleanName = `file_${i + 1}.bin`;
+              }
+            }
+            if (zippable[cleanName]) {
+              const ext = cleanName.includes('.') ? cleanName.split('.').pop()! : '';
+              const base = cleanName.substring(0, cleanName.length - (ext ? ext.length + 1 : 0));
+              cleanName = `${base}_${i + 1}${ext ? '.' + ext : ''}`;
+            }
             console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
             zippable[cleanName] = new Uint8Array(arrayBuffer);
             task.markFileComplete(fileTaskId, true);

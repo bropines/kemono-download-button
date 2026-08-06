@@ -38,6 +38,9 @@ async function _loadSettingsAsync(): Promise<void> {
     (loadedSettings as any)[key] = values[i];
   }
   state.settings = { ...DEFAULT_SETTINGS, ...loadedSettings };
+  if (!state.settings.fileNameTemplate || !state.settings.fileNameTemplate.trim()) {
+    state.settings.fileNameTemplate = DEFAULT_SETTINGS.fileNameTemplate;
+  }
   debugLog('Settings loaded:', state.settings);
 }
 

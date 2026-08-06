@@ -139,7 +139,14 @@ export async function toggleSettingsModal(forceShow?: boolean): Promise<void> {
   } catch (e) {
     console.error('[Kemono DL] Error loading settings:', e);
   }
-  if (!settingsModalElement) createSettingsModal();
+  if (!settingsModalElement || !settingsOverlayElement || !document.body.contains(settingsOverlayElement)) {
+    if (settingsOverlayElement && settingsOverlayElement.parentNode) {
+      settingsOverlayElement.parentNode.removeChild(settingsOverlayElement);
+    }
+    settingsModalElement = null;
+    settingsOverlayElement = null;
+    createSettingsModal();
+  }
   const computedDisplay = settingsOverlayElement ? window.getComputedStyle(settingsOverlayElement).display : 'none';
   const isCurrentlyHidden = computedDisplay === 'none';
   const displayState = typeof forceShow === 'boolean' ? forceShow : isCurrentlyHidden;
@@ -186,7 +193,15 @@ export function createSettingsModal(): void {
 
   // 2. File Naming & Templates Card
   const templatesCard = cardContainer('📁 File Naming & Templates', [
-    inputItem('kdl-setting-fileNameTemplate', 'text', 'Template for Individual Downloads', {}, 'Available tags: {author_name}, {post_date}, {post_title}, {file_name}, {service}'),
+    inputItem('kdl-setting-fileNameTemplate', 'text', 'Template for Individual Downloads', { placeholder: DEFAULT_SETTINGS.fileNameTemplate }, 'Available tags: {author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}'),
+    el('div', { style: { display: 'flex', gap: '6px', marginBottom: '10px' } }, [
+      el('button', {
+        type: 'button',
+        id: 'kdl-template-reset-btn',
+        className: 'kdl-btn-info',
+        style: { fontSize: '0.78rem', padding: '4px 10px' }
+      }, ['🔄 Reset to Default Pattern'])
+    ]),
     el('div', { className: 'kdl-setting-item' }, [
       el('label', { htmlFor: 'kdl-template-select' }, ['Saved Templates']),
       el('div', { style: { display: 'flex', gap: '6px' } }, [
@@ -365,7 +380,7 @@ export function createSettingsModal(): void {
     if (templateSelect.value) fileNameTemplateInput.value = templateSelect.value;
   });
 
-  document.getElementById('kdl-template-save-btn')!.addEventListener('click', () => {
+  document.getElementById('kdl-template-save-btn')!.addEventListener('click', async () => {
     const name = templateNameInput.value.trim();
     const template = fileNameTemplateInput.value.trim();
     if (!name || !template) return showMessage('Please provide a name and a template pattern.', 'warning');
@@ -373,9 +388,26 @@ export function createSettingsModal(): void {
     const existingIndex = state.settings.savedFileNameTemplates.findIndex((t) => t.name === name);
     if (existingIndex > -1) state.settings.savedFileNameTemplates[existingIndex].template = template;
     else state.settings.savedFileNameTemplates.push({ name, template });
+    await saveSetting('savedFileNameTemplates', state.settings.savedFileNameTemplates);
     templateNameInput.value = '';
     updateSettingsModalUI();
     showMessage(`Template "${name}" saved!`, 'info');
+  });
+
+  document.getElementById('kdl-template-delete-btn')!.addEventListener('click', async () => {
+    const selectedOption = templateSelect.options[templateSelect.selectedIndex];
+    const nameToDelete = selectedOption?.dataset.name || selectedOption?.textContent;
+    if (!nameToDelete || !templateSelect.value) return showMessage('Select a custom template to delete.', 'warning');
+    state.settings.savedFileNameTemplates = (state.settings.savedFileNameTemplates || []).filter((t) => t.name !== nameToDelete);
+    await saveSetting('savedFileNameTemplates', state.settings.savedFileNameTemplates);
+    updateSettingsModalUI();
+    showMessage(`Template "${nameToDelete}" deleted!`, 'info');
+  });
+
+  document.getElementById('kdl-template-reset-btn')!.addEventListener('click', async () => {
+    fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
+    await saveSetting('fileNameTemplate', DEFAULT_SETTINGS.fileNameTemplate);
+    showMessage('Reset template to default pattern!', 'info');
   });
 
   document.getElementById('kdl-clear-incomplete-cache-btn')!.addEventListener('click', async () => {
@@ -400,6 +432,12 @@ export function updateSettingsModalUI(): void {
       else element.value = (state.settings as any)[key];
     }
   }
+
+  const fileNameTemplateInput = document.getElementById('kdl-setting-fileNameTemplate') as HTMLInputElement | null;
+  if (fileNameTemplateInput && (!fileNameTemplateInput.value || !fileNameTemplateInput.value.trim())) {
+    fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
+  }
+
   refreshCacheStatsUI();
 
   const templateSelect = document.getElementById('kdl-template-select') as HTMLSelectElement;
@@ -415,8 +453,10 @@ export function updateSettingsModalUI(): void {
   }
 
   const isSingleMode = state.settings.bulkDownloadMode === 'single';
-  document.getElementById('kdl-bulk-single-settings')!.style.display = isSingleMode ? 'block' : 'none';
-  document.getElementById('kdl-bulk-multiple-settings')!.style.display = isSingleMode ? 'none' : 'block';
+  const singleSettings = document.getElementById('kdl-bulk-single-settings');
+  const multipleSettings = document.getElementById('kdl-bulk-multiple-settings');
+  if (singleSettings) singleSettings.style.display = isSingleMode ? 'block' : 'none';
+  if (multipleSettings) multipleSettings.style.display = isSingleMode ? 'none' : 'block';
 
   toggleTranslatorSettingsVisibility();
   toggleRetrySettingsVisibility();

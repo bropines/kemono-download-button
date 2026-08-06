@@ -1,5 +1,13 @@
 import { DownloaderSettings } from '../types';
 
+export const DEFAULT_PRESET_TEMPLATES = [
+  { name: 'Default (Date + Author + Title)', template: '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}' },
+  { name: 'Author Folder (Author/Date_Title/File)', template: '{author_name}/{post_date}_{post_title}/{file_name}' },
+  { name: 'Flat with Index (Author - Title/Index_File)', template: '{author_name} - {post_title}/{file_index}_{file_name}' },
+  { name: 'Service & Author ([Service] Author/Date_Title/Index_File)', template: '[{service}] {author_name}/{post_date}_{post_title}/{file_index}_{file_name}' },
+  { name: 'Global Index (Author/GlobalIndex_File)', template: '{author_name}/{global_file_index}_{file_name}' }
+];
+
 export const DEFAULT_SETTINGS: DownloaderSettings = {
   savePostTags: true,
   savePostComments: false,
@@ -35,7 +43,7 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   bulkSingleInternalPathTemplate: '{post_date}_{post_title}/{file_index}_{file_name}',
   cacheDurationHours: 24,
   bulkMultipleSystemPathTemplate: '{author_name}/{post_date}_{post_title}.zip',
-  savedFileNameTemplates: [],
+  savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
   ignoredFileExtensions: []
 };
 

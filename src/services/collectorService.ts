@@ -74,14 +74,19 @@ export function formatNameFromTemplate(template: string, data: Record<string, an
 export function generateFilePath(template: string, fileData: Record<string, any>, postDetails: PostDetails): string {
   const combinedData = {
     post_date: postDetails.postDate || 'UnknownDate',
-    author_name: postDetails.authorName,
-    post_title: postDetails.postTitle,
-    post_id: postDetails.postID,
-    user_id: postDetails.userID,
-    service: postDetails.service,
+    author_name: postDetails.authorName || 'UnknownAuthor',
+    post_title: postDetails.postTitle || 'UntitledPost',
+    post_id: postDetails.postID || '0',
+    user_id: postDetails.userID || '0',
+    service: postDetails.service || 'unknown',
     ...fileData
   };
-  return formatNameFromTemplate(template, combinedData);
+  let result = formatNameFromTemplate(template, combinedData);
+  if (!result || !result.trim() || result === '/') {
+    const fallbackName = fileData.original_file_name || fileData.file_name || `file_${fileData.file_index || Date.now()}`;
+    result = sanitizeFilename(fallbackName);
+  }
+  return result;
 }
 
 export function getWindowPageData(targetPostID?: string): any {
@@ -105,7 +110,7 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
   let isApiSuccess = false;
   let rawApiData: any = null;
   const isPostPage = window.location.pathname.includes('/post/');
-  const templateToUse = options.template || state.settings.fileNameTemplate;
+  const templateToUse = (options.template && options.template.trim()) || (state.settings.fileNameTemplate && state.settings.fileNameTemplate.trim()) || '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}';
 
   if (!options.isBulk && !options.noFiles) {
     resetMediaCounter();

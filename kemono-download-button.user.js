@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.5.1
+// @version      0.8.7
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -29,11 +29,11 @@
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
-var __defProp = Object.defineProperty;
+var KemonoDownloadButton = function(exports) {
+  "use strict";var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-(function() {
-  "use strict";
+
   const CSS_STYLES = `
 #kemono-download-message-box {
   position: fixed;
@@ -1074,6 +1074,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   width: 100% !important;
 }
 `;
+  const DEFAULT_PRESET_TEMPLATES = [
+    { name: "Default (Date + Author + Title)", template: "{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}" },
+    { name: "Author Folder (Author/Date_Title/File)", template: "{author_name}/{post_date}_{post_title}/{file_name}" },
+    { name: "Flat with Index (Author - Title/Index_File)", template: "{author_name} - {post_title}/{file_index}_{file_name}" },
+    { name: "Service & Author ([Service] Author/Date_Title/Index_File)", template: "[{service}] {author_name}/{post_date}_{post_title}/{file_index}_{file_name}" },
+    { name: "Global Index (Author/GlobalIndex_File)", template: "{author_name}/{global_file_index}_{file_name}" }
+  ];
   const DEFAULT_SETTINGS = {
     savePostTags: true,
     savePostComments: false,
@@ -1109,7 +1116,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     bulkSingleInternalPathTemplate: "{post_date}_{post_title}/{file_index}_{file_name}",
     cacheDurationHours: 24,
     bulkMultipleSystemPathTemplate: "{author_name}/{post_date}_{post_title}.zip",
-    savedFileNameTemplates: [],
+    savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
     ignoredFileExtensions: []
   };
   function debugLog(...args) {
@@ -1260,6 +1267,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       loadedSettings[key] = values[i2];
     }
     state.settings = { ...DEFAULT_SETTINGS, ...loadedSettings };
+    if (!state.settings.fileNameTemplate || !state.settings.fileNameTemplate.trim()) {
+      state.settings.fileNameTemplate = DEFAULT_SETTINGS.fileNameTemplate;
+    }
     debugLog("Settings loaded:", state.settings);
   }
   function getSettings() {
@@ -2063,7 +2073,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     } catch (e) {
       console.error("[Kemono DL] Error loading settings:", e);
     }
-    if (!settingsModalElement) createSettingsModal();
+    if (!settingsModalElement || !settingsOverlayElement || !document.body.contains(settingsOverlayElement)) {
+      if (settingsOverlayElement && settingsOverlayElement.parentNode) {
+        settingsOverlayElement.parentNode.removeChild(settingsOverlayElement);
+      }
+      settingsModalElement = null;
+      settingsOverlayElement = null;
+      createSettingsModal();
+    }
     const computedDisplay = settingsOverlayElement ? window.getComputedStyle(settingsOverlayElement).display : "none";
     const isCurrentlyHidden = computedDisplay === "none";
     const displayState = typeof forceShow === "boolean" ? forceShow : isCurrentlyHidden;
@@ -2101,7 +2118,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       ])
     ]);
     const templatesCard = cardContainer("📁 File Naming & Templates", [
-      inputItem("kdl-setting-fileNameTemplate", "text", "Template for Individual Downloads", {}, "Available tags: {author_name}, {post_date}, {post_title}, {file_name}, {service}"),
+      inputItem("kdl-setting-fileNameTemplate", "text", "Template for Individual Downloads", { placeholder: DEFAULT_SETTINGS.fileNameTemplate }, "Available tags: {author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}"),
+      el("div", { style: { display: "flex", gap: "6px", marginBottom: "10px" } }, [
+        el("button", {
+          type: "button",
+          id: "kdl-template-reset-btn",
+          className: "kdl-btn-info",
+          style: { fontSize: "0.78rem", padding: "4px 10px" }
+        }, ["🔄 Reset to Default Pattern"])
+      ]),
       el("div", { className: "kdl-setting-item" }, [
         el("label", { htmlFor: "kdl-template-select" }, ["Saved Templates"]),
         el("div", { style: { display: "flex", gap: "6px" } }, [
@@ -2262,7 +2287,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     templateSelect.addEventListener("change", () => {
       if (templateSelect.value) fileNameTemplateInput.value = templateSelect.value;
     });
-    document.getElementById("kdl-template-save-btn").addEventListener("click", () => {
+    document.getElementById("kdl-template-save-btn").addEventListener("click", async () => {
       const name = templateNameInput.value.trim();
       const template = fileNameTemplateInput.value.trim();
       if (!name || !template) return showMessage("Please provide a name and a template pattern.", "warning");
@@ -2270,9 +2295,24 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const existingIndex = state.settings.savedFileNameTemplates.findIndex((t) => t.name === name);
       if (existingIndex > -1) state.settings.savedFileNameTemplates[existingIndex].template = template;
       else state.settings.savedFileNameTemplates.push({ name, template });
+      await saveSetting("savedFileNameTemplates", state.settings.savedFileNameTemplates);
       templateNameInput.value = "";
       updateSettingsModalUI();
       showMessage(`Template "${name}" saved!`, "info");
+    });
+    document.getElementById("kdl-template-delete-btn").addEventListener("click", async () => {
+      const selectedOption = templateSelect.options[templateSelect.selectedIndex];
+      const nameToDelete = (selectedOption == null ? void 0 : selectedOption.dataset.name) || (selectedOption == null ? void 0 : selectedOption.textContent);
+      if (!nameToDelete || !templateSelect.value) return showMessage("Select a custom template to delete.", "warning");
+      state.settings.savedFileNameTemplates = (state.settings.savedFileNameTemplates || []).filter((t) => t.name !== nameToDelete);
+      await saveSetting("savedFileNameTemplates", state.settings.savedFileNameTemplates);
+      updateSettingsModalUI();
+      showMessage(`Template "${nameToDelete}" deleted!`, "info");
+    });
+    document.getElementById("kdl-template-reset-btn").addEventListener("click", async () => {
+      fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
+      await saveSetting("fileNameTemplate", DEFAULT_SETTINGS.fileNameTemplate);
+      showMessage("Reset template to default pattern!", "info");
     });
     document.getElementById("kdl-clear-incomplete-cache-btn").addEventListener("click", async () => {
       const deleted = await clearIncompleteCache();
@@ -2294,6 +2334,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         else element.value = state.settings[key];
       }
     }
+    const fileNameTemplateInput = document.getElementById("kdl-setting-fileNameTemplate");
+    if (fileNameTemplateInput && (!fileNameTemplateInput.value || !fileNameTemplateInput.value.trim())) {
+      fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
+    }
     refreshCacheStatsUI();
     const templateSelect = document.getElementById("kdl-template-select");
     templateSelect.replaceChildren(el("option", { value: "" }, ["-- Load a saved template --"]));
@@ -2307,8 +2351,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       });
     }
     const isSingleMode = state.settings.bulkDownloadMode === "single";
-    document.getElementById("kdl-bulk-single-settings").style.display = isSingleMode ? "block" : "none";
-    document.getElementById("kdl-bulk-multiple-settings").style.display = isSingleMode ? "none" : "block";
+    const singleSettings = document.getElementById("kdl-bulk-single-settings");
+    const multipleSettings = document.getElementById("kdl-bulk-multiple-settings");
+    if (singleSettings) singleSettings.style.display = isSingleMode ? "block" : "none";
+    if (multipleSettings) multipleSettings.style.display = isSingleMode ? "none" : "block";
     toggleTranslatorSettingsVisibility();
     toggleRetrySettingsVisibility();
     if (renderIgnoredExtChipsFn) {
@@ -2339,20 +2385,30 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     statsElem.textContent = `Cached Data: ${count} files (${sizeMb} MB)`;
   }
   function createFixedControls() {
-    if (document.getElementById("kdl-fixed-controls")) return;
     const container = getOrCreateContainer("kdl-fixed-controls");
-    appState.queueIndicatorElement = el("div", { id: "kdl-queue-indicator" });
+    if (!document.body.contains(container)) {
+      document.body.appendChild(container);
+    }
+    if (container.querySelector("#kdl-settings-btn")) return;
+    appState.queueIndicatorElement = container.querySelector("#kdl-queue-indicator") || el("div", { id: "kdl-queue-indicator" });
     updateQueueIndicator();
     const settingsBtn = el(
       "button",
       {
         id: "kdl-settings-btn",
         title: "Kemono Downloader Settings",
-        onClick: () => toggleSettingsModal()
+        type: "button",
+        onClick: (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          toggleSettingsModal();
+        }
       },
       ["⚙️"]
     );
-    container.appendChild(appState.queueIndicatorElement);
+    if (!container.contains(appState.queueIndicatorElement)) {
+      container.appendChild(appState.queueIndicatorElement);
+    }
     container.appendChild(settingsBtn);
   }
   function updateQueueIndicator() {
@@ -2658,14 +2714,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   function generateFilePath(template, fileData, postDetails) {
     const combinedData = {
       post_date: postDetails.postDate || "UnknownDate",
-      author_name: postDetails.authorName,
-      post_title: postDetails.postTitle,
-      post_id: postDetails.postID,
-      user_id: postDetails.userID,
-      service: postDetails.service,
+      author_name: postDetails.authorName || "UnknownAuthor",
+      post_title: postDetails.postTitle || "UntitledPost",
+      post_id: postDetails.postID || "0",
+      user_id: postDetails.userID || "0",
+      service: postDetails.service || "unknown",
       ...fileData
     };
-    return formatNameFromTemplate(template, combinedData);
+    let result = formatNameFromTemplate(template, combinedData);
+    if (!result || !result.trim() || result === "/") {
+      const fallbackName = fileData.original_file_name || fileData.file_name || `file_${fileData.file_index || Date.now()}`;
+      result = sanitizeFilename(fallbackName);
+    }
+    return result;
   }
   function getWindowPageData(targetPostID) {
     var _a2;
@@ -2689,7 +2750,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     let isApiSuccess = false;
     let rawApiData = null;
     const isPostPage = window.location.pathname.includes("/post/");
-    const templateToUse = options.template || state.settings.fileNameTemplate;
+    const templateToUse = options.template && options.template.trim() || state.settings.fileNameTemplate && state.settings.fileNameTemplate.trim() || "{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}";
     if (!options.isBulk && !options.noFiles) {
       resetMediaCounter();
     }
@@ -3671,6 +3732,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const concurrency = Math.max(1, state.settings.maxConcurrentFileDownloadsInZip || 3);
       let queueIndex = 0;
       async function downloadWorker() {
+        var _a2;
         while (queueIndex < totalUrlFiles) {
           const i2 = queueIndex++;
           const file = urlFiles[i2];
@@ -3703,7 +3765,20 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
               }
             }
             if (arrayBuffer && arrayBuffer.byteLength > 0) {
-              const cleanName = file.name.replace(/^\/+/, "");
+              let cleanName = (file.name || "").replace(/^\/+/, "").trim();
+              if (!cleanName) {
+                try {
+                  const urlFileName = ((_a2 = file.data.split("/").pop()) == null ? void 0 : _a2.split("?")[0]) || `file_${i2 + 1}.bin`;
+                  cleanName = sanitizeFilename(decodeURIComponent(urlFileName));
+                } catch (e) {
+                  cleanName = `file_${i2 + 1}.bin`;
+                }
+              }
+              if (zippable[cleanName]) {
+                const ext = cleanName.includes(".") ? cleanName.split(".").pop() : "";
+                const base = cleanName.substring(0, cleanName.length - (ext ? ext.length + 1 : 0));
+                cleanName = `${base}_${i2 + 1}${ext ? "." + ext : ""}`;
+              }
               console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
               zippable[cleanName] = new Uint8Array(arrayBuffer);
               task.markFileComplete(fileTaskId, true);
@@ -4771,16 +4846,21 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       ]
     );
   }
-  function injectStyles(css) {
+  function ensureStylesInjected() {
+    if (document.getElementById("kdl-global-styles")) return;
     if (typeof GM_addStyle === "function") {
-      GM_addStyle(css);
-      return;
+      const styleNode = GM_addStyle(CSS_STYLES);
+      if (styleNode && typeof styleNode.setAttribute === "function") {
+        styleNode.setAttribute("id", "kdl-global-styles");
+      }
+    } else {
+      const styleNode = document.createElement("style");
+      styleNode.id = "kdl-global-styles";
+      styleNode.textContent = CSS_STYLES;
+      (document.head || document.documentElement).appendChild(styleNode);
     }
-    const style = document.createElement("style");
-    style.textContent = css;
-    document.head.append(style);
   }
-  injectStyles(CSS_STYLES);
+  ensureStylesInjected();
   let lastUrl = "";
   let isInitializing = false;
   async function handlePageContent() {
@@ -4842,6 +4922,8 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     }
   }
   const runInitializationLogic = async (force = false) => {
+    ensureStylesInjected();
+    createFixedControls();
     if (isInitializing) return;
     const currentUrl = window.location.href;
     const path = window.location.pathname;
@@ -4905,4 +4987,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   } else {
     init();
   }
-})();
+  exports.ensureStylesInjected = ensureStylesInjected;
+  Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
+  return exports;
+}({});

@@ -3,10 +3,14 @@ import { el, getOrCreateContainer } from '../../utils/dom';
 import { toggleSettingsModal } from './settingsModal';
 
 export function createFixedControls(): void {
-  if (document.getElementById('kdl-fixed-controls')) return;
   const container = getOrCreateContainer('kdl-fixed-controls');
+  if (!document.body.contains(container)) {
+    document.body.appendChild(container);
+  }
 
-  appState.queueIndicatorElement = el('div', { id: 'kdl-queue-indicator' });
+  if (container.querySelector('#kdl-settings-btn')) return;
+
+  appState.queueIndicatorElement = (container.querySelector('#kdl-queue-indicator') as HTMLElement) || el('div', { id: 'kdl-queue-indicator' });
   updateQueueIndicator();
 
   const settingsBtn = el(
@@ -14,12 +18,19 @@ export function createFixedControls(): void {
     {
       id: 'kdl-settings-btn',
       title: 'Kemono Downloader Settings',
-      onClick: () => toggleSettingsModal()
+      type: 'button',
+      onClick: (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleSettingsModal();
+      }
     },
     ['⚙️']
   );
 
-  container.appendChild(appState.queueIndicatorElement);
+  if (!container.contains(appState.queueIndicatorElement)) {
+    container.appendChild(appState.queueIndicatorElement);
+  }
   container.appendChild(settingsBtn);
 }
 

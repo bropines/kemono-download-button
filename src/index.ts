@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.5.1
+// @version      0.8.7
 // @author       hoami_523 + Gemini + bropines
 // @description  Modular TypeScript refactor for Kemono, Coomer, and Pawchive
 // @icon         https://kemono.cr/static/favicon.ico
@@ -41,17 +41,23 @@ import { createBulkDownloadPanel, initializeShiftClickLogic } from './ui/compone
 import { createAuthorManagerButton } from './ui/components/authorManagerModal';
 import { fetchAndCachePostData } from './services/collectorService';
 
-function injectStyles(css: string): void {
+export function ensureStylesInjected(): void {
+  if (document.getElementById('kdl-global-styles')) return;
+
   if (typeof GM_addStyle === 'function') {
-    GM_addStyle(css);
-    return;
+    const styleNode = GM_addStyle(CSS_STYLES);
+    if (styleNode && typeof (styleNode as any).setAttribute === 'function') {
+      (styleNode as any).setAttribute('id', 'kdl-global-styles');
+    }
+  } else {
+    const styleNode = document.createElement('style');
+    styleNode.id = 'kdl-global-styles';
+    styleNode.textContent = CSS_STYLES;
+    (document.head || document.documentElement).appendChild(styleNode);
   }
-  const style = document.createElement('style');
-  style.textContent = css;
-  document.head.append(style);
 }
 
-injectStyles(CSS_STYLES);
+ensureStylesInjected();
 
 let lastUrl = '';
 let isInitializing = false;
@@ -126,6 +132,8 @@ async function handlePageContent(): Promise<void> {
 }
 
 const runInitializationLogic = async (force = false) => {
+  ensureStylesInjected();
+  createFixedControls();
   if (isInitializing) return;
   const currentUrl = window.location.href;
   const path = window.location.pathname;
