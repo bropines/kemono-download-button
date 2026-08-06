@@ -170,9 +170,15 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       ? { files: appState.cachedPostFiles }
       : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
 
-    let targetFiles = files.filter((f) => f.source === 'url' && (type === 'Images' ? f.isMedia : !f.isMedia));
-    if (type === 'Attachments' && targetFiles.length === 0) {
-      targetFiles = files.filter((f) => f.source === 'url');
+    let targetFiles: typeof files = [];
+
+    if (type === 'Images') {
+      targetFiles = files.filter((f) => f.source === 'url' && f.isMedia);
+    } else if (type === 'Attachments') {
+      targetFiles = files.filter((f) => f.source === 'url' && f.isAttachment);
+      if (targetFiles.length === 0) {
+        targetFiles = files.filter((f) => f.source === 'url');
+      }
     }
 
     if (targetFiles.length === 0) {
@@ -183,24 +189,35 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
 
     task.updateStatus(`Starting download of ${targetFiles.length} files...`);
 
-    for (let i = 0; i < targetFiles.length; i++) {
-      const file = targetFiles[i];
-      const fileTaskId = `indiv-${i}`;
-      task.addFile(fileTaskId, file.name);
+    const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
+    let queueIndex = 0;
+    let completedCount = 0;
 
-      while (appState.activeOperations >= state.settings.maxConcurrentIndividualDownloads) {
-        await new Promise((res) => setTimeout(res, 200));
+    async function downloadWorker() {
+      while (queueIndex < targetFiles.length) {
+        const i = queueIndex++;
+        const file = targetFiles[i];
+        const fileTaskId = `indiv-${i}`;
+        task.addFile(fileTaskId, file.name);
+
+        try {
+          GM_download({
+            url: file.data,
+            name: file.name,
+            saveAs: false
+          });
+          task.markFileComplete(fileTaskId, true);
+        } catch (err: any) {
+          task.markFileComplete(fileTaskId, false);
+        } finally {
+          completedCount++;
+          task.updateStatus(`Triggered ${completedCount}/${targetFiles.length}`);
+        }
       }
-
-      GM_download({
-        url: file.data,
-        name: file.name,
-        saveAs: false
-      });
-
-      task.markFileComplete(fileTaskId, true);
-      task.updateStatus(`Triggered ${i + 1}/${targetFiles.length}`);
     }
+
+    const workers = Array.from({ length: Math.min(maxConcurrency, targetFiles.length) }, () => downloadWorker());
+    await Promise.all(workers);
 
     task.updateStatus('All downloads triggered!');
   } catch (error: any) {

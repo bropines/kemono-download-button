@@ -75,6 +75,7 @@ export interface FileItem {
   data: any;
   source: 'url' | 'text';
   isMedia?: boolean;
+  isAttachment?: boolean;
 }
 
 export interface QueueTask {

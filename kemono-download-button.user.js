@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.30
+// @version      0.8.31
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -4606,6 +4606,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     return null;
   }
+  async function fetchAndCachePostData(service, userID, postID) {
+    const cacheKey = `post_${service}_${userID}_${postID}`;
+    const cached = await getCachedPost(cacheKey);
+    if (cached) return cached;
+    const rawApiData = await getApiAdapter().fetchPostData(service, userID, postID);
+    if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+    return rawApiData;
+  }
   async function collectFilesForPost(postDetails, options = {}) {
     var _a2;
     await getSettings();
@@ -4656,13 +4664,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const seenPaths = /* @__PURE__ */ new Set();
       if ((_a2 = post.file) == null ? void 0 : _a2.path) {
         seenPaths.add(post.file.path);
-        allMediaFiles.push({ name: post.file.name || post.file.path.split("/").pop(), path: post.file.path });
+        allMediaFiles.push({ name: post.file.name || post.file.path.split("/").pop(), path: post.file.path, isAttachment: false });
       }
       if (Array.isArray(post.attachments)) {
         post.attachments.forEach((att) => {
           if (att.path && !seenPaths.has(att.path)) {
             seenPaths.add(att.path);
-            allMediaFiles.push({ name: att.name || att.path.split("/").pop(), path: att.path });
+            allMediaFiles.push({ name: att.name || att.path.split("/").pop(), path: att.path, isAttachment: true });
           }
         });
       }
@@ -4684,7 +4692,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         };
         const finalPath = generateFilePath(templateToUse, pathData, postDetails);
         const isMedia = isMediaFile(fileObj.name);
-        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: "url", isMedia });
+        files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: "url", isMedia, isAttachment: fileObj.isAttachment });
       });
       if (state.settings.savePostContentAsText && post.content) {
         const formattedContent = htmlToFormattedText(post.content);
@@ -4702,6 +4710,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         if (!href) return;
         appState.globalMediaCounter++;
         localMediaCounter++;
+        const isAttNode = node.classList.contains("post__attachment-link") || !!node.closest(".post__attachments");
         const originalName = node.getAttribute("download") || ((_a3 = href.split("/").pop()) == null ? void 0 : _a3.split("?")[0]) || "file";
         const fileExt = originalName.includes(".") ? originalName.split(".").pop() : "";
         const baseName = originalName.substring(0, originalName.length - (fileExt ? fileExt.length + 1 : 0));
@@ -4713,7 +4722,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           file_ext: fileExt
         };
         const finalPath = generateFilePath(templateToUse, pathData, postDetails);
-        files.push({ name: finalPath, data: getFullUrl(href), source: "url", isMedia: true });
+        const isMedia = isMediaFile(originalName);
+        files.push({ name: finalPath, data: getFullUrl(href), source: "url", isMedia, isAttachment: isAttNode });
       });
       if (state.settings.savePostContentAsText && postDetails.postContent) {
         const textFileName = generateFilePath(templateToUse, { file_index: "000", file_name: "content.txt" }, postDetails);
@@ -4724,55 +4734,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const metaPath = generateFilePath(templateToUse, { file_index: "meta", file_name: "metadata.json" }, postDetails);
       files.push({ name: metaPath, data: JSON.stringify(postDetails.rawApiData, null, 2), source: "text" });
     }
-    if (state.settings.savePostTags && isPostPage) {
-      try {
-        const tagsCacheKey = `tags_${postDetails.service}_${postDetails.userID}`;
-        let tagsData = await getCachedPost(tagsCacheKey);
-        if (!tagsData) {
-          tagsData = await getApiAdapter().fetchTags(postDetails.service, postDetails.userID);
-          if (tagsData && tagsData.length > 0) {
-            await setCachedPost(tagsCacheKey, tagsData);
-          }
-        }
-        if (Array.isArray(tagsData) && tagsData.length > 0) {
-          const tagsPath = generateFilePath(templateToUse, { file_index: "tags", file_name: "tags.txt" }, postDetails);
-          files.push({ name: tagsPath, data: tagsData.join("\n"), source: "text" });
-        }
-      } catch (e) {
-        debugLog("Failed to fetch tags", e);
-      }
-    }
-    if (state.settings.savePostComments && isPostPage) {
-      try {
-        const commentsCacheKey = `comments_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
-        let commentsData = await getCachedPost(commentsCacheKey);
-        if (!commentsData) {
-          commentsData = await getApiAdapter().fetchComments(postDetails.service, postDetails.userID, postDetails.postID);
-          if (commentsData && commentsData.length > 0) {
-            await setCachedPost(commentsCacheKey, commentsData);
-          }
-        }
-        if (Array.isArray(commentsData) && commentsData.length > 0) {
-          const commentsText = commentsData.map((c) => `[${c.published || "N/A"}] ${c.commenter_name || "User"}: ${c.content}`).join("\n\n");
-          const commentsPath = generateFilePath(templateToUse, { file_index: "comments", file_name: "comments.txt" }, postDetails);
-          files.push({ name: commentsPath, data: commentsText, source: "text" });
-        }
-      } catch (e) {
-        debugLog("Failed to fetch comments", e);
-      }
-    }
     return { files, postDate: postDetails.postDate || "UnknownDate" };
-  }
-  async function fetchAndCachePostData() {
-    const postDetails = getPostDetailsFromPage();
-    if (postDetails.service === "unknown") return;
-    try {
-      const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      appState.cachedPostFiles = files;
-      debugLog(`Cached ${files.length} files for post ${postDetails.postID}`);
-    } catch (err2) {
-      console.error("Failed to pre-cache post files:", err2);
-    }
   }
   var u8 = Uint8Array, u16 = Uint16Array, i32 = Int32Array;
   var fleb = new u8([
@@ -5709,9 +5671,14 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     try {
       const isPostPage = window.location.pathname.includes("/post/");
       const { files } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      let targetFiles = files.filter((f) => f.source === "url" && (type === "Images" ? f.isMedia : !f.isMedia));
-      if (type === "Attachments" && targetFiles.length === 0) {
-        targetFiles = files.filter((f) => f.source === "url");
+      let targetFiles = [];
+      if (type === "Images") {
+        targetFiles = files.filter((f) => f.source === "url" && f.isMedia);
+      } else if (type === "Attachments") {
+        targetFiles = files.filter((f) => f.source === "url" && f.isAttachment);
+        if (targetFiles.length === 0) {
+          targetFiles = files.filter((f) => f.source === "url");
+        }
       }
       if (targetFiles.length === 0) {
         task.updateStatus(`No ${type.toLowerCase()} to download.`);
@@ -5719,21 +5686,32 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         return;
       }
       task.updateStatus(`Starting download of ${targetFiles.length} files...`);
-      for (let i2 = 0; i2 < targetFiles.length; i2++) {
-        const file = targetFiles[i2];
-        const fileTaskId = `indiv-${i2}`;
-        task.addFile(fileTaskId, file.name);
-        while (appState.activeOperations >= state.settings.maxConcurrentIndividualDownloads) {
-          await new Promise((res) => setTimeout(res, 200));
+      const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
+      let queueIndex = 0;
+      let completedCount = 0;
+      async function downloadWorker() {
+        while (queueIndex < targetFiles.length) {
+          const i2 = queueIndex++;
+          const file = targetFiles[i2];
+          const fileTaskId = `indiv-${i2}`;
+          task.addFile(fileTaskId, file.name);
+          try {
+            GM_download({
+              url: file.data,
+              name: file.name,
+              saveAs: false
+            });
+            task.markFileComplete(fileTaskId, true);
+          } catch (err2) {
+            task.markFileComplete(fileTaskId, false);
+          } finally {
+            completedCount++;
+            task.updateStatus(`Triggered ${completedCount}/${targetFiles.length}`);
+          }
         }
-        GM_download({
-          url: file.data,
-          name: file.name,
-          saveAs: false
-        });
-        task.markFileComplete(fileTaskId, true);
-        task.updateStatus(`Triggered ${i2 + 1}/${targetFiles.length}`);
       }
+      const workers = Array.from({ length: Math.min(maxConcurrency, targetFiles.length) }, () => downloadWorker());
+      await Promise.all(workers);
       task.updateStatus("All downloads triggered!");
     } catch (error) {
       task.updateStatus(`Error: ${error.message}`);
