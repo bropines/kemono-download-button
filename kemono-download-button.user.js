@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.28
+// @version      0.8.29
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3078,7 +3078,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
-  async function fetchPostDataFromAPI$1(service, userID, postID) {
+  async function fetchPostDataFromAPI(service, userID, postID) {
     const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
     debugLog(`[Kemono API] Fetching post data: ${url}`);
     const response = await gmXmlhttpRequestWithRetries({
@@ -3399,7 +3399,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     fetchCreatorAnnouncements,
     fetchCreatorFancards,
     fetchCreatorLinks,
-    fetchPostData: fetchPostDataFromAPI$1,
+    fetchPostData: fetchPostDataFromAPI,
     fetchAllAuthorPosts,
     searchPosts,
     fetchPopularPosts,
@@ -6298,7 +6298,7 @@ ${text}`;
         isFetching = true;
         tooltip.replaceChildren(el("em", {}, ["Loading..."]));
         try {
-          const apiResponse = await fetchPostDataFromAPI(details.service, details.userID, details.postID);
+          const apiResponse = await getApiAdapter().fetchPostData(details.service, details.userID, details.postID);
           const post = (apiResponse == null ? void 0 : apiResponse.post) || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
           if (!post) throw new Error("No post data");
           const fileCount = post.file ? 1 : 0;

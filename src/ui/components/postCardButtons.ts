@@ -55,7 +55,7 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
     isFetching = true;
     tooltip.replaceChildren(el('em', {}, ['Loading...']));
     try {
-      const apiResponse = await fetchPostDataFromAPI(details.service, details.userID, details.postID);
+      const apiResponse = await getApiAdapter().fetchPostData(details.service, details.userID, details.postID);
       const post = apiResponse?.post || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
       if (!post) throw new Error('No post data');
       const fileCount = post.file ? 1 : 0;
