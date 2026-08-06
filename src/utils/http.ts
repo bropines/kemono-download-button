@@ -1,5 +1,5 @@
 import { state } from '../state/store';
-import { debugLog } from './helpers';
+import { debugLog, sanitizeFilename } from './helpers';
 
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? state.settings.downloadRetryCount : 0;
@@ -81,4 +81,76 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
       await new Promise((res) => setTimeout(res, retryDelay));
     }
   }
+}
+
+export async function downloadFileWithFallback(url: string, fileName: string, progressCallback?: (percent: number) => void): Promise<void> {
+  const cleanName = sanitizeFilename(fileName);
+
+  const tryGmDownload = (): Promise<boolean> => {
+    return new Promise((resolve) => {
+      try {
+        let isDone = false;
+        GM_download({
+          url,
+          name: cleanName,
+          saveAs: false,
+          onload: () => {
+            if (!isDone) { isDone = true; resolve(true); }
+          },
+          onerror: (err) => {
+            debugLog('GM_download failed:', err);
+            if (!isDone) { isDone = true; resolve(false); }
+          },
+          ontimeout: () => {
+            debugLog('GM_download timed out');
+            if (!isDone) { isDone = true; resolve(false); }
+          },
+          onprogress: (e: any) => {
+            if (progressCallback && e.lengthComputable && e.total > 0) {
+              progressCallback((e.loaded / e.total) * 100);
+            }
+          }
+        });
+
+        setTimeout(() => {
+          if (!isDone) { isDone = true; resolve(false); }
+        }, 4000);
+      } catch (e) {
+        debugLog('GM_download exception:', e);
+        resolve(false);
+      }
+    });
+  };
+
+  const success = await tryGmDownload();
+  if (success) return;
+
+  debugLog(`GM_download failed/unsupported for ${url}. Using gmXmlhttpRequest Blob fallback...`);
+  const response = await gmXmlhttpRequestWithRetries({
+    method: 'GET',
+    url,
+    responseType: 'arraybuffer',
+    timeout: state.settings.zipFileDownloadTimeout || 60000,
+    onprogress: (e: ProgressEvent) => {
+      if (progressCallback && e.lengthComputable && e.total > 0) {
+        progressCallback((e.loaded / e.total) * 100);
+      }
+    }
+  });
+
+  const arrayBuffer = response.response;
+  if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+    throw new Error('Downloaded file array buffer is empty');
+  }
+
+  const blob = new Blob([arrayBuffer]);
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = cleanName;
+  a.style.display = 'none';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 }

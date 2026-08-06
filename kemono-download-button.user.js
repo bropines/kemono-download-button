@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.32
+// @version      0.8.33
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3131,6 +3131,83 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
+  async function downloadFileWithFallback(url, fileName, progressCallback) {
+    const cleanName = sanitizeFilename(fileName);
+    const tryGmDownload = () => {
+      return new Promise((resolve) => {
+        try {
+          let isDone = false;
+          GM_download({
+            url,
+            name: cleanName,
+            saveAs: false,
+            onload: () => {
+              if (!isDone) {
+                isDone = true;
+                resolve(true);
+              }
+            },
+            onerror: (err2) => {
+              debugLog("GM_download failed:", err2);
+              if (!isDone) {
+                isDone = true;
+                resolve(false);
+              }
+            },
+            ontimeout: () => {
+              debugLog("GM_download timed out");
+              if (!isDone) {
+                isDone = true;
+                resolve(false);
+              }
+            },
+            onprogress: (e) => {
+              if (progressCallback && e.lengthComputable && e.total > 0) {
+                progressCallback(e.loaded / e.total * 100);
+              }
+            }
+          });
+          setTimeout(() => {
+            if (!isDone) {
+              isDone = true;
+              resolve(false);
+            }
+          }, 4e3);
+        } catch (e) {
+          debugLog("GM_download exception:", e);
+          resolve(false);
+        }
+      });
+    };
+    const success = await tryGmDownload();
+    if (success) return;
+    debugLog(`GM_download failed/unsupported for ${url}. Using gmXmlhttpRequest Blob fallback...`);
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "GET",
+      url,
+      responseType: "arraybuffer",
+      timeout: state.settings.zipFileDownloadTimeout || 6e4,
+      onprogress: (e) => {
+        if (progressCallback && e.lengthComputable && e.total > 0) {
+          progressCallback(e.loaded / e.total * 100);
+        }
+      }
+    });
+    const arrayBuffer = response.response;
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new Error("Downloaded file array buffer is empty");
+    }
+    const blob = new Blob([arrayBuffer]);
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = cleanName;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
+  }
   async function fetchPostDataFromAPI(service, userID, postID) {
     const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
     debugLog(`[Kemono API] Fetching post data: ${url}`);
@@ -5749,17 +5826,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           const fileTaskId = `indiv-${i2}`;
           task.addFile(fileTaskId, file.name);
           try {
-            GM_download({
-              url: file.data,
-              name: file.name,
-              saveAs: false
-            });
+            await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
             task.markFileComplete(fileTaskId, true);
           } catch (err2) {
             task.markFileComplete(fileTaskId, false);
           } finally {
             completedCount++;
-            task.updateStatus(`Triggered ${completedCount}/${targetFiles.length}`);
+            task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
           }
         }
       }
@@ -6287,15 +6360,21 @@ ${text}`;
         ]);
         list.appendChild(el("li", {}, [a]));
       });
-      list.addEventListener("click", (e) => {
+      list.addEventListener("click", async (e) => {
         e.preventDefault();
         const link = e.target.closest("a");
         if (link) {
           const fullPath = link.dataset.name;
           const fileName = fullPath.split("/").pop() || fullPath;
+          const url = link.dataset.url;
           showMessage(`Starting download for ${fileName}`, "info");
-          GM_download({ url: link.dataset.url, name: fileName, saveAs: false });
           closeOverlay();
+          try {
+            await downloadFileWithFallback(url, fileName);
+            showMessage(`Downloaded: ${fileName}`, "info");
+          } catch (err2) {
+            showMessage(`Download failed: ${(err2 == null ? void 0 : err2.message) || err2}`, "error");
+          }
         }
       });
       modal.appendChild(list);

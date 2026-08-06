@@ -6,7 +6,7 @@ import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { PostDetails } from '../types';
 import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
-import { gmXmlhttpRequestWithRetries } from '../utils/http';
+import { gmXmlhttpRequestWithRetries, downloadFileWithFallback } from '../utils/http';
 import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
 
@@ -201,17 +201,13 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
         task.addFile(fileTaskId, file.name);
 
         try {
-          GM_download({
-            url: file.data,
-            name: file.name,
-            saveAs: false
-          });
+          await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
           task.markFileComplete(fileTaskId, true);
         } catch (err: any) {
           task.markFileComplete(fileTaskId, false);
         } finally {
           completedCount++;
-          task.updateStatus(`Triggered ${completedCount}/${targetFiles.length}`);
+          task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
         }
       }
     }

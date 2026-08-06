@@ -2,6 +2,7 @@ import { collectFilesForPost } from '../../services/collectorService';
 import { state } from '../../state/store';
 import { PostDetails } from '../../types';
 import { el } from '../../utils/dom';
+import { downloadFileWithFallback } from '../../utils/http';
 import { showMessage } from '../toast';
 
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
@@ -52,15 +53,21 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
       list.appendChild(el('li', {}, [a]));
     });
 
-    list.addEventListener('click', (e: MouseEvent) => {
+    list.addEventListener('click', async (e: MouseEvent) => {
       e.preventDefault();
       const link = (e.target as HTMLElement).closest('a');
       if (link) {
         const fullPath = link.dataset.name!;
         const fileName = fullPath.split('/').pop() || fullPath;
+        const url = link.dataset.url!;
         showMessage(`Starting download for ${fileName}`, 'info');
-        GM_download({ url: link.dataset.url!, name: fileName, saveAs: false });
         closeOverlay();
+        try {
+          await downloadFileWithFallback(url, fileName);
+          showMessage(`Downloaded: ${fileName}`, 'info');
+        } catch (err: any) {
+          showMessage(`Download failed: ${err?.message || err}`, 'error');
+        }
       }
     });
 
