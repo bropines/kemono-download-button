@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.15
+// @version      0.8.16
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3670,6 +3670,71 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (containerId) containerProps.id = containerId;
     return el("div", containerProps, [labelElem, inputElem]);
   }
+  function folderInputItem(id, labelText, props = {}, tooltipText) {
+    const inputElem = el("input", { type: "text", id, ...props, style: { flex: "1" } });
+    const hiddenFileInput = el("input", {
+      type: "file",
+      style: { display: "none" }
+    });
+    hiddenFileInput.setAttribute("webkitdirectory", "");
+    hiddenFileInput.setAttribute("directory", "");
+    const browseBtn = el(
+      "button",
+      {
+        type: "button",
+        className: "kdl-btn-info kdl-browse-folder-btn",
+        title: "Select system folder...",
+        style: {
+          flexShrink: "0",
+          whiteSpace: "nowrap",
+          fontSize: "0.82rem",
+          padding: "5px 10px",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "4px"
+        },
+        onClick: async (e) => {
+          e.preventDefault();
+          if ("showDirectoryPicker" in window) {
+            try {
+              const dirHandle = await window.showDirectoryPicker();
+              if (dirHandle && dirHandle.name) {
+                inputElem.value = dirHandle.name;
+                inputElem.dispatchEvent(new Event("input", { bubbles: true }));
+                inputElem.dispatchEvent(new Event("change", { bubbles: true }));
+                return;
+              }
+            } catch (err2) {
+              if (err2.name === "AbortError") return;
+            }
+          }
+          hiddenFileInput.click();
+        }
+      },
+      ["📂 Select Folder"]
+    );
+    hiddenFileInput.addEventListener("change", () => {
+      if (hiddenFileInput.files && hiddenFileInput.files.length > 0) {
+        const firstFile = hiddenFileInput.files[0];
+        const relPath = firstFile.webkitRelativePath || "";
+        const folderName = relPath.split("/")[0] || hiddenFileInput.files[0].name;
+        if (folderName) {
+          inputElem.value = folderName;
+          inputElem.dispatchEvent(new Event("input", { bubbles: true }));
+          inputElem.dispatchEvent(new Event("change", { bubbles: true }));
+        }
+      }
+    });
+    const labelChildren = [labelText];
+    if (tooltipText) labelChildren.push(" ", tooltipSpan(tooltipText));
+    const labelElem = el("label", { htmlFor: id }, labelChildren);
+    const inputRow = el("div", { style: { display: "flex", gap: "6px", alignItems: "center" } }, [
+      inputElem,
+      browseBtn,
+      hiddenFileInput
+    ]);
+    return el("div", { className: "kdl-setting-item" }, [labelElem, inputRow]);
+  }
   function selectItem(id, labelText, options, tooltipText) {
     const selectElem = el(
       "select",
@@ -3823,11 +3888,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         { value: "multiple", text: "Multiple Archives (one per post)" }
       ]),
       el("div", { id: "kdl-bulk-single-settings" }, [
-        inputItem("kdl-setting-bulkSingleSystemPathTemplate", "text", "System Path for Big Archive"),
-        inputItem("kdl-setting-bulkSingleInternalPathTemplate", "text", "Internal Structure inside Big Archive")
+        folderInputItem("kdl-setting-bulkSingleSystemPathTemplate", "System Path for Big Archive", { placeholder: "{author_name}/{author_name} - {service}" }, "System directory path where the big ZIP archive will be saved"),
+        folderInputItem("kdl-setting-bulkSingleInternalPathTemplate", "Internal Structure inside Big Archive", { placeholder: "{post_date} - {post_title}/{file_name}" }, "Folder hierarchy pattern inside the big ZIP archive")
       ]),
       el("div", { id: "kdl-bulk-multiple-settings", style: { display: "none" } }, [
-        inputItem("kdl-setting-bulkMultipleSystemPathTemplate", "text", "System Path for Multiple Archives")
+        folderInputItem("kdl-setting-bulkMultipleSystemPathTemplate", "System Path for Multiple Archives", { placeholder: "{author_name}/{post_date} - {post_title}" }, "System directory path template for post ZIP archives")
       ])
     ]);
     const zipCard = cardContainer("📦 ZIP Engine & Performance", [
