@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.18
+// @version      0.8.19
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -849,7 +849,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "translateX(-50%) translateY(140%)",
       opacity: 0,
       pointerEvents: "none",
-      backgroundColor: "#1e1e1ef2",
+      backgroundColor: THEME.colors.bgDark,
       padding: "10px 20px",
       borderRadius: "30px",
       zIndex: THEME.zIndex.bulkPanel,
@@ -885,24 +885,25 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       backgroundColor: THEME.colors.success
     },
     "#kdl-bulk-download-btn:hover": {
-      backgroundColor: THEME.colors.successDark
+      filter: "brightness(1.15)"
     },
     "#kdl-bulk-download-btn:disabled": {
-      backgroundColor: "#555",
+      backgroundColor: "var(--colour0-tertirary, #555)",
       cursor: "not-allowed",
       opacity: 0.7
     },
     "#kdl-bulk-select-all": {
-      backgroundColor: THEME.colors.info
+      backgroundColor: THEME.colors.primary,
+      color: "var(--colour1-primary, #17191a)"
     },
     "#kdl-bulk-select-all:hover": {
-      backgroundColor: THEME.colors.infoDark
+      filter: "brightness(1.15)"
     },
     "#kdl-bulk-deselect-all": {
       backgroundColor: THEME.colors.danger
     },
     "#kdl-bulk-deselect-all:hover": {
-      backgroundColor: THEME.colors.dangerDark
+      filter: "brightness(1.15)"
     }
   });
   const filePickerModalStyles = css({
