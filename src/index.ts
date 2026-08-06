@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.19
+// @version      0.8.20
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -80,7 +80,7 @@ function runKuiPageLogic(): void {
     const isOnUserPage = !!document.querySelector(SELECTORS.userHeaderName);
 
     if (isOnPostPage && postBody) {
-      if (!postBody.classList.contains("kui-processed")) {
+      if (!postBody.classList.contains("kui-processed") || !kuiState.isPostPageModuleActive) {
         postPageModule.init();
       }
     } else {
@@ -178,6 +178,8 @@ async function handlePageContent(): Promise<void> {
 
 const runInitializationLogic = async (force = false) => {
   ensureStylesInjected();
+  injectUI();
+  setupNavigationSettings();
   createFixedControls();
   runKuiPageLogic();
 
