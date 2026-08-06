@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.34
+// @version      0.8.35
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3243,60 +3243,56 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   async function downloadFileWithFallback(url, fileName, progressCallback) {
     const cleanName = sanitizeFilename(fileName);
-    const tryGmDownload = () => {
-      return new Promise((resolve) => {
-        try {
-          let isDone = false;
-          GM_download({
-            url,
-            name: cleanName,
-            saveAs: false,
-            onload: () => {
-              if (!isDone) {
-                isDone = true;
-                resolve(true);
+    if (typeof GM_download === "function") {
+      const tryGmDownload = () => {
+        return new Promise((resolve) => {
+          try {
+            let isDone = false;
+            GM_download({
+              url,
+              name: cleanName,
+              saveAs: false,
+              onload: () => {
+                if (!isDone) {
+                  isDone = true;
+                  resolve(true);
+                }
+              },
+              onerror: (err2) => {
+                debugLog("GM_download failed:", err2);
+                if (!isDone) {
+                  isDone = true;
+                  resolve(false);
+                }
+              },
+              ontimeout: () => {
+                debugLog("GM_download timed out");
+                if (!isDone) {
+                  isDone = true;
+                  resolve(false);
+                }
+              },
+              onprogress: (e) => {
+                if (progressCallback && e.lengthComputable && e.total > 0) {
+                  progressCallback(e.loaded / e.total * 100);
+                }
               }
-            },
-            onerror: (err2) => {
-              debugLog("GM_download failed:", err2);
-              if (!isDone) {
-                isDone = true;
-                resolve(false);
-              }
-            },
-            ontimeout: () => {
-              debugLog("GM_download timed out");
-              if (!isDone) {
-                isDone = true;
-                resolve(false);
-              }
-            },
-            onprogress: (e) => {
-              if (progressCallback && e.lengthComputable && e.total > 0) {
-                progressCallback(e.loaded / e.total * 100);
-              }
-            }
-          });
-          setTimeout(() => {
-            if (!isDone) {
-              isDone = true;
-              resolve(false);
-            }
-          }, 4e3);
-        } catch (e) {
-          debugLog("GM_download exception:", e);
-          resolve(false);
-        }
-      });
-    };
-    const success = await tryGmDownload();
-    if (success) return;
-    debugLog(`GM_download failed/unsupported for ${url}. Using gmXmlhttpRequest Blob fallback...`);
+            });
+          } catch (e) {
+            debugLog("GM_download exception:", e);
+            resolve(false);
+          }
+        });
+      };
+      const success = await tryGmDownload();
+      if (success) return;
+    }
+    debugLog(`GM_download fallback activated for ${url}. Fetching via gmXmlhttpRequest...`);
     const response = await gmXmlhttpRequestWithRetries({
       method: "GET",
       url,
       responseType: "arraybuffer",
-      timeout: state.settings.zipFileDownloadTimeout || 6e4,
+      timeout: state.settings.zipFileDownloadTimeout || 12e4,
       onprogress: (e) => {
         if (progressCallback && e.lengthComputable && e.total > 0) {
           progressCallback(e.loaded / e.total * 100);

@@ -50,7 +50,6 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
     } catch (error: any) {
       attempts++;
 
-      // Try switching CDN node if file. or cX domain failed with 404 or network error
       const fileMatch = currentUrl.match(/https:\/\/(file|c\d+)\.([^/]+)(\/.*)/);
       if (fileMatch) {
         const prefix = fileMatch[1];
@@ -86,51 +85,49 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
 export async function downloadFileWithFallback(url: string, fileName: string, progressCallback?: (percent: number) => void): Promise<void> {
   const cleanName = sanitizeFilename(fileName);
 
-  const tryGmDownload = (): Promise<boolean> => {
-    return new Promise((resolve) => {
-      try {
-        let isDone = false;
-        GM_download({
-          url,
-          name: cleanName,
-          saveAs: false,
-          onload: () => {
-            if (!isDone) { isDone = true; resolve(true); }
-          },
-          onerror: (err) => {
-            debugLog('GM_download failed:', err);
-            if (!isDone) { isDone = true; resolve(false); }
-          },
-          ontimeout: () => {
-            debugLog('GM_download timed out');
-            if (!isDone) { isDone = true; resolve(false); }
-          },
-          onprogress: (e: any) => {
-            if (progressCallback && e.lengthComputable && e.total > 0) {
-              progressCallback((e.loaded / e.total) * 100);
+  if (typeof GM_download === 'function') {
+    const tryGmDownload = (): Promise<boolean> => {
+      return new Promise((resolve) => {
+        try {
+          let isDone = false;
+          GM_download({
+            url,
+            name: cleanName,
+            saveAs: false,
+            onload: () => {
+              if (!isDone) { isDone = true; resolve(true); }
+            },
+            onerror: (err) => {
+              debugLog('GM_download failed:', err);
+              if (!isDone) { isDone = true; resolve(false); }
+            },
+            ontimeout: () => {
+              debugLog('GM_download timed out');
+              if (!isDone) { isDone = true; resolve(false); }
+            },
+            onprogress: (e: any) => {
+              if (progressCallback && e.lengthComputable && e.total > 0) {
+                progressCallback((e.loaded / e.total) * 100);
+              }
             }
-          }
-        });
+          });
+        } catch (e) {
+          debugLog('GM_download exception:', e);
+          resolve(false);
+        }
+      });
+    };
 
-        setTimeout(() => {
-          if (!isDone) { isDone = true; resolve(false); }
-        }, 4000);
-      } catch (e) {
-        debugLog('GM_download exception:', e);
-        resolve(false);
-      }
-    });
-  };
+    const success = await tryGmDownload();
+    if (success) return;
+  }
 
-  const success = await tryGmDownload();
-  if (success) return;
-
-  debugLog(`GM_download failed/unsupported for ${url}. Using gmXmlhttpRequest Blob fallback...`);
+  debugLog(`GM_download fallback activated for ${url}. Fetching via gmXmlhttpRequest...`);
   const response = await gmXmlhttpRequestWithRetries({
     method: 'GET',
     url,
     responseType: 'arraybuffer',
-    timeout: state.settings.zipFileDownloadTimeout || 60000,
+    timeout: state.settings.zipFileDownloadTimeout || 120000,
     onprogress: (e: ProgressEvent) => {
       if (progressCallback && e.lengthComputable && e.total > 0) {
         progressCallback((e.loaded / e.total) * 100);
