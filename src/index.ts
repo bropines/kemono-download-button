@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.20
+// @version      0.8.21
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -40,6 +40,7 @@ import { debugLog, waitForElement } from './utils/helpers';
 import { debugModule } from './utils/logger';
 import { sanitizeDuplicates } from './utils/domChecker';
 import { createFixedControls } from './ui/components/fixedControls';
+import { setupNavigationSettings } from './ui/components/navigationSettings';
 import { createAndInsertPostPageButtons } from './ui/components/postPageButtons';
 import { injectPostCardButtons, injectArtistFavoriteButton, injectPostFavoriteButton } from './ui/components/postCardButtons';
 import { createBulkDownloadPanel, initializeShiftClickLogic } from './ui/components/bulkPanel';
