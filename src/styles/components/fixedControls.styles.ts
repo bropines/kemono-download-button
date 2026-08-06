@@ -40,23 +40,8 @@ export const fixedControlsStyles = css({
     backgroundColor: THEME.colors.infoDark,
   },
 
-  /* Ensure injected sidebar & header buttons match native site cursor & styles */
+  /* Ensure injected sidebar & header buttons match native site cursor */
   '#kdl-settings-btn-sidebar, #kui-settings-btn-sidebar, #kdl-settings-btn-header, #kui-settings-btn-header': {
     cursor: 'pointer !important',
-  },
-
-  /* Responsive sidebar link text & container boundary detection */
-  '.kdl-sidebar-link-text': {
-    display: 'inline-block !important',
-    maxWidth: 'calc(100% - 1.8rem) !important',
-    overflow: 'hidden !important',
-    textOverflow: 'ellipsis !important',
-    whiteSpace: 'nowrap !important',
-    verticalAlign: 'middle !important',
-  },
-  '.kdl-sidebar-link.kdl-wrapped .kdl-sidebar-link-text': {
-    whiteSpace: 'normal !important',
-    lineHeight: '1.2 !important',
-    wordBreak: 'break-word !important',
   },
 });
