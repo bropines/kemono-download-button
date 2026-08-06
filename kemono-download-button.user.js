@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.16
+// @version      0.8.17
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -86,50 +86,50 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   const THEME = {
     colors: {
-      // Brand & Status Colors
-      primary: "#38bdf8",
-      success: "#28a745",
-      successGradient: "linear-gradient(135deg, #10b981, #059669)",
-      successDark: "#218838",
-      danger: "#ef4444",
-      dangerDark: "#dc3545",
-      warning: "#ffc107",
-      warningDark: "#e0a800",
-      info: "#007bff",
-      infoDark: "#0069d9",
+      // Brand & Status Colors using Native Site CSS Variables with fallback
+      primary: "var(--submit-colour1-primary, #38bdf8)",
+      success: "var(--positive-colour1-primary, #28a745)",
+      successGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #059669))",
+      successDark: "var(--positive-colour1-secondary, #218838)",
+      danger: "var(--negative-colour1-primary, #ef4444)",
+      dangerDark: "var(--negative-colour1-primary, #dc3545)",
+      warning: "var(--favourite-colour1-primary, #ffc107)",
+      warningDark: "var(--favourite-colour2-primary, #e0a800)",
+      info: "var(--anchour-colour1-primary, #007bff)",
+      infoDark: "var(--anchour-colour1-secondary, #0069d9)",
       purple: "#6f42c1",
       purpleDark: "#5a32a3",
-      secondary: "#6c757d",
-      secondaryDark: "#5a6268",
+      secondary: "var(--colour0-secondary, #6c757d)",
+      secondaryDark: "var(--colour0-tertirary, #5a6268)",
       orange: "#fd7e14",
-      // Gradient Buttons
-      btnPrimaryGradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-      btnInfoGradient: "linear-gradient(135deg, #06b6d4, #0891b2)",
-      btnWarnGradient: "linear-gradient(135deg, #f59e0b, #d97706)",
-      btnDangerGradient: "linear-gradient(135deg, #ef4444, #b91c1c)",
-      btnSuccessGradient: "linear-gradient(135deg, #10b981, #047857)",
-      // Neutral & Backgrounds
-      bgDark: "#1e1e1e80",
-      panelBg: "#2e2e2e",
-      inputBg: "#444444",
-      modalBg: "linear-gradient(145deg, #1c2029 0%, #151820 100%)",
-      overlayBg: "rgba(10, 13, 18, 0.75)",
-      cardBg: "rgba(255, 255, 255, 0.03)",
-      cardHoverBg: "rgba(255, 255, 255, 0.07)",
-      nordBg: "#2e3440",
-      nordBorder: "#4c566a",
+      // Gradient Buttons matching site palette
+      btnPrimaryGradient: "linear-gradient(135deg, var(--submit-colour1-primary, #3b82f6), var(--submit-colour1-secondary, #1d4ed8))",
+      btnInfoGradient: "linear-gradient(135deg, var(--anchour-colour1-primary, #06b6d4), var(--anchour-colour1-secondary, #0891b2))",
+      btnWarnGradient: "linear-gradient(135deg, var(--favourite-colour1-primary, #f59e0b), var(--favourite-colour2-primary, #d97706))",
+      btnDangerGradient: "linear-gradient(135deg, var(--negative-colour1-primary, #ef4444), #b91c1c)",
+      btnSuccessGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #047857))",
+      // Neutral & Backgrounds (100% Native Site Palette)
+      bgDark: "var(--colour1-primary-transparent, rgba(23, 25, 26, 0.85))",
+      panelBg: "var(--colour1-secondary, #202324)",
+      inputBg: "var(--colour1-tertiary, #141617)",
+      modalBg: "linear-gradient(145deg, var(--colour1-secondary, #202324) 0%, var(--colour1-primary, #17191a) 100%)",
+      overlayBg: "var(--colour1-primary-transparent, rgba(10, 13, 18, 0.8))",
+      cardBg: "var(--colour1-secondary-transparent, rgba(255, 255, 255, 0.04))",
+      cardHoverBg: "rgba(255, 255, 255, 0.08)",
+      nordBg: "var(--colour1-secondary, #202324)",
+      nordBorder: "rgba(255, 255, 255, 0.15)",
       // Text & Borders
-      textMain: "#f8fafc",
-      textMuted: "#94a3b8",
-      textSubtle: "#cbd5e1",
-      borderDark: "#444444",
-      borderLight: "#555555",
+      textMain: "var(--colour0-primary, #f8fafc)",
+      textMuted: "var(--colour0-secondary, #94a3b8)",
+      textSubtle: "var(--colour0-tertirary, #cbd5e1)",
+      borderDark: "rgba(255, 255, 255, 0.15)",
+      borderLight: "rgba(255, 255, 255, 0.25)",
       borderSubtle: "rgba(255, 255, 255, 0.12)",
-      tagBg: "#4b5563",
-      buttonGradStart: "#374151",
-      buttonGradEnd: "#1f2937",
-      accentBlue: "#3b82f6",
-      accentOrange: "#e16d2d"
+      tagBg: "var(--colour1-secondary, #374151)",
+      buttonGradStart: "var(--colour1-secondary, #202324)",
+      buttonGradEnd: "var(--colour1-primary, #17191a)",
+      accentBlue: "var(--submit-colour1-primary, #3b82f6)",
+      accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)"
     },
     borderRadius: {
       xs: "3px",
@@ -156,7 +156,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       modalOverlay: 10003
     },
     transitions: {
-      fast: "0.2s ease",
+      fast: "var(--duration-fast, 0.25s)",
       panel: "transform 0.3s ease-in-out"
     },
     scrollbars: {
@@ -645,7 +645,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       marginBottom: "4px",
       fontWeight: "600",
       fontSize: "0.86rem",
-      color: "#e2e8f0"
+      color: "var(--colour0-primary, #e2e8f0)"
     },
     "#kdl-settings-modal input[type=checkbox]": {
       marginRight: "8px",
@@ -660,14 +660,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       padding: "8px 11px",
       borderRadius: "7px",
       border: `1px solid ${THEME.colors.borderSubtle}`,
-      backgroundColor: "rgba(255, 255, 255, 0.05)",
+      backgroundColor: "var(--colour1-tertiary, #141617)",
       color: THEME.colors.textMain,
       boxSizing: "border-box",
       fontSize: "0.85rem",
       transition: "all 0.2s ease"
     },
     "#kdl-settings-modal input[type=number]:focus, #kdl-settings-modal input[type=text]:focus, #kdl-settings-modal input[type=password]:focus, #kdl-settings-modal select:focus": {
-      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      backgroundColor: "var(--colour1-secondary, #202324)",
       borderColor: THEME.colors.primary,
       boxShadow: "0 0 0 3px rgba(56, 189, 248, 0.2)",
       outline: "none"
@@ -676,12 +676,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       width: "90px"
     },
     "#kdl-settings-modal select option": {
-      backgroundColor: "#1e222b",
+      backgroundColor: "var(--colour1-secondary, #202324)",
       color: THEME.colors.textMain
     },
     ".kdl-cache-box": {
-      background: "rgba(0, 0, 0, 0.2)",
-      border: "1px solid rgba(255, 255, 255, 0.06)",
+      background: "var(--colour1-tertiary, rgba(0, 0, 0, 0.25))",
+      border: "1px solid rgba(255, 255, 255, 0.08)",
       borderRadius: THEME.borderRadius.lg,
       padding: "10px 12px",
       marginTop: "10px",
@@ -736,11 +736,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       bottom: "130%",
       left: "50%",
       transform: "translateX(-50%)",
-      backgroundColor: "#0f172a",
-      color: "#f1f5f9",
+      backgroundColor: "var(--colour1-tertiary, #0f172a)",
+      color: "var(--colour0-primary, #f1f5f9)",
       padding: "8px 12px",
       borderRadius: "7px",
-      border: "1px solid rgba(56, 189, 248, 0.35)",
+      border: "1px solid var(--submit-colour1-primary, rgba(56, 189, 248, 0.35))",
       fontSize: "0.78rem",
       fontWeight: "400",
       whiteSpace: "normal",
@@ -759,7 +759,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "translateX(-50%)",
       borderWidth: "5px",
       borderStyle: "solid",
-      borderColor: "#0f172a transparent transparent transparent",
+      borderColor: "var(--colour1-tertiary, #0f172a) transparent transparent transparent",
       zIndex: 10011,
       pointerEvents: "none"
     },
@@ -768,7 +768,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       justifyContent: "space-between",
       alignItems: "center",
       padding: "14px 24px",
-      backgroundColor: "rgba(20, 24, 32, 0.95)",
+      backgroundColor: "var(--colour1-primary, rgba(20, 24, 32, 0.95))",
       borderTop: "1px solid rgba(255, 255, 255, 0.08)",
       marginTop: "auto",
       position: "sticky",

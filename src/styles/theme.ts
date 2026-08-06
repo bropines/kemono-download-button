@@ -1,57 +1,58 @@
 /**
  * Central Design System Tokens for Kemono Download Button & UI Refactor.
- * Provides consistent colors, border radii, z-indexes, shadows, and transitions.
+ * Uses 100% native site CSS variables (--colour0-primary, --colour1-primary, etc.)
+ * with elegant fallbacks so all components perfectly match Kemono, Coomer, and Pawchive themes.
  */
 export const THEME = {
   colors: {
-    // Brand & Status Colors
-    primary: "#38bdf8",
-    primaryDark: "#0284c7",
-    success: "#28a745",
-    successGradient: "linear-gradient(135deg, #10b981, #059669)",
-    successDark: "#218838",
-    danger: "#ef4444",
-    dangerDark: "#dc3545",
-    warning: "#ffc107",
-    warningDark: "#e0a800",
-    info: "#007bff",
-    infoDark: "#0069d9",
+    // Brand & Status Colors using Native Site CSS Variables with fallback
+    primary: "var(--submit-colour1-primary, #38bdf8)",
+    primaryDark: "var(--submit-colour1-secondary, #0284c7)",
+    success: "var(--positive-colour1-primary, #28a745)",
+    successGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #059669))",
+    successDark: "var(--positive-colour1-secondary, #218838)",
+    danger: "var(--negative-colour1-primary, #ef4444)",
+    dangerDark: "var(--negative-colour1-primary, #dc3545)",
+    warning: "var(--favourite-colour1-primary, #ffc107)",
+    warningDark: "var(--favourite-colour2-primary, #e0a800)",
+    info: "var(--anchour-colour1-primary, #007bff)",
+    infoDark: "var(--anchour-colour1-secondary, #0069d9)",
     purple: "#6f42c1",
     purpleDark: "#5a32a3",
-    secondary: "#6c757d",
-    secondaryDark: "#5a6268",
+    secondary: "var(--colour0-secondary, #6c757d)",
+    secondaryDark: "var(--colour0-tertirary, #5a6268)",
     orange: "#fd7e14",
 
-    // Gradient Buttons
-    btnPrimaryGradient: "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-    btnInfoGradient: "linear-gradient(135deg, #06b6d4, #0891b2)",
-    btnWarnGradient: "linear-gradient(135deg, #f59e0b, #d97706)",
-    btnDangerGradient: "linear-gradient(135deg, #ef4444, #b91c1c)",
-    btnSuccessGradient: "linear-gradient(135deg, #10b981, #047857)",
+    // Gradient Buttons matching site palette
+    btnPrimaryGradient: "linear-gradient(135deg, var(--submit-colour1-primary, #3b82f6), var(--submit-colour1-secondary, #1d4ed8))",
+    btnInfoGradient: "linear-gradient(135deg, var(--anchour-colour1-primary, #06b6d4), var(--anchour-colour1-secondary, #0891b2))",
+    btnWarnGradient: "linear-gradient(135deg, var(--favourite-colour1-primary, #f59e0b), var(--favourite-colour2-primary, #d97706))",
+    btnDangerGradient: "linear-gradient(135deg, var(--negative-colour1-primary, #ef4444), #b91c1c)",
+    btnSuccessGradient: "linear-gradient(135deg, var(--positive-colour1-primary, #10b981), var(--positive-colour1-secondary, #047857))",
 
-    // Neutral & Backgrounds
-    bgDark: "#1e1e1e80",
-    panelBg: "#2e2e2e",
-    inputBg: "#444444",
-    modalBg: "linear-gradient(145deg, #1c2029 0%, #151820 100%)",
-    overlayBg: "rgba(10, 13, 18, 0.75)",
-    cardBg: "rgba(255, 255, 255, 0.03)",
-    cardHoverBg: "rgba(255, 255, 255, 0.07)",
-    nordBg: "#2e3440",
-    nordBorder: "#4c566a",
+    // Neutral & Backgrounds (100% Native Site Palette)
+    bgDark: "var(--colour1-primary-transparent, rgba(23, 25, 26, 0.85))",
+    panelBg: "var(--colour1-secondary, #202324)",
+    inputBg: "var(--colour1-tertiary, #141617)",
+    modalBg: "linear-gradient(145deg, var(--colour1-secondary, #202324) 0%, var(--colour1-primary, #17191a) 100%)",
+    overlayBg: "var(--colour1-primary-transparent, rgba(10, 13, 18, 0.8))",
+    cardBg: "var(--colour1-secondary-transparent, rgba(255, 255, 255, 0.04))",
+    cardHoverBg: "rgba(255, 255, 255, 0.08)",
+    nordBg: "var(--colour1-secondary, #202324)",
+    nordBorder: "rgba(255, 255, 255, 0.15)",
 
     // Text & Borders
-    textMain: "#f8fafc",
-    textMuted: "#94a3b8",
-    textSubtle: "#cbd5e1",
-    borderDark: "#444444",
-    borderLight: "#555555",
+    textMain: "var(--colour0-primary, #f8fafc)",
+    textMuted: "var(--colour0-secondary, #94a3b8)",
+    textSubtle: "var(--colour0-tertirary, #cbd5e1)",
+    borderDark: "rgba(255, 255, 255, 0.15)",
+    borderLight: "rgba(255, 255, 255, 0.25)",
     borderSubtle: "rgba(255, 255, 255, 0.12)",
-    tagBg: "#4b5563",
-    buttonGradStart: "#374151",
-    buttonGradEnd: "#1f2937",
-    accentBlue: "#3b82f6",
-    accentOrange: "#e16d2d",
+    tagBg: "var(--colour1-secondary, #374151)",
+    buttonGradStart: "var(--colour1-secondary, #202324)",
+    buttonGradEnd: "var(--colour1-primary, #17191a)",
+    accentBlue: "var(--submit-colour1-primary, #3b82f6)",
+    accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)",
   },
 
   borderRadius: {
@@ -83,8 +84,8 @@ export const THEME = {
   },
 
   transitions: {
-    fast: "0.2s ease",
-    normal: "0.3s ease",
+    fast: "var(--duration-fast, 0.25s)",
+    normal: "var(--duration-global, 0.3s)",
     panel: "transform 0.3s ease-in-out",
   },
 
