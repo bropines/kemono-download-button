@@ -36,7 +36,7 @@ export const bulkPanelStyles = css({
     fontSize: '.9em',
     fontWeight: '500',
     color: '#fff',
-    transition: 'background-color .2s, transform .1s',
+    transition: 'background-color .2s, transform .1s, filter .2s',
   },
   '#kdl-bulk-panel button:active': {
     transform: 'scale(0.96)',
@@ -48,6 +48,18 @@ export const bulkPanelStyles = css({
     filter: 'brightness(1.15)',
   },
   '#kdl-bulk-download-btn:disabled': {
+    backgroundColor: 'var(--colour0-tertirary, #555)',
+    cursor: 'not-allowed',
+    opacity: 0.7,
+  },
+  '#kdl-bulk-pick-attachments-btn': {
+    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+    color: '#ffffff',
+  },
+  '#kdl-bulk-pick-attachments-btn:hover': {
+    filter: 'brightness(1.15)',
+  },
+  '#kdl-bulk-pick-attachments-btn:disabled': {
     backgroundColor: 'var(--colour0-tertirary, #555)',
     cursor: 'not-allowed',
     opacity: 0.7,

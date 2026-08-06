@@ -74,18 +74,18 @@ export const filePickerModalStyles = css({
     gap: '8px',
     maxHeight: '60vh',
   },
-  '#kdl-file-picker-list::-webkit-scrollbar': {
+  '#kdl-file-picker-list::-webkit-scrollbar, #kdl-multi-file-picker-list::-webkit-scrollbar': {
     width: '6px',
   },
-  '#kdl-file-picker-list::-webkit-scrollbar-track': {
+  '#kdl-file-picker-list::-webkit-scrollbar-track, #kdl-multi-file-picker-list::-webkit-scrollbar-track': {
     background: 'rgba(0, 0, 0, 0.2)',
     borderRadius: '4px',
   },
-  '#kdl-file-picker-list::-webkit-scrollbar-thumb': {
+  '#kdl-file-picker-list::-webkit-scrollbar-thumb, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb': {
     background: 'rgba(255, 255, 255, 0.2)',
     borderRadius: '4px',
   },
-  '#kdl-file-picker-list::-webkit-scrollbar-thumb:hover': {
+  '#kdl-file-picker-list::-webkit-scrollbar-thumb:hover, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb:hover': {
     background: 'rgba(255, 255, 255, 0.35)',
   },
   '#kdl-file-picker-list li': {
@@ -122,5 +122,103 @@ export const filePickerModalStyles = css({
   },
   '#kdl-file-picker-list .kdl-file-name': {
     flexGrow: 1,
+  },
+  '.kdl-multi-picker-toolbar': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    marginBottom: '14px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  '.kdl-tb-btn': {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    color: '#e2e8f0',
+    border: '1px solid rgba(255, 255, 255, 0.12)',
+    borderRadius: '6px',
+    padding: '6px 12px',
+    fontSize: '0.84rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  '.kdl-tb-btn:hover': {
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    color: '#ffffff',
+  },
+  '.kdl-multi-dl-btn': {
+    marginLeft: 'auto',
+    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+    color: '#ffffff',
+    border: 'none',
+    borderRadius: '6px',
+    padding: '7px 16px',
+    fontSize: '0.88rem',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+    transition: 'all 0.2s ease',
+  },
+  '.kdl-multi-dl-btn:hover': {
+    filter: 'brightness(1.15)',
+  },
+  '.kdl-multi-dl-btn:disabled': {
+    opacity: 0.6,
+    cursor: 'not-allowed',
+    filter: 'none',
+  },
+  '#kdl-multi-file-picker-list': {
+    overflowY: 'auto',
+    maxHeight: '55vh',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    paddingRight: '4px',
+  },
+  '.kdl-post-group-card': {
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    borderRadius: '10px',
+    padding: '12px',
+  },
+  '.kdl-post-group-header': {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '8px',
+    fontWeight: '600',
+    fontSize: '0.92rem',
+    color: '#38bdf8',
+  },
+  '.kdl-post-group-date': {
+    fontSize: '0.8rem',
+    color: '#94a3b8',
+    fontWeight: 'normal',
+  },
+  '.kdl-group-file-list': {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+  },
+  '.kdl-multi-file-item': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    padding: '8px 12px',
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease',
+    fontSize: '0.88rem',
+  },
+  '.kdl-multi-file-item:hover': {
+    backgroundColor: 'rgba(56, 189, 248, 0.1)',
+  },
+  '.kdl-multi-file-cb': {
+    width: '16px',
+    height: '16px',
+    cursor: 'pointer',
   },
 });

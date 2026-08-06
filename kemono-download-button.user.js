@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.33
+// @version      0.8.34
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -877,7 +877,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       fontSize: ".9em",
       fontWeight: "500",
       color: "#fff",
-      transition: "background-color .2s, transform .1s"
+      transition: "background-color .2s, transform .1s, filter .2s"
     },
     "#kdl-bulk-panel button:active": {
       transform: "scale(0.96)"
@@ -889,6 +889,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       filter: "brightness(1.15)"
     },
     "#kdl-bulk-download-btn:disabled": {
+      backgroundColor: "var(--colour0-tertirary, #555)",
+      cursor: "not-allowed",
+      opacity: 0.7
+    },
+    "#kdl-bulk-pick-attachments-btn": {
+      background: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
+      color: "#ffffff"
+    },
+    "#kdl-bulk-pick-attachments-btn:hover": {
+      filter: "brightness(1.15)"
+    },
+    "#kdl-bulk-pick-attachments-btn:disabled": {
       backgroundColor: "var(--colour0-tertirary, #555)",
       cursor: "not-allowed",
       opacity: 0.7
@@ -980,18 +992,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       gap: "8px",
       maxHeight: "60vh"
     },
-    "#kdl-file-picker-list::-webkit-scrollbar": {
+    "#kdl-file-picker-list::-webkit-scrollbar, #kdl-multi-file-picker-list::-webkit-scrollbar": {
       width: "6px"
     },
-    "#kdl-file-picker-list::-webkit-scrollbar-track": {
+    "#kdl-file-picker-list::-webkit-scrollbar-track, #kdl-multi-file-picker-list::-webkit-scrollbar-track": {
       background: "rgba(0, 0, 0, 0.2)",
       borderRadius: "4px"
     },
-    "#kdl-file-picker-list::-webkit-scrollbar-thumb": {
+    "#kdl-file-picker-list::-webkit-scrollbar-thumb, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb": {
       background: "rgba(255, 255, 255, 0.2)",
       borderRadius: "4px"
     },
-    "#kdl-file-picker-list::-webkit-scrollbar-thumb:hover": {
+    "#kdl-file-picker-list::-webkit-scrollbar-thumb:hover, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb:hover": {
       background: "rgba(255, 255, 255, 0.35)"
     },
     "#kdl-file-picker-list li": {
@@ -1028,6 +1040,104 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     "#kdl-file-picker-list .kdl-file-name": {
       flexGrow: 1
+    },
+    ".kdl-multi-picker-toolbar": {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "14px",
+      paddingBottom: "12px",
+      borderBottom: "1px solid rgba(255, 255, 255, 0.08)"
+    },
+    ".kdl-tb-btn": {
+      backgroundColor: "rgba(255, 255, 255, 0.08)",
+      color: "#e2e8f0",
+      border: "1px solid rgba(255, 255, 255, 0.12)",
+      borderRadius: "6px",
+      padding: "6px 12px",
+      fontSize: "0.84rem",
+      cursor: "pointer",
+      transition: "all 0.2s ease"
+    },
+    ".kdl-tb-btn:hover": {
+      backgroundColor: "rgba(255, 255, 255, 0.16)",
+      color: "#ffffff"
+    },
+    ".kdl-multi-dl-btn": {
+      marginLeft: "auto",
+      background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: "6px",
+      padding: "7px 16px",
+      fontSize: "0.88rem",
+      fontWeight: "600",
+      cursor: "pointer",
+      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.3)",
+      transition: "all 0.2s ease"
+    },
+    ".kdl-multi-dl-btn:hover": {
+      filter: "brightness(1.15)"
+    },
+    ".kdl-multi-dl-btn:disabled": {
+      opacity: 0.6,
+      cursor: "not-allowed",
+      filter: "none"
+    },
+    "#kdl-multi-file-picker-list": {
+      overflowY: "auto",
+      maxHeight: "55vh",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      paddingRight: "4px"
+    },
+    ".kdl-post-group-card": {
+      backgroundColor: "rgba(255, 255, 255, 0.03)",
+      border: "1px solid rgba(255, 255, 255, 0.08)",
+      borderRadius: "10px",
+      padding: "12px"
+    },
+    ".kdl-post-group-header": {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "8px",
+      fontWeight: "600",
+      fontSize: "0.92rem",
+      color: "#38bdf8"
+    },
+    ".kdl-post-group-date": {
+      fontSize: "0.8rem",
+      color: "#94a3b8",
+      fontWeight: "normal"
+    },
+    ".kdl-group-file-list": {
+      listStyle: "none",
+      padding: 0,
+      margin: 0,
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px"
+    },
+    ".kdl-multi-file-item": {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "8px 12px",
+      backgroundColor: "rgba(0, 0, 0, 0.2)",
+      borderRadius: "6px",
+      cursor: "pointer",
+      transition: "background-color 0.2s ease",
+      fontSize: "0.88rem"
+    },
+    ".kdl-multi-file-item:hover": {
+      backgroundColor: "rgba(56, 189, 248, 0.1)"
+    },
+    ".kdl-multi-file-cb": {
+      width: "16px",
+      height: "16px",
+      cursor: "pointer"
     }
   });
   const authorManagerModalStyles = css({
@@ -6383,6 +6493,144 @@ ${text}`;
       modal.appendChild(el("p", { style: { color: "#f87171", margin: "16px 0 0", fontSize: "0.9rem" } }, [error.message]));
     }
   }
+  async function showMultiPostFilePickerModal(posts) {
+    if (!posts || posts.length === 0) return;
+    const closeOverlay = () => overlay.remove();
+    const closeBtn = el("button", {
+      className: "kdl-modal-close",
+      title: "Close",
+      onClick: closeOverlay
+    }, ["✕"]);
+    const header = el("div", { className: "kdl-modal-header" }, [
+      el("h4", {}, [`📎 Fetching attachments for ${posts.length} posts...`]),
+      closeBtn
+    ]);
+    const overlay = el("div", {
+      id: "kdl-file-picker-overlay",
+      onClick: (e) => {
+        if (e.target === overlay) closeOverlay();
+      }
+    });
+    const modal = el("div", { id: "kdl-file-picker-modal", style: { width: "680px" } }, [header]);
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    const statusText = el("p", { style: { color: "#94a3b8", margin: "0 0 16px", fontSize: "0.9rem" } }, [
+      `Fetching metadata (0/${posts.length} posts loaded)...`
+    ]);
+    modal.appendChild(statusText);
+    try {
+      let loadedCount = 0;
+      const postFileGroups = [];
+      for (const post of posts) {
+        const { files } = await collectFilesForPost(post, { template: state.settings.fileNameTemplate });
+        const urlFiles = files.filter((f) => f.source === "url");
+        if (urlFiles.length > 0) {
+          postFileGroups.push({ post, files: urlFiles });
+        }
+        loadedCount++;
+        statusText.textContent = `Fetching metadata (${loadedCount}/${posts.length} posts loaded)...`;
+      }
+      if (postFileGroups.length === 0) {
+        header.querySelector("h4").textContent = "📎 No downloadable attachments found";
+        statusText.textContent = "None of the selected posts contain downloadable attachments.";
+        return;
+      }
+      const totalFilesCount = postFileGroups.reduce((acc, g) => acc + g.files.length, 0);
+      header.querySelector("h4").textContent = `📎 Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`;
+      statusText.remove();
+      const downloadBtn = el("button", {
+        className: "kdl-multi-dl-btn",
+        onClick: async () => {
+          const checkedBoxes = Array.from(modal.querySelectorAll(".kdl-multi-file-cb:checked"));
+          if (checkedBoxes.length === 0) {
+            showMessage("Please select at least one file to download.", "warning");
+            return;
+          }
+          downloadBtn.disabled = true;
+          downloadBtn.textContent = `Downloading ${checkedBoxes.length} files...`;
+          showMessage(`Initiating download for ${checkedBoxes.length} selected files...`, "info");
+          const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
+          let completed = 0;
+          const total = checkedBoxes.length;
+          const downloadTasks = checkedBoxes.map((cb) => ({
+            url: cb.dataset.url,
+            fileName: cb.dataset.name
+          }));
+          let queueIndex = 0;
+          async function worker() {
+            while (queueIndex < downloadTasks.length) {
+              const task = downloadTasks[queueIndex++];
+              try {
+                await downloadFileWithFallback(task.url, task.fileName);
+              } catch (e) {
+                console.error(`Download error for ${task.fileName}:`, e);
+              } finally {
+                completed++;
+                downloadBtn.textContent = `Downloading ${completed}/${total}...`;
+              }
+            }
+          }
+          const workers = Array.from({ length: Math.min(maxConcurrency, total) }, () => worker());
+          await Promise.all(workers);
+          showMessage(`All ${total} downloads completed!`, "info");
+          closeOverlay();
+        }
+      }, [`Download Selected (${totalFilesCount})`]);
+      const updateCheckedCounter = () => {
+        const count = modal.querySelectorAll(".kdl-multi-file-cb:checked").length;
+        downloadBtn.textContent = `Download Selected (${count})`;
+        downloadBtn.disabled = count === 0;
+      };
+      const actionToolbar = el("div", { className: "kdl-multi-picker-toolbar" }, [
+        el("button", {
+          className: "kdl-tb-btn",
+          onClick: () => {
+            modal.querySelectorAll(".kdl-multi-file-cb").forEach((cb) => cb.checked = true);
+            updateCheckedCounter();
+          }
+        }, ["Select All"]),
+        el("button", {
+          className: "kdl-tb-btn",
+          onClick: () => {
+            modal.querySelectorAll(".kdl-multi-file-cb").forEach((cb) => cb.checked = false);
+            updateCheckedCounter();
+          }
+        }, ["Deselect All"]),
+        downloadBtn
+      ]);
+      modal.appendChild(actionToolbar);
+      const listContainer = el("div", { id: "kdl-multi-file-picker-list" });
+      postFileGroups.forEach((group) => {
+        const groupHeader = el("div", { className: "kdl-post-group-header" }, [
+          el("span", { className: "kdl-post-group-title" }, [`📌 ${group.post.postTitle}`]),
+          el("span", { className: "kdl-post-group-date" }, [group.post.postDate || ""])
+        ]);
+        const groupList = el("ul", { className: "kdl-group-file-list" });
+        group.files.forEach((file) => {
+          const fileName = file.name.split("/").pop() || file.name;
+          const icon = file.isMedia ? "🖼️" : "📁";
+          const checkbox = el("input", {
+            type: "checkbox",
+            checked: true,
+            className: "kdl-multi-file-cb",
+            dataset: { url: file.data, name: file.name },
+            onChange: updateCheckedCounter
+          });
+          const label = el("label", { className: "kdl-multi-file-item" }, [
+            checkbox,
+            el("span", { className: "kdl-file-icon" }, [icon]),
+            el("span", { className: "kdl-file-name" }, [fileName])
+          ]);
+          groupList.appendChild(el("li", {}, [label]));
+        });
+        listContainer.appendChild(el("div", { className: "kdl-post-group-card" }, [groupHeader, groupList]));
+      });
+      modal.appendChild(listContainer);
+    } catch (error) {
+      header.querySelector("h4").textContent = "⚠️ Failed to fetch attachments";
+      modal.appendChild(el("p", { style: { color: "#f87171", margin: "16px 0 0" } }, [error.message]));
+    }
+  }
   async function injectPostCardButtons(postCardNode, pageAuthorName) {
     await getSettings();
     if (postCardNode.querySelector(".post-card-download-controls")) return;
@@ -6503,6 +6751,19 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     });
   }
   let lastCheckedIndex = null;
+  function getSelectedPostsDetails() {
+    var _a2, _b2;
+    const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
+    const pageAuthorName = ((_b2 = (_a2 = document.querySelector('.post-header__name, .user-header__name span[itemprop="name"]')) == null ? void 0 : _a2.textContent) == null ? void 0 : _b2.trim()) || "UnknownAuthor";
+    const selectedDetails = [];
+    postCards.forEach((card) => {
+      const checkbox = card.querySelector(".kdl-post-checkbox");
+      if (checkbox && checkbox.checked) {
+        selectedDetails.push(getPostCardDetails(card, pageAuthorName));
+      }
+    });
+    return selectedDetails;
+  }
   function updateSelectionState() {
     const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
     appState.selectedPostIds.clear();
@@ -6513,11 +6774,16 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       }
     });
     const selectedCount = appState.selectedPostIds.size;
-    const btn = document.getElementById("kdl-bulk-download-btn");
+    const downloadBtn = document.getElementById("kdl-bulk-download-btn");
+    const pickAttachmentsBtn = document.getElementById("kdl-bulk-pick-attachments-btn");
     const panel = document.getElementById("kdl-bulk-panel");
-    if (btn) {
-      btn.textContent = `Download Selected (${selectedCount})`;
-      btn.disabled = selectedCount === 0;
+    if (downloadBtn) {
+      downloadBtn.textContent = `Download Selected (${selectedCount})`;
+      downloadBtn.disabled = selectedCount === 0;
+    }
+    if (pickAttachmentsBtn) {
+      pickAttachmentsBtn.textContent = `📎 Pick Attachments (${selectedCount})`;
+      pickAttachmentsBtn.disabled = selectedCount === 0;
     }
     if (panel) {
       if (selectedCount > 0) {
@@ -6612,6 +6878,14 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
           el("option", { value: "newest" }, ["Newest First"])
         ]
       ),
+      el("button", {
+        id: "kdl-bulk-pick-attachments-btn",
+        disabled: true,
+        onClick: () => {
+          const selectedPosts = getSelectedPostsDetails();
+          showMultiPostFilePickerModal(selectedPosts);
+        }
+      }, ["📎 Pick Attachments (0)"]),
       el("button", { id: "kdl-bulk-download-btn", disabled: true, onClick: () => executeBulkDownload() }, ["Download Selected (0)"])
     ]);
     document.body.appendChild(panel);

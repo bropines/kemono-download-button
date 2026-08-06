@@ -1,8 +1,26 @@
 import { executeBulkDownload } from '../../services/downloadService';
+import { getPostCardDetails } from '../../services/collectorService';
 import { appState } from '../../state/store';
+import { PostDetails } from '../../types';
 import { el } from '../../utils/dom';
+import { showMultiPostFilePickerModal } from './filePickerModal';
 
 let lastCheckedIndex: number | null = null;
+
+export function getSelectedPostsDetails(): PostDetails[] {
+  const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
+  const pageAuthorName = document.querySelector('.post-header__name, .user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
+  const selectedDetails: PostDetails[] = [];
+
+  postCards.forEach((card) => {
+    const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
+    if (checkbox && checkbox.checked) {
+      selectedDetails.push(getPostCardDetails(card, pageAuthorName));
+    }
+  });
+
+  return selectedDetails;
+}
 
 export function updateSelectionState(): void {
   const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
@@ -15,12 +33,18 @@ export function updateSelectionState(): void {
   });
 
   const selectedCount = appState.selectedPostIds.size;
-  const btn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
+  const downloadBtn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
+  const pickAttachmentsBtn = document.getElementById('kdl-bulk-pick-attachments-btn') as HTMLButtonElement | null;
   const panel = document.getElementById('kdl-bulk-panel');
 
-  if (btn) {
-    btn.textContent = `Download Selected (${selectedCount})`;
-    btn.disabled = selectedCount === 0;
+  if (downloadBtn) {
+    downloadBtn.textContent = `Download Selected (${selectedCount})`;
+    downloadBtn.disabled = selectedCount === 0;
+  }
+
+  if (pickAttachmentsBtn) {
+    pickAttachmentsBtn.textContent = `📎 Pick Attachments (${selectedCount})`;
+    pickAttachmentsBtn.disabled = selectedCount === 0;
   }
 
   if (panel) {
@@ -40,7 +64,6 @@ export function initializeShiftClickLogic(): void {
     const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
     if (!checkbox) return;
 
-    // 1. Intercept Shift+Click anywhere on the post card so the link/image doesn't open
     card.addEventListener(
       'click',
       (event: MouseEvent) => {
@@ -68,9 +91,7 @@ export function initializeShiftClickLogic(): void {
       true
     );
 
-    // 2. Handle direct click on checkbox element
     checkbox.addEventListener('click', (event: MouseEvent) => {
-      // Do NOT call event.preventDefault() here so the checkbox native state updates!
       if (event.shiftKey && lastCheckedIndex !== null) {
         const start = Math.min(index, lastCheckedIndex);
         const end = Math.max(index, lastCheckedIndex);
@@ -133,6 +154,14 @@ export function createBulkDownloadPanel(): void {
         el('option', { value: 'newest' }, ['Newest First'])
       ]
     ),
+    el('button', {
+      id: 'kdl-bulk-pick-attachments-btn',
+      disabled: true,
+      onClick: () => {
+        const selectedPosts = getSelectedPostsDetails();
+        showMultiPostFilePickerModal(selectedPosts);
+      }
+    }, ['📎 Pick Attachments (0)']),
     el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload() }, ['Download Selected (0)'])
   ]);
 
