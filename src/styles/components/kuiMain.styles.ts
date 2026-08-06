@@ -699,7 +699,7 @@ export const kuiMainStyles = css({
     },
   },
 
-  '.card-list__items:has(article.post-card), .card-list:has(article.post-card)': {
+  '.site-section--user .card-list__items, .site-section--user .card-list, .site-section--posts .card-list__items, .card-list__items:has(article.post-card), .card-list:has(article.post-card)': {
     gridTemplateColumns: 'repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important',
   },
   'article.post-card': {

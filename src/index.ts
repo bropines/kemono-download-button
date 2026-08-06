@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.24
+// @version      0.8.25
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -209,6 +209,7 @@ const runInitializationLogic = async (force = false) => {
     else if (isUserPage) await waitForElement('.card-list');
 
     await handlePageContent();
+    runKuiPageLogic();
     lastUrl = currentUrl;
 
     if (isUserPage) initializeShiftClickLogic();

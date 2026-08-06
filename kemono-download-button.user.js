@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.24
+// @version      0.8.25
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1965,7 +1965,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         transform: "none"
       }
     },
-    ".card-list__items:has(article.post-card), .card-list:has(article.post-card)": {
+    ".site-section--user .card-list__items, .site-section--user .card-list, .site-section--posts .card-list__items, .card-list__items:has(article.post-card), .card-list:has(article.post-card)": {
       gridTemplateColumns: "repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important"
     },
     "article.post-card": {
@@ -8066,6 +8066,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       if (isPostPage) await waitForElement(".post__actions");
       else if (isUserPage) await waitForElement(".card-list");
       await handlePageContent();
+      runKuiPageLogic();
       lastUrl = currentUrl;
       if (isUserPage) initializeShiftClickLogic();
     } catch (error) {
