@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.21
+// @version      0.8.22
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1965,7 +1965,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         transform: "none"
       }
     },
-    ".card-list__items:has(.post-card), .card-list:has(.post-card)": {
+    ".card-list__items, .card-list, .user-card-list": {
       gridTemplateColumns: "repeat(auto-fill, minmax(var(--card-size, 180px), 1fr)) !important"
     },
     ".kui-hidden-original": {
@@ -7816,29 +7816,48 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   function setupGridControls() {
     const slider = document.getElementById("gridSizeSlider");
     const numberInput = document.getElementById("gridSizeInput");
+    const getSavedSize = () => {
+      const savedSize = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
+      return Math.max(120, Math.min(400, Number(savedSize) || 180));
+    };
     const updateGridSize = (value) => {
+      const safeValue = Math.max(120, Math.min(400, Number(value) || 180));
+      document.documentElement.style.setProperty("--card-size", `${safeValue}px`, "important");
+      if (document.body) {
+        document.body.style.setProperty("--card-size", `${safeValue}px`, "important");
+      }
       const containers = document.querySelectorAll(SELECTORS.postGridContainer);
-      if (containers.length === 0) return;
-      const safeValue = Math.max(120, Math.min(400, Number(value)));
       containers.forEach((container) => {
-        if (container.querySelector(SELECTORS.postCard)) {
-          container.style.setProperty("--card-size", `${safeValue}px`, "important");
-        }
+        container.style.setProperty("--card-size", `${safeValue}px`, "important");
       });
       if (slider && document.activeElement !== slider) slider.value = String(safeValue);
       if (numberInput && document.activeElement !== numberInput) numberInput.value = String(safeValue);
     };
-    const savedSize = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
-    updateGridSize(savedSize);
+    const saved = getSavedSize();
+    updateGridSize(saved);
+    window.removeEventListener("resize", window._kuiGridResizeHandler);
+    window._kuiGridResizeHandler = () => {
+      const currentSaved = getSavedSize();
+      updateGridSize(currentSaved);
+    };
+    window.addEventListener("resize", window._kuiGridResizeHandler);
     if (slider) {
-      slider.addEventListener("input", () => updateGridSize(slider.value));
+      slider.value = String(saved);
+      slider.addEventListener("input", () => {
+        updateGridSize(slider.value);
+        if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, slider.value);
+      });
       slider.addEventListener("change", (e) => {
         const target = e.target;
         if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
       });
     }
     if (numberInput) {
-      numberInput.addEventListener("input", () => updateGridSize(numberInput.value));
+      numberInput.value = String(saved);
+      numberInput.addEventListener("input", () => {
+        updateGridSize(numberInput.value);
+        if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, numberInput.value);
+      });
       numberInput.addEventListener("change", (e) => {
         const target = e.target;
         if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
