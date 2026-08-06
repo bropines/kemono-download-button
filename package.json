@@ -1,7 +1,7 @@
 {
   "name": "kemono-download-button",
-  "version": "0.8.9",
-  "description": "Modular TypeScript UserScript for Kemono, Coomer, and Pawchive downloader & UI Refactor",
+  "version": "0.8.10",
+  "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
     "build": "vite build && node scripts/postbuild.js",
@@ -22,6 +22,7 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
+    "fflate": "^0.8.2",
     "jszip": "^3.10.1",
     "plyr": "^3.7.8"
   }
