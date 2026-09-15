@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.43
+// @version      0.8.44
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -55,6 +55,7 @@ import { fetchAndCachePostData, getPostDetailsFromPage } from './services/collec
 import { applyAdBlock } from './features/adblock';
 import { toggleSettingsModal } from './ui/components/settingsModal';
 import { initializeComments } from './features/kui/comments';
+import { hideEmptySections } from './features/kui/embeds';
 import { initializePostTranslation } from './features/kui/translateButtons';
 
 export function ensureStylesInjected(): void {
@@ -321,6 +322,7 @@ function init(): void {
       // translate buttons also follow settings that load after the first init
       initializeComments();
       initializePostTranslation();
+      hideEmptySections();
     }, 300);
   });
 

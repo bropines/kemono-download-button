@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.43
+// @version      0.8.44
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -8667,7 +8667,7 @@ Password: ${password} (copied on click)`;
       return;
     }
     document.querySelectorAll(".kui-post-section").forEach((section) => {
-      var _a2, _b2, _c;
+      var _a2, _b2;
       const h2 = section.querySelector("h2");
       const title = ((_a2 = h2 == null ? void 0 : h2.textContent) == null ? void 0 : _a2.trim().toLowerCase()) || "";
       let isEmpty = false;
@@ -8684,10 +8684,7 @@ Password: ${password} (copied on click)`;
           isEmpty = true;
         }
       } else if (title === "comments" || section.querySelector(SELECTORS.postComments)) {
-        const noComments = section.querySelector(".post__comments--no-comments") !== null || ((_c = section.textContent) == null ? void 0 : _c.toLowerCase().includes("no comments found")) || !section.querySelector(".post__comment");
-        if (noComments) {
-          isEmpty = true;
-        }
+        isEmpty = !section.querySelector(".comment");
       } else if (title === "downloads") {
         const attachments = section.querySelector(".post__attachments");
         if (!attachments || attachments.children.length === 0) {
@@ -10219,6 +10216,7 @@ Password: ${password} (copied on click)`;
         }
         initializeComments();
         initializePostTranslation();
+        hideEmptySections();
       }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });

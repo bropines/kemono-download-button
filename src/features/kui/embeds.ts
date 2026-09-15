@@ -434,12 +434,8 @@ export function hideEmptySections(): void {
         isEmpty = true;
       }
     } else if (title === "comments" || section.querySelector(SELECTORS.postComments)) {
-      const noComments = section.querySelector(".post__comments--no-comments") !== null ||
-                         section.textContent?.toLowerCase().includes("no comments found") ||
-                         !section.querySelector(".post__comment");
-      if (noComments) {
-        isEmpty = true;
-      }
+      // Comments are article.comment; matching "no comments found" text would also hit a comment quoting it
+      isEmpty = !section.querySelector(".comment");
     } else if (title === "downloads") {
       const attachments = section.querySelector(".post__attachments");
       if (!attachments || attachments.children.length === 0) {
