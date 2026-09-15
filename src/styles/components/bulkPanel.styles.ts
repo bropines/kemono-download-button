@@ -14,6 +14,9 @@ export const bulkPanelStyles = css({
     borderRadius: '30px',
     zIndex: THEME.zIndex.bulkPanel,
     display: 'flex',
+    flexWrap: 'wrap',
+    maxWidth: 'calc(100vw - 24px)',
+    boxSizing: 'border-box',
     gap: '12px',
     alignItems: 'center',
     justifyContent: 'center',
@@ -76,5 +79,16 @@ export const bulkPanelStyles = css({
   },
   '#kdl-bulk-deselect-all:hover': {
     filter: 'brightness(1.15)',
+  },
+  '@media (max-width: 600px)': {
+    '#kdl-bulk-panel': {
+      bottom: '12px',
+      padding: '8px 10px',
+      gap: '6px',
+      borderRadius: '16px',
+    },
+    '#kdl-bulk-panel button': {
+      padding: '7px 10px',
+    },
   },
 });

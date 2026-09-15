@@ -1,6 +1,17 @@
 import { state } from '../state/store';
 import { debugLog, sanitizeFilename } from './helpers';
 
+// The session cookie belongs to the archive site only (incl. its file/cN subdomains)
+function isSiteUrl(url: string): boolean {
+  try {
+    const siteDomain = window.location.hostname.split('.').slice(-2).join('.');
+    const { hostname } = new URL(url, window.location.href);
+    return hostname === siteDomain || hostname.endsWith(`.${siteDomain}`);
+  } catch (e) {
+    return false;
+  }
+}
+
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? state.settings.downloadRetryCount : 0;
   const retryDelay = state.settings.downloadRetryDelay;
@@ -10,8 +21,9 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   while (attempts <= maxRetries + 4) {
     try {
       return await new Promise((resolve, reject) => {
-        const headers = details.headers || {};
-        if (state.settings.sessionCookie) {
+        const headers = { ...(details.headers || {}) };
+        // Never send the session to third parties (translation APIs, external file hosts)
+        if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
           headers['Cookie'] = state.settings.sessionCookie;
         }
 
@@ -150,4 +162,11 @@ export async function downloadFileWithFallback(url: string, fileName: string, pr
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
+}
+
+export function downloadBlobWithGm(blob: Blob, name: string): void {
+  const blobUrl = URL.createObjectURL(blob);
+  // Revoke once saved or failed; multi-GB archives otherwise stay pinned in memory for the tab's lifetime
+  const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+  GM_download({ url: blobUrl, name, saveAs: false, onload: revoke, onerror: revoke, ontimeout: revoke });
 }

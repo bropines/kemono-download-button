@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.36
+// @version      0.8.38
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -51,7 +51,8 @@ import { lightboxModule } from './features/kui/lightbox';
 import { markViewedPosts, setupGlobalClickListener } from './features/kui/viewedPosts';
 import { userPageModule } from './features/kui/userPageModule';
 import { postPageModule } from './features/kui/postPageModule';
-import { fetchAndCachePostData } from './services/collectorService';
+import { fetchAndCachePostData, getPostDetailsFromPage } from './services/collectorService';
+import { applyAdBlock } from './features/adblock';
 
 export function ensureStylesInjected(): void {
   if (document.getElementById('kdl-global-styles')) return;
@@ -131,7 +132,8 @@ async function handlePageContent(): Promise<void> {
 
       if (header) {
         await createAndInsertPostPageButtons(header as HTMLElement);
-        fetchAndCachePostData();
+        const { service, userID, postID } = getPostDetailsFromPage();
+        fetchAndCachePostData(service, userID, postID).catch((error) => debugLog('Post data prefetch failed:', error));
       }
     } else if (path.includes('/user/')) {
       const userHeaderActions = document.querySelector('.user-header__actions');
@@ -222,6 +224,7 @@ const runInitializationLogic = async (force = false) => {
 
 function init(): void {
   ensureStylesInjected();
+  applyAdBlock();
   debugModule.init();
   injectUI();
   lightboxModule.init();
@@ -231,10 +234,17 @@ function init(): void {
   runInitializationLogic();
 
   // HTMX & PWA SPA Navigation Listeners
+  // Tear the post page down only when a swap really replaces it: any other htmx request
+  // (favorite, comments, pagination) used to kill the video player and gallery mid-use
+  const swapReplacesPost = (event: Event) => {
+    const target = (event as CustomEvent).detail?.target as Element | undefined;
+    const postBody = document.querySelector(SELECTORS.postBody);
+    return !target || !postBody || target.contains(postBody);
+  };
   document.addEventListener("htmx:beforeHistorySave", () => postPageModule.cleanup());
-  document.addEventListener("htmx:beforeSwap", () => postPageModule.cleanup());
-  document.addEventListener("htmx:beforeRequest", () => postPageModule.cleanup());
-  document.addEventListener("htmx:beforeCleanupElement", () => postPageModule.cleanup());
+  document.addEventListener("htmx:beforeSwap", (event) => {
+    if (swapReplacesPost(event)) postPageModule.cleanup();
+  });
   document.addEventListener('htmx:afterSettle', () => runInitializationLogic(true));
   document.addEventListener('htmx:afterSwap', () => runInitializationLogic(true));
   document.addEventListener('htmx:historyRestore', () => runInitializationLogic(true));
@@ -244,16 +254,20 @@ function init(): void {
   });
 
   // Intercept PushState and ReplaceState for SPA/PWA client routing
+  // Query/hash-only updates keep the current post (and a playing video) alive
+  const changesPath = (url?: string | URL | null) =>
+    url != null && new URL(String(url), window.location.href).pathname !== window.location.pathname;
+
   const originalPushState = history.pushState;
   history.pushState = function (...args) {
-    postPageModule.cleanup();
+    if (changesPath(args[2])) postPageModule.cleanup();
     originalPushState.apply(this, args);
     setTimeout(() => runInitializationLogic(true), 50);
   };
 
   const originalReplaceState = history.replaceState;
   history.replaceState = function (...args) {
-    postPageModule.cleanup();
+    if (changesPath(args[2])) postPageModule.cleanup();
     originalReplaceState.apply(this, args);
     setTimeout(() => runInitializationLogic(true), 50);
   };

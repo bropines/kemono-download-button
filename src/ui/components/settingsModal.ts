@@ -210,6 +210,8 @@ function cardContainer(title: string, children: HTMLElement[]): HTMLElement {
   ]);
 }
 
+let isEscapeListenerBound = false;
+
 export async function toggleSettingsModal(forceShow?: boolean): Promise<void> {
   try {
     await getSettings();
@@ -223,6 +225,12 @@ export async function toggleSettingsModal(forceShow?: boolean): Promise<void> {
     settingsModalElement = null;
     settingsOverlayElement = null;
     createSettingsModal();
+  }
+  if (!isEscapeListenerBound) {
+    isEscapeListenerBound = true;
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && settingsOverlayElement?.style.display === 'flex') settingsOverlayElement.style.display = 'none';
+    });
   }
   const computedDisplay = settingsOverlayElement ? window.getComputedStyle(settingsOverlayElement).display : 'none';
   const isCurrentlyHidden = computedDisplay === 'none';

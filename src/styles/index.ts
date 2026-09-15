@@ -5,6 +5,7 @@ import { kuiPlyrStyles } from './components/kuiPlyr.styles';
 export { downloadButtonStyles } from './downloadButton.styles';
 export { kuiMainStyles } from './components/kuiMain.styles';
 export { kuiPlyrStyles } from './components/kuiPlyr.styles';
+export { THEME } from './theme';
 
 export const KEMONO_DOWNLOADER_STYLES = downloadButtonStyles;
 export const KUI_STYLES = kuiMainStyles;

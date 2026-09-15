@@ -6,7 +6,7 @@ import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { PostDetails } from '../types';
 import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
-import { gmXmlhttpRequestWithRetries, downloadFileWithFallback } from '../utils/http';
+import { gmXmlhttpRequestWithRetries, downloadFileWithFallback, downloadBlobWithGm } from '../utils/http';
 import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
 
@@ -236,7 +236,7 @@ export async function downloadFilesToDiskWithProgress(
   if (downloadSpecs.length === 0) return;
   await getSettings();
 
-  const taskId = `pick-${generateRandomId()}`;
+  const taskId = `pick-${generateRandomId(8)}`;
   const task = progressManager.createTask(taskId, taskTitle);
   task.updateStatus(`Queued ${downloadSpecs.length} files...`);
 
@@ -393,7 +393,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     });
 
     const blob = await zip.generateAsync({ type: 'blob' });
-    GM_download({ url: URL.createObjectURL(blob), name: zipFileName, saveAs: false });
+    downloadBlobWithGm(blob, zipFileName);
     postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ''}`);
   } catch (error: any) {
     console.error(`Failed to download post ${details.postID} as ZIP:`, error);
@@ -513,7 +513,7 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
       task.updateStatus(`Generating final ZIP: ${meta.percent.toFixed(0)}%`);
     });
 
-    GM_download({ url: URL.createObjectURL(blob), name: finalZipName, saveAs: false });
+    downloadBlobWithGm(blob, finalZipName);
     task.updateStatus('Complete!');
   } catch (error: any) {
     console.error('Bulk download (single) failed:', error);

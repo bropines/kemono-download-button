@@ -1,10 +1,11 @@
 {
   "name": "kemono-download-button",
-  "version": "0.8.36",
+  "version": "0.8.38",
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
     "build": "vite build && node scripts/postbuild.js",
+    "typecheck": "tsc --noEmit",
     "dev": "vite build --watch"
   },
   "keywords": [

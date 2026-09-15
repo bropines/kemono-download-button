@@ -1,5 +1,7 @@
 import { SELECTORS } from '../../config/selectors';
 import { kuiState } from '../../state/kuiState';
+import { showMessage } from '../../ui/toast';
+import { parseGluedUrl } from '../../utils/urlSanitizer';
 
 export interface ServiceBrand {
   name: string;
@@ -68,12 +70,14 @@ export function getServiceBrand(hostname: string): ServiceBrand {
 
 export function linkifyTextNodes(container: Element): void {
   const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+  // Separate non-global regex: .test() on a /g regex keeps lastIndex and skips URLs in later nodes
+  const hasUrl = /https?:\/\//i;
   const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode(node) {
       if (node.parentElement && ["A", "SCRIPT", "STYLE", "TEXTAREA"].includes(node.parentElement.tagName)) {
         return NodeFilter.FILTER_REJECT;
       }
-      return urlRegex.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      return hasUrl.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
     }
   });
 
@@ -95,7 +99,7 @@ export function linkifyTextNodes(container: Element): void {
 
     while ((match = urlRegex.exec(text)) !== null) {
       const matchIndex = match.index;
-      const url = match[0];
+      const { url, password, trailing } = parseGluedUrl(match[0]);
 
       if (matchIndex > lastIndex) {
         fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
@@ -105,6 +109,12 @@ export function linkifyTextNodes(container: Element): void {
       a.href = url;
       a.textContent = url;
       fragment.appendChild(a);
+      if (trailing) {
+        // processEmbeds only sees the clean href afterwards, so remember what was split off
+        a.dataset.kuiTrailing = trailing;
+        if (password) a.dataset.kuiPassword = password;
+        fragment.appendChild(document.createTextNode(trailing));
+      }
 
       lastIndex = urlRegex.lastIndex;
     }
@@ -200,6 +210,34 @@ export function formatAttachmentButtons(): void {
   });
 }
 
+// True when the link is alone on its line (between <br>s / block edges), optionally after a short
+// label like "Mega:"; text glued after it (a password split off by parseGluedUrl) doesn't count
+function isOnOwnLine(link: HTMLAnchorElement, trailing: string): boolean {
+  const lineText = (dir: "previousSibling" | "nextSibling") => {
+    let text = "";
+    for (let node = link[dir]; node && node.nodeName !== "BR"; node = node[dir]) {
+      text = dir === "previousSibling" ? (node.textContent || "") + text : text + (node.textContent || "");
+    }
+    return text.trim();
+  };
+  const before = lineText("previousSibling");
+  let after = lineText("nextSibling");
+  if (trailing && after.startsWith(trailing)) after = after.slice(trailing.length).trim();
+  const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before);
+  return (!before || isLabel) && !after;
+}
+
+function copyPassword(password: string): void {
+  try {
+    if (typeof GM_setClipboard === "function") {
+      GM_setClipboard(password);
+    } else {
+      navigator.clipboard?.writeText(password);
+    }
+    showMessage("Password copied to clipboard", "info");
+  } catch (e) {}
+}
+
 export function processEmbeds(): void {
   const content = document.querySelector(SELECTORS.postContent);
   if (!content || content.classList.contains("kui-embed-processed")) return;
@@ -208,12 +246,17 @@ export function processEmbeds(): void {
 
   const links = Array.from(content.querySelectorAll<HTMLAnchorElement>("a[href]"));
   const linkActions = new Map<string, string>();
+  const linkPasswords = new Map<string, string>();
   const elementsToRemove = new Set<Element>();
 
   links.forEach((link) => {
     try {
       if (!link.href || !link.protocol.startsWith("http")) return;
-      const url = new URL(link.href);
+      // The site may have linkified glued text itself, so the href can carry "Password:xyz" too
+      const glued = parseGluedUrl(link.href);
+      const password = glued.password || link.dataset.kuiPassword || null;
+      const trailing = glued.trailing || link.dataset.kuiTrailing || "";
+      const url = new URL(glued.url);
       const linkHostname = url.hostname.replace(/^www\./, "");
 
       if (linkHostname.includes("kemono") || linkHostname.includes("coomer") || linkHostname.includes("pawchive")) {
@@ -241,9 +284,19 @@ export function processEmbeds(): void {
       const action = bestMatch ? bestMatch.action : "button";
 
       if (action === "hide" || action === "button") {
-        elementsToRemove.add(link);
-        if (!linkActions.has(link.href)) {
-          linkActions.set(link.href, action);
+        // A link inside a sentence keeps its place (the button is still added); "hide" always removes
+        if (action === "hide" || isOnOwnLine(link, trailing)) {
+          // Keep glued text (e.g. the password) readable in the post once the link itself is removed
+          if (trailing && link.textContent?.trim().endsWith(trailing)) {
+            link.after(document.createTextNode(trailing));
+          }
+          elementsToRemove.add(link);
+        }
+        if (!linkActions.has(url.href)) {
+          linkActions.set(url.href, action);
+        }
+        if (password && !linkPasswords.has(url.href)) {
+          linkPasswords.set(url.href, password);
         }
       }
     } catch (e) {}
@@ -285,6 +338,16 @@ export function processEmbeds(): void {
 
         button.appendChild(favicon);
         button.appendChild(text);
+
+        const password = linkPasswords.get(url);
+        if (password) {
+          const passwordChip = document.createElement("span");
+          passwordChip.className = "kui-embed-password";
+          passwordChip.textContent = `🔑 ${password}`;
+          button.appendChild(passwordChip);
+          button.title = `${url}\nPassword: ${password} (copied on click)`;
+          button.addEventListener("click", () => copyPassword(password));
+        }
         buttonContainer.appendChild(button);
       } catch (e) {}
     });
@@ -310,7 +373,20 @@ export function processEmbeds(): void {
       }
     });
   } while (changed);
-  content.querySelectorAll("br").forEach((br) => br.remove());
+  // Removed links leave stray <br>s: drop only leading/trailing ones and runs longer than one blank line,
+  // otherwise the post's lines would merge into one
+  const isBlankText = (node: ChildNode | null) => !!node && node.nodeType === Node.TEXT_NODE && !node.textContent?.trim();
+  const meaningfulSibling = (node: ChildNode, dir: "previousSibling" | "nextSibling") => {
+    let sibling = node[dir];
+    while (sibling && isBlankText(sibling)) sibling = sibling[dir];
+    return sibling;
+  };
+  content.querySelectorAll("br").forEach((br) => {
+    const prev = meaningfulSibling(br, "previousSibling");
+    const next = meaningfulSibling(br, "nextSibling");
+    const isThirdInRun = prev?.nodeName === "BR" && meaningfulSibling(prev, "previousSibling")?.nodeName === "BR";
+    if (!prev || !next || isThirdInRun) br.remove();
+  });
   content.classList.add("kui-embed-processed");
   hideEmptySections();
 }

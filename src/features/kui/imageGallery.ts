@@ -7,19 +7,20 @@ import { GalleryLayoutElement } from '../../types';
 import { sanitizeDuplicates } from '../../utils/domChecker';
 import { debugModule } from '../../utils/logger';
 
-let isInitializingGallery = false;
+// Per container: a slow fetch for the previous post must not block the gallery of the next one
+let initializingContainer: Element | null = null;
 
 export async function initializeImageGallery(): Promise<void> {
   const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
   if (!originalFilesContainer || originalFilesContainer.classList.contains("kui-gallery-processed"))
     return;
 
-  if (isInitializingGallery) {
+  if (initializingContainer === originalFilesContainer) {
     debugModule.update({ warn: "[Image Gallery] Initialization already in progress. Skipping concurrent execution." });
     return;
   }
 
-  isInitializingGallery = true;
+  initializingContainer = originalFilesContainer;
   originalFilesContainer.classList.add("kui-gallery-processed");
 
   try {
@@ -152,6 +153,6 @@ export async function initializeImageGallery(): Promise<void> {
     setActive(0);
     sanitizeDuplicates();
   } finally {
-    isInitializingGallery = false;
+    if (initializingContainer === originalFilesContainer) initializingContainer = null;
   }
 }

@@ -6,7 +6,14 @@ import { el } from '../../utils/dom';
 import { showMessage } from '../toast';
 
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
-  const closeOverlay = () => overlay.remove();
+  const closeOverlay = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', onEscape);
+  };
+  const onEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeOverlay();
+  };
+  document.addEventListener('keydown', onEscape);
 
   const closeBtn = el('button', {
     className: 'kdl-modal-close',
@@ -79,7 +86,14 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
 export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promise<void> {
   if (!posts || posts.length === 0) return;
 
-  const closeOverlay = () => overlay.remove();
+  const closeOverlay = () => {
+    overlay.remove();
+    document.removeEventListener('keydown', onEscape);
+  };
+  const onEscape = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') closeOverlay();
+  };
+  document.addEventListener('keydown', onEscape);
 
   const closeBtn = el('button', {
     className: 'kdl-modal-close',

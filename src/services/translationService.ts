@@ -16,55 +16,64 @@ export async function executeTranslation(button: HTMLElement): Promise<void> {
     return;
   }
 
-  if (!appState.originalPostContentHTML) {
-    appState.originalPostContentHTML = postContentNode.innerHTML;
-  }
-
-  const isTranslated = button.dataset.isTranslated === 'true';
-  if (isTranslated) {
-    postContentNode.innerHTML = appState.originalPostContentHTML;
-    button.dataset.isTranslated = 'false';
-    button.textContent = 'Translate 📝';
-    return;
-  }
-
-  const originalText = postContentNode.innerText.trim();
-  if (!originalText) {
-    showMessage('No text content found to translate.', 'info');
-    return;
-  }
-
-  if (appState.translationCache[originalText]) {
-    postContentNode.innerText = appState.translationCache[originalText];
-    button.dataset.isTranslated = 'true';
-    button.textContent = 'Show Original ↩️';
-    return;
-  }
-
-  button.textContent = 'Translating... ⏳';
-  (button as HTMLButtonElement).disabled = true;
+  // Service buttons live inside .post__content: keep them out of the text sent for translation
+  // and out of innerText replacement, then put the live nodes (with their handlers) back
+  const embedContainer = postContentNode.querySelector<HTMLElement>('.kui-embed-container');
+  embedContainer?.remove();
 
   try {
-    let translatedText = '';
-    if (provider === 'gemini') {
-      translatedText = await executeGeminiTranslation(originalText);
-    } else if (provider === 'deepl') {
-      translatedText = await executeDeepLTranslation(originalText);
-    } else {
-      throw new Error(`Provider ${provider} is not supported yet.`);
+    if (!appState.originalPostContentHTML) {
+      appState.originalPostContentHTML = postContentNode.innerHTML;
     }
 
-    if (translatedText) {
-      appState.translationCache[originalText] = translatedText;
-      postContentNode.innerText = translatedText;
+    const isTranslated = button.dataset.isTranslated === 'true';
+    if (isTranslated) {
+      postContentNode.innerHTML = appState.originalPostContentHTML;
+      button.dataset.isTranslated = 'false';
+      button.textContent = 'Translate 📝';
+      return;
+    }
+
+    const originalText = postContentNode.innerText.trim();
+    if (!originalText) {
+      showMessage('No text content found to translate.', 'info');
+      return;
+    }
+
+    if (appState.translationCache[originalText]) {
+      postContentNode.innerText = appState.translationCache[originalText];
       button.dataset.isTranslated = 'true';
       button.textContent = 'Show Original ↩️';
+      return;
     }
-  } catch (error: any) {
-    console.error('Translation error:', error);
-    showMessage(`Translation failed: ${error.message}`, 'error');
+
+    button.textContent = 'Translating... ⏳';
+    (button as HTMLButtonElement).disabled = true;
+
+    try {
+      let translatedText = '';
+      if (provider === 'gemini') {
+        translatedText = await executeGeminiTranslation(originalText);
+      } else if (provider === 'deepl') {
+        translatedText = await executeDeepLTranslation(originalText);
+      } else {
+        throw new Error(`Provider ${provider} is not supported yet.`);
+      }
+
+      if (translatedText) {
+        appState.translationCache[originalText] = translatedText;
+        postContentNode.innerText = translatedText;
+        button.dataset.isTranslated = 'true';
+        button.textContent = 'Show Original ↩️';
+      }
+    } catch (error: any) {
+      console.error('Translation error:', error);
+      showMessage(`Translation failed: ${error.message}`, 'error');
+    } finally {
+      (button as HTMLButtonElement).disabled = false;
+    }
   } finally {
-    (button as HTMLButtonElement).disabled = false;
+    if (embedContainer) postContentNode.prepend(embedContainer);
   }
 }
 

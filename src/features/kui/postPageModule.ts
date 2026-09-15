@@ -2,7 +2,7 @@ import { SELECTORS } from '../../config/selectors';
 import { kuiState } from '../../state/kuiState';
 import { restructureLayout, processEmbeds } from './embeds';
 import { initializeImageGallery } from './imageGallery';
-import { initializeVideoGallery } from './videoGallery';
+import { initializeVideoGallery, destroyVideoGallery } from './videoGallery';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
 
@@ -23,6 +23,7 @@ export const postPageModule = {
   },
   cleanup() {
     document.removeEventListener("keydown", this.handleGlobalKeys, true);
+    destroyVideoGallery();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());
 

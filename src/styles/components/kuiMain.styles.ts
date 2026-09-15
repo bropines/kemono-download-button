@@ -350,12 +350,13 @@ export const kuiMainStyles = css({
     alignItems: 'center',
     minHeight: '150px',
   },
-  '#kui-main-video-player': {
+  '.kui-video-player-container video': {
     width: '100% !important',
     height: '100% !important',
     objectFit: 'contain',
   },
   '.kui-video-player-area .plyr': {
+    width: '100%',
     maxWidth: '100%',
     maxHeight: '85vh',
   },
@@ -446,6 +447,18 @@ export const kuiMainStyles = css({
     overflow: 'hidden !important',
     textOverflow: 'ellipsis !important',
     whiteSpace: 'nowrap !important',
+  },
+  '.kui-embed-password': {
+    flexShrink: 0,
+    maxWidth: '140px',
+    padding: '1px 6px',
+    borderRadius: THEME.borderRadius.sm,
+    background: '#00000040',
+    fontFamily: 'ui-monospace, SFMono-Regular, Consolas, monospace',
+    fontSize: '12px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
 
   /* Embed Rules UI */
@@ -696,6 +709,10 @@ export const kuiMainStyles = css({
       marginTop: 0,
       borderWidth: 0,
       transform: 'none',
+    },
+    // Volume slider otherwise squeezes the seek bar to a few pixels; mute button stays
+    '.kui-video-player-area .plyr__volume input[type=range]': {
+      display: 'none',
     },
   },
 

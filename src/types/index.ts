@@ -130,8 +130,16 @@ export interface GalleryLayoutElement extends HTMLDivElement {
 
 declare global {
   var JSZip: any;
-  function GM_addStyle(css: string): void;
-  function GM_download(options: { url: string; name: string; saveAs?: boolean; onload?: () => void }): void;
+  function GM_addStyle(css: string): HTMLStyleElement | undefined;
+  function GM_download(options: {
+    url: string;
+    name: string;
+    saveAs?: boolean;
+    onload?: () => void;
+    onerror?: (error: any) => void;
+    ontimeout?: () => void;
+    onprogress?: (event: any) => void;
+  }): void;
   function GM_getValue<T>(key: string, defaultValue?: T): Promise<T>;
   function GM_setValue<T>(key: string, value: T): Promise<void>;
   function GM_registerMenuCommand(name: string, fn: () => void): void;
@@ -141,8 +149,9 @@ declare global {
   class Plyr {
     constructor(targets: HTMLElement | string, options?: Record<string, any>);
     on(event: string, callback: (event: any) => void): void;
+    destroy(): void;
+    media?: HTMLVideoElement;
     elements: {
-      video?: HTMLVideoElement;
       container?: HTMLElement;
     };
     source: any;

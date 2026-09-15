@@ -115,7 +115,7 @@ export function injectArtistFavoriteButton(cardNode: HTMLElement): void {
   favBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleFavorite(favBtn, 'creator', service, creatorId, null, updateCardFavoriteState);
+    getApiAdapter().toggleFavorite(favBtn, 'creator', service, creatorId, null, updateCardFavoriteState);
   });
 }
 
@@ -135,6 +135,6 @@ export function injectPostFavoriteButton(cardNode: HTMLElement): void {
   favBtn.addEventListener('click', (e: MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    toggleFavorite(favBtn, 'post', service, creatorId, postId, updateCardFavoriteState);
+    getApiAdapter().toggleFavorite(favBtn, 'post', service, creatorId, postId, updateCardFavoriteState);
   });
 }

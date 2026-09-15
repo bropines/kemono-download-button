@@ -1,6 +1,17 @@
 import { SELECTORS } from '../../config/selectors';
 import { VideoData } from '../../types';
 
+let activePlayer: Plyr | null = null;
+
+export function destroyVideoGallery(): void {
+  if (!activePlayer) return;
+  try {
+    // Unbinds Plyr's window-level keyboard listeners, which otherwise outlive the removed layout
+    activePlayer.destroy();
+  } catch (e) {}
+  activePlayer = null;
+}
+
 export function initializeVideoGallery(): void {
   const postBody = document.querySelector(SELECTORS.postBody);
   if (!postBody) return;
@@ -22,7 +33,8 @@ export function initializeVideoGallery(): void {
   if (postVideosList) {
     videoSectionContainer = (postVideosList.closest(".kui-video-section") || postVideosList.parentElement) as HTMLElement;
     hideElement(postVideosList as HTMLElement);
-    const items = Array.from(postVideosList.querySelectorAll("li"));
+    // Direct children only: Fluid Player injects its own <ul><li> context menu inside each item
+    const items = Array.from(postVideosList.querySelectorAll<HTMLElement>(":scope > li"));
     items.forEach((item, index) => {
       hideElement(item);
       const summary = item.querySelector("summary")?.textContent?.trim();
@@ -41,7 +53,7 @@ export function initializeVideoGallery(): void {
 
   const rawVideos = Array.from(postBody.querySelectorAll<HTMLVideoElement>("video"));
   rawVideos.forEach((video, index) => {
-    if (video.id === "kui-main-video-player" || video.closest(".kui-video-gallery-layout"))
+    if (video.closest(".kui-video-gallery-layout"))
       return;
 
     const parentContainer = (video.closest("li, .post__file, .fileThumb, figure, div.post__video, .fluid_video_wrapper") as HTMLElement) || video;
@@ -114,14 +126,18 @@ export function initializeVideoGallery(): void {
     videoList.classList.add("kui-collapsed");
   }
 
+  // A layout removed without cleanup (e.g. by sanitizeDuplicates) leaves its player alive
+  destroyVideoGallery();
+
   const player = new Plyr(mainPlayerElement, {
     tooltips: { controls: true, seek: true },
     keyboard: { focused: true, global: true },
     storage: { enabled: true, key: "kui_plyr" }
   });
+  activePlayer = player;
 
   player.on("loadedmetadata", () => {
-    const videoEl = player.elements.video;
+    const videoEl = player.media;
     const container = player.elements.container;
     if (!videoEl || !container) return;
     const { videoWidth, videoHeight } = videoEl;
@@ -132,6 +148,7 @@ export function initializeVideoGallery(): void {
 
   let listItems: HTMLElement[] = [];
   const setActiveVideo = (index: number) => {
+    // Plyr replaces the <video> element on every source change, so styles must not rely on its id
     player.source = {
       type: "video",
       title: videosData[index].title,

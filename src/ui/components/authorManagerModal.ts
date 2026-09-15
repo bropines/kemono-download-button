@@ -42,6 +42,9 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
     overlay.addEventListener('click', (e) => {
       if (e.target === overlay) overlay!.style.display = 'none';
     });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && overlay!.style.display !== 'none') overlay!.style.display = 'none';
+    });
   }
   overlay.style.display = 'flex';
 
@@ -57,7 +60,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
   const cacheKey = `kemono_posts_cache_${service}_${userID}`;
 
   if (!forceRefresh && state.settings.cacheDurationHours > 0) {
-    const cachedData = await GM_getValue(cacheKey, null);
+    const cachedData = await GM_getValue<{ timestamp: number; postList: any[] } | null>(cacheKey, null);
     if (cachedData && cachedData.postList) {
       const cacheAgeHours = (Date.now() - cachedData.timestamp) / (1000 * 60 * 60);
       if (cacheAgeHours < state.settings.cacheDurationHours) {
@@ -147,6 +150,13 @@ export function setupManagerEventListeners(): void {
     downloadBtn.disabled = count === 0;
   };
 
+  // The modal DOM persists across refreshes; binding again would multiply every handler (and downloads)
+  if (listContainer.dataset.kdlListenersBound) {
+    updateCounter();
+    return;
+  }
+  listContainer.dataset.kdlListenersBound = 'true';
+
   const applyFiltersAndSort = () => {
     const allItems = Array.from(listContainer.querySelectorAll('.post-item')) as HTMLElement[];
     const searchTerm = searchInput.value.toLowerCase();
@@ -214,7 +224,8 @@ export function setupManagerEventListeners(): void {
       const start = Math.min(currentIndex, lastCheckedIndex);
       const end = Math.max(currentIndex, lastCheckedIndex);
       for (let i = start; i <= end; i++) {
-        checkboxes[i].checked = desiredState;
+        // lastCheckedIndex can point past a list that was re-populated by a refresh
+        if (checkboxes[i]) checkboxes[i].checked = desiredState;
       }
     }
     lastCheckedIndex = currentIndex;

@@ -77,8 +77,7 @@ export async function importSettings(jsonString: string): Promise<number> {
     const k = key as keyof DownloaderSettings;
     if (Object.prototype.hasOwnProperty.call(newSettings, k)) {
       if (typeof newSettings[k] === typeof DEFAULT_SETTINGS[k]) {
-        GM_setValue(k, newSettings[k]);
-        state.settings[k] = newSettings[k];
+        await saveSetting(k, newSettings[k]);
         importCount++;
       }
     }

@@ -165,6 +165,10 @@ export const postActionsStyles = css({
     textShadow: 'none !important',
     transition: 'opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important',
   },
+  // outline is suppressed above; keep a visible ring for keyboard users
+  '.kdl-button:focus-visible, .post__flag:focus-visible, .post__fav:focus-visible, #kdl-author-manager-btn:focus-visible': {
+    boxShadow: '0 0 0 3px rgba(56, 189, 248, 0.5) !important',
+  },
   '.kdl-button:hover': {
     opacity: '0.95 !important',
     filter: 'brightness(1.1) !important',

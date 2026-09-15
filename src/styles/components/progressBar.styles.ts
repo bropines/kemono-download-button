@@ -17,6 +17,10 @@ export const progressBarStyles = css({
     gap: '8px',
     paddingBottom: '10px',
   },
+  // Sit above the bulk panel instead of covering its buttons while posts are selected
+  'body:has(#kdl-bulk-panel.kdl-visible) #kdl-progress-container': {
+    bottom: '80px',
+  },
   '.kdl-progress-task': {
     backgroundColor: '#282b30e6',
     WebkitBackdropFilter: 'blur(5px)',

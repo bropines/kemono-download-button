@@ -6,5 +6,6 @@ export const KUI_STORAGE_KEYS = {
   VERBOSE_DEBUG: "kui_verbose_debug",
   SESSION_KEY: "kui_session_key",
   PRELOAD_IMAGES: "kui_preload_images",
-  HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections"
+  HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
+  HIDE_ADS: "kui_hide_ads"
 };

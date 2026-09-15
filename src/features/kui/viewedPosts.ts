@@ -19,7 +19,7 @@ export function setupGlobalClickListener(): void {
     if (!link) return;
     const card = link.closest(SELECTORS.postCard);
     const postId = card?.getAttribute("data-id");
-    if (!postId) return;
+    if (!card || !postId) return;
     const viewedPosts = typeof GM_getValue === 'function' ? (GM_getValue<Record<string, boolean>>(KUI_STORAGE_KEYS.POSTS, {}) as any) : {};
     viewedPosts[postId] = true;
     if (typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);

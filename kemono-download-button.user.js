@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.36
+// @version      0.8.38
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -479,6 +479,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       textShadow: "none !important",
       transition: "opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important"
     },
+    // outline is suppressed above; keep a visible ring for keyboard users
+    ".kdl-button:focus-visible, .post__flag:focus-visible, .post__fav:focus-visible, #kdl-author-manager-btn:focus-visible": {
+      boxShadow: "0 0 0 3px rgba(56, 189, 248, 0.5) !important"
+    },
     ".kdl-button:hover": {
       opacity: "0.95 !important",
       filter: "brightness(1.1) !important",
@@ -855,6 +859,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       borderRadius: "30px",
       zIndex: THEME.zIndex.bulkPanel,
       display: "flex",
+      flexWrap: "wrap",
+      maxWidth: "calc(100vw - 24px)",
+      boxSizing: "border-box",
       gap: "12px",
       alignItems: "center",
       justifyContent: "center",
@@ -917,6 +924,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     "#kdl-bulk-deselect-all:hover": {
       filter: "brightness(1.15)"
+    },
+    "@media (max-width: 600px)": {
+      "#kdl-bulk-panel": {
+        bottom: "12px",
+        padding: "8px 10px",
+        gap: "6px",
+        borderRadius: "16px"
+      },
+      "#kdl-bulk-panel button": {
+        padding: "7px 10px"
+      }
     }
   });
   const filePickerModalStyles = css({
@@ -1307,6 +1325,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       flexDirection: "column-reverse",
       gap: "8px",
       paddingBottom: "10px"
+    },
+    // Sit above the bulk panel instead of covering its buttons while posts are selected
+    "body:has(#kdl-bulk-panel.kdl-visible) #kdl-progress-container": {
+      bottom: "80px"
     },
     ".kdl-progress-task": {
       backgroundColor: "#282b30e6",
@@ -1786,12 +1808,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       alignItems: "center",
       minHeight: "150px"
     },
-    "#kui-main-video-player": {
+    ".kui-video-player-container video": {
       width: "100% !important",
       height: "100% !important",
       objectFit: "contain"
     },
     ".kui-video-player-area .plyr": {
+      width: "100%",
       maxWidth: "100%",
       maxHeight: "85vh"
     },
@@ -1881,6 +1904,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       overflow: "hidden !important",
       textOverflow: "ellipsis !important",
       whiteSpace: "nowrap !important"
+    },
+    ".kui-embed-password": {
+      flexShrink: 0,
+      maxWidth: "140px",
+      padding: "1px 6px",
+      borderRadius: THEME.borderRadius.sm,
+      background: "#00000040",
+      fontFamily: "ui-monospace, SFMono-Regular, Consolas, monospace",
+      fontSize: "12px",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
     },
     /* Embed Rules UI */
     ".kui-rule-input-group": {
@@ -2127,6 +2162,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         marginTop: 0,
         borderWidth: 0,
         transform: "none"
+      },
+      // Volume slider otherwise squeezes the seek bar to a few pixels; mute button stays
+      ".kui-video-player-area .plyr__volume input[type=range]": {
+        display: "none"
       }
     },
     ".site-section--user .card-list__items, .site-section--user .card-list, .site-section--posts .card-list__items, .card-list__items:has(article.post-card), .card-list:has(article.post-card)": {
@@ -2144,16 +2183,26 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   const kuiPlyrStyles = css({
     "@keyframes plyr-progress": {
       to: {
-        backgroundPosition: "var(--plyr-progress-loading-size, 25px) 0"
+        backgroundPosition: "var(--plyr-progress-loading-size,25px) 0"
       }
     },
     "@keyframes plyr-popup": {
-      "0%": { opacity: 0.5, transform: "translateY(10px)" },
-      to: { opacity: 1, transform: "translateY(0)" }
+      "0%": {
+        opacity: 0.5,
+        transform: "translateY(10px)"
+      },
+      to: {
+        opacity: 1,
+        transform: "translateY(0)"
+      }
     },
     "@keyframes plyr-fade-in": {
-      "0%": { opacity: 0 },
-      to: { opacity: 1 }
+      "0%": {
+        opacity: 0
+      },
+      to: {
+        opacity: 1
+      }
     },
     ".plyr": {
       MozOsxFontSmoothing: "grayscale",
@@ -2162,10 +2211,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       direction: "ltr",
       display: "flex",
       flexDirection: "column",
-      fontFamily: "var(--plyr-font-family, inherit)",
+      fontFamily: "var(--plyr-font-family,inherit)",
       fontVariantNumeric: "tabular-nums",
-      fontWeight: "var(--plyr-font-weight-regular, 400)",
-      lineHeight: "var(--plyr-line-height, 1.7)",
+      fontWeight: "var(--plyr-font-weight-regular,400)",
+      lineHeight: "var(--plyr-line-height,1.7)",
       maxWidth: "100%",
       minWidth: "200px",
       position: "relative",
@@ -2196,10 +2245,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       touchAction: "manipulation"
     },
     ".plyr__badge": {
-      background: "var(--plyr-badge-background, #4a5464)",
-      borderRadius: "var(--plyr-badge-border-radius, 2px)",
-      color: "var(--plyr-badge-text-color, #fff)",
-      fontSize: "var(--plyr-font-size-badge, 9px)",
+      background: "var(--plyr-badge-background,#4a5464)",
+      borderRadius: "var(--plyr-badge-border-radius,2px)",
+      color: "var(--plyr-badge-text-color,#fff)",
+      fontSize: "var(--plyr-font-size-badge,9px)",
       lineHeight: 1,
       padding: "3px 4px"
     },
@@ -2210,9 +2259,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       animation: "plyr-fade-in .3s ease",
       bottom: 0,
       display: "none",
-      fontSize: "var(--plyr-font-size-small, 13px)",
+      fontSize: "var(--plyr-font-size-small,13px)",
       left: 0,
-      padding: "var(--plyr-control-spacing, 10px)",
+      padding: "var(--plyr-control-spacing,10px)",
       position: "absolute",
       textAlign: "center",
       transition: "transform .4s ease-in-out",
@@ -2221,15 +2270,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr__captions span:empty": {
       display: "none"
     },
-    "@media (min-width: 480px)": {
+    "@media (min-width:480px)": {
       ".plyr__captions": {
-        fontSize: "var(--plyr-font-size-base, 15px)",
+        fontSize: "var(--plyr-font-size-base,15px)",
         padding: "calc(var(--plyr-control-spacing, 10px)*2)"
+      },
+      ".plyr--video .plyr__controls": {
+        padding: "var(--plyr-control-spacing,10px)",
+        paddingTop: "calc(var(--plyr-control-spacing, 10px)*3.5)"
       }
     },
-    "@media (min-width: 768px)": {
+    "@media (min-width:768px)": {
       ".plyr__captions": {
-        fontSize: "var(--plyr-font-size-large, 18px)"
+        fontSize: "var(--plyr-font-size-large,18px)"
       }
     },
     ".plyr--captions-active .plyr__captions": {
@@ -2239,11 +2292,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "translateY(calc(var(--plyr-control-spacing, 10px)*-4))"
     },
     ".plyr__caption": {
-      background: "var(--plyr-captions-background, #000c)",
+      background: "var(--plyr-captions-background,#000c)",
       borderRadius: "2px",
       WebkitBoxDecorationBreak: "clone",
       boxDecorationBreak: "clone",
-      color: "var(--plyr-captions-text-color, #fff)",
+      color: "var(--plyr-captions-text-color,#fff)",
       lineHeight: "185%",
       padding: ".2em .5em",
       whiteSpace: "pre-wrap"
@@ -2254,27 +2307,27 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr__control": {
       background: "#0000",
       border: 0,
-      borderRadius: "var(--plyr-control-radius, 4px)",
+      borderRadius: "var(--plyr-control-radius,4px)",
       color: "inherit",
       cursor: "pointer",
       flexShrink: 0,
       overflow: "visible",
       padding: "calc(var(--plyr-control-spacing, 10px)*.7)",
       position: "relative",
-      transition: "all .1s ease-in-out"
+      transition: "all .3s ease"
     },
     ".plyr__control svg": {
-      display: "block",
       fill: "currentColor",
-      height: "var(--plyr-control-icon-size, 18px)",
+      display: "block",
+      height: "var(--plyr-control-icon-size,18px)",
       pointerEvents: "none",
-      width: "var(--plyr-control-icon-size, 18px)"
+      width: "var(--plyr-control-icon-size,18px)"
     },
     ".plyr__control:focus": {
       outline: 0
     },
     ".plyr__control:focus-visible": {
-      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outline: "2px dashed var(--plyr-focus-visible-color,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       outlineOffset: "2px"
     },
     "a.plyr__control": {
@@ -2293,7 +2346,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       textAlign: "center"
     },
     ".plyr__controls .plyr__progress__container": {
-      flex: "1",
+      flex: 1,
       minWidth: 0
     },
     ".plyr__controls .plyr__controls__item": {
@@ -2333,12 +2386,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".plyr__menu__container": {
       animation: "plyr-popup .2s ease",
-      background: "var(--plyr-menu-background, #ffffffe6)",
-      borderRadius: "var(--plyr-menu-radius, 8px)",
+      background: "var(--plyr-menu-background,#ffffffe6)",
+      borderRadius: "var(--plyr-menu-radius,8px)",
       bottom: "100%",
-      boxShadow: "var(--plyr-menu-shadow, 0 1px 2px #00000026)",
-      color: "var(--plyr-menu-color, #4a5464)",
-      fontSize: "var(--plyr-font-size-base, 15px)",
+      boxShadow: "var(--plyr-menu-shadow,0 1px 2px #00000026)",
+      color: "var(--plyr-menu-color,#4a5464)",
+      fontSize: "var(--plyr-font-size-base,15px)",
       marginBottom: "10px",
       position: "absolute",
       right: "-3px",
@@ -2351,8 +2404,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transition: "height .35s cubic-bezier(.4,0,.2,1),width .35s cubic-bezier(.4,0,.2,1)"
     },
     ".plyr__menu__container:after": {
-      border: "var(--plyr-menu-arrow-size, 4px) solid #0000",
-      borderTopColor: "var(--plyr-menu-background, #ffffffe6)",
+      border: "var(--plyr-menu-arrow-size,4px) solid #0000",
+      borderTopColor: "var(--plyr-menu-background,#ffffffe6)",
       content: '""',
       height: 0,
       position: "absolute",
@@ -2371,10 +2424,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".plyr__menu__container .plyr__control": {
       alignItems: "center",
-      color: "var(--plyr-menu-color, #4a5464)",
+      color: "var(--plyr-menu-color,#4a5464)",
       display: "flex",
-      fontSize: "var(--plyr-font-size-menu, var(--plyr-font-size-small, 13px))",
+      fontSize: "var(--plyr-font-size-menu,var(--plyr-font-size-small,13px))",
       padding: "calc(var(--plyr-control-spacing, 10px)*.7/1.5) calc(var(--plyr-control-spacing, 10px)*.7*1.5)",
+      WebkitUserSelect: "none",
       userSelect: "none",
       width: "100%"
     },
@@ -2384,7 +2438,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       width: "100%"
     },
     ".plyr__menu__container .plyr__control:after": {
-      border: "var(--plyr-menu-item-arrow-size, 4px) solid #0000",
+      border: "var(--plyr-menu-item-arrow-size,4px) solid #0000",
       content: '""',
       position: "absolute",
       top: "50%",
@@ -2394,14 +2448,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       paddingRight: "calc(var(--plyr-control-spacing, 10px)*.7*4)"
     },
     ".plyr__menu__container .plyr__control--forward:after": {
-      borderLeftColor: "var(--plyr-menu-arrow-color, #728197)",
+      borderLeftColor: "var(--plyr-menu-arrow-color,#728197)",
       right: "calc(var(--plyr-control-spacing, 10px)*.7*1.5 - var(--plyr-menu-item-arrow-size, 4px))"
     },
     ".plyr__menu__container .plyr__control--forward:focus-visible:after, .plyr__menu__container .plyr__control--forward:hover:after": {
       borderLeftColor: "initial"
     },
     ".plyr__menu__container .plyr__control--back": {
-      fontWeight: "var(--plyr-font-weight-regular, 400)",
+      fontWeight: "var(--plyr-font-weight-regular,400)",
       margin: "calc(var(--plyr-control-spacing, 10px)*.7)",
       marginBottom: "calc(var(--plyr-control-spacing, 10px)*.7/2)",
       paddingLeft: "calc(var(--plyr-control-spacing, 10px)*.7*4)",
@@ -2409,12 +2463,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       width: "calc(100% - var(--plyr-control-spacing, 10px)*.7*2)"
     },
     ".plyr__menu__container .plyr__control--back:after": {
-      borderRightColor: "var(--plyr-menu-arrow-color, #728197)",
+      borderRightColor: "var(--plyr-menu-arrow-color,#728197)",
       left: "calc(var(--plyr-control-spacing, 10px)*.7*1.5 - var(--plyr-menu-item-arrow-size, 4px))"
     },
     ".plyr__menu__container .plyr__control--back:before": {
-      background: "var(--plyr-menu-back-border-color, #dcdfe5)",
-      boxShadow: "0 1px 0 var(--plyr-menu-back-border-shadow-color, #fff)",
+      background: "var(--plyr-menu-back-border-color,#dcdfe5)",
+      boxShadow: "0 1px 0 var(--plyr-menu-back-border-shadow-color,#fff)",
       content: '""',
       height: "1px",
       left: 0,
@@ -2439,7 +2493,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       display: "block",
       flexShrink: 0,
       height: "16px",
-      marginRight: "var(--plyr-control-spacing, 10px)",
+      marginRight: "var(--plyr-control-spacing,10px)",
       transition: "all .3s ease",
       width: "16px"
     },
@@ -2455,7 +2509,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       width: "6px"
     },
     ".plyr__menu__container .plyr__control[role=menuitemradio][aria-checked=true]:before": {
-      background: "var(--plyr-control-toggle-checked-background, var(--plyr-color-main, #00b2ff))"
+      background: "var(--plyr-control-toggle-checked-background,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))"
     },
     ".plyr__menu__container .plyr__control[role=menuitemradio][aria-checked=true]:after": {
       opacity: 1,
@@ -2474,11 +2528,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       pointerEvents: "none"
     },
     ".plyr--full-ui input[type=range]": {
+      WebkitAppearance: "none",
       appearance: "none",
       background: "#0000",
       border: 0,
       borderRadius: "calc(var(--plyr-range-thumb-height, 13px)*2)",
-      color: "var(--plyr-range-fill-background, var(--plyr-color-main, #00b2ff))",
+      color: "var(--plyr-range-fill-background,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       display: "block",
       height: "calc(var(--plyr-range-thumb-active-shadow-width, 3px)*2 + var(--plyr-range-thumb-height, 13px))",
       margin: 0,
@@ -2489,47 +2544,53 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".plyr--full-ui input[type=range]::-webkit-slider-runnable-track": {
       background: "#0000",
-      backgroundImage: "linear-gradient(to right,currentColor var(--value, 0),#0000 var(--value, 0))",
+      backgroundImage: "linear-gradient(to right,currentColor var(--value,0),#0000 var(--value,0))",
       border: 0,
       borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
-      height: "var(--plyr-range-track-height, 5px)",
+      height: "var(--plyr-range-track-height,5px)",
+      WebkitTransition: "box-shadow .3s ease",
       transition: "box-shadow .3s ease",
+      WebkitUserSelect: "none",
       userSelect: "none"
     },
     ".plyr--full-ui input[type=range]::-webkit-slider-thumb": {
+      WebkitAppearance: "none",
       appearance: "none",
-      background: "var(--plyr-range-thumb-background, #fff)",
+      background: "var(--plyr-range-thumb-background,#fff)",
       border: 0,
       borderRadius: "100%",
-      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
-      height: "var(--plyr-range-thumb-height, 13px)",
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height,13px)",
       marginTop: "calc((var(--plyr-range-thumb-height, 13px) - var(--plyr-range-track-height, 5px))/2*-1)",
       position: "relative",
+      WebkitTransition: "all .2s ease",
       transition: "all .2s ease",
-      width: "var(--plyr-range-thumb-height, 13px)"
+      width: "var(--plyr-range-thumb-height,13px)"
     },
     ".plyr--full-ui input[type=range]::-moz-range-track": {
       background: "#0000",
       border: 0,
       borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
-      height: "var(--plyr-range-track-height, 5px)",
+      height: "var(--plyr-range-track-height,5px)",
+      MozTransition: "box-shadow .3s ease",
       transition: "box-shadow .3s ease",
       userSelect: "none"
     },
     ".plyr--full-ui input[type=range]::-moz-range-thumb": {
-      background: "var(--plyr-range-thumb-background, #fff)",
+      background: "var(--plyr-range-thumb-background,#fff)",
       border: 0,
       borderRadius: "100%",
-      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
-      height: "var(--plyr-range-thumb-height, 13px)",
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height,13px)",
       position: "relative",
+      MozTransition: "all .2s ease",
       transition: "all .2s ease",
-      width: "var(--plyr-range-thumb-height, 13px)"
+      width: "var(--plyr-range-thumb-height,13px)"
     },
     ".plyr--full-ui input[type=range]::-moz-range-progress": {
       background: "currentColor",
       borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
-      height: "var(--plyr-range-track-height, 5px)"
+      height: "var(--plyr-range-track-height,5px)"
     },
     ".plyr--full-ui input[type=range]::-ms-track": {
       color: "#0000"
@@ -2538,7 +2599,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       background: "#0000",
       border: 0,
       borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
-      height: "var(--plyr-range-track-height, 5px)",
+      height: "var(--plyr-range-track-height,5px)",
+      MsTransition: "box-shadow .3s ease",
       transition: "box-shadow .3s ease",
       userSelect: "none"
     },
@@ -2546,20 +2608,22 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       background: "currentColor",
       border: 0,
       borderRadius: "calc(var(--plyr-range-track-height, 5px)/2)",
-      height: "var(--plyr-range-track-height, 5px)",
+      height: "var(--plyr-range-track-height,5px)",
+      MsTransition: "box-shadow .3s ease",
       transition: "box-shadow .3s ease",
       userSelect: "none"
     },
     ".plyr--full-ui input[type=range]::-ms-thumb": {
-      background: "var(--plyr-range-thumb-background, #fff)",
+      background: "var(--plyr-range-thumb-background,#fff)",
       border: 0,
       borderRadius: "100%",
-      boxShadow: "var(--plyr-range-thumb-shadow, 0 1px 1px #23282f26, 0 0 0 1px #23282f33)",
-      height: "var(--plyr-range-thumb-height, 13px)",
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33)",
+      height: "var(--plyr-range-thumb-height,13px)",
       marginTop: 0,
       position: "relative",
+      MsTransition: "all .2s ease",
       transition: "all .2s ease",
-      width: "var(--plyr-range-thumb-height, 13px)"
+      width: "var(--plyr-range-thumb-height,13px)"
     },
     ".plyr--full-ui input[type=range]::-ms-tooltip": {
       display: "none"
@@ -2571,19 +2635,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       outline: 0
     },
     ".plyr--full-ui input[type=range]:focus-visible::-webkit-slider-runnable-track": {
-      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outline: "2px dashed var(--plyr-focus-visible-color,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       outlineOffset: "2px"
     },
     ".plyr--full-ui input[type=range]:focus-visible::-moz-range-track": {
-      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outline: "2px dashed var(--plyr-focus-visible-color,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       outlineOffset: "2px"
     },
     ".plyr--full-ui input[type=range]:focus-visible::-ms-track": {
-      outline: "2px dashed var(--plyr-focus-visible-color, var(--plyr-color-main, #00b2ff))",
+      outline: "2px dashed var(--plyr-focus-visible-color,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       outlineOffset: "2px"
     },
     ".plyr__poster": {
-      backgroundColor: "var(--plyr-video-background, #000)",
+      backgroundColor: "var(--plyr-video-background,var(--plyr-video-background,#000))",
       backgroundPosition: "50% 50%",
       backgroundRepeat: "no-repeat",
       backgroundSize: "contain",
@@ -2603,20 +2667,25 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       display: "none"
     },
     ".plyr__time": {
-      fontSize: "var(--plyr-font-size-time, var(--plyr-font-size-small, 13px))"
+      fontSize: "var(--plyr-font-size-time,var(--plyr-font-size-small,13px))"
     },
     ".plyr__time+.plyr__time:before": {
       content: '"⁄"',
-      marginRight: "var(--plyr-control-spacing, 10px)"
+      marginRight: "var(--plyr-control-spacing,10px)"
+    },
+    "@media (max-width:767px)": {
+      ".plyr__time+.plyr__time": {
+        display: "none"
+      }
     },
     ".plyr__tooltip": {
-      background: "var(--plyr-tooltip-background, #fff)",
-      borderRadius: "var(--plyr-tooltip-radius, 5px)",
+      background: "var(--plyr-tooltip-background,#fff)",
+      borderRadius: "var(--plyr-tooltip-radius,5px)",
       bottom: "100%",
-      boxShadow: "var(--plyr-tooltip-shadow, 0 1px 2px #00000026)",
-      color: "var(--plyr-tooltip-color, #4a5464)",
-      fontSize: "var(--plyr-font-size-small, 13px)",
-      fontWeight: "var(--plyr-font-weight-regular, 400)",
+      boxShadow: "var(--plyr-tooltip-shadow,0 1px 2px #00000026)",
+      color: "var(--plyr-tooltip-color,#4a5464)",
+      fontSize: "var(--plyr-font-size-small,13px)",
+      fontWeight: "var(--plyr-font-weight-regular,400)",
       left: "50%",
       lineHeight: 1.3,
       marginBottom: "calc(var(--plyr-control-spacing, 10px)/2*2)",
@@ -2631,15 +2700,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       zIndex: 2
     },
     ".plyr__tooltip:before": {
-      borderLeft: "var(--plyr-tooltip-arrow-size, 4px) solid #0000",
-      borderRight: "var(--plyr-tooltip-arrow-size, 4px) solid #0000",
-      borderTop: "var(--plyr-tooltip-arrow-size, 4px) solid var(--plyr-tooltip-background, #fff)",
+      borderLeft: "var(--plyr-tooltip-arrow-size,4px) solid #0000",
+      borderRight: "var(--plyr-tooltip-arrow-size,4px) solid #0000",
+      borderTop: "var(--plyr-tooltip-arrow-size,4px) solid var(--plyr-tooltip-background,#fff)",
       bottom: "calc(var(--plyr-tooltip-arrow-size, 4px)*-1)",
       content: '""',
       height: 0,
       left: "50%",
       position: "absolute",
-      transform: "translate(-50%)",
+      transform: "translateX(-50%)",
       width: 0,
       zIndex: 2
     },
@@ -2667,11 +2736,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr__controls>.plyr__control:last-child .plyr__tooltip:before": {
       left: "auto",
       right: "calc(var(--plyr-control-icon-size, 18px)/2 + var(--plyr-control-spacing, 10px)*.7)",
-      transform: "translate(50%)"
+      transform: "translateX(50%)"
+    },
+    ".plyr__controls>.plyr__control:first-child .plyr__tooltip--visible, .plyr__controls>.plyr__control:first-child+.plyr__control .plyr__tooltip--visible, .plyr__controls>.plyr__control:first-child+.plyr__control:focus-visible .plyr__tooltip, .plyr__controls>.plyr__control:first-child+.plyr__control:hover .plyr__tooltip, .plyr__controls>.plyr__control:first-child:focus-visible .plyr__tooltip, .plyr__controls>.plyr__control:first-child:hover .plyr__tooltip, .plyr__controls>.plyr__control:last-child .plyr__tooltip--visible, .plyr__controls>.plyr__control:last-child:focus-visible .plyr__tooltip, .plyr__controls>.plyr__control:last-child:hover .plyr__tooltip": {
+      transform: "translate(0) scale(1)"
     },
     ".plyr__progress": {
       left: "calc(var(--plyr-range-thumb-height, 13px)*.5)",
-      marginRight: "var(--plyr-range-thumb-height, 13px)",
+      marginRight: "var(--plyr-range-thumb-height,13px)",
       position: "relative"
     },
     ".plyr__progress input[type=range], .plyr__progress__buffer": {
@@ -2689,13 +2761,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       overflowWrap: "break-word"
     },
     ".plyr__progress__buffer": {
-      appearance: "none",
+      WebkitAppearance: "none",
       background: "#0000",
       border: 0,
       borderRadius: "100px",
-      height: "var(--plyr-range-track-height, 5px)",
+      height: "var(--plyr-range-track-height,5px)",
       left: 0,
-      marginTop: "calc(var(--plyr-range-track-height, 5px)/2*-1)",
+      marginTop: "calc((var(--plyr-range-track-height, 5px)/2)*-1)",
       padding: 0,
       position: "absolute",
       top: "50%"
@@ -2706,14 +2778,91 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr__progress__buffer::-webkit-progress-value": {
       background: "currentColor",
       borderRadius: "100px",
-      minWidth: "var(--plyr-range-track-height, 5px)",
+      minWidth: "var(--plyr-range-track-height,5px)",
+      WebkitTransition: "width .2s ease",
       transition: "width .2s ease"
     },
     ".plyr__progress__buffer::-moz-progress-bar": {
       background: "currentColor",
       borderRadius: "100px",
-      minWidth: "var(--plyr-range-track-height, 5px)",
+      minWidth: "var(--plyr-range-track-height,5px)",
+      MozTransition: "width .2s ease",
       transition: "width .2s ease"
+    },
+    ".plyr__progress__buffer::-ms-fill": {
+      borderRadius: "100px",
+      MsTransition: "width .2s ease",
+      transition: "width .2s ease"
+    },
+    ".plyr--loading .plyr__progress__buffer": {
+      animation: "plyr-progress 1s linear infinite",
+      backgroundImage: "linear-gradient(-45deg,var(--plyr-progress-loading-background,#23282f99) 25%,#0000 25%,#0000 50%,var(--plyr-progress-loading-background,#23282f99) 50%,var(--plyr-progress-loading-background,#23282f99) 75%,#0000 75%,#0000)",
+      backgroundRepeat: "repeat-x",
+      backgroundSize: "var(--plyr-progress-loading-size,25px) var(--plyr-progress-loading-size,25px)",
+      color: "#0000"
+    },
+    ".plyr--video.plyr--loading .plyr__progress__buffer": {
+      backgroundColor: "var(--plyr-video-progress-buffered-background,#ffffff40)"
+    },
+    ".plyr--audio.plyr--loading .plyr__progress__buffer": {
+      backgroundColor: "var(--plyr-audio-progress-buffered-background,#c1c8d199)"
+    },
+    ".plyr__progress__marker": {
+      backgroundColor: "var(--plyr-progress-marker-background,#fff)",
+      borderRadius: "1px",
+      height: "var(--plyr-range-track-height,5px)",
+      position: "absolute",
+      top: "50%",
+      transform: "translate(-50%,-50%)",
+      width: "var(--plyr-progress-marker-width,3px)",
+      zIndex: 3
+    },
+    ".plyr__volume": {
+      alignItems: "center",
+      display: "flex",
+      position: "relative"
+    },
+    ".plyr__volume input[type=range]": {
+      marginLeft: "calc(var(--plyr-control-spacing, 10px)/2)",
+      marginRight: "calc(var(--plyr-control-spacing, 10px)/2)",
+      maxWidth: "90px",
+      minWidth: "60px",
+      position: "relative",
+      zIndex: 2
+    },
+    ".plyr--audio": {
+      display: "block"
+    },
+    ".plyr--audio .plyr__controls": {
+      background: "var(--plyr-audio-controls-background,#fff)",
+      borderRadius: "inherit",
+      color: "var(--plyr-audio-control-color,#4a5464)",
+      padding: "var(--plyr-control-spacing,10px)"
+    },
+    ".plyr--audio .plyr__control:focus-visible, .plyr--audio .plyr__control:hover, .plyr--audio .plyr__control[aria-expanded=true]": {
+      background: "var(--plyr-audio-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
+      color: "var(--plyr-audio-control-color-hover,#fff)"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]::-webkit-slider-runnable-track": {
+      backgroundColor: "var(--plyr-audio-range-track-background,var(--plyr-audio-progress-buffered-background,#c1c8d199))"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]::-moz-range-track": {
+      backgroundColor: "var(--plyr-audio-range-track-background,var(--plyr-audio-progress-buffered-background,#c1c8d199))"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]::-ms-track": {
+      backgroundColor: "var(--plyr-audio-range-track-background,var(--plyr-audio-progress-buffered-background,#c1c8d199))"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]:active::-webkit-slider-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#23282f1a)"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]:active::-moz-range-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#23282f1a)"
+    },
+    ".plyr--full-ui.plyr--audio input[type=range]:active::-ms-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#23282f1a)"
+    },
+    ".plyr--audio .plyr__progress__buffer": {
+      color: "var(--plyr-audio-progress-buffered-background,#c1c8d199)"
     },
     ".plyr--video": {
       overflow: "hidden"
@@ -2722,7 +2871,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       overflow: "visible"
     },
     ".plyr__video-wrapper": {
-      background: "var(--plyr-video-background, #000)",
+      background: "var(--plyr-video-background,var(--plyr-video-background,#000))",
       borderRadius: "inherit",
       height: "100%",
       margin: "auto",
@@ -2733,6 +2882,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr__video-embed, .plyr__video-wrapper--fixed-ratio": {
       aspectRatio: "16/9"
     },
+    "@supports not (aspect-ratio:16/9)": {
+      ".plyr__video-embed, .plyr__video-wrapper--fixed-ratio": {
+        height: 0,
+        paddingBottom: "56.25%",
+        position: "relative"
+      }
+    },
     ".plyr__video-embed iframe, .plyr__video-wrapper--fixed-ratio video": {
       border: 0,
       height: "100%",
@@ -2741,18 +2897,23 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       top: 0,
       width: "100%"
     },
+    ".plyr--full-ui .plyr__video-embed>.plyr__video-embed__container": {
+      paddingBottom: "240%",
+      position: "relative",
+      transform: "translateY(-38.28125%)"
+    },
     ".plyr--video .plyr__controls": {
-      background: "var(--plyr-video-controls-background, linear-gradient(#0000, #000000bf))",
+      background: "var(--plyr-video-controls-background,linear-gradient(#0000,#000000bf))",
       borderBottomLeftRadius: "inherit",
       borderBottomRightRadius: "inherit",
       bottom: 0,
-      color: "var(--plyr-video-control-color, #fff)",
+      color: "var(--plyr-video-control-color,#fff)",
       left: 0,
       padding: "calc(var(--plyr-control-spacing, 10px)/2)",
       paddingTop: "calc(var(--plyr-control-spacing, 10px)*2)",
       position: "absolute",
       right: 0,
-      transition: "opacity .4s ease-in-out, transform .4s ease-in-out",
+      transition: "opacity .4s ease-in-out,transform .4s ease-in-out",
       zIndex: 3
     },
     ".plyr--video.plyr--hide-controls .plyr__controls": {
@@ -2761,14 +2922,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "translateY(100%)"
     },
     ".plyr--video .plyr__control:focus-visible, .plyr--video .plyr__control:hover, .plyr--video .plyr__control[aria-expanded=true]": {
-      background: "var(--plyr-video-control-background-hover, var(--plyr-color-main, #00b2ff))",
-      color: "var(--plyr-video-control-color-hover, #fff)"
+      background: "var(--plyr-video-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
+      color: "var(--plyr-video-control-color-hover,#fff)"
     },
     ".plyr__control--overlaid": {
-      background: "var(--plyr-video-control-background-hover, var(--plyr-color-main, #00b2ff))",
+      background: "var(--plyr-video-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       border: 0,
       borderRadius: "100%",
-      color: "var(--plyr-video-control-color, #fff)",
+      color: "var(--plyr-video-control-color,#fff)",
       display: "none",
       left: "50%",
       opacity: 0.9,
@@ -2793,6 +2954,27 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".plyr--full-ui.plyr--video .plyr__control--overlaid": {
       display: "block"
     },
+    ".plyr--full-ui.plyr--video input[type=range]::-webkit-slider-runnable-track": {
+      backgroundColor: "var(--plyr-video-range-track-background,var(--plyr-video-progress-buffered-background,#ffffff40))"
+    },
+    ".plyr--full-ui.plyr--video input[type=range]::-moz-range-track": {
+      backgroundColor: "var(--plyr-video-range-track-background,var(--plyr-video-progress-buffered-background,#ffffff40))"
+    },
+    ".plyr--full-ui.plyr--video input[type=range]::-ms-track": {
+      backgroundColor: "var(--plyr-video-range-track-background,var(--plyr-video-progress-buffered-background,#ffffff40))"
+    },
+    ".plyr--full-ui.plyr--video input[type=range]:active::-webkit-slider-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#ffffff80)"
+    },
+    ".plyr--full-ui.plyr--video input[type=range]:active::-moz-range-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#ffffff80)"
+    },
+    ".plyr--full-ui.plyr--video input[type=range]:active::-ms-thumb": {
+      boxShadow: "var(--plyr-range-thumb-shadow,0 1px 1px #23282f26,0 0 0 1px #23282f33),0 0 0 var(--plyr-range-thumb-active-shadow-width,3px) var(--plyr-audio-range-thumb-active-shadow-color,#ffffff80)"
+    },
+    ".plyr--video .plyr__progress__buffer": {
+      color: "var(--plyr-video-progress-buffered-background,#ffffff40)"
+    },
     ".plyr:fullscreen": {
       background: "#000",
       borderRadius: "0!important",
@@ -2811,6 +2993,196 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".plyr:fullscreen.plyr--hide-controls": {
       cursor: "none"
+    },
+    "@media (min-width:1024px)": {
+      ".plyr:fullscreen .plyr__captions": {
+        fontSize: "var(--plyr-font-size-xlarge,21px)"
+      },
+      ".plyr--fullscreen-fallback .plyr__captions": {
+        fontSize: "var(--plyr-font-size-xlarge,21px)"
+      }
+    },
+    ".plyr--fullscreen-fallback": {
+      background: "#000",
+      borderRadius: "0!important",
+      bottom: 0,
+      height: "100%",
+      left: 0,
+      margin: 0,
+      position: "fixed",
+      right: 0,
+      top: 0,
+      width: "100%",
+      zIndex: 1e7
+    },
+    ".plyr--fullscreen-fallback video": {
+      height: "100%"
+    },
+    ".plyr--fullscreen-fallback .plyr__control .icon--exit-fullscreen": {
+      display: "block"
+    },
+    ".plyr--fullscreen-fallback .plyr__control .icon--exit-fullscreen+svg": {
+      display: "none"
+    },
+    ".plyr--fullscreen-fallback.plyr--hide-controls": {
+      cursor: "none"
+    },
+    ".plyr__ads": {
+      borderRadius: "inherit",
+      bottom: 0,
+      cursor: "pointer",
+      left: 0,
+      overflow: "hidden",
+      position: "absolute",
+      right: 0,
+      top: 0,
+      zIndex: -1
+    },
+    ".plyr__ads>div, .plyr__ads>div iframe": {
+      height: "100%",
+      position: "absolute",
+      width: "100%"
+    },
+    ".plyr__ads:after": {
+      background: "#23282f",
+      borderRadius: "2px",
+      bottom: "var(--plyr-control-spacing,10px)",
+      color: "#fff",
+      content: "attr(data-badge-text)",
+      fontSize: "11px",
+      padding: "2px 6px",
+      pointerEvents: "none",
+      position: "absolute",
+      right: "var(--plyr-control-spacing,10px)",
+      zIndex: 3
+    },
+    ".plyr__ads:empty:after": {
+      display: "none"
+    },
+    ".plyr__cues": {
+      background: "currentColor",
+      display: "block",
+      height: "var(--plyr-range-track-height,5px)",
+      left: 0,
+      opacity: 0.8,
+      position: "absolute",
+      top: "50%",
+      transform: "translateY(-50%)",
+      width: "3px",
+      zIndex: 3
+    },
+    ".plyr__preview-thumb": {
+      backgroundColor: "var(--plyr-tooltip-background,#fff)",
+      borderRadius: "var(--plyr-menu-radius,8px)",
+      bottom: "100%",
+      boxShadow: "var(--plyr-tooltip-shadow,0 1px 2px #00000026)",
+      marginBottom: "calc(var(--plyr-control-spacing, 10px)/2*2)",
+      opacity: 0,
+      padding: "3px",
+      pointerEvents: "none",
+      position: "absolute",
+      transform: "translateY(10px) scale(.8)",
+      transformOrigin: "50% 100%",
+      transition: "transform .2s ease .1s,opacity .2s ease .1s",
+      zIndex: 2
+    },
+    ".plyr__preview-thumb--is-shown": {
+      opacity: 1,
+      transform: "translate(0) scale(1)"
+    },
+    ".plyr__preview-thumb:before": {
+      borderLeft: "var(--plyr-tooltip-arrow-size,4px) solid #0000",
+      borderRight: "var(--plyr-tooltip-arrow-size,4px) solid #0000",
+      borderTop: "var(--plyr-tooltip-arrow-size,4px) solid var(--plyr-tooltip-background,#fff)",
+      bottom: "calc(var(--plyr-tooltip-arrow-size, 4px)*-1)",
+      content: '""',
+      height: 0,
+      left: "calc(50% + var(--preview-arrow-offset))",
+      position: "absolute",
+      transform: "translateX(-50%)",
+      width: 0,
+      zIndex: 2
+    },
+    ".plyr__preview-thumb__image-container": {
+      background: "#c1c8d1",
+      borderRadius: "calc(var(--plyr-menu-radius, 8px) - 1px)",
+      overflow: "hidden",
+      position: "relative",
+      zIndex: 0
+    },
+    ".plyr__preview-thumb__image-container img, .plyr__preview-thumb__image-container:after": {
+      height: "100%",
+      left: 0,
+      position: "absolute",
+      top: 0,
+      width: "100%"
+    },
+    ".plyr__preview-thumb__image-container:after": {
+      borderRadius: "inherit",
+      boxShadow: "inset 0 0 0 1px #00000026",
+      content: '""',
+      pointerEvents: "none"
+    },
+    ".plyr__preview-thumb__image-container img": {
+      maxHeight: "none",
+      maxWidth: "none"
+    },
+    ".plyr__preview-thumb__time-container": {
+      background: "var(--plyr-video-controls-background,linear-gradient(#0000,#000000bf))",
+      borderBottomLeftRadius: "calc(var(--plyr-menu-radius, 8px) - 1px)",
+      borderBottomRightRadius: "calc(var(--plyr-menu-radius, 8px) - 1px)",
+      bottom: 0,
+      left: 0,
+      lineHeight: 1.1,
+      padding: "20px 6px 6px",
+      position: "absolute",
+      right: 0,
+      zIndex: 3
+    },
+    ".plyr__preview-thumb__time-container span": {
+      color: "#fff",
+      fontSize: "var(--plyr-font-size-time,var(--plyr-font-size-small,13px))"
+    },
+    ".plyr__preview-scrubbing": {
+      bottom: 0,
+      filter: "blur(1px)",
+      height: "100%",
+      left: 0,
+      margin: "auto",
+      opacity: 0,
+      overflow: "hidden",
+      pointerEvents: "none",
+      position: "absolute",
+      right: 0,
+      top: 0,
+      transition: "opacity .3s ease",
+      width: "100%",
+      zIndex: 1
+    },
+    ".plyr__preview-scrubbing--is-shown": {
+      opacity: 1
+    },
+    ".plyr__preview-scrubbing img": {
+      height: "100%",
+      left: 0,
+      maxHeight: "none",
+      maxWidth: "none",
+      objectFit: "contain",
+      position: "absolute",
+      top: 0,
+      width: "100%"
+    },
+    ".plyr--no-transition": {
+      transition: "none!important"
+    },
+    ".plyr__sr-only": {
+      clip: "rect(1px,1px,1px,1px)",
+      border: "0!important",
+      height: "1px!important",
+      overflow: "hidden",
+      padding: "0!important",
+      position: "absolute!important",
+      width: "1px!important"
     },
     ".plyr [hidden]": {
       display: "none!important"
@@ -2927,8 +3299,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const baseDomain = parts.length >= 2 ? parts.slice(-2).join(".") : hostname;
     return `https://img.${baseDomain}/thumbnail${cleanPath}`;
   }
+  const WINDOWS_RESERVED_NAME = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+  const MAX_FILENAME_LENGTH = 180;
   function sanitizeFilename(filename) {
-    return String(filename || "untitled").replace(/[\\/:*?"<>|]/g, "").replace(/\s+/g, " ").trim() || "untitled";
+    var _a2;
+    let name = String(filename || "untitled").replace(/[\\/:*?"<>| -]/g, "").replace(/\s+/g, " ").trim().replace(/[. ]+$/, "");
+    if (WINDOWS_RESERVED_NAME.test(name)) name = `_${name}`;
+    if (name.length > MAX_FILENAME_LENGTH) {
+      const ext = ((_a2 = name.match(/\.[A-Za-z0-9]{1,8}$/)) == null ? void 0 : _a2[0]) || "";
+      name = name.slice(0, MAX_FILENAME_LENGTH - ext.length).trimEnd() + ext;
+    }
+    return name || "untitled";
   }
   const MEDIA_EXTENSIONS = /* @__PURE__ */ new Set([
     "jpg",
@@ -3066,8 +3447,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const k = key;
       if (Object.prototype.hasOwnProperty.call(newSettings, k)) {
         if (typeof newSettings[k] === typeof DEFAULT_SETTINGS[k]) {
-          GM_setValue(k, newSettings[k]);
-          state.settings[k] = newSettings[k];
+          await saveSetting(k, newSettings[k]);
           importCount++;
         }
       }
@@ -3084,7 +3464,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     VERBOSE_DEBUG: "kui_verbose_debug",
     SESSION_KEY: "kui_session_key",
     PRELOAD_IMAGES: "kui_preload_images",
-    HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections"
+    HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
+    HIDE_ADS: "kui_hide_ads"
   };
   const kuiState = {
     isDebugModeEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.DEBUG_MODE, false) : false,
@@ -3166,6 +3547,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       box.style.transform = "translate(110%)";
     }, 4e3);
   }
+  function isSiteUrl(url) {
+    try {
+      const siteDomain = window.location.hostname.split(".").slice(-2).join(".");
+      const { hostname } = new URL(url, window.location.href);
+      return hostname === siteDomain || hostname.endsWith(`.${siteDomain}`);
+    } catch (e) {
+      return false;
+    }
+  }
   async function gmXmlhttpRequestWithRetries(details) {
     const maxRetries = state.settings.enableDownloadRetries ? state.settings.downloadRetryCount : 0;
     const retryDelay = state.settings.downloadRetryDelay;
@@ -3174,8 +3564,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     while (attempts <= maxRetries + 4) {
       try {
         return await new Promise((resolve, reject) => {
-          const headers = details.headers || {};
-          if (state.settings.sessionCookie) {
+          const headers = { ...details.headers || {} };
+          if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
             headers["Cookie"] = state.settings.sessionCookie;
           }
           GM_xmlhttpRequest({
@@ -3313,6 +3703,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     a.click();
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
+  }
+  function downloadBlobWithGm(blob, name) {
+    const blobUrl = URL.createObjectURL(blob);
+    const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 1e4);
+    GM_download({ url: blobUrl, name, saveAs: false, onload: revoke, onerror: revoke, ontimeout: revoke });
   }
   async function fetchPostDataFromAPI(service, userID, postID) {
     const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
@@ -3524,7 +3919,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       return null;
     }
   }
-  async function toggleFavorite$1(button, type, service, creatorId, postId = null, updateCardStateFn) {
+  async function toggleFavorite(button, type, service, creatorId, postId = null, updateCardStateFn) {
     await getSettings();
     if (!state.settings.sessionCookie) {
       showMessage("Session cookie is required to manage favorites.", "error");
@@ -3645,7 +4040,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     flagPost,
     fetchUserFavorites,
     fetchAccountProfile,
-    toggleFavorite: toggleFavorite$1,
+    toggleFavorite,
     fetchDMs,
     fetchCreatorDMs,
     fetchShares,
@@ -4075,6 +4470,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       ...children
     ]);
   }
+  let isEscapeListenerBound = false;
   async function toggleSettingsModal(forceShow) {
     try {
       await getSettings();
@@ -4088,6 +4484,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       settingsModalElement = null;
       settingsOverlayElement = null;
       createSettingsModal();
+    }
+    if (!isEscapeListenerBound) {
+      isEscapeListenerBound = true;
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && (settingsOverlayElement == null ? void 0 : settingsOverlayElement.style.display) === "flex") settingsOverlayElement.style.display = "none";
+      });
     }
     const computedDisplay = settingsOverlayElement ? window.getComputedStyle(settingsOverlayElement).display : "none";
     const isCurrentlyHidden = computedDisplay === "none";
@@ -5954,7 +6356,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
   async function downloadFilesToDiskWithProgress(downloadSpecs, taskTitle, concurrency) {
     if (downloadSpecs.length === 0) return;
     await getSettings();
-    const taskId = `pick-${generateRandomId()}`;
+    const taskId = `pick-${generateRandomId(8)}`;
     const task = progressManager.createTask(taskId, taskTitle);
     task.updateStatus(`Queued ${downloadSpecs.length} files...`);
     const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
@@ -6083,7 +6485,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         post_date: details.postDate || "UnknownDate"
       });
       const blob = await zip.generateAsync({ type: "blob" });
-      GM_download({ url: URL.createObjectURL(blob), name: zipFileName, saveAs: false });
+      downloadBlobWithGm(blob, zipFileName);
       postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ""}`);
     } catch (error) {
       console.error(`Failed to download post ${details.postID} as ZIP:`, error);
@@ -6189,7 +6591,7 @@ Error: ${error.message}`
       const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
         task.updateStatus(`Generating final ZIP: ${meta.percent.toFixed(0)}%`);
       });
-      GM_download({ url: URL.createObjectURL(blob), name: finalZipName, saveAs: false });
+      downloadBlobWithGm(blob, finalZipName);
       task.updateStatus("Complete!");
     } catch (error) {
       console.error("Bulk download (single) failed:", error);
@@ -6312,49 +6714,55 @@ Error: ${error.message}`
       showMessage("Post content not found to translate.", "warning");
       return;
     }
-    if (!appState.originalPostContentHTML) {
-      appState.originalPostContentHTML = postContentNode.innerHTML;
-    }
-    const isTranslated = button.dataset.isTranslated === "true";
-    if (isTranslated) {
-      postContentNode.innerHTML = appState.originalPostContentHTML;
-      button.dataset.isTranslated = "false";
-      button.textContent = "Translate 📝";
-      return;
-    }
-    const originalText = postContentNode.innerText.trim();
-    if (!originalText) {
-      showMessage("No text content found to translate.", "info");
-      return;
-    }
-    if (appState.translationCache[originalText]) {
-      postContentNode.innerText = appState.translationCache[originalText];
-      button.dataset.isTranslated = "true";
-      button.textContent = "Show Original ↩️";
-      return;
-    }
-    button.textContent = "Translating... ⏳";
-    button.disabled = true;
+    const embedContainer = postContentNode.querySelector(".kui-embed-container");
+    embedContainer == null ? void 0 : embedContainer.remove();
     try {
-      let translatedText = "";
-      if (provider === "gemini") {
-        translatedText = await executeGeminiTranslation(originalText);
-      } else if (provider === "deepl") {
-        translatedText = await executeDeepLTranslation(originalText);
-      } else {
-        throw new Error(`Provider ${provider} is not supported yet.`);
+      if (!appState.originalPostContentHTML) {
+        appState.originalPostContentHTML = postContentNode.innerHTML;
       }
-      if (translatedText) {
-        appState.translationCache[originalText] = translatedText;
-        postContentNode.innerText = translatedText;
+      const isTranslated = button.dataset.isTranslated === "true";
+      if (isTranslated) {
+        postContentNode.innerHTML = appState.originalPostContentHTML;
+        button.dataset.isTranslated = "false";
+        button.textContent = "Translate 📝";
+        return;
+      }
+      const originalText = postContentNode.innerText.trim();
+      if (!originalText) {
+        showMessage("No text content found to translate.", "info");
+        return;
+      }
+      if (appState.translationCache[originalText]) {
+        postContentNode.innerText = appState.translationCache[originalText];
         button.dataset.isTranslated = "true";
         button.textContent = "Show Original ↩️";
+        return;
       }
-    } catch (error) {
-      console.error("Translation error:", error);
-      showMessage(`Translation failed: ${error.message}`, "error");
+      button.textContent = "Translating... ⏳";
+      button.disabled = true;
+      try {
+        let translatedText = "";
+        if (provider === "gemini") {
+          translatedText = await executeGeminiTranslation(originalText);
+        } else if (provider === "deepl") {
+          translatedText = await executeDeepLTranslation(originalText);
+        } else {
+          throw new Error(`Provider ${provider} is not supported yet.`);
+        }
+        if (translatedText) {
+          appState.translationCache[originalText] = translatedText;
+          postContentNode.innerText = translatedText;
+          button.dataset.isTranslated = "true";
+          button.textContent = "Show Original ↩️";
+        }
+      } catch (error) {
+        console.error("Translation error:", error);
+        showMessage(`Translation failed: ${error.message}`, "error");
+      } finally {
+        button.disabled = false;
+      }
     } finally {
-      button.disabled = false;
+      if (embedContainer) postContentNode.prepend(embedContainer);
     }
   }
   async function executeGeminiTranslation(text) {
@@ -6499,7 +6907,14 @@ ${text}`;
     container.appendChild(kdlContainer);
   }
   async function showFilePickerModal(postDetails) {
-    const closeOverlay = () => overlay.remove();
+    const closeOverlay = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onEscape);
+    };
+    const onEscape = (e) => {
+      if (e.key === "Escape") closeOverlay();
+    };
+    document.addEventListener("keydown", onEscape);
     const closeBtn = el("button", {
       className: "kdl-modal-close",
       title: "Close",
@@ -6560,7 +6975,14 @@ ${text}`;
   }
   async function showMultiPostFilePickerModal(posts) {
     if (!posts || posts.length === 0) return;
-    const closeOverlay = () => overlay.remove();
+    const closeOverlay = () => {
+      overlay.remove();
+      document.removeEventListener("keydown", onEscape);
+    };
+    const onEscape = (e) => {
+      if (e.key === "Escape") closeOverlay();
+    };
+    document.addEventListener("keydown", onEscape);
     const closeBtn = el("button", {
       className: "kdl-modal-close",
       title: "Close",
@@ -6775,7 +7197,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     favBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      toggleFavorite(favBtn, "creator", service, creatorId, null, updateCardFavoriteState);
+      getApiAdapter().toggleFavorite(favBtn, "creator", service, creatorId, null, updateCardFavoriteState);
     });
   }
   function injectPostFavoriteButton(cardNode) {
@@ -6791,7 +7213,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     favBtn.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
-      toggleFavorite(favBtn, "post", service, creatorId, postId, updateCardFavoriteState);
+      getApiAdapter().toggleFavorite(favBtn, "post", service, creatorId, postId, updateCardFavoriteState);
     });
   }
   let lastCheckedIndex = null;
@@ -6973,6 +7395,9 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       overlay.addEventListener("click", (e) => {
         if (e.target === overlay) overlay.style.display = "none";
       });
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && overlay.style.display !== "none") overlay.style.display = "none";
+      });
     }
     overlay.style.display = "flex";
     await getSettings();
@@ -7063,6 +7488,11 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       counter.textContent = `Selected: ${count}`;
       downloadBtn.disabled = count === 0;
     };
+    if (listContainer.dataset.kdlListenersBound) {
+      updateCounter();
+      return;
+    }
+    listContainer.dataset.kdlListenersBound = "true";
     const applyFiltersAndSort = () => {
       const allItems = Array.from(listContainer.querySelectorAll(".post-item"));
       const searchTerm = searchInput.value.toLowerCase();
@@ -7120,7 +7550,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         const start = Math.min(currentIndex, lastCheckedIndex2);
         const end = Math.max(currentIndex, lastCheckedIndex2);
         for (let i2 = start; i2 <= end; i2++) {
-          checkboxes[i2].checked = desiredState;
+          if (checkboxes[i2]) checkboxes[i2].checked = desiredState;
         }
       }
       lastCheckedIndex2 = currentIndex;
@@ -7155,6 +7585,66 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         el("span", { className: "user-header__fav-text" }, ["Manage All Posts"])
       ]
     );
+  }
+  const CREDENTIAL_LABEL = /(password|passwd|passcode|pass|pwd|pw|key|пароль|パスワード|暗証番号|密码|密碼|비밀번호|비번)\s*([:：=])/gi;
+  const LONG_LABEL = /^(password|passwd|passcode|пароль|パスワード|暗証番号|密码|密碼|비밀번호)$/i;
+  const URL_DELIMITERS = "?&#=/;";
+  const CJK_TEXT = /[　-〿぀-ヿ㐀-鿿가-힯＀-￯]/;
+  const TRAILING_PUNCTUATION = /[.,;:!?'"»]$/;
+  const MEGA_URL = /^https?:\/\/(?:www\.)?mega(?:\.co)?\.nz\//i;
+  const MEGA_MODERN_KEY = /^(https?:\/\/[^/]+\/(file|folder|embed)\/[A-Za-z0-9_-]{8}#)([A-Za-z0-9_-]+)/i;
+  const MEGA_LEGACY_KEY = /^(https?:\/\/[^/]+\/#(F?)![A-Za-z0-9_-]{8}!)([A-Za-z0-9_-]+)/i;
+  function trimMegaKey(url) {
+    if (!MEGA_URL.test(url)) return url;
+    const modern = url.match(MEGA_MODERN_KEY);
+    if (modern) {
+      const keyLength = modern[2].toLowerCase() === "folder" ? 22 : 43;
+      return modern[3].length > keyLength ? modern[1] + modern[3].slice(0, keyLength) : url;
+    }
+    const legacy = url.match(MEGA_LEGACY_KEY);
+    if (legacy) {
+      const keyLength = legacy[2] ? 22 : 43;
+      return legacy[3].length > keyLength ? legacy[1] + legacy[3].slice(0, keyLength) : url;
+    }
+    return url;
+  }
+  function trimTrailingPunctuation(url) {
+    let result = url;
+    while (result.length > 0) {
+      const last = result[result.length - 1];
+      if (TRAILING_PUNCTUATION.test(last)) {
+        result = result.slice(0, -1);
+      } else if (last === ")" && result.split("(").length < result.split(")").length) {
+        result = result.slice(0, -1);
+      } else {
+        break;
+      }
+    }
+    return result;
+  }
+  function parseGluedUrl(raw) {
+    const hostStart = raw.indexOf("//") + 2;
+    const pathStart = raw.indexOf("/", hostStart);
+    let urlEnd = raw.length;
+    let password = null;
+    const cjkIndex = raw.slice(hostStart).search(CJK_TEXT);
+    if (cjkIndex !== -1) urlEnd = hostStart + cjkIndex;
+    if (pathStart !== -1) {
+      CREDENTIAL_LABEL.lastIndex = pathStart;
+      let match;
+      while ((match = CREDENTIAL_LABEL.exec(raw)) !== null) {
+        if (match.index > urlEnd) break;
+        if (URL_DELIMITERS.includes(raw[match.index - 1])) continue;
+        if (match[2] === "=" && !LONG_LABEL.test(match[1])) continue;
+        urlEnd = match.index;
+        const afterLabel = raw.slice(match.index + match[0].length);
+        const passwordEnd = afterLabel.search(CJK_TEXT);
+        password = (passwordEnd === -1 ? afterLabel : afterLabel.slice(0, passwordEnd)) || null;
+        break;
+      }
+    }
+    const url = trimMegaKey(trimTrailingPunctuation(raw.slice(0, urlEnd)));
+    return { url, password, trailing: raw.slice(url.length) };
   }
   function getServiceBrand(hostname) {
     const host = hostname.toLowerCase().replace(/^www\./, "");
@@ -7213,12 +7703,13 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   }
   function linkifyTextNodes(container) {
     const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
+    const hasUrl = /https?:\/\//i;
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
       acceptNode(node) {
         if (node.parentElement && ["A", "SCRIPT", "STYLE", "TEXTAREA"].includes(node.parentElement.tagName)) {
           return NodeFilter.FILTER_REJECT;
         }
-        return urlRegex.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+        return hasUrl.test(node.nodeValue || "") ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }
     });
     const nodesToReplace = [];
@@ -7237,7 +7728,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       let match;
       while ((match = urlRegex.exec(text)) !== null) {
         const matchIndex = match.index;
-        const url = match[0];
+        const { url, password, trailing } = parseGluedUrl(match[0]);
         if (matchIndex > lastIndex) {
           fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
         }
@@ -7245,6 +7736,11 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         a.href = url;
         a.textContent = url;
         fragment.appendChild(a);
+        if (trailing) {
+          a.dataset.kuiTrailing = trailing;
+          if (password) a.dataset.kuiPassword = password;
+          fragment.appendChild(document.createTextNode(trailing));
+        }
         lastIndex = urlRegex.lastIndex;
       }
       if (lastIndex < text.length) {
@@ -7333,17 +7829,48 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       link.appendChild(textSpan);
     });
   }
+  function isOnOwnLine(link, trailing) {
+    const lineText = (dir) => {
+      let text = "";
+      for (let node = link[dir]; node && node.nodeName !== "BR"; node = node[dir]) {
+        text = dir === "previousSibling" ? (node.textContent || "") + text : text + (node.textContent || "");
+      }
+      return text.trim();
+    };
+    const before = lineText("previousSibling");
+    let after = lineText("nextSibling");
+    if (trailing && after.startsWith(trailing)) after = after.slice(trailing.length).trim();
+    const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before);
+    return (!before || isLabel) && !after;
+  }
+  function copyPassword(password) {
+    var _a2;
+    try {
+      if (typeof GM_setClipboard === "function") {
+        GM_setClipboard(password);
+      } else {
+        (_a2 = navigator.clipboard) == null ? void 0 : _a2.writeText(password);
+      }
+      showMessage("Password copied to clipboard", "info");
+    } catch (e) {
+    }
+  }
   function processEmbeds() {
     const content = document.querySelector(SELECTORS.postContent);
     if (!content || content.classList.contains("kui-embed-processed")) return;
     linkifyTextNodes(content);
     const links = Array.from(content.querySelectorAll("a[href]"));
     const linkActions = /* @__PURE__ */ new Map();
+    const linkPasswords = /* @__PURE__ */ new Map();
     const elementsToRemove = /* @__PURE__ */ new Set();
     links.forEach((link) => {
+      var _a2;
       try {
         if (!link.href || !link.protocol.startsWith("http")) return;
-        const url = new URL(link.href);
+        const glued = parseGluedUrl(link.href);
+        const password = glued.password || link.dataset.kuiPassword || null;
+        const trailing = glued.trailing || link.dataset.kuiTrailing || "";
+        const url = new URL(glued.url);
         const linkHostname = url.hostname.replace(/^www\./, "");
         if (linkHostname.includes("kemono") || linkHostname.includes("coomer") || linkHostname.includes("pawchive")) {
           return;
@@ -7366,9 +7893,17 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         }
         const action = bestMatch ? bestMatch.action : "button";
         if (action === "hide" || action === "button") {
-          elementsToRemove.add(link);
-          if (!linkActions.has(link.href)) {
-            linkActions.set(link.href, action);
+          if (action === "hide" || isOnOwnLine(link, trailing)) {
+            if (trailing && ((_a2 = link.textContent) == null ? void 0 : _a2.trim().endsWith(trailing))) {
+              link.after(document.createTextNode(trailing));
+            }
+            elementsToRemove.add(link);
+          }
+          if (!linkActions.has(url.href)) {
+            linkActions.set(url.href, action);
+          }
+          if (password && !linkPasswords.has(url.href)) {
+            linkPasswords.set(url.href, password);
           }
         }
       } catch (e) {
@@ -7404,6 +7939,16 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
           text.textContent = brand.name;
           button.appendChild(favicon);
           button.appendChild(text);
+          const password = linkPasswords.get(url);
+          if (password) {
+            const passwordChip = document.createElement("span");
+            passwordChip.className = "kui-embed-password";
+            passwordChip.textContent = `🔑 ${password}`;
+            button.appendChild(passwordChip);
+            button.title = `${url}
+Password: ${password} (copied on click)`;
+            button.addEventListener("click", () => copyPassword(password));
+          }
           buttonContainer.appendChild(button);
         } catch (e) {
         }
@@ -7429,7 +7974,22 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         }
       });
     } while (changed);
-    content.querySelectorAll("br").forEach((br) => br.remove());
+    const isBlankText = (node) => {
+      var _a2;
+      return !!node && node.nodeType === Node.TEXT_NODE && !((_a2 = node.textContent) == null ? void 0 : _a2.trim());
+    };
+    const meaningfulSibling = (node, dir) => {
+      let sibling = node[dir];
+      while (sibling && isBlankText(sibling)) sibling = sibling[dir];
+      return sibling;
+    };
+    content.querySelectorAll("br").forEach((br) => {
+      var _a2;
+      const prev = meaningfulSibling(br, "previousSibling");
+      const next = meaningfulSibling(br, "nextSibling");
+      const isThirdInRun = (prev == null ? void 0 : prev.nodeName) === "BR" && ((_a2 = meaningfulSibling(prev, "previousSibling")) == null ? void 0 : _a2.nodeName) === "BR";
+      if (!prev || !next || isThirdInRun) br.remove();
+    });
     content.classList.add("kui-embed-processed");
     hideEmptySections();
   }
@@ -7750,16 +8310,16 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       this.isDragging = false;
     }
   };
-  let isInitializingGallery = false;
+  let initializingContainer = null;
   async function initializeImageGallery() {
     const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
     if (!originalFilesContainer || originalFilesContainer.classList.contains("kui-gallery-processed"))
       return;
-    if (isInitializingGallery) {
+    if (initializingContainer === originalFilesContainer) {
       debugModule.update({ warn: "[Image Gallery] Initialization already in progress. Skipping concurrent execution." });
       return;
     }
-    isInitializingGallery = true;
+    initializingContainer = originalFilesContainer;
     originalFilesContainer.classList.add("kui-gallery-processed");
     try {
       const imageLinks = Array.from(originalFilesContainer.querySelectorAll("a.fileThumb"));
@@ -7877,8 +8437,17 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       setActive(0);
       sanitizeDuplicates();
     } finally {
-      isInitializingGallery = false;
+      if (initializingContainer === originalFilesContainer) initializingContainer = null;
     }
+  }
+  let activePlayer = null;
+  function destroyVideoGallery() {
+    if (!activePlayer) return;
+    try {
+      activePlayer.destroy();
+    } catch (e) {
+    }
+    activePlayer = null;
   }
   function initializeVideoGallery() {
     const postBody = document.querySelector(SELECTORS.postBody);
@@ -7896,7 +8465,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     if (postVideosList) {
       videoSectionContainer = postVideosList.closest(".kui-video-section") || postVideosList.parentElement;
       hideElement(postVideosList);
-      const items = Array.from(postVideosList.querySelectorAll("li"));
+      const items = Array.from(postVideosList.querySelectorAll(":scope > li"));
       items.forEach((item, index) => {
         var _a2, _b2, _c;
         hideElement(item);
@@ -7915,7 +8484,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const rawVideos = Array.from(postBody.querySelectorAll("video"));
     rawVideos.forEach((video, index) => {
       var _a2, _b2, _c, _d;
-      if (video.id === "kui-main-video-player" || video.closest(".kui-video-gallery-layout"))
+      if (video.closest(".kui-video-gallery-layout"))
         return;
       const parentContainer = video.closest("li, .post__file, .fileThumb, figure, div.post__video, .fluid_video_wrapper") || video;
       hideElement(parentContainer);
@@ -7968,13 +8537,15 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     if (videosData.length <= 1) {
       videoList.classList.add("kui-collapsed");
     }
+    destroyVideoGallery();
     const player = new Plyr(mainPlayerElement, {
       tooltips: { controls: true, seek: true },
       keyboard: { focused: true, global: true },
       storage: { enabled: true, key: "kui_plyr" }
     });
+    activePlayer = player;
     player.on("loadedmetadata", () => {
-      const videoEl = player.elements.video;
+      const videoEl = player.media;
       const container = player.elements.container;
       if (!videoEl || !container) return;
       const { videoWidth, videoHeight } = videoEl;
@@ -8023,6 +8594,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     },
     cleanup() {
       document.removeEventListener("keydown", this.handleGlobalKeys, true);
+      destroyVideoGallery();
       document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el2) => el2.remove());
       document.querySelectorAll(".kui-post-section").forEach((section) => {
         const parent = section.parentNode;
@@ -8084,6 +8656,37 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       }
     }
   };
+  const AD_SELECTORS = '.ad-container, .ad-container-slider, .ts-im-container, [id^="ts_ad_"]';
+  const STYLE_ID = "kdl-adblock-styles";
+  const POPUNDER_KEY = "lastPopunder";
+  const POPUNDER_BLOCKED_UNTIL_MS = 10 * 365 * 24 * 60 * 60 * 1e3;
+  function isAdBlockEnabled() {
+    return typeof GM_getValue === "function" ? Boolean(GM_getValue(KUI_STORAGE_KEYS.HIDE_ADS, true)) : true;
+  }
+  function setAdBlockEnabled(enabled) {
+    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.HIDE_ADS, enabled);
+    applyAdBlock(enabled);
+  }
+  function applyAdBlock(enabled = isAdBlockEnabled()) {
+    const existingStyle = document.getElementById(STYLE_ID);
+    try {
+      if (enabled) {
+        localStorage.setItem(POPUNDER_KEY, String(Date.now() + POPUNDER_BLOCKED_UNTIL_MS));
+      } else if (Number(localStorage.getItem(POPUNDER_KEY)) > Date.now() + 24 * 60 * 60 * 1e3) {
+        localStorage.removeItem(POPUNDER_KEY);
+      }
+    } catch (e) {
+    }
+    if (!enabled) {
+      existingStyle == null ? void 0 : existingStyle.remove();
+      return;
+    }
+    if (existingStyle) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID;
+    style.textContent = css({ [AD_SELECTORS]: { display: "none !important" } });
+    (document.head || document.documentElement).appendChild(style);
+  }
   function injectUI() {
     setupNavigationSettings();
     if (document.getElementById("kui-settings-panel")) return;
@@ -8137,6 +8740,15 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
                   </label>
               </div>
               <small>Automatically hides sections like Content or Comments if they contain no text, links, or comments.</small>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="hideAdsToggle">Hide site ads</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="hideAdsToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+              <small>Hides banner, native and interstitial ad slots, and keeps the Pawchive popunder from loading on later page loads.</small>
           </div>
           <div class="kui-setting">
               <label>Embed Link Rules</label>
@@ -8264,6 +8876,11 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         hideEmptySections();
       });
     }
+    const hideAdsToggle = document.getElementById("hideAdsToggle");
+    if (hideAdsToggle) {
+      hideAdsToggle.checked = isAdBlockEnabled();
+      hideAdsToggle.addEventListener("change", () => setAdBlockEnabled(hideAdsToggle.checked));
+    }
     renderRules(tempEmbedRules);
   }
   function setupGridControls() {
@@ -8340,7 +8957,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       if (!link) return;
       const card = link.closest(SELECTORS.postCard);
       const postId = card == null ? void 0 : card.getAttribute("data-id");
-      if (!postId) return;
+      if (!card || !postId) return;
       const viewedPosts = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
       viewedPosts[postId] = true;
       if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);
@@ -8447,7 +9064,8 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         }
         if (header) {
           await createAndInsertPostPageButtons(header);
-          fetchAndCachePostData();
+          const { service, userID, postID } = getPostDetailsFromPage();
+          fetchAndCachePostData(service, userID, postID).catch((error) => debugLog("Post data prefetch failed:", error));
         }
       } else if (path.includes("/user/")) {
         const userHeaderActions = document.querySelector(".user-header__actions");
@@ -8525,16 +9143,23 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
   };
   function init() {
     ensureStylesInjected();
+    applyAdBlock();
     debugModule.init();
     injectUI();
     lightboxModule.init();
     setupGlobalClickListener();
     createFixedControls();
     runInitializationLogic();
+    const swapReplacesPost = (event) => {
+      var _a2;
+      const target = (_a2 = event.detail) == null ? void 0 : _a2.target;
+      const postBody = document.querySelector(SELECTORS.postBody);
+      return !target || !postBody || target.contains(postBody);
+    };
     document.addEventListener("htmx:beforeHistorySave", () => postPageModule.cleanup());
-    document.addEventListener("htmx:beforeSwap", () => postPageModule.cleanup());
-    document.addEventListener("htmx:beforeRequest", () => postPageModule.cleanup());
-    document.addEventListener("htmx:beforeCleanupElement", () => postPageModule.cleanup());
+    document.addEventListener("htmx:beforeSwap", (event) => {
+      if (swapReplacesPost(event)) postPageModule.cleanup();
+    });
     document.addEventListener("htmx:afterSettle", () => runInitializationLogic(true));
     document.addEventListener("htmx:afterSwap", () => runInitializationLogic(true));
     document.addEventListener("htmx:historyRestore", () => runInitializationLogic(true));
@@ -8542,15 +9167,16 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       postPageModule.cleanup();
       runInitializationLogic(true);
     });
+    const changesPath = (url) => url != null && new URL(String(url), window.location.href).pathname !== window.location.pathname;
     const originalPushState = history.pushState;
     history.pushState = function(...args) {
-      postPageModule.cleanup();
+      if (changesPath(args[2])) postPageModule.cleanup();
       originalPushState.apply(this, args);
       setTimeout(() => runInitializationLogic(true), 50);
     };
     const originalReplaceState = history.replaceState;
     history.replaceState = function(...args) {
-      postPageModule.cleanup();
+      if (changesPath(args[2])) postPageModule.cleanup();
       originalReplaceState.apply(this, args);
       setTimeout(() => runInitializationLogic(true), 50);
     };

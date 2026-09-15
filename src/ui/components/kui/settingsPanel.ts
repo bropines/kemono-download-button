@@ -3,6 +3,7 @@ import { kuiState, setDebugMode, setVerboseDebugMode, setPreloadImages, setHideE
 import { debugModule } from '../../../utils/logger';
 import { postPageModule } from '../../../features/kui/postPageModule';
 import { hideEmptySections } from '../../../features/kui/embeds';
+import { isAdBlockEnabled, setAdBlockEnabled } from '../../../features/adblock';
 import { EmbedRules } from '../../../types';
 import { setupNavigationSettings } from '../navigationSettings';
 
@@ -61,6 +62,15 @@ export function injectUI(): void {
                   </label>
               </div>
               <small>Automatically hides sections like Content or Comments if they contain no text, links, or comments.</small>
+          </div>
+          <div class="kui-setting">
+              <div class="kui-toggle-switch">
+                  <label for="hideAdsToggle">Hide site ads</label>
+                  <label class="kui-switch">
+                      <input type="checkbox" id="hideAdsToggle"><span class="kui-slider"></span>
+                  </label>
+              </div>
+              <small>Hides banner, native and interstitial ad slots, and keeps the Pawchive popunder from loading on later page loads.</small>
           </div>
           <div class="kui-setting">
               <label>Embed Link Rules</label>
@@ -209,6 +219,12 @@ export function injectUI(): void {
       setHideEmptySections(hideEmptySectionsToggle.checked);
       hideEmptySections();
     });
+  }
+
+  const hideAdsToggle = document.getElementById("hideAdsToggle") as HTMLInputElement | null;
+  if (hideAdsToggle) {
+    hideAdsToggle.checked = isAdBlockEnabled();
+    hideAdsToggle.addEventListener("change", () => setAdBlockEnabled(hideAdsToggle.checked));
   }
 
   renderRules(tempEmbedRules);
