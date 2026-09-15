@@ -148,11 +148,10 @@ export const kuiMainStyles = css({
   },
 
   /* Post Sections */
+  // No frame of its own: the site already draws the post card, and a box inside it read as a double border.
+  // The heading underline separates the sections.
   '.kui-post-section': {
-    backgroundColor: THEME.colors.bgDark,
-    border: `1px solid ${THEME.colors.borderDark}`,
-    borderRadius: THEME.borderRadius.lg,
-    padding: '15px',
+    padding: '15px 0',
     marginTop: '20px',
   },
   '.kui-post-section h2': {

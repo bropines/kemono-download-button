@@ -72,12 +72,14 @@ export const commentsStyles = css({
     // Without it the row of cards reports its full width upwards and widens the whole page
     contain: 'inline-size',
     display: 'flex !important',
+    alignItems: 'flex-start',
     gap: '10px',
     overflowX: 'auto',
     overscrollBehaviorX: 'contain',
     scrollSnapType: 'x mandatory',
     paddingBottom: '8px',
     scrollbarWidth: 'thin',
+    scrollbarColor: `${THEME.scrollbars.thumbBg} transparent`,
   },
   '.kui-comments--grid > .comment, .kui-comments--carousel > .comment': {
     boxSizing: 'border-box',
@@ -89,15 +91,72 @@ export const commentsStyles = css({
     background: THEME.colors.cardBg,
     overflowWrap: 'anywhere',
   },
-  // Replies from the post author are flat siblings marked comment--user
+  '.kui-comment-replies': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    marginTop: '8px',
+    paddingLeft: '10px',
+    borderLeft: `2px solid ${THEME.colors.primary}`,
+  },
+  '.kui-comment-replies > .comment': {
+    margin: '0 !important',
+    padding: '6px 10px',
+    borderRadius: THEME.borderRadius.md,
+    background: 'rgba(56, 189, 248, 0.06)',
+  },
+  // The ">>id" back-reference is redundant once a reply sits under its parent
+  '.kui-comment-replies .comment__reply': {
+    display: 'none',
+  },
+  // Author comments that aren't replies stay top-level cards with an accent
   '.kui-comments--grid > .comment--user, .kui-comments--carousel > .comment--user': {
     borderColor: THEME.colors.primary,
   },
   '.kui-comments--carousel > .comment': {
-    flex: '0 0 min(320px, 85%)',
+    flex: '0 0 auto',
+    // Cards follow their text: a short comment gets a compact card instead of a wall of empty space
+    width: 'max-content',
+    minWidth: '200px',
+    maxWidth: 'min(360px, 85%)',
     maxHeight: '320px',
     overflowY: 'auto',
     scrollSnapAlign: 'start',
+  },
+
+  '.kui-comment-translate': {
+    marginLeft: '10px',
+    padding: '2px 8px',
+    border: `1px solid ${THEME.colors.borderSubtle}`,
+    borderRadius: THEME.borderRadius.pill,
+    background: 'transparent',
+    color: THEME.colors.textMuted,
+    fontSize: '0.8em',
+    lineHeight: 1.4,
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+    transition: 'color 0.2s, border-color 0.2s',
+  },
+  '.kui-comment-translate:hover:not(:disabled)': {
+    borderColor: THEME.colors.primary,
+    color: THEME.colors.primary,
+  },
+  '.kui-comment-translate:disabled': {
+    opacity: 0.6,
+    cursor: 'wait',
+  },
+  '.kui-comments--grid .comment__footer, .kui-comments--carousel .comment__footer': {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: '4px 10px',
+  },
+  '.kui-comments--grid .kui-comment-translate, .kui-comments--carousel .kui-comment-translate': {
+    marginLeft: 0,
+  },
+  // Only the comment text decides a carousel card's width, not its timestamp + button row
+  '.kui-comments--carousel .comment__footer': {
+    contain: 'inline-size',
   },
 
   '.kui-comments-more': {

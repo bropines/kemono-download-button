@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.41
+// @version      0.8.42
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1675,11 +1675,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "scale(0.95)"
     },
     /* Post Sections */
+    // No frame of its own: the site already draws the post card, and a box inside it read as a double border.
+    // The heading underline separates the sections.
     ".kui-post-section": {
-      backgroundColor: THEME.colors.bgDark,
-      border: `1px solid ${THEME.colors.borderDark}`,
-      borderRadius: THEME.borderRadius.lg,
-      padding: "15px",
+      padding: "15px 0",
       marginTop: "20px"
     },
     ".kui-post-section h2": {
@@ -3324,12 +3323,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       // Without it the row of cards reports its full width upwards and widens the whole page
       contain: "inline-size",
       display: "flex !important",
+      alignItems: "flex-start",
       gap: "10px",
       overflowX: "auto",
       overscrollBehaviorX: "contain",
       scrollSnapType: "x mandatory",
       paddingBottom: "8px",
-      scrollbarWidth: "thin"
+      scrollbarWidth: "thin",
+      scrollbarColor: `${THEME.scrollbars.thumbBg} transparent`
     },
     ".kui-comments--grid > .comment, .kui-comments--carousel > .comment": {
       boxSizing: "border-box",
@@ -3341,15 +3342,71 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       background: THEME.colors.cardBg,
       overflowWrap: "anywhere"
     },
-    // Replies from the post author are flat siblings marked comment--user
+    ".kui-comment-replies": {
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      marginTop: "8px",
+      paddingLeft: "10px",
+      borderLeft: `2px solid ${THEME.colors.primary}`
+    },
+    ".kui-comment-replies > .comment": {
+      margin: "0 !important",
+      padding: "6px 10px",
+      borderRadius: THEME.borderRadius.md,
+      background: "rgba(56, 189, 248, 0.06)"
+    },
+    // The ">>id" back-reference is redundant once a reply sits under its parent
+    ".kui-comment-replies .comment__reply": {
+      display: "none"
+    },
+    // Author comments that aren't replies stay top-level cards with an accent
     ".kui-comments--grid > .comment--user, .kui-comments--carousel > .comment--user": {
       borderColor: THEME.colors.primary
     },
     ".kui-comments--carousel > .comment": {
-      flex: "0 0 min(320px, 85%)",
+      flex: "0 0 auto",
+      // Cards follow their text: a short comment gets a compact card instead of a wall of empty space
+      width: "max-content",
+      minWidth: "200px",
+      maxWidth: "min(360px, 85%)",
       maxHeight: "320px",
       overflowY: "auto",
       scrollSnapAlign: "start"
+    },
+    ".kui-comment-translate": {
+      marginLeft: "10px",
+      padding: "2px 8px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.pill,
+      background: "transparent",
+      color: THEME.colors.textMuted,
+      fontSize: "0.8em",
+      lineHeight: 1.4,
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+      transition: "color 0.2s, border-color 0.2s"
+    },
+    ".kui-comment-translate:hover:not(:disabled)": {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
+    },
+    ".kui-comment-translate:disabled": {
+      opacity: 0.6,
+      cursor: "wait"
+    },
+    ".kui-comments--grid .comment__footer, .kui-comments--carousel .comment__footer": {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "4px 10px"
+    },
+    ".kui-comments--grid .kui-comment-translate, .kui-comments--carousel .kui-comment-translate": {
+      marginLeft: 0
+    },
+    // Only the comment text decides a carousel card's width, not its timestamp + button row
+    ".kui-comments--carousel .comment__footer": {
+      contain: "inline-size"
     },
     ".kui-comments-more": {
       display: "block",
@@ -9167,7 +9224,10 @@ Password: ${password} (copied on click)`;
   const LIMIT_OPTIONS = [10, 20, 50, 100, 0];
   const DEFAULT_LAYOUT = "grid";
   const DEFAULT_LIMIT = 20;
+  const TRANSLATE_LABEL = "🌐 Translate";
+  const ORIGINAL_LABEL = "↩ Original";
   const revealedCounts = /* @__PURE__ */ new WeakMap();
+  const translationCache = /* @__PURE__ */ new Map();
   let delegatedListenersBound = false;
   const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const saveValue = (key, value) => {
@@ -9190,6 +9250,38 @@ Password: ${password} (copied on click)`;
     const toolbar = footer == null ? void 0 : footer.querySelector(".kui-comments-toolbar");
     return container && toolbar ? { container, toolbar } : null;
   }
+  function threadReplies(container) {
+    const direct = getComments(container);
+    let nextIndex = container.querySelectorAll(".comment[data-kui-index]").length;
+    direct.forEach((comment) => {
+      if (comment.dataset.kuiIndex === void 0) comment.dataset.kuiIndex = String(nextIndex++);
+    });
+    direct.forEach((comment) => {
+      var _a2, _b2;
+      const href = ((_a2 = comment.querySelector(":scope > .comment__body > .comment__reply a")) == null ? void 0 : _a2.getAttribute("href")) || "";
+      const parentId = (_b2 = href.match(/^#([\w-]+)$/)) == null ? void 0 : _b2[1];
+      if (!parentId || parentId === comment.id) return;
+      const parent = container.querySelector(`.comment[id="${parentId}"]`);
+      if (!parent || comment.contains(parent)) return;
+      let replies = parent.querySelector(":scope > .kui-comment-replies");
+      if (!replies) {
+        replies = el("div", { className: "kui-comment-replies" });
+        parent.appendChild(replies);
+      }
+      replies.appendChild(comment);
+    });
+  }
+  function shortenTimestamps(container) {
+    container.querySelectorAll(".comment__footer .timestamp:not([data-kui-full-time])").forEach((time) => {
+      var _a2;
+      const full = ((_a2 = time.textContent) == null ? void 0 : _a2.trim()) || "";
+      const match = full.match(/^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2})/);
+      if (!match) return;
+      time.dataset.kuiFullTime = full;
+      time.title = full;
+      time.textContent = `${match[1]} ${match[2]}`;
+    });
+  }
   function buildToolbar() {
     return el("div", { className: "kui-comments-toolbar" }, [
       el("span", { className: "kui-comments-count" }),
@@ -9209,7 +9301,11 @@ Password: ${password} (copied on click)`;
     ]);
   }
   function applyCommentsView(container, toolbar) {
+    threadReplies(container);
+    shortenTimestamps(container);
     const comments = getComments(container);
+    const allComments = Array.from(container.querySelectorAll(".comment"));
+    container.querySelectorAll(".kui-comment-replies > .kui-comment-hidden").forEach((reply) => reply.classList.remove("kui-comment-hidden"));
     const layout = readLayout();
     const limit = readLimit();
     const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
@@ -9218,7 +9314,9 @@ Password: ${password} (copied on click)`;
     comments.forEach((comment, index) => comment.classList.toggle("kui-comment-hidden", index >= visibleCount));
     const count = toolbar.querySelector(".kui-comments-count");
     if (count) {
-      count.textContent = visibleCount < comments.length ? `Showing ${visibleCount} of ${comments.length}` : `${comments.length} comment${comments.length === 1 ? "" : "s"}`;
+      const total = allComments.length;
+      const hasThreads = total > comments.length;
+      count.textContent = visibleCount < comments.length ? `Showing ${visibleCount} of ${comments.length} ${hasThreads ? "threads" : "comments"}` : `${total} comment${total === 1 ? "" : "s"}${hasThreads ? ` in ${comments.length} threads` : ""}`;
     }
     toolbar.querySelectorAll("[data-kui-comments-layout]").forEach((button) => {
       button.classList.toggle("kui-active", button.dataset.kuiCommentsLayout === layout);
@@ -9238,13 +9336,64 @@ Password: ${password} (copied on click)`;
     } else {
       moreButton == null ? void 0 : moreButton.remove();
     }
+    syncTranslateButtons(allComments);
+  }
+  function syncTranslateButtons(comments) {
+    const enabled = isTranslationConfigured(state.settings);
+    comments.forEach((comment) => {
+      const host = comment.querySelector(":scope > .comment__footer") || comment;
+      const button = host.querySelector(":scope > .kui-comment-translate");
+      if (!enabled) {
+        if (button && !comment.querySelector(":scope > .comment__body [data-kui-original]")) button.remove();
+        return;
+      }
+      if (button || !comment.querySelector(":scope > .comment__body .comment__message")) return;
+      host.appendChild(
+        el("button", { type: "button", className: "kui-comment-translate", dataset: { kuiCommentTranslate: "true" } }, [TRANSLATE_LABEL])
+      );
+    });
+  }
+  async function toggleCommentTranslation(button) {
+    var _a2;
+    const message = (_a2 = button.closest(".comment")) == null ? void 0 : _a2.querySelector(":scope > .comment__body .comment__message");
+    if (!message || button.disabled) return;
+    if (message.dataset.kuiOriginal !== void 0) {
+      message.innerHTML = message.dataset.kuiOriginal;
+      delete message.dataset.kuiOriginal;
+      button.textContent = TRANSLATE_LABEL;
+      return;
+    }
+    const text = message.innerText.trim();
+    if (!text) return;
+    button.disabled = true;
+    button.textContent = "⏳";
+    try {
+      await getSettings();
+      const cacheKey = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text}`;
+      const translated = translationCache.get(cacheKey) ?? await translateText(text, state.settings);
+      translationCache.set(cacheKey, translated);
+      message.dataset.kuiOriginal = message.innerHTML;
+      message.innerText = translated;
+      button.textContent = ORIGINAL_LABEL;
+    } catch (error) {
+      button.textContent = TRANSLATE_LABEL;
+      showMessage(`Translation failed: ${error.message}`, "error");
+    } finally {
+      button.disabled = false;
+    }
   }
   function bindDelegatedListeners() {
     if (delegatedListenersBound) return;
     delegatedListenersBound = true;
     document.addEventListener("click", (event) => {
-      var _a2;
-      const control = (_a2 = event.target) == null ? void 0 : _a2.closest(
+      var _a2, _b2;
+      const translateButton = (_a2 = event.target) == null ? void 0 : _a2.closest("[data-kui-comment-translate]");
+      if (translateButton) {
+        event.preventDefault();
+        toggleCommentTranslation(translateButton);
+        return;
+      }
+      const control = (_b2 = event.target) == null ? void 0 : _b2.closest(
         "[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]"
       );
       const parts = control && findCommentsParts(control);
@@ -9287,8 +9436,24 @@ Password: ${password} (copied on click)`;
     applyCommentsView(container, toolbar);
   }
   function removeCommentsLayout() {
-    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more").forEach((node) => node.remove());
-    document.querySelectorAll(".post__comments").forEach((container) => container.classList.remove(...LAYOUT_CLASSES));
+    document.querySelectorAll("[data-kui-original]").forEach((message) => {
+      message.innerHTML = message.dataset.kuiOriginal || message.innerHTML;
+      delete message.dataset.kuiOriginal;
+    });
+    document.querySelectorAll("[data-kui-full-time]").forEach((time) => {
+      time.textContent = time.dataset.kuiFullTime || time.textContent;
+      time.removeAttribute("title");
+      delete time.dataset.kuiFullTime;
+    });
+    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more, .kui-comment-translate").forEach((node) => node.remove());
+    document.querySelectorAll(".post__comments").forEach((container) => {
+      container.classList.remove(...LAYOUT_CLASSES);
+      Array.from(container.querySelectorAll(".comment[data-kui-index]")).sort((a, b) => Number(a.dataset.kuiIndex) - Number(b.dataset.kuiIndex)).forEach((comment) => {
+        container.appendChild(comment);
+        delete comment.dataset.kuiIndex;
+      });
+      container.querySelectorAll(".kui-comment-replies").forEach((node) => node.remove());
+    });
     document.querySelectorAll(".kui-comment-hidden").forEach((comment) => comment.classList.remove("kui-comment-hidden"));
   }
   const postPageModule = {
