@@ -41,6 +41,4 @@ jobs:
         with:
           files: |
             kemono-download-button.user.js
-            Kemono Download Button-*.user.js
-            Kemono Download Button-*.txt
           generate_release_notes: true

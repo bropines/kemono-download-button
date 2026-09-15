@@ -2,8 +2,11 @@ import { SELECTORS } from '../../config/selectors';
 import { VideoData } from '../../types';
 
 let activePlayer: Plyr | null = null;
+let fluidGuard: MutationObserver | null = null;
 
 export function destroyVideoGallery(): void {
+  fluidGuard?.disconnect();
+  fluidGuard = null;
   if (!activePlayer) return;
   try {
     // Unbinds Plyr's window-level keyboard listeners, which otherwise outlive the removed layout
@@ -147,7 +150,9 @@ export function initializeVideoGallery(): void {
   });
 
   let listItems: HTMLElement[] = [];
+  let activeIndex = 0;
   const setActiveVideo = (index: number) => {
+    activeIndex = index;
     // Plyr replaces the <video> element on every source change, so styles must not rely on its id
     player.source = {
       type: "video",
@@ -174,4 +179,15 @@ export function initializeVideoGallery(): void {
   }
 
   setActiveVideo(0);
+
+  // The site runs fluidPlayer() on every <video> in the document (pawchive: getElementsByTagName("video")),
+  // possibly after we built the gallery. Reloading the source makes Plyr drop the captured media element
+  // together with Fluid's wrapper and controls.
+  let fluidEvictions = 0;
+  fluidGuard = new MutationObserver(() => {
+    if (fluidEvictions >= 3 || !playerContainer.querySelector(".fluid_video_wrapper")) return;
+    fluidEvictions++;
+    setActiveVideo(activeIndex);
+  });
+  fluidGuard.observe(playerContainer, { childList: true, subtree: true });
 }

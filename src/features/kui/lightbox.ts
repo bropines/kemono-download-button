@@ -15,6 +15,7 @@ export const lightboxModule = {
   ctx: null as CanvasRenderingContext2D | null,
   image: new Image(),
   boundHandleKeydown: null as ((e: KeyboardEvent) => void) | null,
+  boundResize: null as (() => void) | null,
   init() {
     this.isActive = false;
     this.imageLinks = [];
@@ -115,7 +116,8 @@ export const lightboxModule = {
       container.addEventListener("touchmove", this.handleTouchMove.bind(this), { passive: false });
       container.addEventListener("touchend", this.handleTouchEnd.bind(this));
     }
-    window.addEventListener("resize", this.resizeCanvas.bind(this));
+    this.boundResize = this.resizeCanvas.bind(this);
+    window.addEventListener("resize", this.boundResize);
     document.getElementById("kui-lightbox-close-btn")?.addEventListener("click", this.close.bind(this));
     document.querySelector(".kui-lightbox-nav.prev")?.addEventListener("click", () => this.navigate(-1));
     document.querySelector(".kui-lightbox-nav.next")?.addEventListener("click", () => this.navigate(1));
@@ -124,6 +126,10 @@ export const lightboxModule = {
   removeEventListeners() {
     if (this.boundHandleKeydown) {
       document.removeEventListener("keydown", this.boundHandleKeydown, true);
+    }
+    if (this.boundResize) {
+      window.removeEventListener("resize", this.boundResize);
+      this.boundResize = null;
     }
   },
   handleKeydown(e: KeyboardEvent) {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.38
+// @version      0.8.39
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3201,7 +3201,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     sidebarCommunitySection: "div.global-sidebar-entry.stuck-bottom",
     postGridContainer: ".card-list__items, .card-list, .user-card-list",
     postCard: "article.post-card",
-    postLink: "article.post-card > a.fancy-link",
+    postLink: "article.post-card > a",
     postPageContainer: "section.site-section--post, section.site-section, div.post__body",
     postBody: "div.post__body",
     postContent: ".post__content",
@@ -3282,7 +3282,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (baseDomain.includes("pawchive")) {
       return `https://file.${baseDomain}${cleanPath}${querySuffix}`;
     }
-    return `https://c1.${baseDomain}${cleanPath}${querySuffix}`;
+    return `https://${baseDomain}${cleanPath}${querySuffix}`;
   }
   function getApiUrl(path) {
     const cleanPath = path.startsWith("/") ? path : "/" + path;
@@ -3320,6 +3320,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     "bmp",
     "svg",
     "avif",
+    "jxl",
+    "heic",
+    "heif",
+    "apng",
     "mp4",
     "webm",
     "mkv",
@@ -3557,16 +3561,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
   }
   async function gmXmlhttpRequestWithRetries(details) {
-    const maxRetries = state.settings.enableDownloadRetries ? state.settings.downloadRetryCount : 0;
+    const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
     const retryDelay = state.settings.downloadRetryDelay;
-    let attempts = 0;
+    let retries = 0;
     let currentUrl = details.url;
-    while (attempts <= maxRetries + 4) {
+    while (true) {
       try {
         return await new Promise((resolve, reject) => {
           const headers = { ...details.headers || {} };
           if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
             headers["Cookie"] = state.settings.sessionCookie;
+          }
+          if (isSiteUrl(currentUrl) && currentUrl.includes("/api/") && !headers["Accept"]) {
+            headers["Accept"] = "text/css";
           }
           GM_xmlhttpRequest({
             ...details,
@@ -3600,33 +3607,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           });
         });
       } catch (error) {
-        attempts++;
-        const fileMatch = currentUrl.match(/https:\/\/(file|c\d+)\.([^/]+)(\/.*)/);
-        if (fileMatch) {
-          const prefix = fileMatch[1];
-          const domain = fileMatch[2];
-          const path = fileMatch[3];
-          if (prefix === "file") {
-            currentUrl = `https://c1.${domain}${path}`;
-          } else {
-            const currentCdnNum = parseInt(prefix.replace("c", ""), 10);
-            const nextCdnNum = currentCdnNum % 6 + 1;
-            currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
-          }
-          debugLog(`CDN node fallback: switching to ${currentUrl}`);
-        } else {
-          const mainMatch = currentUrl.match(/https:\/\/([^/]+)(\/data\/.*)/);
-          if (mainMatch && !mainMatch[1].startsWith("c") && !mainMatch[1].startsWith("file")) {
-            currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
-            debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
-          } else if (error.status === 404 || error.status === 401 || error.status === 403) {
-            throw error;
-          }
+        const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);
+        if (error.status === 404 && mainDataMatch && !/^(file|n\d+)\./.test(mainDataMatch[1])) {
+          currentUrl = `https://file.${mainDataMatch[1]}${mainDataMatch[2]}`;
+          debugLog(`Main domain returned 404, retrying on ${currentUrl}`);
+          continue;
         }
-        if (attempts > maxRetries + 4) {
+        if (error.status === 404 || error.status === 401 || error.status === 403 || retries >= maxRetries) {
           throw error;
         }
-        debugLog(`Attempt ${attempts} failed for ${details.url}: ${error.message}. Retrying in ${retryDelay}ms...`);
+        retries++;
+        debugLog(`Attempt ${retries} failed for ${currentUrl}: ${error.message}. Retrying in ${retryDelay}ms...`);
         await new Promise((res) => setTimeout(res, retryDelay));
       }
     }
@@ -3693,15 +3684,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (!arrayBuffer || arrayBuffer.byteLength === 0) {
       throw new Error("Downloaded file array buffer is empty");
     }
-    const blob = new Blob([arrayBuffer]);
+    saveBlobViaAnchor(new Blob([arrayBuffer]), cleanName);
+  }
+  function saveBlobViaAnchor(blob, name) {
     const blobUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = blobUrl;
-    a.download = cleanName;
+    a.download = name;
     a.style.display = "none";
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
     setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
   }
   function downloadBlobWithGm(blob, name) {
@@ -4117,12 +4110,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
   }
   const DB_NAME = "KemonoDownloaderCache";
-  const DB_VERSION = 1;
+  const DB_VERSION = 2;
   const STORE_FILES = "files";
+  const STORE_FILE_META = "fileMeta";
   const STORE_POSTS = "posts";
+  const MAX_FILE_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
+  const MAX_MEMORY_CACHE_BYTES = 256 * 1024 * 1024;
+  const EVICTION_DELAY_MS = 5e3;
   let dbPromise = null;
   const inMemoryPostCache = /* @__PURE__ */ new Map();
   const inMemoryFileCache = /* @__PURE__ */ new Map();
+  let inMemoryFileBytes = 0;
+  let evictionTimer = null;
   function getDB() {
     if (dbPromise) return dbPromise;
     dbPromise = new Promise((resolve, reject) => {
@@ -4132,9 +4131,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const request = indexedDB.open(DB_NAME, DB_VERSION);
       request.onupgradeneeded = (event) => {
         const db = event.target.result;
+        if (event.oldVersion < 2 && db.objectStoreNames.contains(STORE_FILES)) {
+          db.deleteObjectStore(STORE_FILES);
+        }
         if (!db.objectStoreNames.contains(STORE_FILES)) {
           const fileStore = db.createObjectStore(STORE_FILES, { keyPath: "url" });
           fileStore.createIndex("completed", "completed", { unique: false });
+        }
+        if (!db.objectStoreNames.contains(STORE_FILE_META)) {
+          db.createObjectStore(STORE_FILE_META, { keyPath: "url" }).createIndex("timestamp", "timestamp", { unique: false });
         }
         if (!db.objectStoreNames.contains(STORE_POSTS)) {
           db.createObjectStore(STORE_POSTS, { keyPath: "key" });
@@ -4148,10 +4153,79 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     });
     return dbPromise;
   }
+  function awaitTransaction(tx) {
+    return new Promise((resolve) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    });
+  }
+  function rememberInMemory(url, data) {
+    const existing = inMemoryFileCache.get(url);
+    if (existing) {
+      inMemoryFileCache.delete(url);
+      inMemoryFileBytes -= existing.byteLength;
+    }
+    if (data.byteLength > MAX_MEMORY_CACHE_BYTES) return;
+    inMemoryFileCache.set(url, data);
+    inMemoryFileBytes += data.byteLength;
+    for (const [key, value] of inMemoryFileCache) {
+      if (inMemoryFileBytes <= MAX_MEMORY_CACHE_BYTES) break;
+      inMemoryFileCache.delete(key);
+      inMemoryFileBytes -= value.byteLength;
+    }
+  }
+  function readFileMeta(db) {
+    return new Promise((resolve) => {
+      const entries = [];
+      const request = db.transaction(STORE_FILE_META, "readonly").objectStore(STORE_FILE_META).index("timestamp").openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (cursor) {
+          entries.push(cursor.value);
+          cursor.continue();
+        } else {
+          resolve(entries);
+        }
+      };
+      request.onerror = () => resolve(entries);
+    });
+  }
+  async function evictOldFiles() {
+    try {
+      const db = await getDB();
+      const entries = await readFileMeta(db);
+      let totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
+      const evicted = [];
+      for (const entry of entries) {
+        if (totalBytes <= MAX_FILE_CACHE_BYTES) break;
+        evicted.push(entry.url);
+        totalBytes -= entry.size;
+      }
+      if (evicted.length === 0) return;
+      const tx = db.transaction([STORE_FILES, STORE_FILE_META], "readwrite");
+      evicted.forEach((url) => {
+        tx.objectStore(STORE_FILES).delete(url);
+        tx.objectStore(STORE_FILE_META).delete(url);
+      });
+      await awaitTransaction(tx);
+      debugLog(`File cache over budget: evicted ${evicted.length} oldest files.`);
+    } catch (e) {
+      debugLog("Failed to evict cached files from IndexedDB:", e);
+    }
+  }
+  function scheduleEviction() {
+    if (evictionTimer) return;
+    evictionTimer = setTimeout(() => {
+      evictionTimer = null;
+      evictOldFiles();
+    }, EVICTION_DELAY_MS);
+  }
   async function getCachedFile(url) {
-    if (inMemoryFileCache.has(url)) {
-      const item = inMemoryFileCache.get(url);
-      if (item.completed) return item.data;
+    const inMemory = inMemoryFileCache.get(url);
+    if (inMemory) {
+      rememberInMemory(url, inMemory);
+      return inMemory;
     }
     try {
       const db = await getDB();
@@ -4162,7 +4236,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         req.onsuccess = () => {
           const result = req.result;
           if (result && result.completed && result.data) {
-            inMemoryFileCache.set(url, { data: result.data, completed: true });
+            rememberInMemory(url, result.data);
             resolve(result.data);
           } else {
             resolve(null);
@@ -4175,23 +4249,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       return null;
     }
   }
-  async function setCachedFile(url, data, completed) {
-    inMemoryFileCache.set(url, { data, completed });
+  async function setCachedFile(url, data, completed = true) {
+    if (completed) rememberInMemory(url, data);
     try {
       const db = await getDB();
-      await new Promise((resolve) => {
-        const tx = db.transaction(STORE_FILES, "readwrite");
-        const store = tx.objectStore(STORE_FILES);
-        store.put({
-          url,
-          data,
-          completed,
-          size: data.byteLength,
-          timestamp: Date.now()
-        });
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      });
+      const timestamp = Date.now();
+      const tx = db.transaction([STORE_FILES, STORE_FILE_META], "readwrite");
+      tx.objectStore(STORE_FILES).put({ url, data, completed, size: data.byteLength, timestamp });
+      tx.objectStore(STORE_FILE_META).put({ url, size: data.byteLength, timestamp });
+      await awaitTransaction(tx);
+      scheduleEviction();
     } catch (e) {
       debugLog("Failed to set cached file in IndexedDB:", e);
     }
@@ -4226,42 +4293,30 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     inMemoryPostCache.set(key, data);
     try {
       const db = await getDB();
-      await new Promise((resolve) => {
-        const tx = db.transaction(STORE_POSTS, "readwrite");
-        const store = tx.objectStore(STORE_POSTS);
-        store.put({ key, data, timestamp: Date.now() });
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      });
+      const tx = db.transaction(STORE_POSTS, "readwrite");
+      tx.objectStore(STORE_POSTS).put({ key, data, timestamp: Date.now() });
+      await awaitTransaction(tx);
     } catch (e) {
       debugLog("Failed to set cached post in IndexedDB:", e);
     }
   }
   async function clearIncompleteCache() {
     let deletedCount = 0;
-    for (const [url, item] of inMemoryFileCache.entries()) {
-      if (!item.completed) inMemoryFileCache.delete(url);
-    }
     try {
       const db = await getDB();
-      await new Promise((resolve) => {
-        const tx = db.transaction(STORE_FILES, "readwrite");
-        const store = tx.objectStore(STORE_FILES);
-        const req = store.openCursor();
-        req.onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            if (!cursor.value.completed) {
-              cursor.delete();
-              deletedCount++;
-            }
-            cursor.continue();
-          } else {
-            resolve();
-          }
-        };
-        req.onerror = () => resolve();
-      });
+      const tx = db.transaction([STORE_FILES, STORE_FILE_META], "readwrite");
+      const request = tx.objectStore(STORE_FILES).openCursor();
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) return;
+        if (!cursor.value.completed) {
+          tx.objectStore(STORE_FILE_META).delete(cursor.value.url);
+          cursor.delete();
+          deletedCount++;
+        }
+        cursor.continue();
+      };
+      await awaitTransaction(tx);
     } catch (e) {
       debugLog("Failed to clear incomplete cache in IndexedDB:", e);
     }
@@ -4270,44 +4325,26 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   async function clearAllCache() {
     inMemoryPostCache.clear();
     inMemoryFileCache.clear();
+    inMemoryFileBytes = 0;
     try {
       const db = await getDB();
-      await new Promise((resolve) => {
-        const tx = db.transaction([STORE_FILES, STORE_POSTS], "readwrite");
-        tx.objectStore(STORE_FILES).clear();
-        tx.objectStore(STORE_POSTS).clear();
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => resolve();
-      });
+      const tx = db.transaction([STORE_FILES, STORE_FILE_META, STORE_POSTS], "readwrite");
+      tx.objectStore(STORE_FILES).clear();
+      tx.objectStore(STORE_FILE_META).clear();
+      tx.objectStore(STORE_POSTS).clear();
+      await awaitTransaction(tx);
     } catch (e) {
       debugLog("Failed to clear all cache in IndexedDB:", e);
     }
   }
   async function getCacheStats() {
-    let count = 0;
-    let totalSizeBytes = 0;
     try {
-      const db = await getDB();
-      await new Promise((resolve) => {
-        const tx = db.transaction(STORE_FILES, "readonly");
-        const store = tx.objectStore(STORE_FILES);
-        const req = store.openCursor();
-        req.onsuccess = (e) => {
-          const cursor = e.target.result;
-          if (cursor) {
-            count++;
-            totalSizeBytes += cursor.value.size || (cursor.value.data ? cursor.value.data.byteLength : 0);
-            cursor.continue();
-          } else {
-            resolve();
-          }
-        };
-        req.onerror = () => resolve();
-      });
+      const entries = await readFileMeta(await getDB());
+      return { count: entries.length, totalSizeBytes: entries.reduce((sum, entry) => sum + entry.size, 0) };
     } catch (e) {
       debugLog("Failed to get cache stats from IndexedDB:", e);
+      return { count: 0, totalSizeBytes: 0 };
     }
-    return { count, totalSizeBytes };
   }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
@@ -4654,7 +4691,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         if (key === "savedFileNameTemplates") continue;
         const element = document.getElementById(`kdl-setting-${key}`);
         if (element) {
-          let value = element.type === "checkbox" ? element.checked : element.type === "number" ? parseInt(element.value, 10) : element.value;
+          const defaultValue = DEFAULT_SETTINGS[key];
+          let value = element.value;
+          if (element.type === "checkbox") {
+            value = element.checked;
+          } else if (typeof defaultValue === "number") {
+            const parsed = parseInt(element.value, 10);
+            const { min, max } = element;
+            value = Number.isFinite(parsed) ? parsed : defaultValue;
+            if (min) value = Math.max(Number(min), value);
+            if (max) value = Math.min(Number(max), value);
+          }
           await saveSetting(key, value);
         }
       }
@@ -5906,22 +5953,74 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     for (; v; ++b)
       d[b] = v, v >>>= 8;
   };
-  function deflateSync(data, opts) {
-    return dopt(data, opts || {}, 0, 0);
-  }
-  var fltn = function(d, p, t, o) {
-    for (var k in d) {
-      var val = d[k], n = p + k, op = o;
-      if (Array.isArray(val))
-        op = mrg(o, val[1]), val = val[0];
-      if (ArrayBuffer.isView(val))
-        t[n] = [val, op];
-      else {
-        t[n += "/"] = [new u8(0), op];
-        fltn(val, n, t, o);
+  var Deflate = /* @__PURE__ */ function() {
+    function Deflate2(opts, cb) {
+      if (typeof opts == "function")
+        cb = opts, opts = {};
+      this.ondata = cb;
+      this.o = opts || {};
+      this.s = { l: 0, i: 32768, w: 32768, z: 32768 };
+      this.b = new u8(98304);
+      if (this.o.dictionary) {
+        var dict = this.o.dictionary.subarray(-32768);
+        this.b.set(dict, 32768 - dict.length);
+        this.s.i = 32768 - dict.length;
       }
     }
-  };
+    Deflate2.prototype.p = function(c, f) {
+      this.ondata(dopt(c, this.o, 0, 0, this.s), f);
+    };
+    Deflate2.prototype.push = function(chunk, final) {
+      if (!this.ondata)
+        err(5);
+      if (this.s.l)
+        err(4);
+      var endLen = chunk.length + this.s.z;
+      if (endLen > this.b.length) {
+        if (endLen > 2 * this.b.length - 32768) {
+          var newBuf = new u8(endLen & -32768);
+          newBuf.set(this.b.subarray(0, this.s.z));
+          this.b = newBuf;
+        }
+        var split = this.b.length - this.s.z;
+        this.b.set(chunk.subarray(0, split), this.s.z);
+        this.s.z = this.b.length;
+        this.p(this.b, false);
+        this.b.set(this.b.subarray(-32768));
+        this.b.set(chunk.subarray(split), 32768);
+        this.s.z = chunk.length - split + 32768;
+        this.s.i = 32766, this.s.w = 32768;
+      } else {
+        this.b.set(chunk, this.s.z);
+        this.s.z += chunk.length;
+      }
+      this.s.l = final & 1;
+      if (this.s.z > this.s.w + 8191 || final) {
+        this.p(this.b, final || false);
+        this.s.w = this.s.i, this.s.i -= 2;
+      }
+      if (final) {
+        this.s = this.o = {};
+        this.b = et;
+      }
+    };
+    Deflate2.prototype.flush = function(sync) {
+      if (!this.ondata)
+        err(5);
+      if (this.s.l)
+        err(4);
+      this.p(this.b, false);
+      this.s.w = this.s.i, this.s.i -= 2;
+      if (sync) {
+        var c = new u8(6);
+        c[0] = this.s.r >> 3;
+        var ep = wfblk(c, this.s.r, et);
+        this.s.r = 0;
+        this.ondata(c.subarray(0, ep >> 3), false);
+      }
+    };
+    return Deflate2;
+  }();
   var te = typeof TextEncoder != "undefined" && /* @__PURE__ */ new TextEncoder();
   var td = typeof TextDecoder != "undefined" && /* @__PURE__ */ new TextDecoder();
   var tds = 0;
@@ -5958,6 +6057,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     return slc(ar, 0, ai);
   }
+  var dbf = function(l) {
+    return l == 1 ? 3 : l < 6 ? 2 : l == 9 ? 1 : 0;
+  };
   var exfl = function(ex) {
     var le = 0;
     if (ex) {
@@ -6016,53 +6118,241 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     wbytes(o, b + 12, d);
     wbytes(o, b + 16, e);
   };
-  function zipSync(data, opts) {
-    if (!opts)
-      opts = {};
-    var r = {};
-    var files = [];
-    fltn(data, "", r, opts);
-    var o = 0;
-    var tot = 0;
-    for (var fn in r) {
-      var _a2 = r[fn], file = _a2[0], p = _a2[1];
-      var compression = p.level == 0 ? 0 : 8;
-      var f = strToU8(fn), s = f.length;
-      var com = p.comment, m = com && strToU8(com), ms = m && m.length;
-      var exl = exfl(p.extra);
-      if (s > 65535)
-        err(11);
-      var d = compression ? deflateSync(file, p) : file, l = d.length;
-      var c = crc();
-      c.p(file);
-      files.push(mrg(p, {
-        size: file.length,
-        crc: c.d(),
-        c: d,
-        f,
-        m,
-        u: s != fn.length || m && com.length != ms,
-        o,
-        compression
-      }));
-      o += 30 + s + exl + l;
-      tot += 76 + 2 * (s + exl) + (ms || 0) + l;
+  var ZipPassThrough = /* @__PURE__ */ function() {
+    function ZipPassThrough2(filename) {
+      this.filename = filename;
+      this.c = crc();
+      this.size = 0;
+      this.compression = 0;
     }
-    var out = new u8(tot + 22), oe = o, cdl = tot - o;
-    for (var i2 = 0; i2 < files.length; ++i2) {
-      var f = files[i2];
-      wzh(out, f.o, f, f.f, f.u, f.c.length);
-      var badd = 30 + f.f.length + exfl(f.extra);
-      out.set(f.c, f.o + badd);
-      wzh(out, o, f, f.f, f.u, f.c.length, f.o, f.m), o += 16 + badd + (f.m ? f.m.length : 0);
+    ZipPassThrough2.prototype.process = function(chunk, final) {
+      this.ondata(null, chunk, final);
+    };
+    ZipPassThrough2.prototype.push = function(chunk, final) {
+      if (!this.ondata)
+        err(5);
+      this.c.p(chunk);
+      this.size += chunk.length;
+      if (final)
+        this.crc = this.c.d();
+      this.process(chunk, final || false);
+    };
+    return ZipPassThrough2;
+  }();
+  var ZipDeflate = /* @__PURE__ */ function() {
+    function ZipDeflate2(filename, opts) {
+      var _this = this;
+      if (!opts)
+        opts = {};
+      ZipPassThrough.call(this, filename);
+      this.d = new Deflate(opts, function(dat, final) {
+        _this.ondata(null, dat, final);
+      });
+      this.compression = 8;
+      this.flag = dbf(opts.level);
     }
-    wzf(out, o, files.length, cdl, oe);
-    return out;
+    ZipDeflate2.prototype.process = function(chunk, final) {
+      try {
+        this.d.push(chunk, final);
+      } catch (e) {
+        this.ondata(e, null, final);
+      }
+    };
+    ZipDeflate2.prototype.push = function(chunk, final) {
+      ZipPassThrough.prototype.push.call(this, chunk, final);
+    };
+    return ZipDeflate2;
+  }();
+  var Zip = /* @__PURE__ */ function() {
+    function Zip2(cb) {
+      this.ondata = cb;
+      this.u = [];
+      this.d = 1;
+    }
+    Zip2.prototype.add = function(file) {
+      var _this = this;
+      if (!this.ondata)
+        err(5);
+      if (this.d & 2)
+        this.ondata(err(4 + (this.d & 1) * 8, 0, 1), null, false);
+      else {
+        var f = strToU8(file.filename), fl_1 = f.length;
+        var com = file.comment, o = com && strToU8(com);
+        var u = fl_1 != file.filename.length || o && com.length != o.length;
+        var hl_1 = fl_1 + exfl(file.extra) + 30;
+        if (fl_1 > 65535)
+          this.ondata(err(11, 0, 1), null, false);
+        var header = new u8(hl_1);
+        wzh(header, 0, file, f, u, -1);
+        var chks_1 = [header];
+        var pAll_1 = function() {
+          for (var _i = 0, chks_2 = chks_1; _i < chks_2.length; _i++) {
+            var chk = chks_2[_i];
+            _this.ondata(null, chk, false);
+          }
+          chks_1 = [];
+        };
+        var tr_1 = this.d;
+        this.d = 0;
+        var ind_1 = this.u.length;
+        var uf_1 = mrg(file, {
+          f,
+          u,
+          o,
+          t: function() {
+            if (file.terminate)
+              file.terminate();
+          },
+          r: function() {
+            pAll_1();
+            if (tr_1) {
+              var nxt = _this.u[ind_1 + 1];
+              if (nxt)
+                nxt.r();
+              else
+                _this.d = 1;
+            }
+            tr_1 = 1;
+          }
+        });
+        var cl_1 = 0;
+        file.ondata = function(err2, dat, final) {
+          if (err2) {
+            _this.ondata(err2, dat, final);
+            _this.terminate();
+          } else {
+            cl_1 += dat.length;
+            chks_1.push(dat);
+            if (final) {
+              var dd = new u8(16);
+              wbytes(dd, 0, 134695760);
+              wbytes(dd, 4, file.crc);
+              wbytes(dd, 8, cl_1);
+              wbytes(dd, 12, file.size);
+              chks_1.push(dd);
+              uf_1.c = cl_1, uf_1.b = hl_1 + cl_1 + 16, uf_1.crc = file.crc, uf_1.size = file.size;
+              if (tr_1)
+                uf_1.r();
+              tr_1 = 1;
+            } else if (tr_1)
+              pAll_1();
+          }
+        };
+        this.u.push(uf_1);
+      }
+    };
+    Zip2.prototype.end = function() {
+      var _this = this;
+      if (this.d & 2) {
+        this.ondata(err(4 + (this.d & 1) * 8, 0, 1), null, true);
+        return;
+      }
+      if (this.d)
+        this.e();
+      else
+        this.u.push({
+          r: function() {
+            if (!(_this.d & 1))
+              return;
+            _this.u.splice(-1, 1);
+            _this.e();
+          },
+          t: function() {
+          }
+        });
+      this.d = 3;
+    };
+    Zip2.prototype.e = function() {
+      var bt = 0, l = 0, tl = 0;
+      for (var _i = 0, _a2 = this.u; _i < _a2.length; _i++) {
+        var f = _a2[_i];
+        tl += 46 + f.f.length + exfl(f.extra) + (f.o ? f.o.length : 0);
+      }
+      var out = new u8(tl + 22);
+      for (var _b2 = 0, _c = this.u; _b2 < _c.length; _b2++) {
+        var f = _c[_b2];
+        wzh(out, bt, f, f.f, f.u, -f.c - 2, l, f.o);
+        bt += 46 + f.f.length + exfl(f.extra) + (f.o ? f.o.length : 0), l += f.b;
+      }
+      wzf(out, bt, this.u.length, tl, l);
+      this.ondata(null, out, true);
+      this.d = 2;
+    };
+    Zip2.prototype.terminate = function() {
+      for (var _i = 0, _a2 = this.u; _i < _a2.length; _i++) {
+        var f = _a2[_i];
+        f.t();
+      }
+      this.d = 2;
+    };
+    return Zip2;
+  }();
+  const BLOB_PART_BYTES = 32 * 1024 * 1024;
+  class ZipBuilder {
+    constructor(level = 0) {
+      __publicField(this, "zip");
+      __publicField(this, "finished");
+      __publicField(this, "names", /* @__PURE__ */ new Set());
+      __publicField(this, "parts", []);
+      __publicField(this, "pending", []);
+      __publicField(this, "pendingBytes", 0);
+      this.level = level;
+      let resolve;
+      let reject;
+      this.finished = new Promise((res, rej) => {
+        resolve = res;
+        reject = rej;
+      });
+      this.zip = new Zip((error, chunk, final) => {
+        if (error) return reject(error);
+        this.pending.push(chunk);
+        this.pendingBytes += chunk.byteLength;
+        if (this.pendingBytes >= BLOB_PART_BYTES) this.flush();
+        if (final) resolve();
+      });
+    }
+    /** Adds a file and returns the (deduplicated) name it was stored under. */
+    addFile(name, data) {
+      const entryName = this.uniqueName(name.replace(/^\/+/, "").trim() || "file");
+      const bytes = typeof data === "string" ? strToU8(data) : data instanceof Uint8Array ? data : new Uint8Array(data);
+      const entry = this.level > 0 ? new ZipDeflate(entryName, { level: this.level }) : new ZipPassThrough(entryName);
+      this.zip.add(entry);
+      entry.push(bytes, true);
+      return entryName;
+    }
+    async toBlob() {
+      this.zip.end();
+      await this.finished;
+      this.flush();
+      return new Blob(this.parts, { type: "application/zip" });
+    }
+    flush() {
+      if (this.pending.length === 0) return;
+      this.parts.push(new Blob(this.pending));
+      this.pending = [];
+      this.pendingBytes = 0;
+    }
+    uniqueName(name) {
+      if (!this.names.has(name)) {
+        this.names.add(name);
+        return name;
+      }
+      const dot = name.lastIndexOf(".");
+      const hasExtension = dot > name.lastIndexOf("/") + 1;
+      const base = hasExtension ? name.slice(0, dot) : name;
+      const extension = hasExtension ? name.slice(dot) : "";
+      let counter = 2;
+      while (this.names.has(`${base}_${counter}${extension}`)) counter++;
+      const unique = `${base}_${counter}${extension}`;
+      this.names.add(unique);
+      return unique;
+    }
   }
   class ProgressManager {
     constructor() {
       __publicField(this, "container", null);
       __publicField(this, "tasks", /* @__PURE__ */ new Map());
+      __publicField(this, "removalTimers", /* @__PURE__ */ new Map());
     }
     getContainer() {
       if (!this.container || !document.body.contains(this.container)) {
@@ -6074,6 +6364,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const container = this.getContainer();
       if (this.tasks.has(id)) {
         const existing = this.tasks.get(id);
+        clearTimeout(this.removalTimers.get(id));
+        this.removalTimers.delete(id);
+        existing.files.clear();
+        existing.filesContainer.replaceChildren();
         existing.updateStatus("Restarting task...");
         return existing;
       }
@@ -6117,10 +6411,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           }
         },
         finish: (autoRemoveDelay = 5e3) => {
-          setTimeout(() => {
+          clearTimeout(this.removalTimers.get(id));
+          this.removalTimers.set(id, setTimeout(() => {
             taskElement.remove();
             this.tasks.delete(id);
-          }, autoRemoveDelay);
+            this.removalTimers.delete(id);
+          }, autoRemoveDelay));
         }
       };
       this.tasks.set(id, task);
@@ -6172,128 +6468,89 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     appState.isQueueProcessing = false;
   }
+  const textContentOf = (data) => typeof data === "string" ? data : JSON.stringify(data ?? "");
+  const escapeHtml = (text) => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
+  function filterIgnoredFiles(files) {
+    const ignoredExts = state.settings.ignoredFileExtensions || [];
+    return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+  }
+  async function runWithConcurrency(items, limit, worker) {
+    let next = 0;
+    const lanes = Array.from({ length: Math.min(Math.max(1, limit || 1), items.length) }, async () => {
+      while (next < items.length) {
+        const index = next++;
+        await worker(items[index], index);
+      }
+    });
+    await Promise.all(lanes);
+  }
+  async function fetchFileBytes(url, onProgress, useCache) {
+    if (useCache) {
+      const cached = await getCachedFile(url);
+      if (cached && cached.byteLength > 0) {
+        onProgress(100);
+        return cached;
+      }
+    }
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "GET",
+      url,
+      responseType: "arraybuffer",
+      timeout: state.settings.zipFileDownloadTimeout || 12e4,
+      onprogress: (e) => {
+        if (e.lengthComputable && e.total > 0) onProgress(e.loaded / e.total * 100);
+      }
+    });
+    const data = response.response;
+    if (!data || data.byteLength === 0) throw new Error("Downloaded file is empty");
+    if (useCache) await setCachedFile(url, data);
+    return data;
+  }
+  async function addUrlFilesToZip(zip, urlFiles, task, taskPrefix, useCache, statusPrefix = "") {
+    let done = 0;
+    let failed = 0;
+    await runWithConcurrency(urlFiles, state.settings.maxConcurrentFileDownloadsInZip || 3, async (file, index) => {
+      const fileTaskId = `${taskPrefix}-${index}`;
+      task.addFile(fileTaskId, file.name);
+      try {
+        const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache);
+        zip.addFile(file.name || `file_${index + 1}.bin`, data);
+        task.markFileComplete(fileTaskId, true);
+      } catch (error) {
+        failed++;
+        console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
+        task.markFileComplete(fileTaskId, false);
+        const baseName = sanitizeFilename(file.name.split("/").pop() || "file");
+        zip.addFile(`failed_${baseName}.txt`, `Failed to download file.
+URL: ${file.data}
+Error: ${(error == null ? void 0 : error.message) || error}`);
+      } finally {
+        done++;
+        task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
+      }
+    });
+    return failed;
+  }
   async function executeZipDownload(postDetails) {
     const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
     task.updateStatus("Fetching post metadata...");
-    console.log(`[Kemono DL] Initiating ZIP task for post ${postDetails.postID}: "${postDetails.postTitle}"`);
     try {
       const isPostPage = window.location.pathname.includes("/post/");
       const { files: rawFiles } = isPostPage && appState.cachedPostFiles ? { files: appState.cachedPostFiles } : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
-      const ignoredExts = state.settings.ignoredFileExtensions || [];
-      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+      const files = filterIgnoredFiles(rawFiles);
       if (files.length === 0) throw new Error("No content to ZIP (all files filtered or empty).");
-      let successCount = 0;
-      let failCount = 0;
-      const urlFiles = files.filter((t) => t.source === "url");
-      const totalUrlFiles = urlFiles.length;
-      console.log(`[Kemono DL] Total files collected: ${files.length} (${totalUrlFiles} URLs, ${files.length - totalUrlFiles} text items)`);
-      task.updateStatus(`Downloading ${totalUrlFiles} files...`);
-      const zippable = {};
-      files.forEach((file) => {
-        if (file.source === "text") {
-          const textContent = typeof file.data === "string" ? file.data : JSON.stringify(file.data || "");
-          const cleanName = file.name.replace(/^\/+/, "");
-          console.log(`[Kemono DL] Adding text file to ZIP: "${cleanName}" (${textContent.length} chars)`);
-          zippable[cleanName] = strToU8(textContent);
-        }
-      });
-      const concurrency = Math.max(1, state.settings.maxConcurrentFileDownloadsInZip || 3);
-      let queueIndex = 0;
-      async function downloadWorker() {
-        var _a2;
-        while (queueIndex < totalUrlFiles) {
-          const i2 = queueIndex++;
-          const file = urlFiles[i2];
-          const fileTaskId = `${postDetails.postID}-${i2}`;
-          task.addFile(fileTaskId, file.name);
-          try {
-            console.log(`[Kemono DL] [File ${i2 + 1}/${totalUrlFiles}] Starting download: ${file.name} (${file.data})`);
-            const cachedData = await getCachedFile(file.data);
-            let arrayBuffer;
-            if (cachedData) {
-              console.log(`[Kemono DL] [File ${i2 + 1}/${totalUrlFiles}] Loaded from cache: ${file.name}`);
-              arrayBuffer = cachedData;
-              task.updateFileProgress(fileTaskId, 100);
-            } else {
-              const response = await gmXmlhttpRequestWithRetries({
-                method: "GET",
-                url: file.data,
-                responseType: "arraybuffer",
-                timeout: state.settings.zipFileDownloadTimeout,
-                onprogress: (e) => {
-                  if (e.lengthComputable && e.total > 0) {
-                    task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
-                  }
-                }
-              });
-              arrayBuffer = response.response;
-              if (arrayBuffer && arrayBuffer.byteLength > 0) {
-                console.log(`[Kemono DL] [File ${i2 + 1}/${totalUrlFiles}] Downloaded successfully (${arrayBuffer.byteLength} bytes). Saving to cache.`);
-                await setCachedFile(file.data, arrayBuffer, true);
-              }
-            }
-            if (arrayBuffer && arrayBuffer.byteLength > 0) {
-              let cleanName = (file.name || "").replace(/^\/+/, "").trim();
-              if (!cleanName) {
-                try {
-                  const urlFileName = ((_a2 = file.data.split("/").pop()) == null ? void 0 : _a2.split("?")[0]) || `file_${i2 + 1}.bin`;
-                  cleanName = sanitizeFilename(decodeURIComponent(urlFileName));
-                } catch (e) {
-                  cleanName = `file_${i2 + 1}.bin`;
-                }
-              }
-              if (zippable[cleanName]) {
-                const ext = cleanName.includes(".") ? cleanName.split(".").pop() : "";
-                const base = cleanName.substring(0, cleanName.length - (ext ? ext.length + 1 : 0));
-                cleanName = `${base}_${i2 + 1}${ext ? "." + ext : ""}`;
-              }
-              console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
-              zippable[cleanName] = new Uint8Array(arrayBuffer);
-              task.markFileComplete(fileTaskId, true);
-            } else {
-              throw new Error("Downloaded file ArrayBuffer is empty");
-            }
-          } catch (error) {
-            failCount++;
-            console.error(`[Kemono DL Error] File ${i2 + 1} download failed for URL "${file.data}":`, error);
-            task.markFileComplete(fileTaskId, false);
-            const sanitizedBase = sanitizeFilename(file.name.split("/").pop() || "file");
-            zippable[`failed_${sanitizedBase}.txt`] = strToU8(`Failed to download file.
-URL: ${file.data}
-Error: ${(error == null ? void 0 : error.message) || error}`);
-          } finally {
-            successCount++;
-            task.updateStatus(`Downloading... ${successCount}/${totalUrlFiles} done`);
-          }
-        }
-      }
-      const workers = Array.from({ length: Math.min(concurrency, totalUrlFiles) }, () => downloadWorker());
-      await Promise.all(workers);
-      console.log(`[Kemono DL] All downloads finished. Succeeded: ${successCount - failCount}, Failed: ${failCount}. Total entries in zippable:`, Object.keys(zippable).length);
-      if (totalUrlFiles > 0 && failCount === totalUrlFiles) {
+      const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+      files.filter((f) => f.source === "text").forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
+      const urlFiles = files.filter((f) => f.source === "url");
+      task.updateStatus(`Downloading ${urlFiles.length} files...`);
+      const failCount = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
+      if (urlFiles.length > 0 && failCount === urlFiles.length) {
         throw new Error("All file downloads failed");
       }
       task.updateStatus("Zipping...");
-      const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-      const level = Number(state.settings.zipCompressionLevel) || 0;
-      console.log(`[Kemono DL] Calling fflate zipSync (level ${level}) for "${zipName}"...`);
-      const zipStartTime = Date.now();
-      const zippedData = zipSync(zippable, { level });
-      const duration = Date.now() - zipStartTime;
-      console.log(`[Kemono DL] fflate zipSync (level ${level}) completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
-      const blob = new Blob([zippedData], { type: "application/zip" });
-      if (!blob || blob.size === 0) throw new Error("Generated ZIP is empty.");
-      const blobUrl = URL.createObjectURL(blob);
-      console.log(`[Kemono DL] Triggering download for blob URL ${blobUrl}...`);
-      const downloadAnchor = document.createElement("a");
-      downloadAnchor.href = blobUrl;
-      downloadAnchor.download = zipName;
-      downloadAnchor.style.display = "none";
-      document.body.appendChild(downloadAnchor);
-      downloadAnchor.click();
-      document.body.removeChild(downloadAnchor);
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
-      console.log(`[Kemono DL] Download triggered successfully for ${zipName}`);
+      const blob = await zip.toBlob();
+      if (blob.size === 0) throw new Error("Generated ZIP is empty.");
+      saveBlobViaAnchor(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
       task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ""}`);
     } catch (error) {
       task.updateStatus(`Error: ${error.message}`);
@@ -6324,28 +6581,20 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         return;
       }
       task.updateStatus(`Starting download of ${targetFiles.length} files...`);
-      const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-      let queueIndex = 0;
       let completedCount = 0;
-      async function downloadWorker() {
-        while (queueIndex < targetFiles.length) {
-          const i2 = queueIndex++;
-          const file = targetFiles[i2];
-          const fileTaskId = `indiv-${i2}`;
-          task.addFile(fileTaskId, file.name);
-          try {
-            await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
-            task.markFileComplete(fileTaskId, true);
-          } catch (err2) {
-            task.markFileComplete(fileTaskId, false);
-          } finally {
-            completedCount++;
-            task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
-          }
+      await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i2) => {
+        const fileTaskId = `indiv-${i2}`;
+        task.addFile(fileTaskId, file.name);
+        try {
+          await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
+          task.markFileComplete(fileTaskId, true);
+        } catch (err2) {
+          task.markFileComplete(fileTaskId, false);
+        } finally {
+          completedCount++;
+          task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
         }
-      }
-      const workers = Array.from({ length: Math.min(maxConcurrency, targetFiles.length) }, () => downloadWorker());
-      await Promise.all(workers);
+      });
       task.updateStatus("All downloads triggered!");
     } catch (error) {
       task.updateStatus(`Error: ${error.message}`);
@@ -6356,69 +6605,28 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
   async function downloadFilesToDiskWithProgress(downloadSpecs, taskTitle, concurrency) {
     if (downloadSpecs.length === 0) return;
     await getSettings();
-    const taskId = `pick-${generateRandomId(8)}`;
-    const task = progressManager.createTask(taskId, taskTitle);
+    const task = progressManager.createTask(`pick-${generateRandomId(8)}`, taskTitle);
     task.updateStatus(`Queued ${downloadSpecs.length} files...`);
     const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-    let queueIndex = 0;
     let completedCount = 0;
     let failCount = 0;
-    async function downloadWorker() {
-      while (queueIndex < downloadSpecs.length) {
-        const i2 = queueIndex++;
-        const spec = downloadSpecs[i2];
-        const cleanName = sanitizeFilename(spec.fileName.split("/").pop() || spec.fileName);
-        const fileTaskId = `pick-${i2}`;
-        task.addFile(fileTaskId, cleanName);
-        try {
-          let arrayBuffer = await getCachedFile(spec.url);
-          if (arrayBuffer && arrayBuffer.byteLength > 0) {
-            console.log(`[Kemono DL] [Pick ${i2 + 1}/${downloadSpecs.length}] Loaded from cache: ${cleanName}`);
-            task.updateFileProgress(fileTaskId, 100);
-          } else {
-            const response = await gmXmlhttpRequestWithRetries({
-              method: "GET",
-              url: spec.url,
-              responseType: "arraybuffer",
-              timeout: state.settings.zipFileDownloadTimeout || 12e4,
-              onprogress: (e) => {
-                if (e.lengthComputable && e.total > 0) {
-                  task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
-                }
-              }
-            });
-            arrayBuffer = response.response;
-            if (arrayBuffer && arrayBuffer.byteLength > 0) {
-              await setCachedFile(spec.url, arrayBuffer, true);
-              console.log(`[Kemono DL] [Pick ${i2 + 1}/${downloadSpecs.length}] Downloaded & cached: ${cleanName} (${arrayBuffer.byteLength} bytes)`);
-            }
-          }
-          if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-            throw new Error("Empty response");
-          }
-          const blob = new Blob([arrayBuffer]);
-          const blobUrl = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = blobUrl;
-          a.download = cleanName;
-          a.style.display = "none";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
-          task.markFileComplete(fileTaskId, true);
-        } catch (err2) {
-          console.error(`[Kemono DL] Download error for ${cleanName}:`, err2);
-          task.markFileComplete(fileTaskId, false);
-          failCount++;
-        } finally {
-          completedCount++;
-          task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ""}`);
-        }
+    await runWithConcurrency(downloadSpecs, maxConcurrency, async (spec, i2) => {
+      const cleanName = sanitizeFilename(spec.fileName.split("/").pop() || spec.fileName);
+      const fileTaskId = `pick-${i2}`;
+      task.addFile(fileTaskId, cleanName);
+      try {
+        const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true);
+        saveBlobViaAnchor(new Blob([data]), cleanName);
+        task.markFileComplete(fileTaskId, true);
+      } catch (err2) {
+        console.error(`[Kemono DL] Download error for ${cleanName}:`, err2);
+        task.markFileComplete(fileTaskId, false);
+        failCount++;
+      } finally {
+        completedCount++;
+        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ""}`);
       }
-    }
-    const workers = Array.from({ length: Math.min(maxConcurrency, downloadSpecs.length) }, () => downloadWorker());
-    await Promise.all(workers);
+    });
     task.updateStatus(
       failCount === 0 ? `✓ All ${downloadSpecs.length} files saved!` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
     );
@@ -6431,50 +6639,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         isBulk: false,
         template: "{file_index}_{file_name}"
       });
-      const ignoredExts = state.settings.ignoredFileExtensions || [];
-      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+      const files = filterIgnoredFiles(rawFiles);
       if (files.length === 0) throw new Error("No content to ZIP.");
-      const zip = new JSZip();
-      let failedFileCount = 0;
+      const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+      files.filter((f) => f.source === "text").forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
       const urlFiles = files.filter((f) => f.source === "url");
       postTask.updateStatus(`Downloading ${urlFiles.length} files...`);
-      files.forEach((file) => {
-        if (file.source === "text") zip.file(file.name, file.data);
-      });
-      const downloadPromises = [];
-      let activeFileDownloads = 0;
-      for (let fileIndex = 0; fileIndex < urlFiles.length; fileIndex++) {
-        const fileToDownload = urlFiles[fileIndex];
-        downloadPromises.push(
-          (async () => {
-            while (activeFileDownloads >= state.settings.maxConcurrentFileDownloadsInZip) {
-              await new Promise((resolve) => setTimeout(resolve, 200));
-            }
-            activeFileDownloads++;
-            const fileTaskId = `multi-${details.postID}-${fileIndex}`;
-            postTask.addFile(fileTaskId, fileToDownload.name);
-            try {
-              const response = await gmXmlhttpRequestWithRetries({
-                method: "GET",
-                url: fileToDownload.data,
-                responseType: "arraybuffer",
-                timeout: state.settings.zipFileDownloadTimeout,
-                onprogress: (e) => {
-                  if (e.lengthComputable) postTask.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
-                }
-              });
-              zip.file(fileToDownload.name, response.response);
-              postTask.markFileComplete(fileTaskId, true);
-            } catch (error) {
-              failedFileCount++;
-              postTask.markFileComplete(fileTaskId, false);
-            } finally {
-              activeFileDownloads--;
-            }
-          })()
-        );
-      }
-      await Promise.all(downloadPromises);
+      const failedFileCount = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
       postTask.updateStatus("Zipping...");
       const zipFileName = formatNameFromTemplate(state.settings.bulkMultipleSystemPathTemplate, {
         author_name: details.authorName,
@@ -6484,8 +6655,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         service: details.service,
         post_date: details.postDate || "UnknownDate"
       });
-      const blob = await zip.generateAsync({ type: "blob" });
-      downloadBlobWithGm(blob, zipFileName);
+      downloadBlobWithGm(await zip.toBlob(), zipFileName);
       postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ""}`);
     } catch (error) {
       console.error(`Failed to download post ${details.postID} as ZIP:`, error);
@@ -6500,98 +6670,45 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     const task = progressManager.createTask(`bulk-single-${Date.now()}`, `Bulk Archive (${postIds.length} Posts)`);
     resetMediaCounter();
     try {
-      const zip = new JSZip();
-      let htmlIndexString = "";
-      if (state.settings.addHtmlIndexInZip) {
-        htmlIndexString = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${sanitizeFilename(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${sanitizeFilename(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>`;
-      }
+      const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+      const addHtmlIndex = state.settings.addHtmlIndexInZip;
+      let htmlIndex = addHtmlIndex ? `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${escapeHtml(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${escapeHtml(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>` : "";
       for (let i2 = 0; i2 < postIds.length; i2++) {
-        const postId = postIds[i2];
-        const postCard = document.querySelector(`article.post-card[data-id="${postId}"]`);
+        const postCard = document.querySelector(`article.post-card[data-id="${postIds[i2]}"]`);
         if (!postCard) continue;
         const postDetails = getPostCardDetails(postCard, authorName);
-        task.updateStatus(`[${i2 + 1}/${postIds.length}] Fetching: ${postDetails.postTitle}`);
+        const postPrefix = `[${i2 + 1}/${postIds.length}] `;
+        task.updateStatus(`${postPrefix}Fetching: ${postDetails.postTitle}`);
         const { files: rawFiles } = await collectFilesForPost(postDetails, {
           isBulk: true,
           bulk_post_index: i2 + 1,
           template: state.settings.bulkSingleInternalPathTemplate
         });
-        const ignoredExts = state.settings.ignoredFileExtensions || [];
-        const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
-        if (state.settings.addHtmlIndexInZip) {
+        const files = filterIgnoredFiles(rawFiles);
+        if (addHtmlIndex) {
           const postLink = ((_a2 = postCard.querySelector("a")) == null ? void 0 : _a2.href) || "#";
-          htmlIndexString += `<div class="post-entry">h2><a href="${postLink}" target="_blank">[${postDetails.postDate || "N/A"}] ${postDetails.postTitle}</a></h2><ul>`;
-          if (files.length > 0) {
-            files.forEach((file) => {
-              const sanitizedPath = file.name.split("/").map((part) => encodeURIComponent(part)).join("/");
-              htmlIndexString += `<li><a href="./${sanitizedPath}">${file.name.split("/").pop()}</a></li>`;
-            });
-          } else {
-            htmlIndexString += `<li>No files found.</li>`;
-          }
-          htmlIndexString += `</ul></div>`;
+          const entries = files.length > 0 ? files.map((file) => {
+            const relativePath = file.name.split("/").map((part) => encodeURIComponent(part)).join("/");
+            return `<li><a href="./${relativePath}">${escapeHtml(file.name.split("/").pop() || file.name)}</a></li>`;
+          }).join("") : "<li>No files found.</li>";
+          htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postLink)}" target="_blank">[${escapeHtml(postDetails.postDate || "N/A")}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries}</ul></div>`;
         }
         if (files.length === 0) continue;
-        files.forEach((file) => {
-          if (file.source === "text") zip.file(file.name, file.data);
-        });
+        files.filter((f) => f.source === "text").forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
         const urlFiles = files.filter((f) => f.source === "url");
         if (urlFiles.length > 0) {
-          task.updateStatus(`[${i2 + 1}/${postIds.length}] Downloading ${urlFiles.length} files for ${postDetails.postTitle}`);
-          const downloadPromises = [];
-          let activeFileDownloads = 0;
-          for (let fileIndex = 0; fileIndex < urlFiles.length; fileIndex++) {
-            const fileToDownload = urlFiles[fileIndex];
-            downloadPromises.push(
-              (async () => {
-                while (activeFileDownloads >= state.settings.maxConcurrentFileDownloadsInZip) {
-                  await new Promise((resolve) => setTimeout(resolve, 200));
-                }
-                activeFileDownloads++;
-                const fileTaskId = `bulk-${i2}-${fileIndex}`;
-                task.addFile(fileTaskId, fileToDownload.name);
-                try {
-                  const response = await gmXmlhttpRequestWithRetries({
-                    method: "GET",
-                    url: fileToDownload.data,
-                    responseType: "arraybuffer",
-                    timeout: state.settings.zipFileDownloadTimeout,
-                    onprogress: (e) => {
-                      if (e.lengthComputable) task.updateFileProgress(fileTaskId, e.loaded / e.total * 100);
-                    }
-                  });
-                  zip.file(fileToDownload.name, response.response);
-                  task.markFileComplete(fileTaskId, true);
-                } catch (error) {
-                  task.markFileComplete(fileTaskId, false);
-                  zip.file(
-                    `failed_${fileToDownload.name.split("/").pop()}`,
-                    `Failed to download.
-URL: ${fileToDownload.data}
-Error: ${error.message}`
-                  );
-                } finally {
-                  activeFileDownloads--;
-                }
-              })()
-            );
-          }
-          await Promise.all(downloadPromises);
+          await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i2}`, false, postPrefix);
         }
       }
-      if (state.settings.addHtmlIndexInZip) {
-        htmlIndexString += `</div></body></html>`;
-        zip.file("_index.html", htmlIndexString);
+      if (addHtmlIndex) {
+        zip.addFile("_index.html", `${htmlIndex}</div></body></html>`);
       }
-      task.updateStatus(`Zipping ${postIds.length} Posts...`);
+      task.updateStatus(`Finalizing ZIP for ${postIds.length} posts...`);
       const finalZipName = formatNameFromTemplate(state.settings.bulkSingleSystemPathTemplate, {
         author_name: authorName,
         post_count: postIds.length
       });
-      const blob = await zip.generateAsync({ type: "blob" }, (meta) => {
-        task.updateStatus(`Generating final ZIP: ${meta.percent.toFixed(0)}%`);
-      });
-      downloadBlobWithGm(blob, finalZipName);
+      downloadBlobWithGm(await zip.toBlob(), finalZipName);
       task.updateStatus("Complete!");
     } catch (error) {
       console.error("Bulk download (single) failed:", error);
@@ -7186,9 +7303,11 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     }
   }
   function injectArtistFavoriteButton(cardNode) {
+    var _a2;
     if (cardNode.querySelector(".kdl-quick-fav-btn")) return;
-    const service = cardNode.dataset.service;
-    const creatorId = cardNode.dataset.id;
+    const hrefMatch = (_a2 = cardNode.getAttribute("href")) == null ? void 0 : _a2.match(/^\/([^/]+)\/user\/([^/?#]+)/);
+    const service = cardNode.dataset.service || (hrefMatch == null ? void 0 : hrefMatch[1]);
+    const creatorId = cardNode.dataset.id || (hrefMatch == null ? void 0 : hrefMatch[2]);
     if (!service || !creatorId) return;
     const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);
     const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, ["⭐"]);
@@ -7217,6 +7336,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     });
   }
   let lastCheckedIndex = null;
+  let selectionPageUrl = "";
   function getSelectedPostsDetails() {
     var _a2, _b2;
     const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
@@ -7259,55 +7379,57 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       }
     }
   }
+  const getPostCards = () => Array.from(document.querySelectorAll("article.post-card[data-id]"));
+  function setCheckboxRange(cards, from, to, checked) {
+    var _a2;
+    for (let i2 = Math.min(from, to); i2 <= Math.max(from, to); i2++) {
+      const checkbox = (_a2 = cards[i2]) == null ? void 0 : _a2.querySelector(".kdl-post-checkbox");
+      if (checkbox) checkbox.checked = checked;
+    }
+  }
   function initializeShiftClickLogic() {
-    const postCards = Array.from(document.querySelectorAll("article.post-card[data-id]"));
+    if (selectionPageUrl !== window.location.href) {
+      selectionPageUrl = window.location.href;
+      lastCheckedIndex = null;
+    }
+    const postCards = getPostCards();
     if (postCards.length === 0) return;
-    postCards.forEach((card, index) => {
+    postCards.forEach((card) => {
+      if (!card.dataset.kdlShiftClickBound) {
+        card.dataset.kdlShiftClickBound = "true";
+        card.addEventListener(
+          "click",
+          (event) => {
+            if (!event.shiftKey) return;
+            const target = event.target;
+            if (target.closest(".post-card-download-controls, .kdl-post-checkbox")) return;
+            const checkbox2 = card.querySelector(".kdl-post-checkbox");
+            if (!checkbox2) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const cards = getPostCards();
+            const index = cards.indexOf(card);
+            const desiredState = !checkbox2.checked;
+            checkbox2.checked = desiredState;
+            if (lastCheckedIndex !== null) setCheckboxRange(cards, index, lastCheckedIndex, desiredState);
+            lastCheckedIndex = index;
+            updateSelectionState();
+          },
+          true
+        );
+      }
       const checkbox = card.querySelector(".kdl-post-checkbox");
-      if (!checkbox) return;
-      card.addEventListener(
-        "click",
-        (event) => {
-          if (!event.shiftKey) return;
-          const target = event.target;
-          if (target.closest(".post-card-download-controls")) return;
-          event.preventDefault();
-          event.stopPropagation();
-          const desiredState = !checkbox.checked;
-          checkbox.checked = desiredState;
-          if (lastCheckedIndex !== null) {
-            const start = Math.min(index, lastCheckedIndex);
-            const end = Math.max(index, lastCheckedIndex);
-            for (let i2 = start; i2 <= end; i2++) {
-              const cb = postCards[i2].querySelector(".kdl-post-checkbox");
-              if (cb) cb.checked = desiredState;
-            }
-          }
+      if (checkbox && !checkbox.dataset.kdlShiftClickBound) {
+        checkbox.dataset.kdlShiftClickBound = "true";
+        checkbox.addEventListener("click", (event) => {
+          const cards = getPostCards();
+          const index = cards.indexOf(card);
+          if (event.shiftKey && lastCheckedIndex !== null) setCheckboxRange(cards, index, lastCheckedIndex, checkbox.checked);
           lastCheckedIndex = index;
           updateSelectionState();
-        },
-        true
-      );
-      checkbox.addEventListener("click", (event) => {
-        if (event.shiftKey && lastCheckedIndex !== null) {
-          const start = Math.min(index, lastCheckedIndex);
-          const end = Math.max(index, lastCheckedIndex);
-          const targetChecked = checkbox.checked;
-          for (let i2 = start; i2 <= end; i2++) {
-            const cb = postCards[i2].querySelector(".kdl-post-checkbox");
-            if (cb) cb.checked = targetChecked;
-          }
-        }
-        lastCheckedIndex = index;
-        updateSelectionState();
-      });
+        });
+      }
     });
-    const pagination = document.querySelector(".paginator");
-    if (pagination) {
-      pagination.addEventListener("click", () => {
-        lastCheckedIndex = null;
-      });
-    }
     updateSelectionState();
   }
   function createBulkDownloadPanel() {
@@ -7829,18 +7951,18 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       link.appendChild(textSpan);
     });
   }
+  function precedingLineNodes(link) {
+    const nodes = [];
+    for (let node = link.previousSibling; node && node.nodeName !== "BR"; node = node.previousSibling) nodes.unshift(node);
+    return nodes;
+  }
   function isOnOwnLine(link, trailing) {
-    const lineText = (dir) => {
-      let text = "";
-      for (let node = link[dir]; node && node.nodeName !== "BR"; node = node[dir]) {
-        text = dir === "previousSibling" ? (node.textContent || "") + text : text + (node.textContent || "");
-      }
-      return text.trim();
-    };
-    const before = lineText("previousSibling");
-    let after = lineText("nextSibling");
+    const before = precedingLineNodes(link).map((node) => node.textContent || "").join("").trim();
+    let after = "";
+    for (let node = link.nextSibling; node && node.nodeName !== "BR"; node = node.nextSibling) after += node.textContent || "";
+    after = after.trim();
     if (trailing && after.startsWith(trailing)) after = after.slice(trailing.length).trim();
-    const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before);
+    const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before) && !/pass|pwd|pw\b|key|пароль|パス|密码|密碼|비밀번호/i.test(before);
     return (!before || isLabel) && !after;
   }
   function copyPassword(password) {
@@ -7863,6 +7985,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const linkActions = /* @__PURE__ */ new Map();
     const linkPasswords = /* @__PURE__ */ new Map();
     const elementsToRemove = /* @__PURE__ */ new Set();
+    const labelNodes = /* @__PURE__ */ new Set();
     links.forEach((link) => {
       var _a2;
       try {
@@ -7893,11 +8016,13 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         }
         const action = bestMatch ? bestMatch.action : "button";
         if (action === "hide" || action === "button") {
-          if (action === "hide" || isOnOwnLine(link, trailing)) {
+          const ownLine = isOnOwnLine(link, trailing);
+          if (action === "hide" || ownLine) {
             if (trailing && ((_a2 = link.textContent) == null ? void 0 : _a2.trim().endsWith(trailing))) {
               link.after(document.createTextNode(trailing));
             }
             elementsToRemove.add(link);
+            if (ownLine) precedingLineNodes(link).forEach((node) => labelNodes.add(node));
           }
           if (!linkActions.has(url.href)) {
             linkActions.set(url.href, action);
@@ -7955,6 +8080,7 @@ Password: ${password} (copied on click)`;
       });
       content.prepend(buttonContainer);
     }
+    labelNodes.forEach((node) => node.remove());
     elementsToRemove.forEach((link) => {
       var _a2, _b2;
       const parent = link.parentElement;
@@ -8057,7 +8183,7 @@ Password: ${password} (copied on click)`;
     if (!urlMatch || !urlMatch.groups) return fileDataMap;
     const { service, creator_id, post_id } = urlMatch.groups;
     const apiUrl = `/api/v1/${service}/user/${creator_id}/post/${post_id}`;
-    const fetchOptions = { headers: {} };
+    const fetchOptions = { headers: { Accept: "text/css" } };
     if (kuiState.sessionKey) {
       fetchOptions.headers["Cookie"] = `session=${kuiState.sessionKey}`;
     } else {
@@ -8098,6 +8224,7 @@ Password: ${password} (copied on click)`;
     ctx: null,
     image: new Image(),
     boundHandleKeydown: null,
+    boundResize: null,
     init() {
       this.isActive = false;
       this.imageLinks = [];
@@ -8198,7 +8325,8 @@ Password: ${password} (copied on click)`;
         container.addEventListener("touchmove", this.handleTouchMove.bind(this), { passive: false });
         container.addEventListener("touchend", this.handleTouchEnd.bind(this));
       }
-      window.addEventListener("resize", this.resizeCanvas.bind(this));
+      this.boundResize = this.resizeCanvas.bind(this);
+      window.addEventListener("resize", this.boundResize);
       (_a2 = document.getElementById("kui-lightbox-close-btn")) == null ? void 0 : _a2.addEventListener("click", this.close.bind(this));
       (_b2 = document.querySelector(".kui-lightbox-nav.prev")) == null ? void 0 : _b2.addEventListener("click", () => this.navigate(-1));
       (_c = document.querySelector(".kui-lightbox-nav.next")) == null ? void 0 : _c.addEventListener("click", () => this.navigate(1));
@@ -8207,6 +8335,10 @@ Password: ${password} (copied on click)`;
     removeEventListeners() {
       if (this.boundHandleKeydown) {
         document.removeEventListener("keydown", this.boundHandleKeydown, true);
+      }
+      if (this.boundResize) {
+        window.removeEventListener("resize", this.boundResize);
+        this.boundResize = null;
       }
     },
     handleKeydown(e) {
@@ -8441,7 +8573,10 @@ Password: ${password} (copied on click)`;
     }
   }
   let activePlayer = null;
+  let fluidGuard = null;
   function destroyVideoGallery() {
+    fluidGuard == null ? void 0 : fluidGuard.disconnect();
+    fluidGuard = null;
     if (!activePlayer) return;
     try {
       activePlayer.destroy();
@@ -8554,7 +8689,9 @@ Password: ${password} (copied on click)`;
       }
     });
     let listItems = [];
+    let activeIndex = 0;
     const setActiveVideo = (index) => {
+      activeIndex = index;
       player.source = {
         type: "video",
         title: videosData[index].title,
@@ -8577,6 +8714,13 @@ Password: ${password} (copied on click)`;
       targetParent.appendChild(galleryLayout);
     }
     setActiveVideo(0);
+    let fluidEvictions = 0;
+    fluidGuard = new MutationObserver(() => {
+      if (fluidEvictions >= 3 || !playerContainer.querySelector(".fluid_video_wrapper")) return;
+      fluidEvictions++;
+      setActiveVideo(activeIndex);
+    });
+    fluidGuard.observe(playerContainer, { childList: true, subtree: true });
   }
   const postPageModule = {
     originalContentHTML: null,
@@ -8595,6 +8739,7 @@ Password: ${password} (copied on click)`;
     cleanup() {
       document.removeEventListener("keydown", this.handleGlobalKeys, true);
       destroyVideoGallery();
+      lightboxModule.close();
       document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el2) => el2.remove());
       document.querySelectorAll(".kui-post-section").forEach((section) => {
         const parent = section.parentNode;
@@ -9019,6 +9164,9 @@ Password: ${password} (copied on click)`;
   ensureStylesInjected();
   let lastUrl = "";
   let isInitializing = false;
+  let pendingForcedInit = false;
+  let scheduledInitTimer = null;
+  let scheduledInitForce = false;
   function runKuiPageLogic() {
     try {
       const postBody = document.querySelector(SELECTORS.postBody);
@@ -9086,17 +9234,20 @@ Password: ${password} (copied on click)`;
             });
             card.appendChild(checkbox);
           }
-          card.addEventListener("click", (event) => {
-            var _a3;
-            if (event.ctrlKey) {
-              event.preventDefault();
-              event.stopPropagation();
-              (_a3 = card.querySelector(".kdl-post-checkbox")) == null ? void 0 : _a3.click();
-            }
-          });
+          if (!card.dataset.kdlCtrlClickBound) {
+            card.dataset.kdlCtrlClickBound = "true";
+            card.addEventListener("click", (event) => {
+              var _a3;
+              if (event.ctrlKey) {
+                event.preventDefault();
+                event.stopPropagation();
+                (_a3 = card.querySelector(".kdl-post-checkbox")) == null ? void 0 : _a3.click();
+              }
+            });
+          }
         });
       } else if (path.startsWith("/artists") || path.startsWith("/creators")) {
-        document.querySelectorAll("a.user-card[data-id][data-service]").forEach((c) => injectArtistFavoriteButton(c));
+        document.querySelectorAll("a.user-card").forEach((c) => injectArtistFavoriteButton(c));
       } else if (path.startsWith("/posts") || path === "/") {
         document.querySelectorAll("article.post-card[data-id][data-user][data-service]").forEach((c) => injectPostFavoriteButton(c));
       }
@@ -9110,7 +9261,10 @@ Password: ${password} (copied on click)`;
     setupNavigationSettings();
     createFixedControls();
     runKuiPageLogic();
-    if (isInitializing) return;
+    if (isInitializing) {
+      if (force) pendingForcedInit = true;
+      return;
+    }
     const currentUrl = window.location.href;
     const path = window.location.pathname;
     const isPostPage = path.includes("/post/");
@@ -9139,8 +9293,22 @@ Password: ${password} (copied on click)`;
       debugLog("Initialization error or timeout:", error);
     } finally {
       isInitializing = false;
+      if (pendingForcedInit) {
+        pendingForcedInit = false;
+        scheduleInit(true);
+      }
     }
   };
+  function scheduleInit(force = false, delay = 50) {
+    scheduledInitForce = scheduledInitForce || force;
+    if (scheduledInitTimer) clearTimeout(scheduledInitTimer);
+    scheduledInitTimer = setTimeout(() => {
+      const runForced = scheduledInitForce;
+      scheduledInitTimer = null;
+      scheduledInitForce = false;
+      runInitializationLogic(runForced);
+    }, delay);
+  }
   function init() {
     ensureStylesInjected();
     applyAdBlock();
@@ -9160,25 +9328,25 @@ Password: ${password} (copied on click)`;
     document.addEventListener("htmx:beforeSwap", (event) => {
       if (swapReplacesPost(event)) postPageModule.cleanup();
     });
-    document.addEventListener("htmx:afterSettle", () => runInitializationLogic(true));
-    document.addEventListener("htmx:afterSwap", () => runInitializationLogic(true));
-    document.addEventListener("htmx:historyRestore", () => runInitializationLogic(true));
+    document.addEventListener("htmx:afterSettle", () => scheduleInit(true));
+    document.addEventListener("htmx:afterSwap", () => scheduleInit(true));
+    document.addEventListener("htmx:historyRestore", () => scheduleInit(true));
     window.addEventListener("popstate", () => {
       postPageModule.cleanup();
-      runInitializationLogic(true);
+      scheduleInit(true);
     });
     const changesPath = (url) => url != null && new URL(String(url), window.location.href).pathname !== window.location.pathname;
     const originalPushState = history.pushState;
     history.pushState = function(...args) {
       if (changesPath(args[2])) postPageModule.cleanup();
       originalPushState.apply(this, args);
-      setTimeout(() => runInitializationLogic(true), 50);
+      scheduleInit(true);
     };
     const originalReplaceState = history.replaceState;
     history.replaceState = function(...args) {
       if (changesPath(args[2])) postPageModule.cleanup();
       originalReplaceState.apply(this, args);
-      setTimeout(() => runInitializationLogic(true), 50);
+      scheduleInit(true);
     };
     let observerTimeout = null;
     const observer = new MutationObserver(() => {

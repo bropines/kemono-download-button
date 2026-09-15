@@ -24,6 +24,8 @@ export const postPageModule = {
   cleanup() {
     document.removeEventListener("keydown", this.handleGlobalKeys, true);
     destroyVideoGallery();
+    // An open lightbox would otherwise keep the next page scroll-locked and its arrow keys captured
+    lightboxModule.close();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());
 

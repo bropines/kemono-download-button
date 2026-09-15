@@ -102,8 +102,10 @@ export function updateCardFavoriteState(card: HTMLElement | null, isFavorited: b
 
 export function injectArtistFavoriteButton(cardNode: HTMLElement): void {
   if (cardNode.querySelector('.kdl-quick-fav-btn')) return;
-  const service = cardNode.dataset.service;
-  const creatorId = cardNode.dataset.id;
+  // Current artist cards carry no data attributes, only href="/{service}/user/{id}"
+  const hrefMatch = cardNode.getAttribute('href')?.match(/^\/([^/]+)\/user\/([^/?#]+)/);
+  const service = cardNode.dataset.service || hrefMatch?.[1];
+  const creatorId = cardNode.dataset.id || hrefMatch?.[2];
   if (!service || !creatorId) return;
 
   const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);

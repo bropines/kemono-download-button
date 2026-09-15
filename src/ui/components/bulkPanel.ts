@@ -6,6 +6,7 @@ import { el } from '../../utils/dom';
 import { showMultiPostFilePickerModal } from './filePickerModal';
 
 let lastCheckedIndex: number | null = null;
+let selectionPageUrl = '';
 
 export function getSelectedPostsDetails(): PostDetails[] {
   const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
@@ -56,63 +57,66 @@ export function updateSelectionState(): void {
   }
 }
 
+const getPostCards = () => Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
+
+function setCheckboxRange(cards: HTMLElement[], from: number, to: number, checked: boolean): void {
+  for (let i = Math.min(from, to); i <= Math.max(from, to); i++) {
+    const checkbox = cards[i]?.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
+    if (checkbox) checkbox.checked = checked;
+  }
+}
+
 export function initializeShiftClickLogic(): void {
-  const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
+  // The range anchor belongs to one page's card list (covers pagination and creator changes)
+  if (selectionPageUrl !== window.location.href) {
+    selectionPageUrl = window.location.href;
+    lastCheckedIndex = null;
+  }
+
+  const postCards = getPostCards();
   if (postCards.length === 0) return;
 
-  postCards.forEach((card, index) => {
+  // This runs on every re-init while cards survive it, and checkboxes get recreated: bind each element
+  // once and resolve the checkbox/index at click time, so a toggle is never applied twice or to a stale node
+  postCards.forEach((card) => {
+    if (!card.dataset.kdlShiftClickBound) {
+      card.dataset.kdlShiftClickBound = 'true';
+      card.addEventListener(
+        'click',
+        (event: MouseEvent) => {
+          if (!event.shiftKey) return;
+          const target = event.target as HTMLElement;
+          if (target.closest('.post-card-download-controls, .kdl-post-checkbox')) return;
+          const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
+          if (!checkbox) return;
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          const cards = getPostCards();
+          const index = cards.indexOf(card);
+          const desiredState = !checkbox.checked;
+          checkbox.checked = desiredState;
+          if (lastCheckedIndex !== null) setCheckboxRange(cards, index, lastCheckedIndex, desiredState);
+          lastCheckedIndex = index;
+          updateSelectionState();
+        },
+        true
+      );
+    }
+
     const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-    if (!checkbox) return;
-
-    card.addEventListener(
-      'click',
-      (event: MouseEvent) => {
-        if (!event.shiftKey) return;
-        const target = event.target as HTMLElement;
-        if (target.closest('.post-card-download-controls')) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-
-        const desiredState = !checkbox.checked;
-        checkbox.checked = desiredState;
-
-        if (lastCheckedIndex !== null) {
-          const start = Math.min(index, lastCheckedIndex);
-          const end = Math.max(index, lastCheckedIndex);
-          for (let i = start; i <= end; i++) {
-            const cb = postCards[i].querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-            if (cb) cb.checked = desiredState;
-          }
-        }
+    if (checkbox && !checkbox.dataset.kdlShiftClickBound) {
+      checkbox.dataset.kdlShiftClickBound = 'true';
+      checkbox.addEventListener('click', (event: MouseEvent) => {
+        const cards = getPostCards();
+        const index = cards.indexOf(card);
+        if (event.shiftKey && lastCheckedIndex !== null) setCheckboxRange(cards, index, lastCheckedIndex, checkbox.checked);
         lastCheckedIndex = index;
         updateSelectionState();
-      },
-      true
-    );
-
-    checkbox.addEventListener('click', (event: MouseEvent) => {
-      if (event.shiftKey && lastCheckedIndex !== null) {
-        const start = Math.min(index, lastCheckedIndex);
-        const end = Math.max(index, lastCheckedIndex);
-        const targetChecked = checkbox.checked;
-
-        for (let i = start; i <= end; i++) {
-          const cb = postCards[i].querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-          if (cb) cb.checked = targetChecked;
-        }
-      }
-      lastCheckedIndex = index;
-      updateSelectionState();
-    });
+      });
+    }
   });
-
-  const pagination = document.querySelector('.paginator');
-  if (pagination) {
-    pagination.addEventListener('click', () => {
-      lastCheckedIndex = null;
-    });
-  }
 
   updateSelectionState();
 }

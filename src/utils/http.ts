@@ -13,18 +13,22 @@ function isSiteUrl(url: string): boolean {
 }
 
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
-  const maxRetries = state.settings.enableDownloadRetries ? state.settings.downloadRetryCount : 0;
+  const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
   const retryDelay = state.settings.downloadRetryDelay;
-  let attempts = 0;
+  let retries = 0;
   let currentUrl = details.url;
 
-  while (attempts <= maxRetries + 4) {
+  while (true) {
     try {
       return await new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
         // Never send the session to third parties (translation APIs, external file hosts)
         if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
           headers['Cookie'] = state.settings.sessionCookie;
+        }
+        // kemono/coomer answer API requests without this exact Accept header with 403
+        if (isSiteUrl(currentUrl) && currentUrl.includes('/api/') && !headers['Accept']) {
+          headers['Accept'] = 'text/css';
         }
 
         GM_xmlhttpRequest({
@@ -60,35 +64,20 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
         });
       });
     } catch (error: any) {
-      attempts++;
-
-      const fileMatch = currentUrl.match(/https:\/\/(file|c\d+)\.([^/]+)(\/.*)/);
-      if (fileMatch) {
-        const prefix = fileMatch[1];
-        const domain = fileMatch[2];
-        const path = fileMatch[3];
-        if (prefix === 'file') {
-          currentUrl = `https://c1.${domain}${path}`;
-        } else {
-          const currentCdnNum = parseInt(prefix.replace('c', ''), 10);
-          const nextCdnNum = (currentCdnNum % 6) + 1;
-          currentUrl = `https://c${nextCdnNum}.${domain}${path}`;
-        }
-        debugLog(`CDN node fallback: switching to ${currentUrl}`);
-      } else {
-        const mainMatch = currentUrl.match(/https:\/\/([^/]+)(\/data\/.*)/);
-        if (mainMatch && !mainMatch[1].startsWith('c') && !mainMatch[1].startsWith('file')) {
-          currentUrl = `https://file.${mainMatch[1]}${mainMatch[2]}`;
-          debugLog(`CDN fallback: switching from main domain to ${currentUrl}`);
-        } else if (error.status === 404 || error.status === 401 || error.status === 403) {
-          throw error;
-        }
+      // pawchive serves /data/ only from file.<domain> (its main domain 404s, while kemono/coomer redirect
+      // to the right n1-n4 node themselves). Switching hosts doesn't use up a retry.
+      const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);
+      if (error.status === 404 && mainDataMatch && !/^(file|n\d+)\./.test(mainDataMatch[1])) {
+        currentUrl = `https://file.${mainDataMatch[1]}${mainDataMatch[2]}`;
+        debugLog(`Main domain returned 404, retrying on ${currentUrl}`);
+        continue;
       }
-
-      if (attempts > maxRetries + 4) {
+      // A missing or forbidden file won't appear on a retry
+      if (error.status === 404 || error.status === 401 || error.status === 403 || retries >= maxRetries) {
         throw error;
       }
-      debugLog(`Attempt ${attempts} failed for ${details.url}: ${error.message}. Retrying in ${retryDelay}ms...`);
+      retries++;
+      debugLog(`Attempt ${retries} failed for ${currentUrl}: ${error.message}. Retrying in ${retryDelay}ms...`);
       await new Promise((res) => setTimeout(res, retryDelay));
     }
   }
@@ -152,15 +141,18 @@ export async function downloadFileWithFallback(url: string, fileName: string, pr
     throw new Error('Downloaded file array buffer is empty');
   }
 
-  const blob = new Blob([arrayBuffer]);
+  saveBlobViaAnchor(new Blob([arrayBuffer]), cleanName);
+}
+
+export function saveBlobViaAnchor(blob: Blob, name: string): void {
   const blobUrl = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = blobUrl;
-  a.download = cleanName;
+  a.download = name;
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
-  document.body.removeChild(a);
+  a.remove();
   setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
 }
 

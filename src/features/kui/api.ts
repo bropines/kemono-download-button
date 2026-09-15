@@ -7,7 +7,8 @@ export async function fetchPostFileData(): Promise<Map<string, string>> {
 
   const { service, creator_id, post_id } = urlMatch.groups;
   const apiUrl = `/api/v1/${service}/user/${creator_id}/post/${post_id}`;
-  const fetchOptions: RequestInit = { headers: {} };
+  // kemono/coomer answer API requests without this exact Accept header with 403
+  const fetchOptions: RequestInit = { headers: { Accept: "text/css" } };
 
   if (kuiState.sessionKey) {
     (fetchOptions.headers as Record<string, string>)["Cookie"] = `session=${kuiState.sessionKey}`;

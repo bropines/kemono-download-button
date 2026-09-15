@@ -16,6 +16,7 @@ export interface ProgressTask {
 class ProgressManager {
   private container: HTMLElement | null = null;
   private tasks: Map<string, ProgressTask> = new Map();
+  private removalTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
 
   private getContainer(): HTMLElement {
     if (!this.container || !document.body.contains(this.container)) {
@@ -28,6 +29,11 @@ class ProgressManager {
     const container = this.getContainer();
     if (this.tasks.has(id)) {
       const existing = this.tasks.get(id)!;
+      // Task ids repeat per post: the previous run's pending removal would delete this run's element
+      clearTimeout(this.removalTimers.get(id));
+      this.removalTimers.delete(id);
+      existing.files.clear();
+      existing.filesContainer.replaceChildren();
       existing.updateStatus('Restarting task...');
       return existing;
     }
@@ -79,10 +85,12 @@ class ProgressManager {
       },
 
       finish: (autoRemoveDelay = 5000) => {
-        setTimeout(() => {
+        clearTimeout(this.removalTimers.get(id));
+        this.removalTimers.set(id, setTimeout(() => {
           taskElement.remove();
           this.tasks.delete(id);
-        }, autoRemoveDelay);
+          this.removalTimers.delete(id);
+        }, autoRemoveDelay));
       }
     };
 

@@ -417,7 +417,18 @@ export function createSettingsModal(): void {
       if (key === 'savedFileNameTemplates') continue;
       const element = document.getElementById(`kdl-setting-${key}`) as HTMLInputElement | HTMLSelectElement | null;
       if (element) {
-        let value: any = element.type === 'checkbox' ? (element as HTMLInputElement).checked : element.type === 'number' ? parseInt(element.value, 10) : element.value;
+        const defaultValue = DEFAULT_SETTINGS[key as keyof DownloaderSettings];
+        let value: any = element.value;
+        if (element.type === 'checkbox') {
+          value = (element as HTMLInputElement).checked;
+        } else if (typeof defaultValue === 'number') {
+          // An emptied field would store NaN, and <select>s (compression level) would store strings
+          const parsed = parseInt(element.value, 10);
+          const { min, max } = element as HTMLInputElement;
+          value = Number.isFinite(parsed) ? parsed : defaultValue;
+          if (min) value = Math.max(Number(min), value);
+          if (max) value = Math.min(Number(max), value);
+        }
         await saveSetting(key as keyof DownloaderSettings, value);
       }
     }

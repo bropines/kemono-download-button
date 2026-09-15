@@ -210,20 +210,23 @@ export function formatAttachmentButtons(): void {
   });
 }
 
+// Nodes between the previous <br> (or the block start) and the link
+function precedingLineNodes(link: HTMLAnchorElement): ChildNode[] {
+  const nodes: ChildNode[] = [];
+  for (let node = link.previousSibling; node && node.nodeName !== "BR"; node = node.previousSibling) nodes.unshift(node);
+  return nodes;
+}
+
 // True when the link is alone on its line (between <br>s / block edges), optionally after a short
 // label like "Mega:"; text glued after it (a password split off by parseGluedUrl) doesn't count
 function isOnOwnLine(link: HTMLAnchorElement, trailing: string): boolean {
-  const lineText = (dir: "previousSibling" | "nextSibling") => {
-    let text = "";
-    for (let node = link[dir]; node && node.nodeName !== "BR"; node = node[dir]) {
-      text = dir === "previousSibling" ? (node.textContent || "") + text : text + (node.textContent || "");
-    }
-    return text.trim();
-  };
-  const before = lineText("previousSibling");
-  let after = lineText("nextSibling");
+  const before = precedingLineNodes(link).map((node) => node.textContent || "").join("").trim();
+  let after = "";
+  for (let node = link.nextSibling; node && node.nodeName !== "BR"; node = node.nextSibling) after += node.textContent || "";
+  after = after.trim();
   if (trailing && after.startsWith(trailing)) after = after.slice(trailing.length).trim();
-  const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before);
+  // The label is removed together with the link, so text mentioning a password never counts as one
+  const isLabel = before.length <= 40 && /[:：\-–—→>]$/.test(before) && !/pass|pwd|pw\b|key|пароль|パス|密码|密碼|비밀번호/i.test(before);
   return (!before || isLabel) && !after;
 }
 
@@ -248,6 +251,7 @@ export function processEmbeds(): void {
   const linkActions = new Map<string, string>();
   const linkPasswords = new Map<string, string>();
   const elementsToRemove = new Set<Element>();
+  const labelNodes = new Set<ChildNode>();
 
   links.forEach((link) => {
     try {
@@ -285,12 +289,15 @@ export function processEmbeds(): void {
 
       if (action === "hide" || action === "button") {
         // A link inside a sentence keeps its place (the button is still added); "hide" always removes
-        if (action === "hide" || isOnOwnLine(link, trailing)) {
+        const ownLine = isOnOwnLine(link, trailing);
+        if (action === "hide" || ownLine) {
           // Keep glued text (e.g. the password) readable in the post once the link itself is removed
           if (trailing && link.textContent?.trim().endsWith(trailing)) {
             link.after(document.createTextNode(trailing));
           }
           elementsToRemove.add(link);
+          // A "Mega:"-style label only described the link, which is a button now
+          if (ownLine) precedingLineNodes(link).forEach((node) => labelNodes.add(node));
         }
         if (!linkActions.has(url.href)) {
           linkActions.set(url.href, action);
@@ -354,6 +361,7 @@ export function processEmbeds(): void {
     content.prepend(buttonContainer);
   }
 
+  labelNodes.forEach((node) => node.remove());
   elementsToRemove.forEach((link) => {
     const parent = link.parentElement;
     if (parent && (parent.tagName === "P" || parent.tagName === "DIV") && parent.textContent?.trim() === link.textContent?.trim()) {

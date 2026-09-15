@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.38
+// @version      0.8.39
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -74,6 +74,9 @@ ensureStylesInjected();
 
 let lastUrl = '';
 let isInitializing = false;
+let pendingForcedInit = false;
+let scheduledInitTimer: ReturnType<typeof setTimeout> | null = null;
+let scheduledInitForce = false;
 
 function runKuiPageLogic(): void {
   try {
@@ -158,16 +161,20 @@ async function handlePageContent(): Promise<void> {
           card.appendChild(checkbox);
         }
 
-        card.addEventListener('click', (event: MouseEvent) => {
-          if (event.ctrlKey) {
-            event.preventDefault();
-            event.stopPropagation();
-            (card.querySelector('.kdl-post-checkbox') as HTMLElement | null)?.click();
-          }
-        });
+        // Cards survive re-inits (only their buttons are rebuilt); a second listener would undo the toggle
+        if (!card.dataset.kdlCtrlClickBound) {
+          card.dataset.kdlCtrlClickBound = 'true';
+          card.addEventListener('click', (event: MouseEvent) => {
+            if (event.ctrlKey) {
+              event.preventDefault();
+              event.stopPropagation();
+              (card.querySelector('.kdl-post-checkbox') as HTMLElement | null)?.click();
+            }
+          });
+        }
       });
     } else if (path.startsWith('/artists') || path.startsWith('/creators')) {
-      document.querySelectorAll('a.user-card[data-id][data-service]').forEach((c) => injectArtistFavoriteButton(c as HTMLElement));
+      document.querySelectorAll('a.user-card').forEach((c) => injectArtistFavoriteButton(c as HTMLElement));
     } else if (path.startsWith('/posts') || path === '/') {
       document.querySelectorAll('article.post-card[data-id][data-user][data-service]').forEach((c) => injectPostFavoriteButton(c as HTMLElement));
     }
@@ -183,7 +190,11 @@ const runInitializationLogic = async (force = false) => {
   createFixedControls();
   runKuiPageLogic();
 
-  if (isInitializing) return;
+  if (isInitializing) {
+    // A navigation that lands while a run is in flight must not be dropped
+    if (force) pendingForcedInit = true;
+    return;
+  }
   const currentUrl = window.location.href;
   const path = window.location.pathname;
 
@@ -219,8 +230,24 @@ const runInitializationLogic = async (force = false) => {
     debugLog('Initialization error or timeout:', error);
   } finally {
     isInitializing = false;
+    if (pendingForcedInit) {
+      pendingForcedInit = false;
+      scheduleInit(true);
+    }
   }
 };
+
+// One htmx navigation fires afterSwap, afterSettle and pushState: coalesce them into a single run
+function scheduleInit(force = false, delay = 50): void {
+  scheduledInitForce = scheduledInitForce || force;
+  if (scheduledInitTimer) clearTimeout(scheduledInitTimer);
+  scheduledInitTimer = setTimeout(() => {
+    const runForced = scheduledInitForce;
+    scheduledInitTimer = null;
+    scheduledInitForce = false;
+    runInitializationLogic(runForced);
+  }, delay);
+}
 
 function init(): void {
   ensureStylesInjected();
@@ -245,12 +272,12 @@ function init(): void {
   document.addEventListener("htmx:beforeSwap", (event) => {
     if (swapReplacesPost(event)) postPageModule.cleanup();
   });
-  document.addEventListener('htmx:afterSettle', () => runInitializationLogic(true));
-  document.addEventListener('htmx:afterSwap', () => runInitializationLogic(true));
-  document.addEventListener('htmx:historyRestore', () => runInitializationLogic(true));
+  document.addEventListener('htmx:afterSettle', () => scheduleInit(true));
+  document.addEventListener('htmx:afterSwap', () => scheduleInit(true));
+  document.addEventListener('htmx:historyRestore', () => scheduleInit(true));
   window.addEventListener('popstate', () => {
     postPageModule.cleanup();
-    runInitializationLogic(true);
+    scheduleInit(true);
   });
 
   // Intercept PushState and ReplaceState for SPA/PWA client routing
@@ -262,14 +289,14 @@ function init(): void {
   history.pushState = function (...args) {
     if (changesPath(args[2])) postPageModule.cleanup();
     originalPushState.apply(this, args);
-    setTimeout(() => runInitializationLogic(true), 50);
+    scheduleInit(true);
   };
 
   const originalReplaceState = history.replaceState;
   history.replaceState = function (...args) {
     if (changesPath(args[2])) postPageModule.cleanup();
     originalReplaceState.apply(this, args);
-    setTimeout(() => runInitializationLogic(true), 50);
+    scheduleInit(true);
   };
 
   let observerTimeout: any = null;

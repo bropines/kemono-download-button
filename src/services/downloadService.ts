@@ -1,154 +1,120 @@
-import { strToU8, zipSync, Zippable } from 'fflate';
 import { getCachedFile, setCachedFile } from './cacheService';
-import { progressManager } from '../ui/progressManager';
+import { ZipBuilder } from './zipBuilder';
+import { progressManager, ProgressTask } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
-import { PostDetails } from '../types';
+import { FileItem, PostDetails } from '../types';
 import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
-import { gmXmlhttpRequestWithRetries, downloadFileWithFallback, downloadBlobWithGm } from '../utils/http';
+import { gmXmlhttpRequestWithRetries, downloadFileWithFallback, downloadBlobWithGm, saveBlobViaAnchor } from '../utils/http';
 import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
+
+const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
+const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
+
+function filterIgnoredFiles(files: FileItem[]): FileItem[] {
+  const ignoredExts = state.settings.ignoredFileExtensions || [];
+  return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
+}
+
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>): Promise<void> {
+  let next = 0;
+  const lanes = Array.from({ length: Math.min(Math.max(1, limit || 1), items.length) }, async () => {
+    while (next < items.length) {
+      const index = next++;
+      await worker(items[index], index);
+    }
+  });
+  await Promise.all(lanes);
+}
+
+/** Fetches a file's bytes (optionally IndexedDB cache-first), reporting progress in percent. */
+async function fetchFileBytes(url: string, onProgress: (percent: number) => void, useCache: boolean): Promise<ArrayBuffer> {
+  if (useCache) {
+    const cached = await getCachedFile(url);
+    if (cached && cached.byteLength > 0) {
+      onProgress(100);
+      return cached;
+    }
+  }
+
+  const response = await gmXmlhttpRequestWithRetries({
+    method: 'GET',
+    url,
+    responseType: 'arraybuffer',
+    timeout: state.settings.zipFileDownloadTimeout || 120000,
+    onprogress: (e: ProgressEvent) => {
+      if (e.lengthComputable && e.total > 0) onProgress((e.loaded / e.total) * 100);
+    }
+  });
+
+  const data: ArrayBuffer | null = response.response;
+  if (!data || data.byteLength === 0) throw new Error('Downloaded file is empty');
+  if (useCache) await setCachedFile(url, data);
+  return data;
+}
+
+/** Downloads URL files straight into the ZIP; failures become failed_*.txt notes. Returns the failure count. */
+async function addUrlFilesToZip(
+  zip: ZipBuilder,
+  urlFiles: FileItem[],
+  task: ProgressTask,
+  taskPrefix: string,
+  useCache: boolean,
+  statusPrefix = ''
+): Promise<number> {
+  let done = 0;
+  let failed = 0;
+
+  await runWithConcurrency(urlFiles, state.settings.maxConcurrentFileDownloadsInZip || 3, async (file, index) => {
+    const fileTaskId = `${taskPrefix}-${index}`;
+    task.addFile(fileTaskId, file.name);
+    try {
+      const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache);
+      zip.addFile(file.name || `file_${index + 1}.bin`, data);
+      task.markFileComplete(fileTaskId, true);
+    } catch (error: any) {
+      failed++;
+      console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
+      task.markFileComplete(fileTaskId, false);
+      const baseName = sanitizeFilename(file.name.split('/').pop() || 'file');
+      zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
+    } finally {
+      done++;
+      task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
+    }
+  });
+
+  return failed;
+}
 
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
   const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
   task.updateStatus('Fetching post metadata...');
-  console.log(`[Kemono DL] Initiating ZIP task for post ${postDetails.postID}: "${postDetails.postTitle}"`);
   try {
     const isPostPage = window.location.pathname.includes('/post/');
     const { files: rawFiles } = isPostPage && appState.cachedPostFiles
       ? { files: appState.cachedPostFiles }
       : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
 
-    const ignoredExts = state.settings.ignoredFileExtensions || [];
-    const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
-
+    const files = filterIgnoredFiles(rawFiles);
     if (files.length === 0) throw new Error('No content to ZIP (all files filtered or empty).');
 
-    let successCount = 0;
-    let failCount = 0;
-    const urlFiles = files.filter((t) => t.source === 'url');
-    const totalUrlFiles = urlFiles.length;
+    const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+    files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
-    console.log(`[Kemono DL] Total files collected: ${files.length} (${totalUrlFiles} URLs, ${files.length - totalUrlFiles} text items)`);
-    task.updateStatus(`Downloading ${totalUrlFiles} files...`);
-
-    const zippable: Zippable = {};
-
-    files.forEach((file) => {
-      if (file.source === 'text') {
-        const textContent = typeof file.data === 'string' ? file.data : JSON.stringify(file.data || '');
-        const cleanName = file.name.replace(/^\/+/, '');
-        console.log(`[Kemono DL] Adding text file to ZIP: "${cleanName}" (${textContent.length} chars)`);
-        zippable[cleanName] = strToU8(textContent);
-      }
-    });
-
-    const concurrency = Math.max(1, state.settings.maxConcurrentFileDownloadsInZip || 3);
-    let queueIndex = 0;
-
-    async function downloadWorker() {
-      while (queueIndex < totalUrlFiles) {
-        const i = queueIndex++;
-        const file = urlFiles[i];
-        const fileTaskId = `${postDetails.postID}-${i}`;
-        task.addFile(fileTaskId, file.name);
-
-        try {
-          console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Starting download: ${file.name} (${file.data})`);
-          const cachedData = await getCachedFile(file.data);
-          let arrayBuffer: ArrayBuffer;
-
-          if (cachedData) {
-            console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Loaded from cache: ${file.name}`);
-            arrayBuffer = cachedData;
-            task.updateFileProgress(fileTaskId, 100);
-          } else {
-            const response = await gmXmlhttpRequestWithRetries({
-              method: 'GET',
-              url: file.data,
-              responseType: 'arraybuffer',
-              timeout: state.settings.zipFileDownloadTimeout,
-              onprogress: (e: ProgressEvent) => {
-                if (e.lengthComputable && e.total > 0) {
-                  task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
-                }
-              }
-            });
-            arrayBuffer = response.response;
-            if (arrayBuffer && arrayBuffer.byteLength > 0) {
-              console.log(`[Kemono DL] [File ${i + 1}/${totalUrlFiles}] Downloaded successfully (${arrayBuffer.byteLength} bytes). Saving to cache.`);
-              await setCachedFile(file.data, arrayBuffer, true);
-            }
-          }
-
-          if (arrayBuffer && arrayBuffer.byteLength > 0) {
-            let cleanName = (file.name || '').replace(/^\/+/, '').trim();
-            if (!cleanName) {
-              try {
-                const urlFileName = file.data.split('/').pop()?.split('?')[0] || `file_${i + 1}.bin`;
-                cleanName = sanitizeFilename(decodeURIComponent(urlFileName));
-              } catch (e) {
-                cleanName = `file_${i + 1}.bin`;
-              }
-            }
-            if (zippable[cleanName]) {
-              const ext = cleanName.includes('.') ? cleanName.split('.').pop()! : '';
-              const base = cleanName.substring(0, cleanName.length - (ext ? ext.length + 1 : 0));
-              cleanName = `${base}_${i + 1}${ext ? '.' + ext : ''}`;
-            }
-            console.log(`[Kemono DL] Adding binary file to ZIP: "${cleanName}" (${arrayBuffer.byteLength} bytes)`);
-            zippable[cleanName] = new Uint8Array(arrayBuffer);
-            task.markFileComplete(fileTaskId, true);
-          } else {
-            throw new Error('Downloaded file ArrayBuffer is empty');
-          }
-        } catch (error: any) {
-          failCount++;
-          console.error(`[Kemono DL Error] File ${i + 1} download failed for URL "${file.data}":`, error);
-          task.markFileComplete(fileTaskId, false);
-          const sanitizedBase = sanitizeFilename(file.name.split('/').pop() || 'file');
-          zippable[`failed_${sanitizedBase}.txt`] = strToU8(`Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
-        } finally {
-          successCount++;
-          task.updateStatus(`Downloading... ${successCount}/${totalUrlFiles} done`);
-        }
-      }
-    }
-
-    const workers = Array.from({ length: Math.min(concurrency, totalUrlFiles) }, () => downloadWorker());
-    await Promise.all(workers);
-
-    console.log(`[Kemono DL] All downloads finished. Succeeded: ${successCount - failCount}, Failed: ${failCount}. Total entries in zippable:`, Object.keys(zippable).length);
-
-    if (totalUrlFiles > 0 && failCount === totalUrlFiles) {
+    const urlFiles = files.filter((f) => f.source === 'url');
+    task.updateStatus(`Downloading ${urlFiles.length} files...`);
+    const failCount = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
+    if (urlFiles.length > 0 && failCount === urlFiles.length) {
       throw new Error('All file downloads failed');
     }
 
     task.updateStatus('Zipping...');
-    const zipName = sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`);
-    const level = Number(state.settings.zipCompressionLevel) || 0;
-    console.log(`[Kemono DL] Calling fflate zipSync (level ${level}) for "${zipName}"...`);
-    const zipStartTime = Date.now();
-
-    const zippedData = zipSync(zippable, { level: level as any });
-    const duration = Date.now() - zipStartTime;
-    console.log(`[Kemono DL] fflate zipSync (level ${level}) completed in ${duration}ms! ZIP size: ${zippedData.byteLength} bytes (${(zippedData.byteLength / 1024 / 1024).toFixed(2)} MB)`);
-
-    const blob = new Blob([zippedData], { type: 'application/zip' });
-    if (!blob || blob.size === 0) throw new Error('Generated ZIP is empty.');
-
-    const blobUrl = URL.createObjectURL(blob);
-    console.log(`[Kemono DL] Triggering download for blob URL ${blobUrl}...`);
-    const downloadAnchor = document.createElement('a');
-    downloadAnchor.href = blobUrl;
-    downloadAnchor.download = zipName;
-    downloadAnchor.style.display = 'none';
-    document.body.appendChild(downloadAnchor);
-    downloadAnchor.click();
-    document.body.removeChild(downloadAnchor);
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-    console.log(`[Kemono DL] Download triggered successfully for ${zipName}`);
+    const blob = await zip.toBlob();
+    if (blob.size === 0) throw new Error('Generated ZIP is empty.');
+    saveBlobViaAnchor(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
 
     task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ''}`);
   } catch (error: any) {
@@ -189,31 +155,20 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
 
     task.updateStatus(`Starting download of ${targetFiles.length} files...`);
 
-    const maxConcurrency = Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-    let queueIndex = 0;
     let completedCount = 0;
-
-    async function downloadWorker() {
-      while (queueIndex < targetFiles.length) {
-        const i = queueIndex++;
-        const file = targetFiles[i];
-        const fileTaskId = `indiv-${i}`;
-        task.addFile(fileTaskId, file.name);
-
-        try {
-          await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
-          task.markFileComplete(fileTaskId, true);
-        } catch (err: any) {
-          task.markFileComplete(fileTaskId, false);
-        } finally {
-          completedCount++;
-          task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
-        }
+    await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i) => {
+      const fileTaskId = `indiv-${i}`;
+      task.addFile(fileTaskId, file.name);
+      try {
+        await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
+        task.markFileComplete(fileTaskId, true);
+      } catch (err: any) {
+        task.markFileComplete(fileTaskId, false);
+      } finally {
+        completedCount++;
+        task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
       }
-    }
-
-    const workers = Array.from({ length: Math.min(maxConcurrency, targetFiles.length) }, () => downloadWorker());
-    await Promise.all(workers);
+    });
 
     task.updateStatus('All downloads triggered!');
   } catch (error: any) {
@@ -236,83 +191,31 @@ export async function downloadFilesToDiskWithProgress(
   if (downloadSpecs.length === 0) return;
   await getSettings();
 
-  const taskId = `pick-${generateRandomId(8)}`;
-  const task = progressManager.createTask(taskId, taskTitle);
+  const task = progressManager.createTask(`pick-${generateRandomId(8)}`, taskTitle);
   task.updateStatus(`Queued ${downloadSpecs.length} files...`);
 
   const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
-  let queueIndex = 0;
   let completedCount = 0;
   let failCount = 0;
 
-  async function downloadWorker() {
-    while (queueIndex < downloadSpecs.length) {
-      const i = queueIndex++;
-      const spec = downloadSpecs[i];
-      const cleanName = sanitizeFilename(spec.fileName.split('/').pop() || spec.fileName);
-      const fileTaskId = `pick-${i}`;
-      task.addFile(fileTaskId, cleanName);
+  await runWithConcurrency(downloadSpecs, maxConcurrency, async (spec, i) => {
+    const cleanName = sanitizeFilename(spec.fileName.split('/').pop() || spec.fileName);
+    const fileTaskId = `pick-${i}`;
+    task.addFile(fileTaskId, cleanName);
 
-      try {
-        // 1. Check IndexedDB cache first
-        let arrayBuffer: ArrayBuffer | null = await getCachedFile(spec.url);
-
-        if (arrayBuffer && arrayBuffer.byteLength > 0) {
-          console.log(`[Kemono DL] [Pick ${i + 1}/${downloadSpecs.length}] Loaded from cache: ${cleanName}`);
-          task.updateFileProgress(fileTaskId, 100);
-        } else {
-          // 2. Download via gmXmlhttpRequest with progress tracking
-          const response = await gmXmlhttpRequestWithRetries({
-            method: 'GET',
-            url: spec.url,
-            responseType: 'arraybuffer',
-            timeout: state.settings.zipFileDownloadTimeout || 120000,
-            onprogress: (e: ProgressEvent) => {
-              if (e.lengthComputable && e.total > 0) {
-                task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
-              }
-            }
-          });
-
-          arrayBuffer = response.response;
-
-          // 3. Cache the downloaded file
-          if (arrayBuffer && arrayBuffer.byteLength > 0) {
-            await setCachedFile(spec.url, arrayBuffer, true);
-            console.log(`[Kemono DL] [Pick ${i + 1}/${downloadSpecs.length}] Downloaded & cached: ${cleanName} (${arrayBuffer.byteLength} bytes)`);
-          }
-        }
-
-        if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-          throw new Error('Empty response');
-        }
-
-        // 4. Push from cache/buffer to disk via Blob URL
-        const blob = new Blob([arrayBuffer]);
-        const blobUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = blobUrl;
-        a.download = cleanName;
-        a.style.display = 'none';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-
-        task.markFileComplete(fileTaskId, true);
-      } catch (err: any) {
-        console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
-        task.markFileComplete(fileTaskId, false);
-        failCount++;
-      } finally {
-        completedCount++;
-        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
-      }
+    try {
+      const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true);
+      saveBlobViaAnchor(new Blob([data]), cleanName);
+      task.markFileComplete(fileTaskId, true);
+    } catch (err: any) {
+      console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
+      task.markFileComplete(fileTaskId, false);
+      failCount++;
+    } finally {
+      completedCount++;
+      task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
     }
-  }
-
-  const workers = Array.from({ length: Math.min(maxConcurrency, downloadSpecs.length) }, () => downloadWorker());
-  await Promise.all(workers);
+  });
 
   task.updateStatus(failCount === 0
     ? `✓ All ${downloadSpecs.length} files saved!`
@@ -329,60 +232,17 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
       template: '{file_index}_{file_name}'
     });
 
-    const ignoredExts = state.settings.ignoredFileExtensions || [];
-    const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
-
+    const files = filterIgnoredFiles(rawFiles);
     if (files.length === 0) throw new Error('No content to ZIP.');
 
-    const zip = new JSZip();
-    let failedFileCount = 0;
+    const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+    files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
+
     const urlFiles = files.filter((f) => f.source === 'url');
-
     postTask.updateStatus(`Downloading ${urlFiles.length} files...`);
+    const failedFileCount = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
 
-    files.forEach((file) => {
-      if (file.source === 'text') zip.file(file.name, file.data);
-    });
-
-    const downloadPromises: Promise<void>[] = [];
-    let activeFileDownloads = 0;
-
-    for (let fileIndex = 0; fileIndex < urlFiles.length; fileIndex++) {
-      const fileToDownload = urlFiles[fileIndex];
-      downloadPromises.push(
-        (async () => {
-          while (activeFileDownloads >= state.settings.maxConcurrentFileDownloadsInZip) {
-            await new Promise((resolve) => setTimeout(resolve, 200));
-          }
-          activeFileDownloads++;
-          const fileTaskId = `multi-${details.postID}-${fileIndex}`;
-          postTask.addFile(fileTaskId, fileToDownload.name);
-
-          try {
-            const response = await gmXmlhttpRequestWithRetries({
-              method: 'GET',
-              url: fileToDownload.data,
-              responseType: 'arraybuffer',
-              timeout: state.settings.zipFileDownloadTimeout,
-              onprogress: (e: ProgressEvent) => {
-                if (e.lengthComputable) postTask.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
-              }
-            });
-            zip.file(fileToDownload.name, response.response);
-            postTask.markFileComplete(fileTaskId, true);
-          } catch (error) {
-            failedFileCount++;
-            postTask.markFileComplete(fileTaskId, false);
-          } finally {
-            activeFileDownloads--;
-          }
-        })()
-      );
-    }
-
-    await Promise.all(downloadPromises);
     postTask.updateStatus('Zipping...');
-
     const zipFileName = formatNameFromTemplate(state.settings.bulkMultipleSystemPathTemplate, {
       author_name: details.authorName,
       post_title: details.postTitle,
@@ -392,8 +252,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
       post_date: details.postDate || 'UnknownDate'
     });
 
-    const blob = await zip.generateAsync({ type: 'blob' });
-    downloadBlobWithGm(blob, zipFileName);
+    downloadBlobWithGm(await zip.toBlob(), zipFileName);
     postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ''}`);
   } catch (error: any) {
     console.error(`Failed to download post ${details.postID} as ZIP:`, error);
@@ -409,111 +268,58 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
   resetMediaCounter();
 
   try {
-    const zip = new JSZip();
-    let htmlIndexString = '';
-
-    if (state.settings.addHtmlIndexInZip) {
-      htmlIndexString = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${sanitizeFilename(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${sanitizeFilename(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>`;
-    }
+    const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
+    const addHtmlIndex = state.settings.addHtmlIndexInZip;
+    let htmlIndex = addHtmlIndex
+      ? `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${escapeHtml(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${escapeHtml(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>`
+      : '';
 
     for (let i = 0; i < postIds.length; i++) {
-      const postId = postIds[i];
-      const postCard = document.querySelector(`article.post-card[data-id="${postId}"]`) as HTMLElement | null;
+      const postCard = document.querySelector(`article.post-card[data-id="${postIds[i]}"]`) as HTMLElement | null;
       if (!postCard) continue;
 
       const postDetails = getPostCardDetails(postCard, authorName);
-      task.updateStatus(`[${i + 1}/${postIds.length}] Fetching: ${postDetails.postTitle}`);
+      const postPrefix = `[${i + 1}/${postIds.length}] `;
+      task.updateStatus(`${postPrefix}Fetching: ${postDetails.postTitle}`);
 
       const { files: rawFiles } = await collectFilesForPost(postDetails, {
         isBulk: true,
         bulk_post_index: i + 1,
         template: state.settings.bulkSingleInternalPathTemplate
       });
+      const files = filterIgnoredFiles(rawFiles);
 
-      const ignoredExts = state.settings.ignoredFileExtensions || [];
-      const files = rawFiles.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
-
-      if (state.settings.addHtmlIndexInZip) {
-        const postLink = (postCard.querySelector('a') as HTMLAnchorElement)?.href || '#';
-        htmlIndexString += `<div class="post-entry">h2><a href="${postLink}" target="_blank">[${postDetails.postDate || 'N/A'}] ${postDetails.postTitle}</a></h2><ul>`;
-        if (files.length > 0) {
-          files.forEach((file) => {
-            const sanitizedPath = file.name.split('/').map((part) => encodeURIComponent(part)).join('/');
-            htmlIndexString += `<li><a href="./${sanitizedPath}">${file.name.split('/').pop()}</a></li>`;
-          });
-        } else {
-          htmlIndexString += `<li>No files found.</li>`;
-        }
-        htmlIndexString += `</ul></div>`;
+      if (addHtmlIndex) {
+        const postLink = (postCard.querySelector('a') as HTMLAnchorElement | null)?.href || '#';
+        const entries = files.length > 0
+          ? files.map((file) => {
+              const relativePath = file.name.split('/').map((part) => encodeURIComponent(part)).join('/');
+              return `<li><a href="./${relativePath}">${escapeHtml(file.name.split('/').pop() || file.name)}</a></li>`;
+            }).join('')
+          : '<li>No files found.</li>';
+        htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postLink)}" target="_blank">[${escapeHtml(postDetails.postDate || 'N/A')}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries}</ul></div>`;
       }
 
       if (files.length === 0) continue;
-
-      files.forEach((file) => {
-        if (file.source === 'text') zip.file(file.name, file.data);
-      });
+      files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
       const urlFiles = files.filter((f) => f.source === 'url');
       if (urlFiles.length > 0) {
-        task.updateStatus(`[${i + 1}/${postIds.length}] Downloading ${urlFiles.length} files for ${postDetails.postTitle}`);
-        const downloadPromises: Promise<void>[] = [];
-        let activeFileDownloads = 0;
-
-        for (let fileIndex = 0; fileIndex < urlFiles.length; fileIndex++) {
-          const fileToDownload = urlFiles[fileIndex];
-          downloadPromises.push(
-            (async () => {
-              while (activeFileDownloads >= state.settings.maxConcurrentFileDownloadsInZip) {
-                await new Promise((resolve) => setTimeout(resolve, 200));
-              }
-              activeFileDownloads++;
-              const fileTaskId = `bulk-${i}-${fileIndex}`;
-              task.addFile(fileTaskId, fileToDownload.name);
-
-              try {
-                const response = await gmXmlhttpRequestWithRetries({
-                  method: 'GET',
-                  url: fileToDownload.data,
-                  responseType: 'arraybuffer',
-                  timeout: state.settings.zipFileDownloadTimeout,
-                  onprogress: (e: ProgressEvent) => {
-                    if (e.lengthComputable) task.updateFileProgress(fileTaskId, (e.loaded / e.total) * 100);
-                  }
-                });
-                zip.file(fileToDownload.name, response.response);
-                task.markFileComplete(fileTaskId, true);
-              } catch (error: any) {
-                task.markFileComplete(fileTaskId, false);
-                zip.file(
-                  `failed_${fileToDownload.name.split('/').pop()}`,
-                  `Failed to download.\nURL: ${fileToDownload.data}\nError: ${error.message}`
-                );
-              } finally {
-                activeFileDownloads--;
-              }
-            })()
-          );
-        }
-        await Promise.all(downloadPromises);
+        await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i}`, false, postPrefix);
       }
     }
 
-    if (state.settings.addHtmlIndexInZip) {
-      htmlIndexString += `</div></body></html>`;
-      zip.file('_index.html', htmlIndexString);
+    if (addHtmlIndex) {
+      zip.addFile('_index.html', `${htmlIndex}</div></body></html>`);
     }
 
-    task.updateStatus(`Zipping ${postIds.length} Posts...`);
+    task.updateStatus(`Finalizing ZIP for ${postIds.length} posts...`);
     const finalZipName = formatNameFromTemplate(state.settings.bulkSingleSystemPathTemplate, {
       author_name: authorName,
       post_count: postIds.length
     });
 
-    const blob = await zip.generateAsync({ type: 'blob' }, (meta: { percent: number }) => {
-      task.updateStatus(`Generating final ZIP: ${meta.percent.toFixed(0)}%`);
-    });
-
-    downloadBlobWithGm(blob, finalZipName);
+    downloadBlobWithGm(await zip.toBlob(), finalZipName);
     task.updateStatus('Complete!');
   } catch (error: any) {
     console.error('Bulk download (single) failed:', error);
