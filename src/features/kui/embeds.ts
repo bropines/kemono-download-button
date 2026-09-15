@@ -1,3 +1,4 @@
+import { icon } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 import { kuiState } from '../../state/kuiState';
 import { showMessage } from '../../ui/toast';
@@ -356,7 +357,7 @@ export function processEmbeds(): void {
         if (password) {
           const passwordChip = document.createElement("span");
           passwordChip.className = "kui-embed-password";
-          passwordChip.textContent = `🔑 ${password}`;
+          passwordChip.replaceChildren(icon('key-round'), password);
           button.appendChild(passwordChip);
           button.title = `${url}\nPassword: ${password} (copied on click)`;
           button.addEventListener("click", () => copyPassword(password));
@@ -447,6 +448,10 @@ export function hideEmptySections(): void {
     } else if (title === "files") {
       const files = section.querySelector(SELECTORS.postFilesContainer);
       if (!files || files.children.length === 0) {
+        isEmpty = true;
+      }
+    } else if (title === "videos") {
+      if (!section.querySelector("video, .kui-video-gallery-layout, .post__videos li")) {
         isEmpty = true;
       }
     }

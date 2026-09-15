@@ -1,3 +1,4 @@
+import { iconSvg } from '../config/icons';
 import { appState, getSettings, state } from '../state/store';
 import { showMessage } from '../ui/toast';
 import { debugLog, getApiUrl } from '../utils/helpers';
@@ -253,7 +254,7 @@ export async function toggleFavorite(
   const method = isFavorited ? 'DELETE' : 'POST';
   const apiUrl = type === 'creator' ? `/api/v1/favorites/creator/${service}/${creatorId}` : `/api/v1/favorites/post/${service}/${creatorId}/${postId}`;
 
-  button.textContent = '⏳';
+  button.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
   button.disabled = true;
   try {
     await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
@@ -272,7 +273,7 @@ export async function toggleFavorite(
     console.error('[Kemono API] Favorite toggle failed:', error);
     showMessage('Failed to update favorites.', 'error');
   } finally {
-    button.textContent = '⭐';
+    button.innerHTML = iconSvg('star');
     button.disabled = false;
   }
 }

@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from '../../config/constants';
+import { icon, IconName } from '../../config/icons';
 import { clearAllCache, clearIncompleteCache, getCacheStats } from '../../services/cacheService';
 import { OPENAI_COMPATIBLE_PRESETS, TRANSLATION_LANGUAGES } from '../../services/translators';
 import { exportSettings, getSettings, importSettings, saveSetting, state } from '../../state/store';
@@ -10,7 +11,7 @@ let settingsModalElement: HTMLElement | null = null;
 let settingsOverlayElement: HTMLElement | null = null;
 
 function tooltipSpan(text: string): HTMLElement {
-  return el('span', { className: 'kdl-tooltip-trigger', dataset: { tooltip: text } }, ['ℹ️']);
+  return el('span', { className: 'kdl-tooltip-trigger', dataset: { tooltip: text } }, [icon('info')]);
 }
 
 function checkboxItem(id: string, text: string, tooltipText?: string): HTMLElement {
@@ -85,7 +86,7 @@ function folderInputItem(
         hiddenFileInput.click();
       }
     },
-    ['📂 Select Folder']
+    [icon('folder-open'), ' Select Folder']
   );
 
   hiddenFileInput.addEventListener('change', () => {
@@ -162,7 +163,7 @@ function createChipsInputItem(
               renderChips(updated);
             }
           },
-          ['✖']
+          [icon('x')]
         );
         return el('span', { className: 'kdl-chip' }, [val, removeBtn]);
       })
@@ -204,9 +205,9 @@ function createChipsInputItem(
   ]);
 }
 
-function cardContainer(title: string, children: HTMLElement[]): HTMLElement {
+function cardContainer(iconName: IconName, title: string, children: HTMLElement[]): HTMLElement {
   return el('div', { className: 'kdl-settings-card' }, [
-    el('h3', {}, [title]),
+    el('h3', {}, [icon(iconName), ' ', title]),
     ...children
   ]);
 }
@@ -254,7 +255,7 @@ export function createSettingsModal(): void {
   settingsModalElement = el('div', { id: 'kdl-settings-modal' });
 
   // 1. General & Cache Card
-  const generalCard = cardContainer('⚙️ General & Cache', [
+  const generalCard = cardContainer('settings', 'General & Cache', [
     checkboxItem('kdl-setting-enableAPIFetch', 'Enable Site API Fetching', 'Use fast site REST API instead of parsing HTML pages'),
     inputItem('kdl-setting-sessionCookie', 'password', 'Session Cookie', { placeholder: 'Paste session cookie here' }, 'Session authentication cookie. Required to access restricted or paywalled posts'),
     inputItem('kdl-setting-cacheDurationHours', 'number', 'Post List Cache Duration (Hours)', { min: 0, step: 1 }, 'Post list cache retention duration. 0 = disable caching'),
@@ -269,7 +270,7 @@ export function createSettingsModal(): void {
   ]);
 
   // 2. File Naming & Templates Card
-  const templatesCard = cardContainer('📁 File Naming & Templates', [
+  const templatesCard = cardContainer('folder', 'File Naming & Templates', [
     inputItem('kdl-setting-fileNameTemplate', 'text', 'Template for Individual Downloads', { placeholder: DEFAULT_SETTINGS.fileNameTemplate }, 'Available tags: {author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}'),
     el('div', { style: { display: 'flex', gap: '6px', marginBottom: '10px' } }, [
       el('button', {
@@ -277,7 +278,7 @@ export function createSettingsModal(): void {
         id: 'kdl-template-reset-btn',
         className: 'kdl-btn-info',
         style: { fontSize: '0.78rem', padding: '4px 10px' }
-      }, ['🔄 Reset to Default Pattern'])
+      }, [icon('rotate-ccw'), ' Reset to Default Pattern'])
     ]),
     el('div', { className: 'kdl-setting-item' }, [
       el('label', { htmlFor: 'kdl-template-select' }, ['Saved Templates']),
@@ -305,7 +306,7 @@ export function createSettingsModal(): void {
   ]);
 
   // 3. ZIP Engine & Performance Card
-  const zipCard = cardContainer('📦 ZIP Engine & Performance', [
+  const zipCard = cardContainer('archive', 'ZIP Engine & Performance', [
     selectItem(
       'kdl-setting-zipCompressionLevel',
       'ZIP Compression Level',
@@ -336,7 +337,7 @@ export function createSettingsModal(): void {
   ]);
 
   // 4. Translation Card
-  const translationCard = cardContainer('🌐 Translation', [
+  const translationCard = cardContainer('languages', 'Translation', [
     selectItem(
       'kdl-setting-translationProvider',
       'Translation Provider',
@@ -379,14 +380,14 @@ export function createSettingsModal(): void {
   ]);
 
   // 5. Visible Buttons Card
-  const visibleButtonsCard = cardContainer('👁️ Visible Buttons', [
+  const visibleButtonsCard = cardContainer('eye', 'Visible Buttons', [
     el('div', { className: 'kdl-setting-checkbox-grid' }, [
       checkboxItem('kdl-setting-showZipButton', 'ZIP Download'),
       checkboxItem('kdl-setting-showImagesButton', 'Images'),
       checkboxItem('kdl-setting-showFilesButton', 'Attachments'),
       checkboxItem('kdl-setting-showCopyLinksButton', 'Copy Links'),
       checkboxItem('kdl-setting-showShareButton', 'Share Links'),
-      checkboxItem('kdl-setting-showTranslateButton', 'Translate')
+      checkboxItem('kdl-setting-showTranslateButton', 'Translate (title, content, comments)')
     ])
   ]);
 
@@ -397,7 +398,7 @@ export function createSettingsModal(): void {
   const grid = el('div', { className: 'kdl-settings-grid' }, [col1, col2, col3]);
 
   const modalContent = el('div', { id: 'kdl-settings-modal-content' }, [
-    el('h2', {}, ['⚙️ Downloader Settings']),
+    el('h2', {}, [icon('settings'), ' Downloader Settings']),
     grid
   ]);
 

@@ -1,7 +1,7 @@
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   props: Record<string, any> = {},
-  children: Array<string | HTMLElement | null | undefined> = []
+  children: Array<string | Node | null | undefined> = []
 ): HTMLElementTagNameMap[K] {
   const element = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {

@@ -1,4 +1,4 @@
-import { ICONS } from '../../config/icons';
+import { ICONS, iconSvg } from '../../config/icons';
 
 export const lightboxModule = {
   isActive: false,
@@ -36,8 +36,8 @@ export const lightboxModule = {
               </a>
               <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
           </div>
-          <button class="kui-lightbox-nav prev" title="Previous (←)">‹</button>
-          <button class="kui-lightbox-nav next" title="Next (→)">›</button>
+          <button class="kui-lightbox-nav prev" title="Previous (←)">${iconSvg('chevron-left')}</button>
+          <button class="kui-lightbox-nav next" title="Next (→)">${iconSvg('chevron-right')}</button>
           <div id="kui-lightbox-img-container">
               <canvas id="kui-image-canvas"></canvas>
           </div>

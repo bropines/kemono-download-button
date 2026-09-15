@@ -1,6 +1,9 @@
 import { appState, getSettings, state } from '../state/store';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
 
+// Buttons hold icons, so their original markup (not just the text) is restored when the task ends
+const originalButtonHtml = new WeakMap<HTMLElement, string>();
+
 export function addTaskToQueue(
   type: string,
   action: (pd: any) => Promise<any>,
@@ -12,6 +15,7 @@ export function addTaskToQueue(
   appState.downloadQueue.push({ type, action, postDetails, buttonElement, originalButtonText: origText });
 
   if (buttonElement) {
+    if (!originalButtonHtml.has(buttonElement)) originalButtonHtml.set(buttonElement, buttonElement.innerHTML);
     buttonElement.dataset.isQueued = 'true';
     buttonElement.textContent = 'Queued...';
     (buttonElement as HTMLButtonElement).disabled = true;
@@ -46,7 +50,13 @@ export async function processQueue(): Promise<void> {
       } finally {
         if (task.buttonElement) {
           delete task.buttonElement.dataset.isDownloading;
-          task.buttonElement.textContent = task.originalButtonText;
+          const html = originalButtonHtml.get(task.buttonElement);
+          if (html !== undefined) {
+            task.buttonElement.innerHTML = html;
+            originalButtonHtml.delete(task.buttonElement);
+          } else {
+            task.buttonElement.textContent = task.originalButtonText;
+          }
           (task.buttonElement as HTMLButtonElement).disabled = false;
         }
         appState.activeOperations--;

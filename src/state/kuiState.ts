@@ -7,7 +7,7 @@ export const kuiState: KuiAppState = {
   isDebugModeEnabled: readValue(KUI_STORAGE_KEYS.DEBUG_MODE, false),
   isVerboseDebugEnabled: readValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
   isPreloadEnabled: readValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
-  isHideEmptySectionsEnabled: readValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
+  isHideEmptySectionsEnabled: readValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, true),
   isPostPageModuleActive: false,
   embedRules: readValue<EmbedRules>(KUI_STORAGE_KEYS.EMBED_RULES, {}),
   sessionKey: readValue(KUI_STORAGE_KEYS.SESSION_KEY, "")

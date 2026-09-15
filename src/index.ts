@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.42
+// @version      0.8.43
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -55,6 +55,7 @@ import { fetchAndCachePostData, getPostDetailsFromPage } from './services/collec
 import { applyAdBlock } from './features/adblock';
 import { toggleSettingsModal } from './ui/components/settingsModal';
 import { initializeComments } from './features/kui/comments';
+import { initializePostTranslation } from './features/kui/translateButtons';
 
 export function ensureStylesInjected(): void {
   if (document.getElementById('kdl-global-styles')) return;
@@ -254,8 +255,8 @@ function scheduleInit(force = false, delay = 50): void {
 // Settings stay reachable from the userscript manager menu even when the page layout hides our buttons
 function registerMenuCommands(): void {
   if (typeof GM_registerMenuCommand !== 'function') return;
-  GM_registerMenuCommand('⚙️ Download settings', () => toggleSettingsModal(true));
-  GM_registerMenuCommand('🎨 UI settings', () => document.getElementById('kui-settings-panel')?.classList.add('kui-panel-active'));
+  GM_registerMenuCommand('Download settings', () => toggleSettingsModal(true));
+  GM_registerMenuCommand('UI settings', () => document.getElementById('kui-settings-panel')?.classList.add('kui-panel-active'));
 }
 
 function init(): void {
@@ -316,8 +317,10 @@ function init(): void {
       if (window.location.href !== lastUrl || !document.querySelector('.kdl-button, #kdl-bulk-panel')) {
         runInitializationLogic();
       }
-      // Comments can render after the post (kemono SPA) or get re-rendered by the site
+      // Comments can render after the post (kemono SPA) or get re-rendered by the site;
+      // translate buttons also follow settings that load after the first init
       initializeComments();
+      initializePostTranslation();
     }, 300);
   });
 

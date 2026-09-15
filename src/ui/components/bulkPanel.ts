@@ -3,6 +3,7 @@ import { getPostCardDetails } from '../../services/collectorService';
 import { appState } from '../../state/store';
 import { PostDetails } from '../../types';
 import { el } from '../../utils/dom';
+import { icon } from '../../config/icons';
 import { showMultiPostFilePickerModal } from './filePickerModal';
 
 let lastCheckedIndex: number | null = null;
@@ -44,7 +45,7 @@ export function updateSelectionState(): void {
   }
 
   if (pickAttachmentsBtn) {
-    pickAttachmentsBtn.textContent = `📎 Pick Attachments (${selectedCount})`;
+    pickAttachmentsBtn.replaceChildren(icon('paperclip'), ` Pick Attachments (${selectedCount})`);
     pickAttachmentsBtn.disabled = selectedCount === 0;
   }
 
@@ -165,7 +166,7 @@ export function createBulkDownloadPanel(): void {
         const selectedPosts = getSelectedPostsDetails();
         showMultiPostFilePickerModal(selectedPosts);
       }
-    }, ['📎 Pick Attachments (0)']),
+    }, [icon('paperclip'), ' Pick Attachments (0)']),
     el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload() }, ['Download Selected (0)'])
   ]);
 

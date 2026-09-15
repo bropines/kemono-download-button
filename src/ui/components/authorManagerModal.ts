@@ -2,6 +2,7 @@ import { getApiAdapter } from '../../api';
 import { executeBulkDownload } from '../../services/downloadService';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
+import { icon } from '../../config/icons';
 import { getApiUrl, getThumbnailUrl, sanitizeFilename } from '../../utils/helpers';
 
 export async function launchAuthorManager(forceRefresh = false): Promise<void> {
@@ -14,7 +15,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
           el('em', { id: 'kdl-manager-cache-status' })
         ]),
         el('div', { id: 'kdl-manager-controls' }, [
-          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh' }, ['🔄']),
+          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh' }, [icon('refresh-cw')]),
           el('input', { type: 'text', id: 'kdl-manager-search', placeholder: 'Search by title...' }),
           el('select', { id: 'kdl-manager-sort', className: 'kdl-manager-btn' }, [
             el('option', { value: 'date-desc' }, ['Newest First']),
@@ -126,7 +127,7 @@ export function populateManagerList(posts: any[]): void {
           el('span', { className: 'post-item-title' }, [sanitizeFilename(post.title)]),
           el('span', { className: 'post-item-date' }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
         ]),
-        el('a', { href: postUrl, target: '_blank', className: 'post-item-open-link', title: 'Open post in new tab' }, ['↗️'])
+        el('a', { href: postUrl, target: '_blank', className: 'post-item-open-link', title: 'Open post in new tab' }, [icon('external-link')])
       ]
     );
 
@@ -259,7 +260,7 @@ export function createAuthorManagerButton(): HTMLElement {
       onClick: () => launchAuthorManager()
     },
     [
-      el('span', { className: 'user-header__fav-icon' }, ['🗂️']),
+      el('span', { className: 'user-header__fav-icon' }, [icon('folders')]),
       el('span', { className: 'user-header__fav-text' }, ['Manage All Posts'])
     ]
   );

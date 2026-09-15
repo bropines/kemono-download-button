@@ -1,3 +1,4 @@
+import { icon } from '../config/icons';
 import { el, getOrCreateContainer } from '../utils/dom';
 
 export interface ProgressTask {
@@ -45,7 +46,7 @@ class ProgressManager {
     let controller = new AbortController();
     const title = el('div', { className: 'kdl-task-title' }, [titleText]);
     const status = el('div', { className: 'kdl-task-status' }, ['Initializing...']);
-    const cancelButton = el('button', { className: 'kdl-task-cancel', title: 'Cancel', onClick: () => task.cancel() }, ['✕']) as HTMLButtonElement;
+    const cancelButton = el('button', { className: 'kdl-task-cancel', title: 'Cancel', onClick: () => task.cancel() }, [icon('x')]) as HTMLButtonElement;
     const header = el('div', { className: 'kdl-task-header' }, [title, status, cancelButton]);
     const filesContainer = el('div', { className: 'kdl-task-files' });
     const taskElement = el('div', { className: 'kdl-progress-task', id: `task-${id}` }, [header, filesContainer]);

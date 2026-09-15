@@ -250,7 +250,7 @@ export async function downloadFilesToDiskWithProgress(
     task.updateStatus('Cancelled');
   } else {
     task.updateStatus(failCount === 0
-      ? `✓ All ${downloadSpecs.length} files saved!`
+      ? `All ${downloadSpecs.length} files saved`
       : `Done: ${completedCount - failCount} ok, ${failCount} failed`
     );
   }

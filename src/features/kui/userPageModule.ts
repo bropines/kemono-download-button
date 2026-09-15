@@ -1,3 +1,4 @@
+import { iconSvg } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 
 export const userPageModule = {
@@ -16,20 +17,20 @@ export const userPageModule = {
     const copyButton = document.createElement("button");
     copyButton.id = "kui-copy-username-btn";
     copyButton.title = "Copy nickname";
-    copyButton.innerHTML = "📋";
+    copyButton.innerHTML = iconSvg('clipboard');
     copyButton.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       navigator.clipboard.writeText(username).then(() => {
-        copyButton.innerHTML = "✅";
+        copyButton.innerHTML = iconSvg('clipboard-check');
         setTimeout(() => {
-          copyButton.innerHTML = "📋";
+          copyButton.innerHTML = iconSvg('clipboard');
         }, 1500);
       }).catch((err) => {
         console.error("[KUI] Failed to copy text: ", err);
-        copyButton.innerHTML = "❌";
+        copyButton.innerHTML = iconSvg('circle-x');
         setTimeout(() => {
-          copyButton.innerHTML = "📋";
+          copyButton.innerHTML = iconSvg('clipboard');
         }, 1500);
       });
     });

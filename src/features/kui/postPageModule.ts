@@ -4,6 +4,7 @@ import { restructureLayout, processEmbeds } from './embeds';
 import { initializeImageGallery } from './imageGallery';
 import { initializeVideoGallery, destroyVideoGallery } from './videoGallery';
 import { initializeComments, removeCommentsLayout } from './comments';
+import { initializePostTranslation, removeTranslateButtons } from './translateButtons';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
 
@@ -20,6 +21,7 @@ export const postPageModule = {
     initializeImageGallery();
     initializeVideoGallery();
     initializeComments();
+    initializePostTranslation();
     document.addEventListener("keydown", this.handleGlobalKeys, true);
     kuiState.isPostPageModuleActive = true;
   },
@@ -28,6 +30,8 @@ export const postPageModule = {
     destroyVideoGallery();
     // An open lightbox would otherwise keep the next page scroll-locked and its arrow keys captured
     lightboxModule.close();
+    // Translations first: they are restored through buttons that live inside the comments
+    removeTranslateButtons();
     removeCommentsLayout();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());

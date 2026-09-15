@@ -2,8 +2,7 @@ import { getPostDetailsFromPage } from '../../services/collectorService';
 import { executeIndividualDownload, executeZipDownload } from '../../services/downloadService';
 import { executeLinkAction } from '../../services/linkService';
 import { addTaskToQueue } from '../../services/queueService';
-import { executeTranslation } from '../../services/translationService';
-import { isTranslationConfigured } from '../../services/translators';
+import { icon, IconName } from '../../config/icons';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
 
@@ -13,6 +12,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   const postDetails = getPostDetailsFromPage();
 
   const createButton = (
+    iconName: IconName,
     text: string,
     title: string,
     bgGradient: string,
@@ -29,7 +29,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
         onClick,
         onContextMenu: onContext
       },
-      [text]
+      [icon(iconName), text]
     );
   };
 
@@ -40,13 +40,14 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   if (state.settings.showCopyLinksButton) {
     toolsCol.appendChild(
       createButton(
-        '📋 Copy Links',
+        'copy',
+        'Copy Links',
         'Left-click: Copy for aria2c/IDM. Right-click: Get .txt for ADM.',
         'linear-gradient(135deg, #06b6d4, #0891b2)',
-        (e) => executeLinkAction('copy-aria', postDetails, e.target as HTMLElement, '📋 Copy Links'),
+        (e) => executeLinkAction('copy-aria', postDetails, e.currentTarget as HTMLElement, 'Copy Links'),
         (e) => {
           e.preventDefault();
-          executeLinkAction('download-txt', postDetails, e.target as HTMLElement, '📋 Copy Links');
+          executeLinkAction('download-txt', postDetails, e.currentTarget as HTMLElement, 'Copy Links');
         }
       )
     );
@@ -54,37 +55,34 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showShareButton && typeof navigator.share === 'function') {
     toolsCol.appendChild(
-      createButton('🔗 Share Links', 'Share Links', 'linear-gradient(135deg, #8b5cf6, #7c3aed)', (e) =>
-        executeLinkAction('share', postDetails, e.target as HTMLElement, '🔗 Share Links')
+      createButton('share-2', 'Share Links', 'Share Links', 'linear-gradient(135deg, #8b5cf6, #7c3aed)', (e) =>
+        executeLinkAction('share', postDetails, e.currentTarget as HTMLElement, 'Share Links')
       )
     );
   }
 
-  if (state.settings.showTranslateButton && isTranslationConfigured(state.settings)) {
-    toolsCol.appendChild(createButton('📝 Translate', 'Translate', 'linear-gradient(135deg, #6366f1, #4f46e5)', (e) => executeTranslation(e.target as HTMLElement)));
-  }
 
   // Column 2: Download Actions
   if (state.settings.showImagesButton) {
     downloadsCol.appendChild(
-      createButton('🖼️ Download Images', 'Download Images', 'linear-gradient(135deg, #3b82f6, #1d4ed8)', (e) =>
-        addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), postDetails, e.target as HTMLElement, '🖼️ Download Images')
+      createButton('images', 'Download Images', 'Download Images', 'linear-gradient(135deg, #3b82f6, #1d4ed8)', (e) =>
+        addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), postDetails, e.currentTarget as HTMLElement, 'Download Images')
       )
     );
   }
 
   if (state.settings.showFilesButton) {
     downloadsCol.appendChild(
-      createButton('📎 Download Attachments', 'Download Attachments', 'linear-gradient(135deg, #f59e0b, #d97706)', (e) =>
-        addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.target as HTMLElement, '📎 Download Attachments')
+      createButton('paperclip', 'Download Attachments', 'Download Attachments', 'linear-gradient(135deg, #f59e0b, #d97706)', (e) =>
+        addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.currentTarget as HTMLElement, 'Download Attachments')
       )
     );
   }
 
   if (state.settings.showZipButton) {
     downloadsCol.appendChild(
-      createButton('📦 Download (ZIP)', 'Download (ZIP)', 'linear-gradient(135deg, #10b981, #047857)', (e) =>
-        addTaskToQueue('ZIP', executeZipDownload, postDetails, e.target as HTMLElement, '📦 Download (ZIP)')
+      createButton('package', 'Download (ZIP)', 'Download (ZIP)', 'linear-gradient(135deg, #10b981, #047857)', (e) =>
+        addTaskToQueue('ZIP', executeZipDownload, postDetails, e.currentTarget as HTMLElement, 'Download (ZIP)')
       )
     );
   }

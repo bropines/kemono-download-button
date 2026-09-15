@@ -3,6 +3,10 @@ import { downloadFilesToDiskWithProgress, DownloadFileSpec } from '../../service
 import { state } from '../../state/store';
 import { FileItem, PostDetails } from '../../types';
 import { el } from '../../utils/dom';
+import { icon, IconName } from '../../config/icons';
+
+const setHeading = (header: HTMLElement, iconName: IconName, text: string): void =>
+  header.querySelector('h4')!.replaceChildren(icon(iconName), text);
 import { showMessage } from '../toast';
 
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
@@ -19,10 +23,10 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
     className: 'kdl-modal-close',
     title: 'Close',
     onClick: closeOverlay
-  }, ['✕']);
+  }, [icon('x')]);
 
   const header = el('div', { className: 'kdl-modal-header' }, [
-    el('h4', {}, ['📎 Loading attachments...']),
+    el('h4', {}, [icon('paperclip'), 'Loading attachments...']),
     closeBtn
   ]);
 
@@ -42,17 +46,17 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
     const attachments = files.filter((t) => t.source === 'url');
 
     if (attachments.length === 0) {
-      header.querySelector('h4')!.textContent = '📎 No attachments found';
+      setHeading(header, 'paperclip', 'No attachments found');
       modal.appendChild(el('p', { style: { color: '#94a3b8', margin: '16px 0 0' } }, ['No attachments or downloadable files available for this post.']));
       return;
     }
 
-    header.querySelector('h4')!.textContent = `📎 Select a file to download (${attachments.length})`;
+    setHeading(header, 'paperclip', `Select a file to download (${attachments.length})`);
 
     const list = el('ul', { id: 'kdl-file-picker-list' });
     attachments.forEach((file) => {
       const fileName = file.name.split('/').pop() || file.name;
-      const fileIcon = file.isMedia ? '🖼️' : '📁';
+      const fileIcon = icon(file.isMedia ? 'image' : 'file');
       const a = el('a', { href: '#', dataset: { url: file.data, name: file.name } }, [
         el('span', { className: 'kdl-file-icon' }, [fileIcon]),
         el('span', { className: 'kdl-file-name' }, [fileName])
@@ -70,7 +74,7 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
         showMessage(`Starting download for ${fileName}`, 'info');
         await downloadFilesToDiskWithProgress(
           [{ url, fileName }],
-          `📎 ${fileName}`,
+          fileName,
           1
         );
       }
@@ -78,7 +82,7 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
 
     modal.appendChild(list);
   } catch (error: any) {
-    header.querySelector('h4')!.textContent = '⚠️ Failed to load attachments';
+    setHeading(header, 'triangle-alert', 'Failed to load attachments');
     modal.appendChild(el('p', { style: { color: '#f87171', margin: '16px 0 0', fontSize: '0.9rem' } }, [error.message]));
   }
 }
@@ -99,10 +103,10 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
     className: 'kdl-modal-close',
     title: 'Close',
     onClick: closeOverlay
-  }, ['✕']);
+  }, [icon('x')]);
 
   const header = el('div', { className: 'kdl-modal-header' }, [
-    el('h4', {}, [`📎 Fetching attachments for ${posts.length} posts...`]),
+    el('h4', {}, [icon('paperclip'), `Fetching attachments for ${posts.length} posts...`]),
     closeBtn
   ]);
 
@@ -137,13 +141,13 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
     }
 
     if (postFileGroups.length === 0) {
-      header.querySelector('h4')!.textContent = '📎 No downloadable attachments found';
+      setHeading(header, 'paperclip', 'No downloadable attachments found');
       statusText.textContent = 'None of the selected posts contain downloadable attachments.';
       return;
     }
 
     const totalFilesCount = postFileGroups.reduce((acc, g) => acc + g.files.length, 0);
-    header.querySelector('h4')!.textContent = `📎 Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`;
+    setHeading(header, 'paperclip', `Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`);
     statusText.remove();
 
     const downloadBtn = el('button', {
@@ -162,7 +166,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
 
         closeOverlay();
         showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, 'info');
-        await downloadFilesToDiskWithProgress(specs, `📎 Bulk Pick (${specs.length} files)`);
+        await downloadFilesToDiskWithProgress(specs, `Bulk Pick (${specs.length} files)`);
       }
     }, [`Download Selected (${totalFilesCount})`]) as HTMLButtonElement;
 
@@ -196,14 +200,14 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
 
     postFileGroups.forEach((group) => {
       const groupHeader = el('div', { className: 'kdl-post-group-header' }, [
-        el('span', { className: 'kdl-post-group-title' }, [`📌 ${group.post.postTitle}`]),
+        el('span', { className: 'kdl-post-group-title' }, [icon('pin'), group.post.postTitle]),
         el('span', { className: 'kdl-post-group-date' }, [group.post.postDate || ''])
       ]);
 
       const groupList = el('ul', { className: 'kdl-group-file-list' });
       group.files.forEach((file) => {
         const fileName = file.name.split('/').pop() || file.name;
-        const icon = file.isMedia ? '🖼️' : '📁';
+        const fileIcon = icon(file.isMedia ? 'image' : 'file');
         const checkbox = el('input', {
           type: 'checkbox',
           checked: true,
@@ -214,7 +218,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
 
         const label = el('label', { className: 'kdl-multi-file-item' }, [
           checkbox,
-          el('span', { className: 'kdl-file-icon' }, [icon]),
+          el('span', { className: 'kdl-file-icon' }, [fileIcon]),
           el('span', { className: 'kdl-file-name' }, [fileName])
         ]);
 
@@ -226,7 +230,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
 
     modal.appendChild(listContainer);
   } catch (error: any) {
-    header.querySelector('h4')!.textContent = '⚠️ Failed to fetch attachments';
+    setHeading(header, 'triangle-alert', 'Failed to fetch attachments');
     modal.appendChild(el('p', { style: { color: '#f87171', margin: '16px 0 0' } }, [error.message]));
   }
 }

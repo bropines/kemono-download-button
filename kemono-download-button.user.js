@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.42
+// @version      0.8.43
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1536,6 +1536,64 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     progressBarStyles,
     chipsStyles
   ].join("\n\n");
+  const LUCIDE = {
+    "archive": '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "chevron-left": '<path d="m15 18-6-6 6-6"/>',
+    "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "circle-x": '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
+    "clipboard-check": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
+    "clipboard": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
+    "copy": '<rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>',
+    "download": '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+    "external-link": '<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>',
+    "eye": '<path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/>',
+    "file": '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>',
+    "folder-open": '<path d="m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"/>',
+    "folder": '<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>',
+    "folders": '<path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z"/><path d="M2 8v11a2 2 0 0 0 2 2h14"/>',
+    "gallery-horizontal-end": '<path d="M2 7v10"/><path d="M6 5v14"/><rect width="12" height="18" x="10" y="3" rx="2"/>',
+    "image": '<rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>',
+    "images": '<path d="M18 22H4a2 2 0 0 1-2-2V6"/><path d="m22 13-1.296-1.296a2.41 2.41 0 0 0-3.408 0L11 18"/><circle cx="12" cy="8" r="2"/><rect width="16" height="16" x="6" y="2" rx="2"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "key-round": '<path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"/><circle cx="16.5" cy="7.5" r=".5" fill="currentColor"/>',
+    "languages": '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
+    "layout-grid": '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
+    "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+    "list": '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
+    "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    "package": '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>',
+    "panel-left-close": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
+    "panel-left-open": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
+    "paperclip": '<path d="M13.234 20.252 21 12.3"/><path d="m16 6-8.414 8.586a2 2 0 0 0 0 2.828 2 2 0 0 0 2.828 0l8.414-8.586a4 4 0 0 0 0-5.656 4 4 0 0 0-5.656 0l-8.415 8.585a6 6 0 1 0 8.486 8.486"/>',
+    "pin": '<path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/>',
+    "refresh-cw": '<path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/>',
+    "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
+    "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+    "share-2": '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+    "star": '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
+    "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    "undo-2": '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'
+  };
+  function iconSvg(name, className = "kdl-icon") {
+    return `<svg class="${className}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${LUCIDE[name]}</svg>`;
+  }
+  function icon(name, className) {
+    const template = document.createElement("template");
+    template.innerHTML = iconSvg(name, className);
+    return template.content.firstElementChild;
+  }
+  function iconMaskUrl(name) {
+    return `url("data:image/svg+xml,${encodeURIComponent(iconSvg(name, ""))}")`;
+  }
+  const ICONS = {
+    DOWNLOAD: iconSvg("download"),
+    LINK: iconSvg("link"),
+    CLOSE: iconSvg("x"),
+    LENS: '<svg viewBox="0 -960 960 960" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;"><path fill="currentColor" d="M480-320q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm240 160q-33 0-56.5-23.5T640-240q0-33 23.5-56.5T720-320q33 0 56.5 23.5T800-240q0 33-23.5 56.5T720-160Zm-440 40q-66 0-113-47t-47-113v-80h80v80q0 33 23.5 56.5T280-200h200v80H280Zm480-320v-160q0-33-23.5-56.5T680-680H280q-33 0-56.5 23.5T200-600v120h-80v-120q0-66 47-113t113-47h80l40-80h160l40 80h80q66 0 113 47t47 113v160h-80Z"></path></svg>',
+    SUCCESS: iconSvg("check")
+  };
   const kuiMainStyles = css({
     "#kui-settings-btn-sidebar": {
       cursor: "pointer"
@@ -1675,11 +1733,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "scale(0.95)"
     },
     /* Post Sections */
-    // No frame of its own: the site already draws the post card, and a box inside it read as a double border.
-    // The heading underline separates the sections.
+    // No frame of its own: boxed sections looked heavy; the heading underline separates them
     ".kui-post-section": {
       padding: "15px 0",
       marginTop: "20px"
+    },
+    // pawchive frames the comments footer itself (.post__footer { border: 0.125em solid grey; padding: 0.5em })
+    ".kui-post-section > footer.post__footer": {
+      border: "none",
+      borderRadius: 0,
+      padding: 0
     },
     ".kui-post-section h2": {
       marginTop: "0 !important",
@@ -1789,11 +1852,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "scale(1.1)",
       backgroundColor: "#505050e6"
     },
-    ".kui-gallery-thumb-toggle:after": {
-      content: '"✕"'
+    ".kui-gallery-thumb-toggle:after, .kui-video-playlist-toggle:after": {
+      content: '""',
+      width: "18px",
+      height: "18px",
+      backgroundColor: "currentColor",
+      WebkitMask: `${iconMaskUrl("panel-left-close")} center / contain no-repeat`,
+      mask: `${iconMaskUrl("panel-left-close")} center / contain no-repeat`
     },
-    ".kui-gallery-thumbnails.kui-collapsed ~ .kui-gallery-preview .kui-gallery-thumb-toggle:after": {
-      content: '"☰"'
+    ".kui-gallery-thumbnails.kui-collapsed ~ .kui-gallery-preview .kui-gallery-thumb-toggle:after, .kui-video-list.kui-collapsed ~ .kui-video-player-area .kui-video-playlist-toggle:after": {
+      WebkitMaskImage: iconMaskUrl("panel-left-open"),
+      maskImage: iconMaskUrl("panel-left-open")
     },
     ".kui-thumb-wrapper": {
       position: "relative"
@@ -1905,12 +1974,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       transform: "scale(1.1)",
       backgroundColor: "#505050e6"
     },
-    ".kui-video-playlist-toggle:after": {
-      content: '"✕"'
-    },
-    ".kui-video-list.kui-collapsed ~ .kui-video-player-area .kui-video-playlist-toggle:after": {
-      content: '"☰"'
-    },
     /* Embeds & Attachments Buttons */
     ".kui-embed-container, .post__attachments": {
       display: "flex !important",
@@ -1971,6 +2034,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       whiteSpace: "nowrap !important"
     },
     ".kui-embed-password": {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "4px",
       flexShrink: 0,
       maxWidth: "140px",
       padding: "1px 6px",
@@ -3374,34 +3440,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       overflowY: "auto",
       scrollSnapAlign: "start"
     },
-    ".kui-comment-translate": {
-      marginLeft: "10px",
-      padding: "2px 8px",
-      border: `1px solid ${THEME.colors.borderSubtle}`,
-      borderRadius: THEME.borderRadius.pill,
-      background: "transparent",
-      color: THEME.colors.textMuted,
-      fontSize: "0.8em",
-      lineHeight: 1.4,
-      cursor: "pointer",
-      whiteSpace: "nowrap",
-      transition: "color 0.2s, border-color 0.2s"
-    },
-    ".kui-comment-translate:hover:not(:disabled)": {
-      borderColor: THEME.colors.primary,
-      color: THEME.colors.primary
-    },
-    ".kui-comment-translate:disabled": {
-      opacity: 0.6,
-      cursor: "wait"
-    },
     ".kui-comments--grid .comment__footer, .kui-comments--carousel .comment__footer": {
       display: "flex",
       flexWrap: "wrap",
       alignItems: "center",
       gap: "4px 10px"
     },
-    ".kui-comments--grid .kui-comment-translate, .kui-comments--carousel .kui-comment-translate": {
+    ".kui-comments--grid .kui-translate-btn, .kui-comments--carousel .kui-translate-btn": {
       marginLeft: 0
     },
     // Only the comment text decides a carousel card's width, not its timestamp + button row
@@ -3423,6 +3468,53 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       background: THEME.colors.cardHoverBg
     }
   });
+  const iconStyles = css({
+    "@keyframes kdl-spin": {
+      to: { transform: "rotate(360deg)" }
+    },
+    ".kdl-icon": {
+      display: "inline-block",
+      width: "1em",
+      height: "1em",
+      flexShrink: 0,
+      verticalAlign: "-0.125em"
+    },
+    ".kdl-spin": {
+      animation: "kdl-spin 0.9s linear infinite"
+    },
+    // Lucide icons are strokes; older rules fill every svg inside action buttons
+    ".kui-action-btn svg.kdl-icon, .kui-lightbox-top-actions .kui-action-btn svg.kdl-icon": {
+      fill: "none"
+    },
+    ".kdl-quick-fav-btn.kdl-favorited svg": {
+      fill: "currentColor"
+    },
+    ".kui-translate-btn": {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "26px",
+      height: "26px",
+      marginLeft: "8px",
+      padding: 0,
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.full,
+      background: "transparent",
+      color: THEME.colors.textMuted,
+      fontSize: "14px",
+      lineHeight: 1,
+      verticalAlign: "middle",
+      cursor: "pointer",
+      transition: "color 0.2s, border-color 0.2s"
+    },
+    '.kui-translate-btn:hover:not(:disabled), .kui-translate-btn[data-state="translated"]': {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
+    },
+    ".kui-translate-btn:disabled": {
+      cursor: "wait"
+    }
+  });
   const KEMONO_DOWNLOADER_STYLES = downloadButtonStyles;
   const KUI_STYLES = kuiMainStyles;
   const KUI_PLYR_STYLES = kuiPlyrStyles;
@@ -3430,7 +3522,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     KEMONO_DOWNLOADER_STYLES,
     KUI_STYLES,
     KUI_PLYR_STYLES,
-    commentsStyles
+    commentsStyles,
+    // Last, so its icon rules win over older "svg { fill }" rules
+    iconStyles
   ].join("\n\n");
   const SELECTORS = {
     mainContent: "main#main",
@@ -3717,7 +3811,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     isDebugModeEnabled: readValue$1(KUI_STORAGE_KEYS.DEBUG_MODE, false),
     isVerboseDebugEnabled: readValue$1(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
     isPreloadEnabled: readValue$1(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
-    isHideEmptySectionsEnabled: readValue$1(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
+    isHideEmptySectionsEnabled: readValue$1(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, true),
     isPostPageModuleActive: false,
     embedRules: readValue$1(KUI_STORAGE_KEYS.EMBED_RULES, {}),
     sessionKey: readValue$1(KUI_STORAGE_KEYS.SESSION_KEY, "")
@@ -4203,7 +4297,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const isFavorited = type === "creator" ? appState.favoritedArtists.has(artistKey) : postId ? appState.favoritedPosts.has(postId) : false;
     const method = isFavorited ? "DELETE" : "POST";
     const apiUrl = type === "creator" ? `/api/v1/favorites/creator/${service}/${creatorId}` : `/api/v1/favorites/post/${service}/${creatorId}/${postId}`;
-    button.textContent = "⏳";
+    button.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
     button.disabled = true;
     try {
       await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
@@ -4222,7 +4316,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       console.error("[Kemono API] Favorite toggle failed:", error);
       showMessage("Failed to update favorites.", "error");
     } finally {
-      button.textContent = "⭐";
+      button.innerHTML = iconSvg("star");
       button.disabled = false;
     }
   }
@@ -4838,7 +4932,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   let settingsModalElement = null;
   let settingsOverlayElement = null;
   function tooltipSpan(text) {
-    return el("span", { className: "kdl-tooltip-trigger", dataset: { tooltip: text } }, ["ℹ️"]);
+    return el("span", { className: "kdl-tooltip-trigger", dataset: { tooltip: text } }, [icon("info")]);
   }
   function checkboxItem(id, text, tooltipText) {
     const checkbox = el("input", { type: "checkbox", id });
@@ -4896,7 +4990,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           hiddenFileInput.click();
         }
       },
-      ["📂 Select Folder"]
+      [icon("folder-open"), " Select Folder"]
     );
     hiddenFileInput.addEventListener("change", () => {
       if (hiddenFileInput.files && hiddenFileInput.files.length > 0) {
@@ -4955,7 +5049,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
                 renderChips(updated);
               }
             },
-            ["✖"]
+            [icon("x")]
           );
           return el("span", { className: "kdl-chip" }, [val, removeBtn]);
         })
@@ -4990,9 +5084,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       el("div", { className: "kdl-chips-container" }, [chipsWrapper, inputElem])
     ]);
   }
-  function cardContainer(title, children) {
+  function cardContainer(iconName, title, children) {
     return el("div", { className: "kdl-settings-card" }, [
-      el("h3", {}, [title]),
+      el("h3", {}, [icon(iconName), " ", title]),
       ...children
     ]);
   }
@@ -5032,7 +5126,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const langOptions = TRANSLATION_LANGUAGES.map(({ value, name }) => ({ value, text: name }));
     settingsOverlayElement = el("div", { id: "kdl-settings-overlay" });
     settingsModalElement = el("div", { id: "kdl-settings-modal" });
-    const generalCard = cardContainer("⚙️ General & Cache", [
+    const generalCard = cardContainer("settings", "General & Cache", [
       checkboxItem("kdl-setting-enableAPIFetch", "Enable Site API Fetching", "Use fast site REST API instead of parsing HTML pages"),
       inputItem("kdl-setting-sessionCookie", "password", "Session Cookie", { placeholder: "Paste session cookie here" }, "Session authentication cookie. Required to access restricted or paywalled posts"),
       inputItem("kdl-setting-cacheDurationHours", "number", "Post List Cache Duration (Hours)", { min: 0, step: 1 }, "Post list cache retention duration. 0 = disable caching"),
@@ -5045,7 +5139,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         ])
       ])
     ]);
-    const templatesCard = cardContainer("📁 File Naming & Templates", [
+    const templatesCard = cardContainer("folder", "File Naming & Templates", [
       inputItem("kdl-setting-fileNameTemplate", "text", "Template for Individual Downloads", { placeholder: DEFAULT_SETTINGS.fileNameTemplate }, "Available tags: {author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}"),
       el("div", { style: { display: "flex", gap: "6px", marginBottom: "10px" } }, [
         el("button", {
@@ -5053,7 +5147,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           id: "kdl-template-reset-btn",
           className: "kdl-btn-info",
           style: { fontSize: "0.78rem", padding: "4px 10px" }
-        }, ["🔄 Reset to Default Pattern"])
+        }, [icon("rotate-ccw"), " Reset to Default Pattern"])
       ]),
       el("div", { className: "kdl-setting-item" }, [
         el("label", { htmlFor: "kdl-template-select" }, ["Saved Templates"]),
@@ -5079,7 +5173,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         folderInputItem("kdl-setting-bulkMultipleSystemPathTemplate", "System Path for Multiple Archives", { placeholder: "{author_name}/{post_date} - {post_title}" }, "System directory path template for post ZIP archives")
       ])
     ]);
-    const zipCard = cardContainer("📦 ZIP Engine & Performance", [
+    const zipCard = cardContainer("archive", "ZIP Engine & Performance", [
       selectItem(
         "kdl-setting-zipCompressionLevel",
         "ZIP Compression Level",
@@ -5108,7 +5202,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         "File extensions to exclude from ZIP archives (e.g. txt, psd, mp4). Case-insensitive & auto-deduplicated."
       )
     ]);
-    const translationCard = cardContainer("🌐 Translation", [
+    const translationCard = cardContainer("languages", "Translation", [
       selectItem(
         "kdl-setting-translationProvider",
         "Translation Provider",
@@ -5149,14 +5243,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         ])
       ])
     ]);
-    const visibleButtonsCard = cardContainer("👁️ Visible Buttons", [
+    const visibleButtonsCard = cardContainer("eye", "Visible Buttons", [
       el("div", { className: "kdl-setting-checkbox-grid" }, [
         checkboxItem("kdl-setting-showZipButton", "ZIP Download"),
         checkboxItem("kdl-setting-showImagesButton", "Images"),
         checkboxItem("kdl-setting-showFilesButton", "Attachments"),
         checkboxItem("kdl-setting-showCopyLinksButton", "Copy Links"),
         checkboxItem("kdl-setting-showShareButton", "Share Links"),
-        checkboxItem("kdl-setting-showTranslateButton", "Translate")
+        checkboxItem("kdl-setting-showTranslateButton", "Translate (title, content, comments)")
       ])
     ]);
     const col1 = el("div", { className: "kdl-settings-col" }, [generalCard, templatesCard]);
@@ -5164,7 +5258,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const col3 = el("div", { className: "kdl-settings-col" }, [translationCard, visibleButtonsCard]);
     const grid = el("div", { className: "kdl-settings-grid" }, [col1, col2, col3]);
     const modalContent = el("div", { id: "kdl-settings-modal-content" }, [
-      el("h2", {}, ["⚙️ Downloader Settings"]),
+      el("h2", {}, [icon("settings"), " Downloader Settings"]),
       grid
     ]);
     const actionsFooter = el("div", { className: "kdl-settings-actions" }, [
@@ -5569,7 +5663,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const isFavorited = type === "creator" ? appState.favoritedArtists.has(artistKey) : postId ? appState.favoritedPosts.has(postId) : false;
     const method = isFavorited ? "DELETE" : "POST";
     const apiUrl = type === "creator" ? `/api/v1/favorites/creator/${service}/${creatorId}` : `/api/v1/favorites/post/${service}/${creatorId}/${postId}`;
-    button.textContent = "⏳";
+    button.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
     button.disabled = true;
     try {
       await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
@@ -5588,7 +5682,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       console.error("Favorite toggle failed:", error);
       showMessage("Failed to update favorites.", "error");
     } finally {
-      button.textContent = "⭐";
+      button.innerHTML = iconSvg("star");
       button.disabled = false;
     }
   }
@@ -6886,7 +6980,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       let controller = new AbortController();
       const title = el("div", { className: "kdl-task-title" }, [titleText]);
       const status = el("div", { className: "kdl-task-status" }, ["Initializing..."]);
-      const cancelButton = el("button", { className: "kdl-task-cancel", title: "Cancel", onClick: () => task.cancel() }, ["✕"]);
+      const cancelButton = el("button", { className: "kdl-task-cancel", title: "Cancel", onClick: () => task.cancel() }, [icon("x")]);
       const header = el("div", { className: "kdl-task-header" }, [title, status, cancelButton]);
       const filesContainer = el("div", { className: "kdl-task-files" });
       const taskElement = el("div", { className: "kdl-progress-task", id: `task-${id}` }, [header, filesContainer]);
@@ -6955,10 +7049,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
   }
   const progressManager = new ProgressManager();
+  const originalButtonHtml = /* @__PURE__ */ new WeakMap();
   function addTaskToQueue(type, action, postDetails, buttonElement, originalButtonText) {
     const origText = originalButtonText || (buttonElement ? buttonElement.textContent || "" : "");
     appState.downloadQueue.push({ type, action, postDetails, buttonElement, originalButtonText: origText });
     if (buttonElement) {
+      if (!originalButtonHtml.has(buttonElement)) originalButtonHtml.set(buttonElement, buttonElement.innerHTML);
       buttonElement.dataset.isQueued = "true";
       buttonElement.textContent = "Queued...";
       buttonElement.disabled = true;
@@ -6988,7 +7084,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         } finally {
           if (task.buttonElement) {
             delete task.buttonElement.dataset.isDownloading;
-            task.buttonElement.textContent = task.originalButtonText;
+            const html = originalButtonHtml.get(task.buttonElement);
+            if (html !== void 0) {
+              task.buttonElement.innerHTML = html;
+              originalButtonHtml.delete(task.buttonElement);
+            } else {
+              task.buttonElement.textContent = task.originalButtonText;
+            }
             task.buttonElement.disabled = false;
           }
           appState.activeOperations--;
@@ -7172,7 +7274,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       task.updateStatus("Cancelled");
     } else {
       task.updateStatus(
-        failCount === 0 ? `✓ All ${downloadSpecs.length} files saved!` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+        failCount === 0 ? `All ${downloadSpecs.length} files saved` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
       );
     }
     task.finish(5e3);
@@ -7374,69 +7476,11 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       }
     }
   }
-  async function executeTranslation(button) {
-    await getSettings();
-    const provider = state.settings.translationProvider;
-    if (provider === "none") {
-      showMessage('Translation provider is set to "None" in settings.', "warning");
-      return;
-    }
-    const postContentNode = document.querySelector(".post__content");
-    if (!postContentNode) {
-      showMessage("Post content not found to translate.", "warning");
-      return;
-    }
-    const embedContainer = postContentNode.querySelector(".kui-embed-container");
-    embedContainer == null ? void 0 : embedContainer.remove();
-    try {
-      if (!appState.originalPostContentHTML) {
-        appState.originalPostContentHTML = postContentNode.innerHTML;
-      }
-      const isTranslated = button.dataset.isTranslated === "true";
-      if (isTranslated) {
-        postContentNode.innerHTML = appState.originalPostContentHTML;
-        button.dataset.isTranslated = "false";
-        button.textContent = "Translate 📝";
-        return;
-      }
-      const originalText = postContentNode.innerText.trim();
-      if (!originalText) {
-        showMessage("No text content found to translate.", "info");
-        return;
-      }
-      const cacheKey = `${provider}:${state.settings.translationLanguage}:${originalText}`;
-      if (appState.translationCache[cacheKey]) {
-        postContentNode.innerText = appState.translationCache[cacheKey];
-        button.dataset.isTranslated = "true";
-        button.textContent = "Show Original ↩️";
-        return;
-      }
-      button.textContent = "Translating... ⏳";
-      button.disabled = true;
-      try {
-        const translatedText = await translateText(originalText, state.settings);
-        if (translatedText) {
-          appState.translationCache[cacheKey] = translatedText;
-          postContentNode.innerText = translatedText;
-          button.dataset.isTranslated = "true";
-          button.textContent = "Show Original ↩️";
-        }
-      } catch (error) {
-        console.error("Translation error:", error);
-        showMessage(`Translation failed: ${error.message}`, "error");
-        button.textContent = "Translate 📝";
-      } finally {
-        button.disabled = false;
-      }
-    } finally {
-      if (embedContainer) postContentNode.prepend(embedContainer);
-    }
-  }
   async function createAndInsertPostPageButtons(container, referenceElement) {
     await getSettings();
     document.querySelectorAll(".kdl-actions-container, .kdl-button").forEach((node) => node.remove());
     const postDetails = getPostDetailsFromPage();
-    const createButton = (text, title, bgGradient, onClick, onContext) => {
+    const createButton = (iconName, text, title, bgGradient, onClick, onContext) => {
       return el(
         "button",
         {
@@ -7447,7 +7491,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           onClick,
           onContextMenu: onContext
         },
-        [text]
+        [icon(iconName), text]
       );
     };
     const toolsCol = el("div", { className: "kdl-actions-col kdl-actions-tools" });
@@ -7455,13 +7499,14 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     if (state.settings.showCopyLinksButton) {
       toolsCol.appendChild(
         createButton(
-          "📋 Copy Links",
+          "copy",
+          "Copy Links",
           "Left-click: Copy for aria2c/IDM. Right-click: Get .txt for ADM.",
           "linear-gradient(135deg, #06b6d4, #0891b2)",
-          (e) => executeLinkAction("copy-aria", postDetails, e.target),
+          (e) => executeLinkAction("copy-aria", postDetails, e.currentTarget),
           (e) => {
             e.preventDefault();
-            executeLinkAction("download-txt", postDetails, e.target);
+            executeLinkAction("download-txt", postDetails, e.currentTarget);
           }
         )
       );
@@ -7469,49 +7514,51 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     if (state.settings.showShareButton && typeof navigator.share === "function") {
       toolsCol.appendChild(
         createButton(
-          "🔗 Share Links",
+          "share-2",
+          "Share Links",
           "Share Links",
           "linear-gradient(135deg, #8b5cf6, #7c3aed)",
-          (e) => executeLinkAction("share", postDetails, e.target)
+          (e) => executeLinkAction("share", postDetails, e.currentTarget)
         )
       );
-    }
-    if (state.settings.showTranslateButton && isTranslationConfigured(state.settings)) {
-      toolsCol.appendChild(createButton("📝 Translate", "Translate", "linear-gradient(135deg, #6366f1, #4f46e5)", (e) => executeTranslation(e.target)));
     }
     if (state.settings.showImagesButton) {
       downloadsCol.appendChild(
         createButton(
-          "🖼️ Download Images",
+          "images",
+          "Download Images",
           "Download Images",
           "linear-gradient(135deg, #3b82f6, #1d4ed8)",
-          (e) => addTaskToQueue("Images", (pd) => executeIndividualDownload("Images", pd), postDetails, e.target, "🖼️ Download Images")
+          (e) => addTaskToQueue("Images", (pd) => executeIndividualDownload("Images", pd), postDetails, e.currentTarget, "Download Images")
         )
       );
     }
     if (state.settings.showFilesButton) {
       downloadsCol.appendChild(
         createButton(
-          "📎 Download Attachments",
+          "paperclip",
+          "Download Attachments",
           "Download Attachments",
           "linear-gradient(135deg, #f59e0b, #d97706)",
-          (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.target, "📎 Download Attachments")
+          (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.currentTarget, "Download Attachments")
         )
       );
     }
     if (state.settings.showZipButton) {
       downloadsCol.appendChild(
         createButton(
-          "📦 Download (ZIP)",
+          "package",
+          "Download (ZIP)",
           "Download (ZIP)",
           "linear-gradient(135deg, #10b981, #047857)",
-          (e) => addTaskToQueue("ZIP", executeZipDownload, postDetails, e.target, "📦 Download (ZIP)")
+          (e) => addTaskToQueue("ZIP", executeZipDownload, postDetails, e.currentTarget, "Download (ZIP)")
         )
       );
     }
     const kdlContainer = el("div", { className: "kdl-actions-container" }, [toolsCol, downloadsCol]);
     container.appendChild(kdlContainer);
   }
+  const setHeading = (header, iconName, text) => header.querySelector("h4").replaceChildren(icon(iconName), text);
   async function showFilePickerModal(postDetails) {
     const closeOverlay = () => {
       overlay.remove();
@@ -7525,9 +7572,9 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       className: "kdl-modal-close",
       title: "Close",
       onClick: closeOverlay
-    }, ["✕"]);
+    }, [icon("x")]);
     const header = el("div", { className: "kdl-modal-header" }, [
-      el("h4", {}, ["📎 Loading attachments..."]),
+      el("h4", {}, [icon("paperclip"), "Loading attachments..."]),
       closeBtn
     ]);
     const overlay = el("div", {
@@ -7543,15 +7590,15 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
       const attachments = files.filter((t) => t.source === "url");
       if (attachments.length === 0) {
-        header.querySelector("h4").textContent = "📎 No attachments found";
+        setHeading(header, "paperclip", "No attachments found");
         modal.appendChild(el("p", { style: { color: "#94a3b8", margin: "16px 0 0" } }, ["No attachments or downloadable files available for this post."]));
         return;
       }
-      header.querySelector("h4").textContent = `📎 Select a file to download (${attachments.length})`;
+      setHeading(header, "paperclip", `Select a file to download (${attachments.length})`);
       const list = el("ul", { id: "kdl-file-picker-list" });
       attachments.forEach((file) => {
         const fileName = file.name.split("/").pop() || file.name;
-        const fileIcon = file.isMedia ? "🖼️" : "📁";
+        const fileIcon = icon(file.isMedia ? "image" : "file");
         const a = el("a", { href: "#", dataset: { url: file.data, name: file.name } }, [
           el("span", { className: "kdl-file-icon" }, [fileIcon]),
           el("span", { className: "kdl-file-name" }, [fileName])
@@ -7568,14 +7615,14 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           showMessage(`Starting download for ${fileName}`, "info");
           await downloadFilesToDiskWithProgress(
             [{ url, fileName }],
-            `📎 ${fileName}`,
+            fileName,
             1
           );
         }
       });
       modal.appendChild(list);
     } catch (error) {
-      header.querySelector("h4").textContent = "⚠️ Failed to load attachments";
+      setHeading(header, "triangle-alert", "Failed to load attachments");
       modal.appendChild(el("p", { style: { color: "#f87171", margin: "16px 0 0", fontSize: "0.9rem" } }, [error.message]));
     }
   }
@@ -7593,9 +7640,9 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       className: "kdl-modal-close",
       title: "Close",
       onClick: closeOverlay
-    }, ["✕"]);
+    }, [icon("x")]);
     const header = el("div", { className: "kdl-modal-header" }, [
-      el("h4", {}, [`📎 Fetching attachments for ${posts.length} posts...`]),
+      el("h4", {}, [icon("paperclip"), `Fetching attachments for ${posts.length} posts...`]),
       closeBtn
     ]);
     const overlay = el("div", {
@@ -7624,12 +7671,12 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         statusText.textContent = `Fetching metadata (${loadedCount}/${posts.length} posts loaded)...`;
       }
       if (postFileGroups.length === 0) {
-        header.querySelector("h4").textContent = "📎 No downloadable attachments found";
+        setHeading(header, "paperclip", "No downloadable attachments found");
         statusText.textContent = "None of the selected posts contain downloadable attachments.";
         return;
       }
       const totalFilesCount = postFileGroups.reduce((acc, g) => acc + g.files.length, 0);
-      header.querySelector("h4").textContent = `📎 Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`;
+      setHeading(header, "paperclip", `Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`);
       statusText.remove();
       const downloadBtn = el("button", {
         className: "kdl-multi-dl-btn",
@@ -7645,7 +7692,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           }));
           closeOverlay();
           showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, "info");
-          await downloadFilesToDiskWithProgress(specs, `📎 Bulk Pick (${specs.length} files)`);
+          await downloadFilesToDiskWithProgress(specs, `Bulk Pick (${specs.length} files)`);
         }
       }, [`Download Selected (${totalFilesCount})`]);
       const updateCheckedCounter = () => {
@@ -7674,13 +7721,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       const listContainer = el("div", { id: "kdl-multi-file-picker-list" });
       postFileGroups.forEach((group) => {
         const groupHeader = el("div", { className: "kdl-post-group-header" }, [
-          el("span", { className: "kdl-post-group-title" }, [`📌 ${group.post.postTitle}`]),
+          el("span", { className: "kdl-post-group-title" }, [icon("pin"), group.post.postTitle]),
           el("span", { className: "kdl-post-group-date" }, [group.post.postDate || ""])
         ]);
         const groupList = el("ul", { className: "kdl-group-file-list" });
         group.files.forEach((file) => {
           const fileName = file.name.split("/").pop() || file.name;
-          const icon = file.isMedia ? "🖼️" : "📁";
+          const fileIcon = icon(file.isMedia ? "image" : "file");
           const checkbox = el("input", {
             type: "checkbox",
             checked: true,
@@ -7690,7 +7737,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           });
           const label = el("label", { className: "kdl-multi-file-item" }, [
             checkbox,
-            el("span", { className: "kdl-file-icon" }, [icon]),
+            el("span", { className: "kdl-file-icon" }, [fileIcon]),
             el("span", { className: "kdl-file-name" }, [fileName])
           ]);
           groupList.appendChild(el("li", {}, [label]));
@@ -7699,7 +7746,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       });
       modal.appendChild(listContainer);
     } catch (error) {
-      header.querySelector("h4").textContent = "⚠️ Failed to fetch attachments";
+      setHeading(header, "triangle-alert", "Failed to fetch attachments");
       modal.appendChild(el("p", { style: { color: "#f87171", margin: "16px 0 0" } }, [error.message]));
     }
   }
@@ -7719,7 +7766,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
             onClick: (e) => {
               e.preventDefault();
               e.stopPropagation();
-              onClick(e.target);
+              onClick(e.currentTarget);
             }
           },
           [text]
@@ -7730,13 +7777,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     if (state.settings.showImagesButton) createMiniBtn("Imgs", "Download Images", "post-card-dl-img", (btn) => addTaskToQueue("Images", (pd) => executeIndividualDownload("Images", pd), details, btn, "Imgs"));
     if (state.settings.showFilesButton) {
       createMiniBtn("Attach.", "Download Attachments", "post-card-dl-att", (btn) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), details, btn, "Attach."));
-      createMiniBtn("📎", "Pick & Download Attachment", "post-card-dl-pick", () => showFilePickerModal(details));
+      createMiniBtn(icon("paperclip"), "Pick & Download Attachment", "post-card-dl-pick", () => showFilePickerModal(details));
     }
     if (controlsContainer.hasChildNodes()) {
       const tooltip = el("div", { className: "kdl-post-info-tooltip" });
       postCardNode.appendChild(tooltip);
       let isFetching = false;
-      const infoBtn = el("button", { className: "post-card-dl-info", title: "Show post info" }, ["ℹ️"]);
+      const infoBtn = el("button", { className: "post-card-dl-info", title: "Show post info" }, [icon("info")]);
       infoBtn.addEventListener("mouseover", async () => {
         tooltip.style.display = "block";
         if (postCardNode.dataset.postInfo) {
@@ -7799,7 +7846,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const creatorId = cardNode.dataset.id || (hrefMatch == null ? void 0 : hrefMatch[2]);
     if (!service || !creatorId) return;
     const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);
-    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, ["⭐"]);
+    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, [icon("star")]);
     cardNode.appendChild(favBtn);
     updateCardFavoriteState(cardNode, isFavorited, "creator");
     favBtn.addEventListener("click", (e) => {
@@ -7815,7 +7862,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const postId = cardNode.dataset.id;
     if (!service || !creatorId || !postId) return;
     const isFavorited = appState.favoritedPosts.has(postId);
-    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, ["⭐"]);
+    const favBtn = el("button", { className: "kdl-quick-fav-btn", title: "Toggle Favorite" }, [icon("star")]);
     cardNode.appendChild(favBtn);
     updateCardFavoriteState(cardNode, isFavorited, "post");
     favBtn.addEventListener("click", (e) => {
@@ -7857,7 +7904,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
       downloadBtn.disabled = selectedCount === 0;
     }
     if (pickAttachmentsBtn) {
-      pickAttachmentsBtn.textContent = `📎 Pick Attachments (${selectedCount})`;
+      pickAttachmentsBtn.replaceChildren(icon("paperclip"), ` Pick Attachments (${selectedCount})`);
       pickAttachmentsBtn.disabled = selectedCount === 0;
     }
     if (panel) {
@@ -7962,7 +8009,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
           const selectedPosts = getSelectedPostsDetails();
           showMultiPostFilePickerModal(selectedPosts);
         }
-      }, ["📎 Pick Attachments (0)"]),
+      }, [icon("paperclip"), " Pick Attachments (0)"]),
       el("button", { id: "kdl-bulk-download-btn", disabled: true, onClick: () => executeBulkDownload() }, ["Download Selected (0)"])
     ]);
     document.body.appendChild(panel);
@@ -7978,7 +8025,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
             el("em", { id: "kdl-manager-cache-status" })
           ]),
           el("div", { id: "kdl-manager-controls" }, [
-            el("button", { id: "kdl-manager-refresh", className: "kdl-manager-btn", title: "Force Refresh" }, ["🔄"]),
+            el("button", { id: "kdl-manager-refresh", className: "kdl-manager-btn", title: "Force Refresh" }, [icon("refresh-cw")]),
             el("input", { type: "text", id: "kdl-manager-search", placeholder: "Search by title..." }),
             el("select", { id: "kdl-manager-sort", className: "kdl-manager-btn" }, [
               el("option", { value: "date-desc" }, ["Newest First"]),
@@ -8081,7 +8128,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
             el("span", { className: "post-item-title" }, [sanitizeFilename(post.title)]),
             el("span", { className: "post-item-date" }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
           ]),
-          el("a", { href: postUrl, target: "_blank", className: "post-item-open-link", title: "Open post in new tab" }, ["↗️"])
+          el("a", { href: postUrl, target: "_blank", className: "post-item-open-link", title: "Open post in new tab" }, [icon("external-link")])
         ]
       );
       fragment.appendChild(item);
@@ -8192,7 +8239,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         onClick: () => launchAuthorManager()
       },
       [
-        el("span", { className: "user-header__fav-icon" }, ["🗂️"]),
+        el("span", { className: "user-header__fav-icon" }, [icon("folders")]),
         el("span", { className: "user-header__fav-text" }, ["Manage All Posts"])
       ]
     );
@@ -8560,7 +8607,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
           if (password) {
             const passwordChip = document.createElement("span");
             passwordChip.className = "kui-embed-password";
-            passwordChip.textContent = `🔑 ${password}`;
+            passwordChip.replaceChildren(icon("key-round"), password);
             button.appendChild(passwordChip);
             button.title = `${url}
 Password: ${password} (copied on click)`;
@@ -8651,6 +8698,10 @@ Password: ${password} (copied on click)`;
         if (!files || files.children.length === 0) {
           isEmpty = true;
         }
+      } else if (title === "videos") {
+        if (!section.querySelector("video, .kui-video-gallery-layout, .post__videos li")) {
+          isEmpty = true;
+        }
       }
       if (isEmpty) {
         section.classList.add("kui-post-section-empty-hidden");
@@ -8661,13 +8712,6 @@ Password: ${password} (copied on click)`;
       }
     });
   }
-  const ICONS = {
-    DOWNLOAD: `<svg viewBox="0 0 24 24" style="width: 100%; height: 100%;"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>`,
-    LINK: "🔗",
-    CLOSE: "✕",
-    LENS: `<svg viewBox="0 -960 960 960" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;"><path fill="currentColor" d="M480-320q-50 0-85-35t-35-85q0-50 35-85t85-35q50 0 85 35t35 85q0 50-35 85t-85 35Zm240 160q-33 0-56.5-23.5T640-240q0-33 23.5-56.5T720-320q33 0 56.5 23.5T800-240q0 33-23.5 56.5T720-160Zm-440 40q-66 0-113-47t-47-113v-80h80v80q0 33 23.5 56.5T280-200h200v80H280Zm480-320v-160q0-33-23.5-56.5T680-680H280q-33 0-56.5 23.5T200-600v120h-80v-120q0-66 47-113t113-47h80l40-80h160l40 80h80q66 0 113 47t47 113v160h-80Z"></path></svg>`,
-    SUCCESS: "✅"
-  };
   async function fetchPostFileData() {
     var _a2, _b2;
     const urlMatch = window.location.pathname.match(/\/(?<service>[^/]+)\/user\/(?<creator_id>[^/]+)\/post\/(?<post_id>[^/]+)/);
@@ -8738,8 +8782,8 @@ Password: ${password} (copied on click)`;
               </a>
               <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
           </div>
-          <button class="kui-lightbox-nav prev" title="Previous (←)">‹</button>
-          <button class="kui-lightbox-nav next" title="Next (→)">›</button>
+          <button class="kui-lightbox-nav prev" title="Previous (←)">${iconSvg("chevron-left")}</button>
+          <button class="kui-lightbox-nav next" title="Next (→)">${iconSvg("chevron-right")}</button>
           <div id="kui-lightbox-img-container">
               <canvas id="kui-image-canvas"></canvas>
           </div>
@@ -9215,19 +9259,129 @@ Password: ${password} (copied on click)`;
     });
     fluidGuard.observe(playerContainer, { childList: true, subtree: true });
   }
+  const TARGETS = {
+    title: () => document.querySelector(".post__title > span"),
+    content: () => document.querySelector(SELECTORS.postContent),
+    comment: (button) => {
+      var _a2;
+      return ((_a2 = button.closest(".comment")) == null ? void 0 : _a2.querySelector(":scope > .comment__body .comment__message")) ?? null;
+    }
+  };
+  const KEEP_SELECTORS = { content: ".kui-embed-container" };
+  const STATE_VIEW = {
+    idle: { iconName: "languages", label: "Translate" },
+    loading: { iconName: "loader-circle", label: "Translating…" },
+    translated: { iconName: "undo-2", label: "Show original" }
+  };
+  let listenerBound = false;
+  function setButtonState(button, buttonState) {
+    const { iconName, label } = STATE_VIEW[buttonState];
+    button.dataset.state = buttonState;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.disabled = buttonState === "loading";
+    button.innerHTML = iconSvg(iconName, buttonState === "loading" ? "kdl-icon kdl-spin" : "kdl-icon");
+  }
+  function withoutKeptChildren(target, kind, fn) {
+    const selector = KEEP_SELECTORS[kind];
+    const kept = selector ? Array.from(target.querySelectorAll(`:scope > ${selector}`)) : [];
+    kept.forEach((node) => node.remove());
+    try {
+      return fn();
+    } finally {
+      if (kept.length) target.prepend(...kept);
+    }
+  }
+  function restoreOriginal(button, target, kind) {
+    const original = target.dataset.kuiOriginal;
+    if (original === void 0) return;
+    withoutKeptChildren(target, kind, () => {
+      target.innerHTML = original;
+    });
+    delete target.dataset.kuiOriginal;
+    setButtonState(button, "idle");
+  }
+  async function toggleTranslation(button) {
+    var _a2;
+    const kind = button.dataset.kuiTranslate;
+    const target = (_a2 = TARGETS[kind]) == null ? void 0 : _a2.call(TARGETS, button);
+    if (!target || button.disabled) return;
+    if (target.dataset.kuiOriginal !== void 0) {
+      restoreOriginal(button, target, kind);
+      return;
+    }
+    const text = withoutKeptChildren(target, kind, () => target.innerText.trim());
+    if (!text) return;
+    setButtonState(button, "loading");
+    try {
+      await getSettings();
+      const cacheKey = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text}`;
+      const translated = appState.translationCache[cacheKey] ?? await translateText(text, state.settings);
+      appState.translationCache[cacheKey] = translated;
+      withoutKeptChildren(target, kind, () => {
+        target.dataset.kuiOriginal = target.innerHTML;
+        target.innerText = translated;
+      });
+      setButtonState(button, "translated");
+    } catch (error) {
+      setButtonState(button, "idle");
+      showMessage(`Translation failed: ${error.message}`, "error");
+    }
+  }
+  function bindListener() {
+    if (listenerBound) return;
+    listenerBound = true;
+    document.addEventListener("click", (event) => {
+      var _a2;
+      const button = (_a2 = event.target) == null ? void 0 : _a2.closest(".kui-translate-btn");
+      if (!button) return;
+      event.preventDefault();
+      event.stopPropagation();
+      toggleTranslation(button);
+    });
+  }
+  function syncTranslateButton(host, kind, canTranslate = true) {
+    if (!host) return;
+    const button = host.querySelector(`:scope > .kui-translate-btn[data-kui-translate="${kind}"]`);
+    const enabled = canTranslate && state.settings.showTranslateButton && isTranslationConfigured(state.settings);
+    if (!enabled) {
+      if (button && button.dataset.state !== "translated") button.remove();
+      return;
+    }
+    if (button) return;
+    bindListener();
+    const created = el("button", { type: "button", className: "kui-translate-btn", dataset: { kuiTranslate: kind } });
+    setButtonState(created, "idle");
+    host.appendChild(created);
+  }
+  function initializePostTranslation() {
+    var _a2;
+    const title = document.querySelector(".post__title");
+    syncTranslateButton(title, "title", !!(title == null ? void 0 : title.querySelector(":scope > span")));
+    const content = document.querySelector(SELECTORS.postContent);
+    let heading = (content == null ? void 0 : content.previousElementSibling) ?? null;
+    while ((heading == null ? void 0 : heading.tagName) === "SCRIPT") heading = heading.previousElementSibling;
+    syncTranslateButton((heading == null ? void 0 : heading.tagName) === "H2" ? heading : null, "content", !!((_a2 = content == null ? void 0 : content.textContent) == null ? void 0 : _a2.trim()));
+  }
+  function removeTranslateButtons() {
+    document.querySelectorAll(".kui-translate-btn").forEach((button) => {
+      var _a2;
+      const kind = button.dataset.kuiTranslate;
+      const target = (_a2 = TARGETS[kind]) == null ? void 0 : _a2.call(TARGETS, button);
+      if (target) restoreOriginal(button, target, kind);
+      button.remove();
+    });
+  }
   const LAYOUTS = [
-    { id: "list", icon: "☰", title: "List" },
-    { id: "grid", icon: "▦", title: "Grid" },
-    { id: "carousel", icon: "⇆", title: "Carousel" }
+    { id: "list", iconName: "list", title: "List" },
+    { id: "grid", iconName: "layout-grid", title: "Grid" },
+    { id: "carousel", iconName: "gallery-horizontal-end", title: "Carousel" }
   ];
   const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
   const LIMIT_OPTIONS = [10, 20, 50, 100, 0];
   const DEFAULT_LAYOUT = "grid";
   const DEFAULT_LIMIT = 20;
-  const TRANSLATE_LABEL = "🌐 Translate";
-  const ORIGINAL_LABEL = "↩ Original";
   const revealedCounts = /* @__PURE__ */ new WeakMap();
-  const translationCache = /* @__PURE__ */ new Map();
   let delegatedListenersBound = false;
   const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const saveValue = (key, value) => {
@@ -9286,7 +9440,7 @@ Password: ${password} (copied on click)`;
     return el("div", { className: "kui-comments-toolbar" }, [
       el("span", { className: "kui-comments-count" }),
       el("div", { className: "kui-comments-layouts" }, LAYOUTS.map(
-        ({ id, icon, title }) => el("button", { type: "button", className: "kui-comments-btn", title, dataset: { kuiCommentsLayout: id } }, [icon])
+        ({ id, iconName, title }) => el("button", { type: "button", className: "kui-comments-btn", title, dataset: { kuiCommentsLayout: id } }, [icon(iconName)])
       )),
       el("label", { className: "kui-comments-limit" }, [
         "Show",
@@ -9295,8 +9449,8 @@ Password: ${password} (copied on click)`;
         ))
       ]),
       el("div", { className: "kui-comments-nav" }, [
-        el("button", { type: "button", className: "kui-comments-btn", title: "Previous", dataset: { kuiCommentsScroll: "-1" } }, ["‹"]),
-        el("button", { type: "button", className: "kui-comments-btn", title: "Next", dataset: { kuiCommentsScroll: "1" } }, ["›"])
+        el("button", { type: "button", className: "kui-comments-btn", title: "Previous", dataset: { kuiCommentsScroll: "-1" } }, [icon("chevron-left")]),
+        el("button", { type: "button", className: "kui-comments-btn", title: "Next", dataset: { kuiCommentsScroll: "1" } }, [icon("chevron-right")])
       ])
     ]);
   }
@@ -9336,64 +9490,20 @@ Password: ${password} (copied on click)`;
     } else {
       moreButton == null ? void 0 : moreButton.remove();
     }
-    syncTranslateButtons(allComments);
-  }
-  function syncTranslateButtons(comments) {
-    const enabled = isTranslationConfigured(state.settings);
-    comments.forEach((comment) => {
-      const host = comment.querySelector(":scope > .comment__footer") || comment;
-      const button = host.querySelector(":scope > .kui-comment-translate");
-      if (!enabled) {
-        if (button && !comment.querySelector(":scope > .comment__body [data-kui-original]")) button.remove();
-        return;
-      }
-      if (button || !comment.querySelector(":scope > .comment__body .comment__message")) return;
-      host.appendChild(
-        el("button", { type: "button", className: "kui-comment-translate", dataset: { kuiCommentTranslate: "true" } }, [TRANSLATE_LABEL])
+    allComments.forEach((comment) => {
+      syncTranslateButton(
+        comment.querySelector(":scope > .comment__footer") || comment,
+        "comment",
+        !!comment.querySelector(":scope > .comment__body .comment__message")
       );
     });
-  }
-  async function toggleCommentTranslation(button) {
-    var _a2;
-    const message = (_a2 = button.closest(".comment")) == null ? void 0 : _a2.querySelector(":scope > .comment__body .comment__message");
-    if (!message || button.disabled) return;
-    if (message.dataset.kuiOriginal !== void 0) {
-      message.innerHTML = message.dataset.kuiOriginal;
-      delete message.dataset.kuiOriginal;
-      button.textContent = TRANSLATE_LABEL;
-      return;
-    }
-    const text = message.innerText.trim();
-    if (!text) return;
-    button.disabled = true;
-    button.textContent = "⏳";
-    try {
-      await getSettings();
-      const cacheKey = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text}`;
-      const translated = translationCache.get(cacheKey) ?? await translateText(text, state.settings);
-      translationCache.set(cacheKey, translated);
-      message.dataset.kuiOriginal = message.innerHTML;
-      message.innerText = translated;
-      button.textContent = ORIGINAL_LABEL;
-    } catch (error) {
-      button.textContent = TRANSLATE_LABEL;
-      showMessage(`Translation failed: ${error.message}`, "error");
-    } finally {
-      button.disabled = false;
-    }
   }
   function bindDelegatedListeners() {
     if (delegatedListenersBound) return;
     delegatedListenersBound = true;
     document.addEventListener("click", (event) => {
-      var _a2, _b2;
-      const translateButton = (_a2 = event.target) == null ? void 0 : _a2.closest("[data-kui-comment-translate]");
-      if (translateButton) {
-        event.preventDefault();
-        toggleCommentTranslation(translateButton);
-        return;
-      }
-      const control = (_b2 = event.target) == null ? void 0 : _b2.closest(
+      var _a2;
+      const control = (_a2 = event.target) == null ? void 0 : _a2.closest(
         "[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]"
       );
       const parts = control && findCommentsParts(control);
@@ -9436,16 +9546,12 @@ Password: ${password} (copied on click)`;
     applyCommentsView(container, toolbar);
   }
   function removeCommentsLayout() {
-    document.querySelectorAll("[data-kui-original]").forEach((message) => {
-      message.innerHTML = message.dataset.kuiOriginal || message.innerHTML;
-      delete message.dataset.kuiOriginal;
-    });
     document.querySelectorAll("[data-kui-full-time]").forEach((time) => {
       time.textContent = time.dataset.kuiFullTime || time.textContent;
       time.removeAttribute("title");
       delete time.dataset.kuiFullTime;
     });
-    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more, .kui-comment-translate").forEach((node) => node.remove());
+    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more").forEach((node) => node.remove());
     document.querySelectorAll(".post__comments").forEach((container) => {
       container.classList.remove(...LAYOUT_CLASSES);
       Array.from(container.querySelectorAll(".comment[data-kui-index]")).sort((a, b) => Number(a.dataset.kuiIndex) - Number(b.dataset.kuiIndex)).forEach((comment) => {
@@ -9468,6 +9574,7 @@ Password: ${password} (copied on click)`;
       initializeImageGallery();
       initializeVideoGallery();
       initializeComments();
+      initializePostTranslation();
       document.addEventListener("keydown", this.handleGlobalKeys, true);
       kuiState.isPostPageModuleActive = true;
     },
@@ -9475,6 +9582,7 @@ Password: ${password} (copied on click)`;
       document.removeEventListener("keydown", this.handleGlobalKeys, true);
       destroyVideoGallery();
       lightboxModule.close();
+      removeTranslateButtons();
       removeCommentsLayout();
       document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el2) => el2.remove());
       document.querySelectorAll(".kui-post-section").forEach((section) => {
@@ -9870,20 +9978,20 @@ Password: ${password} (copied on click)`;
       const copyButton = document.createElement("button");
       copyButton.id = "kui-copy-username-btn";
       copyButton.title = "Copy nickname";
-      copyButton.innerHTML = "📋";
+      copyButton.innerHTML = iconSvg("clipboard");
       copyButton.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         navigator.clipboard.writeText(username).then(() => {
-          copyButton.innerHTML = "✅";
+          copyButton.innerHTML = iconSvg("clipboard-check");
           setTimeout(() => {
-            copyButton.innerHTML = "📋";
+            copyButton.innerHTML = iconSvg("clipboard");
           }, 1500);
         }).catch((err2) => {
           console.error("[KUI] Failed to copy text: ", err2);
-          copyButton.innerHTML = "❌";
+          copyButton.innerHTML = iconSvg("circle-x");
           setTimeout(() => {
-            copyButton.innerHTML = "📋";
+            copyButton.innerHTML = iconSvg("clipboard");
           }, 1500);
         });
       });
@@ -10056,8 +10164,8 @@ Password: ${password} (copied on click)`;
   }
   function registerMenuCommands() {
     if (typeof GM_registerMenuCommand !== "function") return;
-    GM_registerMenuCommand("⚙️ Download settings", () => toggleSettingsModal(true));
-    GM_registerMenuCommand("🎨 UI settings", () => {
+    GM_registerMenuCommand("Download settings", () => toggleSettingsModal(true));
+    GM_registerMenuCommand("UI settings", () => {
       var _a2;
       return (_a2 = document.getElementById("kui-settings-panel")) == null ? void 0 : _a2.classList.add("kui-panel-active");
     });
@@ -10110,6 +10218,7 @@ Password: ${password} (copied on click)`;
           runInitializationLogic();
         }
         initializeComments();
+        initializePostTranslation();
       }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });

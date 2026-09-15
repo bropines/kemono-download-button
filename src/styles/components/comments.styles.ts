@@ -124,34 +124,13 @@ export const commentsStyles = css({
     scrollSnapAlign: 'start',
   },
 
-  '.kui-comment-translate': {
-    marginLeft: '10px',
-    padding: '2px 8px',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.pill,
-    background: 'transparent',
-    color: THEME.colors.textMuted,
-    fontSize: '0.8em',
-    lineHeight: 1.4,
-    cursor: 'pointer',
-    whiteSpace: 'nowrap',
-    transition: 'color 0.2s, border-color 0.2s',
-  },
-  '.kui-comment-translate:hover:not(:disabled)': {
-    borderColor: THEME.colors.primary,
-    color: THEME.colors.primary,
-  },
-  '.kui-comment-translate:disabled': {
-    opacity: 0.6,
-    cursor: 'wait',
-  },
   '.kui-comments--grid .comment__footer, .kui-comments--carousel .comment__footer': {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: '4px 10px',
   },
-  '.kui-comments--grid .kui-comment-translate, .kui-comments--carousel .kui-comment-translate': {
+  '.kui-comments--grid .kui-translate-btn, .kui-comments--carousel .kui-translate-btn': {
     marginLeft: 0,
   },
   // Only the comment text decides a carousel card's width, not its timestamp + button row

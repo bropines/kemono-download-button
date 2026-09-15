@@ -1,28 +1,23 @@
+import { icon, IconName } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
-import { isTranslationConfigured, translateText } from '../../services/translators';
-import { getSettings, state } from '../../state/store';
-import { showMessage } from '../../ui/toast';
 import { el } from '../../utils/dom';
+import { syncTranslateButton } from './translateButtons';
 
 type CommentsLayout = 'list' | 'grid' | 'carousel';
 
-const LAYOUTS: Array<{ id: CommentsLayout; icon: string; title: string }> = [
-  { id: 'list', icon: '☰', title: 'List' },
-  { id: 'grid', icon: '▦', title: 'Grid' },
-  { id: 'carousel', icon: '⇆', title: 'Carousel' },
+const LAYOUTS: Array<{ id: CommentsLayout; iconName: IconName; title: string }> = [
+  { id: 'list', iconName: 'list', title: 'List' },
+  { id: 'grid', iconName: 'layout-grid', title: 'Grid' },
+  { id: 'carousel', iconName: 'gallery-horizontal-end', title: 'Carousel' },
 ];
 const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
 const LIMIT_OPTIONS = [10, 20, 50, 100, 0]; // 0 = all
 const DEFAULT_LAYOUT: CommentsLayout = 'grid';
 const DEFAULT_LIMIT = 20;
 
-const TRANSLATE_LABEL = '🌐 Translate';
-const ORIGINAL_LABEL = '↩ Original';
-
 // Comments revealed by "Show more", per container element (a new page brings a new element)
 const revealedCounts = new WeakMap<Element, number>();
-const translationCache = new Map<string, string>();
 let delegatedListenersBound = false;
 
 const readValue = <T>(key: string, fallback: T): T => (typeof GM_getValue === 'function' ? GM_getValue<T>(key, fallback) : fallback);
@@ -91,8 +86,8 @@ function shortenTimestamps(container: HTMLElement): void {
 function buildToolbar(): HTMLElement {
   return el('div', { className: 'kui-comments-toolbar' }, [
     el('span', { className: 'kui-comments-count' }),
-    el('div', { className: 'kui-comments-layouts' }, LAYOUTS.map(({ id, icon, title }) =>
-      el('button', { type: 'button', className: 'kui-comments-btn', title, dataset: { kuiCommentsLayout: id } }, [icon])
+    el('div', { className: 'kui-comments-layouts' }, LAYOUTS.map(({ id, iconName, title }) =>
+      el('button', { type: 'button', className: 'kui-comments-btn', title, dataset: { kuiCommentsLayout: id } }, [icon(iconName)])
     )),
     el('label', { className: 'kui-comments-limit' }, [
       'Show',
@@ -101,8 +96,8 @@ function buildToolbar(): HTMLElement {
       )),
     ]),
     el('div', { className: 'kui-comments-nav' }, [
-      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Previous', dataset: { kuiCommentsScroll: '-1' } }, ['‹']),
-      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Next', dataset: { kuiCommentsScroll: '1' } }, ['›']),
+      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Previous', dataset: { kuiCommentsScroll: '-1' } }, [icon('chevron-left')]),
+      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Next', dataset: { kuiCommentsScroll: '1' } }, [icon('chevron-right')]),
     ]),
   ]);
 }
@@ -151,58 +146,14 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
     moreButton?.remove();
   }
 
-  syncTranslateButtons(allComments);
-}
-
-// One button per comment. Translation settings load (and can change) after init, so this follows them
-function syncTranslateButtons(comments: HTMLElement[]): void {
-  const enabled = isTranslationConfigured(state.settings);
-  comments.forEach((comment) => {
-    // Scoped to the comment itself: a parent card also contains its replies
-    const host = comment.querySelector<HTMLElement>(':scope > .comment__footer') || comment;
-    const button = host.querySelector(':scope > .kui-comment-translate');
-    if (!enabled) {
-      // Keep the button of a translated comment so it can still be switched back
-      if (button && !comment.querySelector(':scope > .comment__body [data-kui-original]')) button.remove();
-      return;
-    }
-    if (button || !comment.querySelector(':scope > .comment__body .comment__message')) return;
-    host.appendChild(
-      el('button', { type: 'button', className: 'kui-comment-translate', dataset: { kuiCommentTranslate: 'true' } }, [TRANSLATE_LABEL])
+  // One translate button per comment (and reply), next to its timestamp
+  allComments.forEach((comment) => {
+    syncTranslateButton(
+      comment.querySelector(':scope > .comment__footer') || comment,
+      'comment',
+      !!comment.querySelector(':scope > .comment__body .comment__message')
     );
   });
-}
-
-async function toggleCommentTranslation(button: HTMLButtonElement): Promise<void> {
-  const message = button.closest('.comment')?.querySelector<HTMLElement>(':scope > .comment__body .comment__message');
-  if (!message || button.disabled) return;
-
-  // The original is kept in an attribute, so it also survives a restored history snapshot
-  if (message.dataset.kuiOriginal !== undefined) {
-    message.innerHTML = message.dataset.kuiOriginal;
-    delete message.dataset.kuiOriginal;
-    button.textContent = TRANSLATE_LABEL;
-    return;
-  }
-
-  const text = message.innerText.trim();
-  if (!text) return;
-  button.disabled = true;
-  button.textContent = '⏳';
-  try {
-    await getSettings();
-    const cacheKey = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text}`;
-    const translated = translationCache.get(cacheKey) ?? (await translateText(text, state.settings));
-    translationCache.set(cacheKey, translated);
-    message.dataset.kuiOriginal = message.innerHTML;
-    message.innerText = translated;
-    button.textContent = ORIGINAL_LABEL;
-  } catch (error: any) {
-    button.textContent = TRANSLATE_LABEL;
-    showMessage(`Translation failed: ${error.message}`, 'error');
-  } finally {
-    button.disabled = false;
-  }
 }
 
 function bindDelegatedListeners(): void {
@@ -212,13 +163,6 @@ function bindDelegatedListeners(): void {
   // Delegated to document: an htmx history snapshot can bring the toolbar back without any listeners,
   // and SPA re-renders replace the elements at will
   document.addEventListener('click', (event) => {
-    const translateButton = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>('[data-kui-comment-translate]');
-    if (translateButton) {
-      event.preventDefault();
-      toggleCommentTranslation(translateButton);
-      return;
-    }
-
     const control = (event.target as HTMLElement | null)?.closest<HTMLElement>(
       '[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]'
     );
@@ -265,18 +209,15 @@ export function initializeComments(): void {
   applyCommentsView(container, toolbar);
 }
 
-// Leaves the site's own markup, so history snapshots and swaps never carry a half-applied layout
+// Leaves the site's own markup, so history snapshots and swaps never carry a half-applied layout.
+// Translations are restored separately by removeTranslateButtons(), which must run first.
 export function removeCommentsLayout(): void {
-  document.querySelectorAll<HTMLElement>('[data-kui-original]').forEach((message) => {
-    message.innerHTML = message.dataset.kuiOriginal || message.innerHTML;
-    delete message.dataset.kuiOriginal;
-  });
   document.querySelectorAll<HTMLElement>('[data-kui-full-time]').forEach((time) => {
     time.textContent = time.dataset.kuiFullTime || time.textContent;
     time.removeAttribute('title');
     delete time.dataset.kuiFullTime;
   });
-  document.querySelectorAll('.kui-comments-toolbar, .kui-comments-more, .kui-comment-translate').forEach((node) => node.remove());
+  document.querySelectorAll('.kui-comments-toolbar, .kui-comments-more').forEach((node) => node.remove());
   document.querySelectorAll<HTMLElement>('.post__comments').forEach((container) => {
     container.classList.remove(...LAYOUT_CLASSES);
     // Put threaded replies back into the site's original flat order

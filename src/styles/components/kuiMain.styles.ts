@@ -1,4 +1,5 @@
 import { css } from '../../utils/cssBuilder';
+import { iconMaskUrl } from '../../config/icons';
 import { THEME } from '../theme';
 
 /**
@@ -148,11 +149,16 @@ export const kuiMainStyles = css({
   },
 
   /* Post Sections */
-  // No frame of its own: the site already draws the post card, and a box inside it read as a double border.
-  // The heading underline separates the sections.
+  // No frame of its own: boxed sections looked heavy; the heading underline separates them
   '.kui-post-section': {
     padding: '15px 0',
     marginTop: '20px',
+  },
+  // pawchive frames the comments footer itself (.post__footer { border: 0.125em solid grey; padding: 0.5em })
+  '.kui-post-section > footer.post__footer': {
+    border: 'none',
+    borderRadius: 0,
+    padding: 0,
   },
   '.kui-post-section h2': {
     marginTop: '0 !important',
@@ -264,11 +270,17 @@ export const kuiMainStyles = css({
     transform: 'scale(1.1)',
     backgroundColor: '#505050e6',
   },
-  '.kui-gallery-thumb-toggle:after': {
-    content: '"✕"',
+  '.kui-gallery-thumb-toggle:after, .kui-video-playlist-toggle:after': {
+    content: '""',
+    width: '18px',
+    height: '18px',
+    backgroundColor: 'currentColor',
+    WebkitMask: `${iconMaskUrl('panel-left-close')} center / contain no-repeat`,
+    mask: `${iconMaskUrl('panel-left-close')} center / contain no-repeat`,
   },
-  '.kui-gallery-thumbnails.kui-collapsed ~ .kui-gallery-preview .kui-gallery-thumb-toggle:after': {
-    content: '"☰"',
+  '.kui-gallery-thumbnails.kui-collapsed ~ .kui-gallery-preview .kui-gallery-thumb-toggle:after, .kui-video-list.kui-collapsed ~ .kui-video-player-area .kui-video-playlist-toggle:after': {
+    WebkitMaskImage: iconMaskUrl('panel-left-open'),
+    maskImage: iconMaskUrl('panel-left-open'),
   },
   '.kui-thumb-wrapper': {
     position: 'relative',
@@ -381,12 +393,6 @@ export const kuiMainStyles = css({
     transform: 'scale(1.1)',
     backgroundColor: '#505050e6',
   },
-  '.kui-video-playlist-toggle:after': {
-    content: '"✕"',
-  },
-  '.kui-video-list.kui-collapsed ~ .kui-video-player-area .kui-video-playlist-toggle:after': {
-    content: '"☰"',
-  },
 
   /* Embeds & Attachments Buttons */
   '.kui-embed-container, .post__attachments': {
@@ -448,6 +454,9 @@ export const kuiMainStyles = css({
     whiteSpace: 'nowrap !important',
   },
   '.kui-embed-password': {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '4px',
     flexShrink: 0,
     maxWidth: '140px',
     padding: '1px 6px',
