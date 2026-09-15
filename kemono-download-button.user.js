@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.44
+// @version      0.8.45
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1539,8 +1539,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   const LUCIDE = {
     "archive": '<rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/>',
     "check": '<path d="M20 6 9 17l-5-5"/>',
+    "chevron-down": '<path d="m6 9 6 6 6-6"/>',
     "chevron-left": '<path d="m15 18-6-6 6-6"/>',
     "chevron-right": '<path d="m9 18 6-6-6-6"/>',
+    "chevron-up": '<path d="m18 15-6-6-6 6"/>',
     "circle-x": '<circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/>',
     "clipboard-check": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/>',
     "clipboard": '<rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/>',
@@ -1562,6 +1564,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     "link": '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
     "list": '<path d="M3 12h.01"/><path d="M3 18h.01"/><path d="M3 6h.01"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M8 6h13"/>',
     "loader-circle": '<path d="M21 12a9 9 0 1 1-6.219-8.56"/>',
+    "message-square": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     "package": '<path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"/><path d="M12 22V12"/><path d="m3.3 7 7.703 4.734a2 2 0 0 0 1.994 0L20.7 7"/><path d="m7.5 4.27 9 5.15"/>',
     "panel-left-close": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m16 15-3-3 3-3"/>',
     "panel-left-open": '<rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/><path d="m14 9 3 3-3 3"/>',
@@ -3382,7 +3385,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".post__comments.kui-comments--grid": {
       display: "grid !important",
       gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
-      alignItems: "start",
+      // Every card gets the same height; a longer one expands over its neighbours instead of stretching the row
+      gridAutoRows: "11em",
       gap: "10px"
     },
     ".post__comments.kui-comments--carousel": {
@@ -3447,11 +3451,82 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       gap: "4px 10px"
     },
     ".kui-comments--grid .kui-translate-btn, .kui-comments--carousel .kui-translate-btn": {
-      marginLeft: 0
+      marginLeft: 0,
+      flexShrink: 0
     },
     // Only the comment text decides a carousel card's width, not its timestamp + button row
     ".kui-comments--carousel .comment__footer": {
       contain: "inline-size"
+    },
+    ".kui-comments--grid > .comment": {
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden"
+    },
+    ".kui-comments--grid > .comment > .comment__header": {
+      flex: "none"
+    },
+    ".kui-comments--grid > .comment > .comment__body": {
+      flex: "1 1 auto",
+      minHeight: 0,
+      overflow: "hidden"
+    },
+    // One footer line keeps the text area the same in every card
+    ".kui-comments--grid > .comment > .comment__footer": {
+      flex: "none",
+      flexWrap: "nowrap",
+      marginTop: "auto"
+    },
+    ".kui-comments--grid > .comment > .comment__footer .timestamp": {
+      minWidth: 0,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    },
+    ".kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body": {
+      WebkitMaskImage: "linear-gradient(to bottom, #000 60%, transparent)",
+      maskImage: "linear-gradient(to bottom, #000 60%, transparent)"
+    },
+    ".kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies": {
+      display: "none"
+    },
+    ".kui-comments--grid > .kui-comment-expanded": {
+      alignSelf: "start",
+      minHeight: "100%",
+      zIndex: 5,
+      borderColor: THEME.colors.primary,
+      boxShadow: "0 12px 32px rgba(0, 0, 0, 0.55)"
+    },
+    ".kui-comments--grid > .kui-comment-expanded > .comment__body": {
+      flex: "none"
+    },
+    ".kui-comment-expand-btn": {
+      display: "none",
+      order: 10,
+      flex: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "4px",
+      minWidth: "26px",
+      height: "26px",
+      padding: "0 7px",
+      marginLeft: "auto",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.pill,
+      background: "transparent",
+      color: THEME.colors.textMuted,
+      fontSize: "12px",
+      lineHeight: 1,
+      cursor: "pointer",
+      transition: "color 0.2s, border-color 0.2s"
+    },
+    ".kui-comment-expandable > .comment__footer > .kui-comment-expand-btn": {
+      display: "inline-flex"
+    },
+    ".kui-comment-expand-btn:hover, .kui-comment-expanded > .comment__footer > .kui-comment-expand-btn": {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
     },
     ".kui-comments-more": {
       display: "block",
@@ -9379,6 +9454,8 @@ Password: ${password} (copied on click)`;
   const DEFAULT_LAYOUT = "grid";
   const DEFAULT_LIMIT = 20;
   const revealedCounts = /* @__PURE__ */ new WeakMap();
+  const resizeObservers = /* @__PURE__ */ new WeakMap();
+  const CARD_CLASSES = ["kui-comment-clipped", "kui-comment-expandable", "kui-comment-expanded"];
   let delegatedListenersBound = false;
   const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const saveValue = (key, value) => {
@@ -9431,6 +9508,46 @@ Password: ${password} (copied on click)`;
       time.dataset.kuiFullTime = full;
       time.title = full;
       time.textContent = `${match[1]} ${match[2]}`;
+    });
+  }
+  function countReplies(comment) {
+    return comment.querySelectorAll(":scope > .kui-comment-replies > .comment").length;
+  }
+  function renderExpandButton(button, expanded, replyCount) {
+    const state2 = `${expanded}:${replyCount}`;
+    if (button.dataset.state === state2) return;
+    button.dataset.state = state2;
+    const replies = `${replyCount} ${replyCount === 1 ? "reply" : "replies"}`;
+    button.title = expanded ? "Collapse" : replyCount ? `Expand (${replies})` : "Expand";
+    button.setAttribute("aria-expanded", String(expanded));
+    button.replaceChildren(...replyCount && !expanded ? [icon("message-square"), String(replyCount)] : [icon(expanded ? "chevron-up" : "chevron-down")]);
+  }
+  function setExpanded(comment, expanded) {
+    comment.classList.toggle("kui-comment-expanded", expanded);
+    const button = comment.querySelector(":scope > .comment__footer > .kui-comment-expand-btn");
+    if (button) renderExpandButton(button, expanded, countReplies(comment));
+  }
+  function syncCardExpanders(container, layout) {
+    getComments(container).forEach((comment) => {
+      const footer = comment.querySelector(":scope > .comment__footer");
+      let button = (footer == null ? void 0 : footer.querySelector(":scope > .kui-comment-expand-btn")) ?? null;
+      if (layout !== "grid" || !footer) {
+        button == null ? void 0 : button.remove();
+        comment.classList.remove(...CARD_CLASSES);
+        return;
+      }
+      const replyCount = countReplies(comment);
+      if (!comment.classList.contains("kui-comment-expanded") && !comment.classList.contains("kui-comment-hidden")) {
+        const body = comment.querySelector(":scope > .comment__body");
+        const clipped = !!body && body.scrollHeight > body.clientHeight + 1;
+        comment.classList.toggle("kui-comment-clipped", clipped);
+        comment.classList.toggle("kui-comment-expandable", clipped || replyCount > 0);
+      }
+      if (!button) {
+        button = el("button", { type: "button", className: "kui-comment-expand-btn", dataset: { kuiCommentExpand: "true" } });
+        footer.appendChild(button);
+      }
+      renderExpandButton(button, comment.classList.contains("kui-comment-expanded"), replyCount);
     });
   }
   function buildToolbar() {
@@ -9494,19 +9611,33 @@ Password: ${password} (copied on click)`;
         !!comment.querySelector(":scope > .comment__body .comment__message")
       );
     });
+    syncCardExpanders(container, layout);
+    if (!resizeObservers.has(container) && typeof ResizeObserver === "function") {
+      const observer = new ResizeObserver(() => syncCardExpanders(container, readLayout()));
+      observer.observe(container);
+      resizeObservers.set(container, observer);
+    }
   }
   function bindDelegatedListeners() {
     if (delegatedListenersBound) return;
     delegatedListenersBound = true;
     document.addEventListener("click", (event) => {
-      var _a2;
-      const control = (_a2 = event.target) == null ? void 0 : _a2.closest(
-        "[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]"
+      const target = event.target;
+      document.querySelectorAll(".kui-comment-expanded").forEach((comment) => {
+        if (!target || !comment.contains(target)) setExpanded(comment, false);
+      });
+      const control = target == null ? void 0 : target.closest(
+        "[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more], [data-kui-comment-expand]"
       );
       const parts = control && findCommentsParts(control);
       if (!control || !parts) return;
       event.preventDefault();
       const { container, toolbar } = parts;
+      if (control.dataset.kuiCommentExpand) {
+        const comment = control.closest(".comment");
+        if (comment) setExpanded(comment, !comment.classList.contains("kui-comment-expanded"));
+        return;
+      }
       if (control.dataset.kuiCommentsScroll) {
         container.scrollBy({ left: Number(control.dataset.kuiCommentsScroll) * container.clientWidth * 0.9, behavior: "smooth" });
         return;
@@ -9548,8 +9679,11 @@ Password: ${password} (copied on click)`;
       time.removeAttribute("title");
       delete time.dataset.kuiFullTime;
     });
-    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more").forEach((node) => node.remove());
+    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more, .kui-comment-expand-btn").forEach((node) => node.remove());
     document.querySelectorAll(".post__comments").forEach((container) => {
+      var _a2;
+      (_a2 = resizeObservers.get(container)) == null ? void 0 : _a2.disconnect();
+      resizeObservers.delete(container);
       container.classList.remove(...LAYOUT_CLASSES);
       Array.from(container.querySelectorAll(".comment[data-kui-index]")).sort((a, b) => Number(a.dataset.kuiIndex) - Number(b.dataset.kuiIndex)).forEach((comment) => {
         container.appendChild(comment);
@@ -9557,7 +9691,7 @@ Password: ${password} (copied on click)`;
       });
       container.querySelectorAll(".kui-comment-replies").forEach((node) => node.remove());
     });
-    document.querySelectorAll(".kui-comment-hidden").forEach((comment) => comment.classList.remove("kui-comment-hidden"));
+    document.querySelectorAll(".kui-comment-hidden, .kui-comment-clipped, .kui-comment-expandable, .kui-comment-expanded").forEach((comment) => comment.classList.remove("kui-comment-hidden", ...CARD_CLASSES));
   }
   const postPageModule = {
     originalContentHTML: null,

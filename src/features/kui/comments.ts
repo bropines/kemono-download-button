@@ -18,6 +18,9 @@ const DEFAULT_LIMIT = 20;
 
 // Comments revealed by "Show more", per container element (a new page brings a new element)
 const revealedCounts = new WeakMap<Element, number>();
+// Re-measures grid cards when the column width changes
+const resizeObservers = new WeakMap<Element, ResizeObserver>();
+const CARD_CLASSES = ['kui-comment-clipped', 'kui-comment-expandable', 'kui-comment-expanded'];
 let delegatedListenersBound = false;
 
 const readValue = <T>(key: string, fallback: T): T => (typeof GM_getValue === 'function' ? GM_getValue<T>(key, fallback) : fallback);
@@ -80,6 +83,55 @@ function shortenTimestamps(container: HTMLElement): void {
     time.dataset.kuiFullTime = full;
     time.title = full;
     time.textContent = `${match[1]} ${match[2]}`;
+  });
+}
+
+function countReplies(comment: HTMLElement): number {
+  return comment.querySelectorAll(':scope > .kui-comment-replies > .comment').length;
+}
+
+function renderExpandButton(button: HTMLElement, expanded: boolean, replyCount: number): void {
+  const state = `${expanded}:${replyCount}`;
+  // Re-rendering on every tick would feed the MutationObserver that runs the tick
+  if (button.dataset.state === state) return;
+  button.dataset.state = state;
+  const replies = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
+  button.title = expanded ? 'Collapse' : replyCount ? `Expand (${replies})` : 'Expand';
+  button.setAttribute('aria-expanded', String(expanded));
+  button.replaceChildren(...(replyCount && !expanded
+    ? [icon('message-square'), String(replyCount)]
+    : [icon(expanded ? 'chevron-up' : 'chevron-down')]));
+}
+
+function setExpanded(comment: HTMLElement, expanded: boolean): void {
+  comment.classList.toggle('kui-comment-expanded', expanded);
+  const button = comment.querySelector<HTMLElement>(':scope > .comment__footer > .kui-comment-expand-btn');
+  if (button) renderExpandButton(button, expanded, countReplies(comment));
+}
+
+// Grid cards share one height: a card whose text is cut off or that holds a thread gets an expand toggle
+function syncCardExpanders(container: HTMLElement, layout: CommentsLayout): void {
+  getComments(container).forEach((comment) => {
+    const footer = comment.querySelector<HTMLElement>(':scope > .comment__footer');
+    let button = footer?.querySelector<HTMLElement>(':scope > .kui-comment-expand-btn') ?? null;
+    if (layout !== 'grid' || !footer) {
+      button?.remove();
+      comment.classList.remove(...CARD_CLASSES);
+      return;
+    }
+    const replyCount = countReplies(comment);
+    // Expanded and hidden cards can't be measured, they keep their last state
+    if (!comment.classList.contains('kui-comment-expanded') && !comment.classList.contains('kui-comment-hidden')) {
+      const body = comment.querySelector<HTMLElement>(':scope > .comment__body');
+      const clipped = !!body && body.scrollHeight > body.clientHeight + 1;
+      comment.classList.toggle('kui-comment-clipped', clipped);
+      comment.classList.toggle('kui-comment-expandable', clipped || replyCount > 0);
+    }
+    if (!button) {
+      button = el('button', { type: 'button', className: 'kui-comment-expand-btn', dataset: { kuiCommentExpand: 'true' } });
+      footer.appendChild(button);
+    }
+    renderExpandButton(button, comment.classList.contains('kui-comment-expanded'), replyCount);
   });
 }
 
@@ -154,6 +206,14 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
       !!comment.querySelector(':scope > .comment__body .comment__message')
     );
   });
+
+  // Measured last, once the footer holds all its buttons
+  syncCardExpanders(container, layout);
+  if (!resizeObservers.has(container) && typeof ResizeObserver === 'function') {
+    const observer = new ResizeObserver(() => syncCardExpanders(container, readLayout()));
+    observer.observe(container);
+    resizeObservers.set(container, observer);
+  }
 }
 
 function bindDelegatedListeners(): void {
@@ -163,13 +223,24 @@ function bindDelegatedListeners(): void {
   // Delegated to document: an htmx history snapshot can bring the toolbar back without any listeners,
   // and SPA re-renders replace the elements at will
   document.addEventListener('click', (event) => {
-    const control = (event.target as HTMLElement | null)?.closest<HTMLElement>(
-      '[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]'
+    const target = event.target as Element | null;
+    // An expanded card lies over its neighbours: a click anywhere else folds it back
+    document.querySelectorAll<HTMLElement>('.kui-comment-expanded').forEach((comment) => {
+      if (!target || !comment.contains(target)) setExpanded(comment, false);
+    });
+    const control = target?.closest<HTMLElement>(
+      '[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more], [data-kui-comment-expand]'
     );
     const parts = control && findCommentsParts(control);
     if (!control || !parts) return;
     event.preventDefault();
     const { container, toolbar } = parts;
+
+    if (control.dataset.kuiCommentExpand) {
+      const comment = control.closest<HTMLElement>('.comment');
+      if (comment) setExpanded(comment, !comment.classList.contains('kui-comment-expanded'));
+      return;
+    }
 
     if (control.dataset.kuiCommentsScroll) {
       container.scrollBy({ left: Number(control.dataset.kuiCommentsScroll) * container.clientWidth * 0.9, behavior: 'smooth' });
@@ -217,8 +288,10 @@ export function removeCommentsLayout(): void {
     time.removeAttribute('title');
     delete time.dataset.kuiFullTime;
   });
-  document.querySelectorAll('.kui-comments-toolbar, .kui-comments-more').forEach((node) => node.remove());
+  document.querySelectorAll('.kui-comments-toolbar, .kui-comments-more, .kui-comment-expand-btn').forEach((node) => node.remove());
   document.querySelectorAll<HTMLElement>('.post__comments').forEach((container) => {
+    resizeObservers.get(container)?.disconnect();
+    resizeObservers.delete(container);
     container.classList.remove(...LAYOUT_CLASSES);
     // Put threaded replies back into the site's original flat order
     Array.from(container.querySelectorAll<HTMLElement>('.comment[data-kui-index]'))
@@ -229,5 +302,6 @@ export function removeCommentsLayout(): void {
       });
     container.querySelectorAll('.kui-comment-replies').forEach((node) => node.remove());
   });
-  document.querySelectorAll('.kui-comment-hidden').forEach((comment) => comment.classList.remove('kui-comment-hidden'));
+  document.querySelectorAll('.kui-comment-hidden, .kui-comment-clipped, .kui-comment-expandable, .kui-comment-expanded')
+    .forEach((comment) => comment.classList.remove('kui-comment-hidden', ...CARD_CLASSES));
 }

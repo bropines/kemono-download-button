@@ -65,7 +65,8 @@ export const commentsStyles = css({
   '.post__comments.kui-comments--grid': {
     display: 'grid !important',
     gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-    alignItems: 'start',
+    // Every card gets the same height; a longer one expands over its neighbours instead of stretching the row
+    gridAutoRows: '11em',
     gap: '10px',
   },
   '.post__comments.kui-comments--carousel': {
@@ -132,10 +133,82 @@ export const commentsStyles = css({
   },
   '.kui-comments--grid .kui-translate-btn, .kui-comments--carousel .kui-translate-btn': {
     marginLeft: 0,
+    flexShrink: 0,
   },
   // Only the comment text decides a carousel card's width, not its timestamp + button row
   '.kui-comments--carousel .comment__footer': {
     contain: 'inline-size',
+  },
+
+  '.kui-comments--grid > .comment': {
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  '.kui-comments--grid > .comment > .comment__header': {
+    flex: 'none',
+  },
+  '.kui-comments--grid > .comment > .comment__body': {
+    flex: '1 1 auto',
+    minHeight: 0,
+    overflow: 'hidden',
+  },
+  // One footer line keeps the text area the same in every card
+  '.kui-comments--grid > .comment > .comment__footer': {
+    flex: 'none',
+    flexWrap: 'nowrap',
+    marginTop: 'auto',
+  },
+  '.kui-comments--grid > .comment > .comment__footer .timestamp': {
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  '.kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body': {
+    WebkitMaskImage: 'linear-gradient(to bottom, #000 60%, transparent)',
+    maskImage: 'linear-gradient(to bottom, #000 60%, transparent)',
+  },
+  '.kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies': {
+    display: 'none',
+  },
+  '.kui-comments--grid > .kui-comment-expanded': {
+    alignSelf: 'start',
+    minHeight: '100%',
+    zIndex: 5,
+    borderColor: THEME.colors.primary,
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.55)',
+  },
+  '.kui-comments--grid > .kui-comment-expanded > .comment__body': {
+    flex: 'none',
+  },
+  '.kui-comment-expand-btn': {
+    display: 'none',
+    order: 10,
+    flex: 'none',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '4px',
+    minWidth: '26px',
+    height: '26px',
+    padding: '0 7px',
+    marginLeft: 'auto',
+    border: `1px solid ${THEME.colors.borderSubtle}`,
+    borderRadius: THEME.borderRadius.pill,
+    background: 'transparent',
+    color: THEME.colors.textMuted,
+    fontSize: '12px',
+    lineHeight: 1,
+    cursor: 'pointer',
+    transition: 'color 0.2s, border-color 0.2s',
+  },
+  '.kui-comment-expandable > .comment__footer > .kui-comment-expand-btn': {
+    display: 'inline-flex',
+  },
+  '.kui-comment-expand-btn:hover, .kui-comment-expanded > .comment__footer > .kui-comment-expand-btn': {
+    borderColor: THEME.colors.primary,
+    color: THEME.colors.primary,
   },
 
   '.kui-comments-more': {
