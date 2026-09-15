@@ -12,9 +12,13 @@ const LAYOUTS: Array<{ id: CommentsLayout; iconName: IconName; title: string }> 
   { id: 'carousel', iconName: 'gallery-horizontal-end', title: 'Carousel' },
 ];
 const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
-const LIMIT_OPTIONS = [10, 20, 50, 100, 0]; // 0 = all
+const LIMIT_OPTIONS = [4, 10, 20, 50, 100, 0]; // 0 = all
 const DEFAULT_LAYOUT: CommentsLayout = 'grid';
-const DEFAULT_LIMIT = 20;
+// The list takes far more room per comment, so it keeps its own, shorter limit
+const LIMITS = {
+  list: { key: KUI_STORAGE_KEYS.COMMENTS_LIST_LIMIT, fallback: 4 },
+  cards: { key: KUI_STORAGE_KEYS.COMMENTS_LIMIT, fallback: 20 },
+};
 
 // Comments revealed by "Show more", per container element (a new page brings a new element)
 const revealedCounts = new WeakMap<Element, number>();
@@ -33,9 +37,14 @@ function readLayout(): CommentsLayout {
   return LAYOUTS.some(({ id }) => id === value) ? (value as CommentsLayout) : DEFAULT_LAYOUT;
 }
 
-function readLimit(): number {
-  const value = Number(readValue<number>(KUI_STORAGE_KEYS.COMMENTS_LIMIT, DEFAULT_LIMIT));
-  return LIMIT_OPTIONS.includes(value) ? value : DEFAULT_LIMIT;
+function limitSetting(layout: CommentsLayout): { key: string; fallback: number } {
+  return layout === 'list' ? LIMITS.list : LIMITS.cards;
+}
+
+function readLimit(layout: CommentsLayout): number {
+  const { key, fallback } = limitSetting(layout);
+  const value = Number(readValue<number>(key, fallback));
+  return LIMIT_OPTIONS.includes(value) ? value : fallback;
 }
 
 function getComments(container: Element): HTMLElement[] {
@@ -109,20 +118,20 @@ function setExpanded(comment: HTMLElement, expanded: boolean): void {
   if (button) renderExpandButton(button, expanded, countReplies(comment));
 }
 
-// Grid cards share one height: a card whose text is cut off or that holds a thread gets an expand toggle
-function syncCardExpanders(container: HTMLElement, layout: CommentsLayout): void {
+// Grid and carousel cards share one height: a card whose text is cut off or that holds a thread gets an expand toggle
+function syncExpanders(container: HTMLElement, layout: CommentsLayout): void {
   getComments(container).forEach((comment) => {
     const footer = comment.querySelector<HTMLElement>(':scope > .comment__footer');
     let button = footer?.querySelector<HTMLElement>(':scope > .kui-comment-expand-btn') ?? null;
-    if (layout !== 'grid' || !footer) {
+    if (!footer || layout === 'list') {
       button?.remove();
       comment.classList.remove(...CARD_CLASSES);
       return;
     }
     const replyCount = countReplies(comment);
+    const body = comment.querySelector<HTMLElement>(':scope > .comment__body');
     // Expanded and hidden cards can't be measured, they keep their last state
-    if (!comment.classList.contains('kui-comment-expanded') && !comment.classList.contains('kui-comment-hidden')) {
-      const body = comment.querySelector<HTMLElement>(':scope > .comment__body');
+    if (!comment.classList.contains('kui-comment-expanded') && (!body || body.getClientRects().length > 0)) {
       const clipped = !!body && body.scrollHeight > body.clientHeight + 1;
       comment.classList.toggle('kui-comment-clipped', clipped);
       comment.classList.toggle('kui-comment-expandable', clipped || replyCount > 0);
@@ -163,7 +172,7 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   const allComments = Array.from(container.querySelectorAll<HTMLElement>('.comment'));
   container.querySelectorAll('.kui-comment-replies > .kui-comment-hidden').forEach((reply) => reply.classList.remove('kui-comment-hidden'));
   const layout = readLayout();
-  const limit = readLimit();
+  const limit = readLimit(layout);
   const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
 
   container.classList.remove(...LAYOUT_CLASSES);
@@ -208,9 +217,9 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   });
 
   // Measured last, once the footer holds all its buttons
-  syncCardExpanders(container, layout);
+  syncExpanders(container, layout);
   if (!resizeObservers.has(container) && typeof ResizeObserver === 'function') {
-    const observer = new ResizeObserver(() => syncCardExpanders(container, readLayout()));
+    const observer = new ResizeObserver(() => syncExpanders(container, readLayout()));
     observer.observe(container);
     resizeObservers.set(container, observer);
   }
@@ -224,8 +233,8 @@ function bindDelegatedListeners(): void {
   // and SPA re-renders replace the elements at will
   document.addEventListener('click', (event) => {
     const target = event.target as Element | null;
-    // An expanded card lies over its neighbours: a click anywhere else folds it back
-    document.querySelectorAll<HTMLElement>('.kui-comment-expanded').forEach((comment) => {
+    // An expanded grid card lies over its neighbours: a click anywhere else folds it back
+    document.querySelectorAll<HTMLElement>('.kui-comments--grid > .kui-comment-expanded').forEach((comment) => {
       if (!target || !comment.contains(target)) setExpanded(comment, false);
     });
     const control = target?.closest<HTMLElement>(
@@ -249,9 +258,12 @@ function bindDelegatedListeners(): void {
     if (control.dataset.kuiCommentsLayout) {
       saveValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
       container.scrollLeft = 0;
+      container.querySelectorAll('.kui-comment-expanded').forEach((comment) => comment.classList.remove('kui-comment-expanded'));
+      // Each layout has its own limit, so "Show more" starts over
+      revealedCounts.delete(container);
     } else {
       const shown = getComments(container).filter((comment) => !comment.classList.contains('kui-comment-hidden')).length;
-      revealedCounts.set(container, shown + readLimit());
+      revealedCounts.set(container, shown + readLimit(readLayout()));
     }
     applyCommentsView(container, toolbar);
   });
@@ -260,7 +272,7 @@ function bindDelegatedListeners(): void {
     const select = (event.target as HTMLElement | null)?.closest<HTMLSelectElement>('[data-kui-comments-limit]');
     const parts = select && findCommentsParts(select);
     if (!select || !parts) return;
-    saveValue(KUI_STORAGE_KEYS.COMMENTS_LIMIT, Number(select.value));
+    saveValue(limitSetting(readLayout()).key, Number(select.value));
     revealedCounts.delete(parts.container);
     applyCommentsView(parts.container, parts.toolbar);
   });

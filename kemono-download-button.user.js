@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.45
+// @version      0.8.46
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3440,8 +3440,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       width: "max-content",
       minWidth: "200px",
       maxWidth: "min(360px, 85%)",
-      maxHeight: "320px",
-      overflowY: "auto",
+      // Same height as grid cards; a long one expands in place
+      height: "11em",
+      position: "relative",
+      display: "flex",
+      flexDirection: "column",
+      overflow: "hidden",
       scrollSnapAlign: "start"
     },
     ".kui-comments--grid .comment__footer, .kui-comments--carousel .comment__footer": {
@@ -3464,31 +3468,31 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       flexDirection: "column",
       overflow: "hidden"
     },
-    ".kui-comments--grid > .comment > .comment__header": {
+    ".kui-comments--grid > .comment > .comment__header, .kui-comments--carousel > .comment > .comment__header": {
       flex: "none"
     },
-    ".kui-comments--grid > .comment > .comment__body": {
+    ".kui-comments--grid > .comment > .comment__body, .kui-comments--carousel > .comment > .comment__body": {
       flex: "1 1 auto",
       minHeight: 0,
       overflow: "hidden"
     },
     // One footer line keeps the text area the same in every card
-    ".kui-comments--grid > .comment > .comment__footer": {
+    ".kui-comments--grid > .comment > .comment__footer, .kui-comments--carousel > .comment > .comment__footer": {
       flex: "none",
       flexWrap: "nowrap",
       marginTop: "auto"
     },
-    ".kui-comments--grid > .comment > .comment__footer .timestamp": {
+    ".kui-comments--grid > .comment > .comment__footer .timestamp, .kui-comments--carousel > .comment > .comment__footer .timestamp": {
       minWidth: 0,
       overflow: "hidden",
       textOverflow: "ellipsis",
       whiteSpace: "nowrap"
     },
-    ".kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body": {
+    ".kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body, .kui-comments--carousel > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body": {
       WebkitMaskImage: "linear-gradient(to bottom, #000 60%, transparent)",
       maskImage: "linear-gradient(to bottom, #000 60%, transparent)"
     },
-    ".kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies": {
+    ".kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies, .kui-comments--carousel > .comment:not(.kui-comment-expanded) > .kui-comment-replies": {
       display: "none"
     },
     ".kui-comments--grid > .kui-comment-expanded": {
@@ -3496,9 +3500,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       minHeight: "100%",
       zIndex: 5,
       borderColor: THEME.colors.primary,
-      boxShadow: "0 12px 32px rgba(0, 0, 0, 0.55)"
+      // Opaque, since the card lies over the ones below
+      background: `linear-gradient(${THEME.colors.cardBg}, ${THEME.colors.cardBg}), ${THEME.colors.panelBg}`,
+      boxShadow: "0 12px 32px rgba(0, 0, 0, 0.6)"
     },
-    ".kui-comments--grid > .kui-comment-expanded > .comment__body": {
+    // A carousel card grows in place, its neighbours keep their height
+    ".kui-comments--carousel > .kui-comment-expanded": {
+      height: "auto",
+      borderColor: THEME.colors.primary
+    },
+    ".kui-comments--grid > .kui-comment-expanded > .comment__body, .kui-comments--carousel > .kui-comment-expanded > .comment__body": {
       flex: "none"
     },
     ".kui-comment-expand-btn": {
@@ -3879,7 +3890,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
     HIDE_ADS: "kui_hide_ads",
     COMMENTS_LAYOUT: "kui_comments_layout",
-    COMMENTS_LIMIT: "kui_comments_limit"
+    COMMENTS_LIMIT: "kui_comments_limit",
+    COMMENTS_LIST_LIMIT: "kui_comments_list_limit"
   };
   const readValue$1 = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const kuiState = {
@@ -9450,9 +9462,12 @@ Password: ${password} (copied on click)`;
     { id: "carousel", iconName: "gallery-horizontal-end", title: "Carousel" }
   ];
   const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
-  const LIMIT_OPTIONS = [10, 20, 50, 100, 0];
+  const LIMIT_OPTIONS = [4, 10, 20, 50, 100, 0];
   const DEFAULT_LAYOUT = "grid";
-  const DEFAULT_LIMIT = 20;
+  const LIMITS = {
+    list: { key: KUI_STORAGE_KEYS.COMMENTS_LIST_LIMIT, fallback: 4 },
+    cards: { key: KUI_STORAGE_KEYS.COMMENTS_LIMIT, fallback: 20 }
+  };
   const revealedCounts = /* @__PURE__ */ new WeakMap();
   const resizeObservers = /* @__PURE__ */ new WeakMap();
   const CARD_CLASSES = ["kui-comment-clipped", "kui-comment-expandable", "kui-comment-expanded"];
@@ -9465,9 +9480,13 @@ Password: ${password} (copied on click)`;
     const value = readValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
     return LAYOUTS.some(({ id }) => id === value) ? value : DEFAULT_LAYOUT;
   }
-  function readLimit() {
-    const value = Number(readValue(KUI_STORAGE_KEYS.COMMENTS_LIMIT, DEFAULT_LIMIT));
-    return LIMIT_OPTIONS.includes(value) ? value : DEFAULT_LIMIT;
+  function limitSetting(layout) {
+    return layout === "list" ? LIMITS.list : LIMITS.cards;
+  }
+  function readLimit(layout) {
+    const { key, fallback } = limitSetting(layout);
+    const value = Number(readValue(key, fallback));
+    return LIMIT_OPTIONS.includes(value) ? value : fallback;
   }
   function getComments(container) {
     return Array.from(container.children).filter((child) => child.classList.contains("comment"));
@@ -9527,18 +9546,18 @@ Password: ${password} (copied on click)`;
     const button = comment.querySelector(":scope > .comment__footer > .kui-comment-expand-btn");
     if (button) renderExpandButton(button, expanded, countReplies(comment));
   }
-  function syncCardExpanders(container, layout) {
+  function syncExpanders(container, layout) {
     getComments(container).forEach((comment) => {
       const footer = comment.querySelector(":scope > .comment__footer");
       let button = (footer == null ? void 0 : footer.querySelector(":scope > .kui-comment-expand-btn")) ?? null;
-      if (layout !== "grid" || !footer) {
+      if (!footer || layout === "list") {
         button == null ? void 0 : button.remove();
         comment.classList.remove(...CARD_CLASSES);
         return;
       }
       const replyCount = countReplies(comment);
-      if (!comment.classList.contains("kui-comment-expanded") && !comment.classList.contains("kui-comment-hidden")) {
-        const body = comment.querySelector(":scope > .comment__body");
+      const body = comment.querySelector(":scope > .comment__body");
+      if (!comment.classList.contains("kui-comment-expanded") && (!body || body.getClientRects().length > 0)) {
         const clipped = !!body && body.scrollHeight > body.clientHeight + 1;
         comment.classList.toggle("kui-comment-clipped", clipped);
         comment.classList.toggle("kui-comment-expandable", clipped || replyCount > 0);
@@ -9575,7 +9594,7 @@ Password: ${password} (copied on click)`;
     const allComments = Array.from(container.querySelectorAll(".comment"));
     container.querySelectorAll(".kui-comment-replies > .kui-comment-hidden").forEach((reply) => reply.classList.remove("kui-comment-hidden"));
     const layout = readLayout();
-    const limit = readLimit();
+    const limit = readLimit(layout);
     const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
     container.classList.remove(...LAYOUT_CLASSES);
     container.classList.add(`kui-comments--${layout}`);
@@ -9611,9 +9630,9 @@ Password: ${password} (copied on click)`;
         !!comment.querySelector(":scope > .comment__body .comment__message")
       );
     });
-    syncCardExpanders(container, layout);
+    syncExpanders(container, layout);
     if (!resizeObservers.has(container) && typeof ResizeObserver === "function") {
-      const observer = new ResizeObserver(() => syncCardExpanders(container, readLayout()));
+      const observer = new ResizeObserver(() => syncExpanders(container, readLayout()));
       observer.observe(container);
       resizeObservers.set(container, observer);
     }
@@ -9623,7 +9642,7 @@ Password: ${password} (copied on click)`;
     delegatedListenersBound = true;
     document.addEventListener("click", (event) => {
       const target = event.target;
-      document.querySelectorAll(".kui-comment-expanded").forEach((comment) => {
+      document.querySelectorAll(".kui-comments--grid > .kui-comment-expanded").forEach((comment) => {
         if (!target || !comment.contains(target)) setExpanded(comment, false);
       });
       const control = target == null ? void 0 : target.closest(
@@ -9645,9 +9664,11 @@ Password: ${password} (copied on click)`;
       if (control.dataset.kuiCommentsLayout) {
         saveValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
         container.scrollLeft = 0;
+        container.querySelectorAll(".kui-comment-expanded").forEach((comment) => comment.classList.remove("kui-comment-expanded"));
+        revealedCounts.delete(container);
       } else {
         const shown = getComments(container).filter((comment) => !comment.classList.contains("kui-comment-hidden")).length;
-        revealedCounts.set(container, shown + readLimit());
+        revealedCounts.set(container, shown + readLimit(readLayout()));
       }
       applyCommentsView(container, toolbar);
     });
@@ -9656,7 +9677,7 @@ Password: ${password} (copied on click)`;
       const select = (_a2 = event.target) == null ? void 0 : _a2.closest("[data-kui-comments-limit]");
       const parts = select && findCommentsParts(select);
       if (!select || !parts) return;
-      saveValue(KUI_STORAGE_KEYS.COMMENTS_LIMIT, Number(select.value));
+      saveValue(limitSetting(readLayout()).key, Number(select.value));
       revealedCounts.delete(parts.container);
       applyCommentsView(parts.container, parts.toolbar);
     });

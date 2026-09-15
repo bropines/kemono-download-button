@@ -120,8 +120,12 @@ export const commentsStyles = css({
     width: 'max-content',
     minWidth: '200px',
     maxWidth: 'min(360px, 85%)',
-    maxHeight: '320px',
-    overflowY: 'auto',
+    // Same height as grid cards; a long one expands in place
+    height: '11em',
+    position: 'relative',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
     scrollSnapAlign: 'start',
   },
 
@@ -146,31 +150,31 @@ export const commentsStyles = css({
     flexDirection: 'column',
     overflow: 'hidden',
   },
-  '.kui-comments--grid > .comment > .comment__header': {
+  '.kui-comments--grid > .comment > .comment__header, .kui-comments--carousel > .comment > .comment__header': {
     flex: 'none',
   },
-  '.kui-comments--grid > .comment > .comment__body': {
+  '.kui-comments--grid > .comment > .comment__body, .kui-comments--carousel > .comment > .comment__body': {
     flex: '1 1 auto',
     minHeight: 0,
     overflow: 'hidden',
   },
   // One footer line keeps the text area the same in every card
-  '.kui-comments--grid > .comment > .comment__footer': {
+  '.kui-comments--grid > .comment > .comment__footer, .kui-comments--carousel > .comment > .comment__footer': {
     flex: 'none',
     flexWrap: 'nowrap',
     marginTop: 'auto',
   },
-  '.kui-comments--grid > .comment > .comment__footer .timestamp': {
+  '.kui-comments--grid > .comment > .comment__footer .timestamp, .kui-comments--carousel > .comment > .comment__footer .timestamp': {
     minWidth: 0,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  '.kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body': {
+  '.kui-comments--grid > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body, .kui-comments--carousel > .kui-comment-clipped:not(.kui-comment-expanded) > .comment__body': {
     WebkitMaskImage: 'linear-gradient(to bottom, #000 60%, transparent)',
     maskImage: 'linear-gradient(to bottom, #000 60%, transparent)',
   },
-  '.kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies': {
+  '.kui-comments--grid > .comment:not(.kui-comment-expanded) > .kui-comment-replies, .kui-comments--carousel > .comment:not(.kui-comment-expanded) > .kui-comment-replies': {
     display: 'none',
   },
   '.kui-comments--grid > .kui-comment-expanded': {
@@ -178,9 +182,16 @@ export const commentsStyles = css({
     minHeight: '100%',
     zIndex: 5,
     borderColor: THEME.colors.primary,
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.55)',
+    // Opaque, since the card lies over the ones below
+    background: `linear-gradient(${THEME.colors.cardBg}, ${THEME.colors.cardBg}), ${THEME.colors.panelBg}`,
+    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
   },
-  '.kui-comments--grid > .kui-comment-expanded > .comment__body': {
+  // A carousel card grows in place, its neighbours keep their height
+  '.kui-comments--carousel > .kui-comment-expanded': {
+    height: 'auto',
+    borderColor: THEME.colors.primary,
+  },
+  '.kui-comments--grid > .kui-comment-expanded > .comment__body, .kui-comments--carousel > .kui-comment-expanded > .comment__body': {
     flex: 'none',
   },
   '.kui-comment-expand-btn': {
@@ -210,7 +221,6 @@ export const commentsStyles = css({
     borderColor: THEME.colors.primary,
     color: THEME.colors.primary,
   },
-
   '.kui-comments-more': {
     display: 'block',
     margin: '12px auto 0',

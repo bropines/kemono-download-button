@@ -9,5 +9,6 @@ export const KUI_STORAGE_KEYS = {
   HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
   HIDE_ADS: "kui_hide_ads",
   COMMENTS_LAYOUT: "kui_comments_layout",
-  COMMENTS_LIMIT: "kui_comments_limit"
+  COMMENTS_LIMIT: "kui_comments_limit",
+  COMMENTS_LIST_LIMIT: "kui_comments_list_limit"
 };
