@@ -12,18 +12,41 @@ function isSiteUrl(url: string): boolean {
   }
 }
 
+export function abortError(): DOMException {
+  return new DOMException('Download cancelled', 'AbortError');
+}
+
+export function isAbortError(error: unknown): boolean {
+  return (error as { name?: string } | null)?.name === 'AbortError';
+}
+
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener('abort', () => {
+      clearTimeout(timer);
+      reject(abortError());
+    }, { once: true });
+  });
+}
+
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
   const retryDelay = state.settings.downloadRetryDelay;
   let retries = 0;
   let currentUrl = details.url;
+  // The signal is ours, not a GM_xmlhttpRequest option (and it can't be cloned into the extension)
+  const { signal, ...requestDetails } = details as { signal?: AbortSignal; [key: string]: any };
 
   while (true) {
+    if (signal?.aborted) throw abortError();
+    let onAbort: (() => void) | undefined;
     try {
       return await new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
         // Never send the session to third parties (translation APIs, external file hosts)
-        if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
+        // An explicit Cookie from the caller (KUI session key) wins over the downloader setting
+        if (state.settings.sessionCookie && isSiteUrl(currentUrl) && !headers['Cookie']) {
           headers['Cookie'] = state.settings.sessionCookie;
         }
         // kemono/coomer answer API requests without this exact Accept header with 403
@@ -31,8 +54,8 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           headers['Accept'] = 'text/css';
         }
 
-        GM_xmlhttpRequest({
-          ...details,
+        const request = GM_xmlhttpRequest({
+          ...requestDetails,
           url: currentUrl,
           headers,
           onload: (response: any) => {
@@ -60,10 +83,17 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
               reject(new Error(errStr || 'Network Error'));
             }
           },
-          ontimeout: () => reject(new Error('Request Timeout'))
+          ontimeout: () => reject(new Error('Request Timeout')),
+          onabort: () => reject(abortError())
         });
+        onAbort = () => {
+          request?.abort?.();
+          reject(abortError());
+        };
+        signal?.addEventListener('abort', onAbort, { once: true });
       });
     } catch (error: any) {
+      if (signal?.aborted) throw abortError();
       // pawchive serves /data/ only from file.<domain> (its main domain 404s, while kemono/coomer redirect
       // to the right n1-n4 node themselves). Switching hosts doesn't use up a retry.
       const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);
@@ -78,12 +108,20 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
       }
       retries++;
       debugLog(`Attempt ${retries} failed for ${currentUrl}: ${error.message}. Retrying in ${retryDelay}ms...`);
-      await new Promise((res) => setTimeout(res, retryDelay));
+      await sleep(retryDelay, signal);
+    } finally {
+      if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   }
 }
 
-export async function downloadFileWithFallback(url: string, fileName: string, progressCallback?: (percent: number) => void): Promise<void> {
+export async function downloadFileWithFallback(
+  url: string,
+  fileName: string,
+  progressCallback?: (percent: number) => void,
+  signal?: AbortSignal
+): Promise<void> {
+  if (signal?.aborted) throw abortError();
   const cleanName = sanitizeFilename(fileName);
 
   if (typeof GM_download === 'function') {
@@ -91,7 +129,7 @@ export async function downloadFileWithFallback(url: string, fileName: string, pr
       return new Promise((resolve) => {
         try {
           let isDone = false;
-          GM_download({
+          const handle = GM_download({
             url,
             name: cleanName,
             saveAs: false,
@@ -112,6 +150,10 @@ export async function downloadFileWithFallback(url: string, fileName: string, pr
               }
             }
           });
+          signal?.addEventListener('abort', () => {
+            handle?.abort?.();
+            if (!isDone) { isDone = true; resolve(false); }
+          }, { once: true });
         } catch (e) {
           debugLog('GM_download exception:', e);
           resolve(false);
@@ -123,10 +165,13 @@ export async function downloadFileWithFallback(url: string, fileName: string, pr
     if (success) return;
   }
 
+  if (signal?.aborted) throw abortError();
+
   debugLog(`GM_download fallback activated for ${url}. Fetching via gmXmlhttpRequest...`);
   const response = await gmXmlhttpRequestWithRetries({
     method: 'GET',
     url,
+    signal,
     responseType: 'arraybuffer',
     timeout: state.settings.zipFileDownloadTimeout || 120000,
     onprogress: (e: ProgressEvent) => {

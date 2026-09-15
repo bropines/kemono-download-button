@@ -38,6 +38,7 @@ export const progressBarStyles = css({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '8px',
     fontWeight: '700',
   },
   '.kdl-task-title': {
@@ -49,6 +50,27 @@ export const progressBarStyles = css({
   '.kdl-task-status': {
     fontSize: '.85em',
     color: '#ccc',
+    marginLeft: 'auto',
+  },
+  '.kdl-task-cancel': {
+    flexShrink: 0,
+    background: 'transparent',
+    border: 'none',
+    color: '#ccc',
+    cursor: 'pointer',
+    fontSize: '.9em',
+    lineHeight: 1,
+    padding: '3px 6px',
+    borderRadius: THEME.borderRadius.sm,
+    transition: 'color .2s, background-color .2s',
+  },
+  '.kdl-task-cancel:hover:not(:disabled)': {
+    color: '#fff',
+    backgroundColor: 'rgba(255,255,255,.12)',
+  },
+  '.kdl-task-cancel:disabled': {
+    opacity: 0.5,
+    cursor: 'default',
   },
   '.kdl-task-files': {
     maxHeight: '150px',

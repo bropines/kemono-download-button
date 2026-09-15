@@ -139,9 +139,10 @@ declare global {
     onerror?: (error: any) => void;
     ontimeout?: () => void;
     onprogress?: (event: any) => void;
-  }): void;
-  function GM_getValue<T>(key: string, defaultValue?: T): Promise<T>;
-  function GM_setValue<T>(key: string, value: T): Promise<void>;
+  }): { abort: () => void } | undefined;
+  // Tampermonkey/Violentmonkey GM_* storage is synchronous (only the GM.* dot API returns promises)
+  function GM_getValue<T>(key: string, defaultValue?: T): T;
+  function GM_setValue<T>(key: string, value: T): void;
   function GM_registerMenuCommand(name: string, fn: () => void): void;
   function GM_setClipboard(text: string): void;
   function GM_xmlhttpRequest(details: any): any;

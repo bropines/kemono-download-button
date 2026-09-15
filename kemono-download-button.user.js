@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.39
+// @version      0.8.40
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -89,6 +89,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       // Brand & Status Colors (Sleek, pleasant dark theme tones)
       primary: "#38bdf8",
       success: "#10b981",
+      successGradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
       danger: "#f87171",
       dangerDark: "#dc2626",
       warning: "#fbbf24",
@@ -100,6 +101,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       btnPrimaryGradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)",
       btnInfoGradient: "linear-gradient(135deg, #0284c7 0%, #0369a1 100%)",
       btnWarnGradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
+      btnDangerGradient: "linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)",
       btnSuccessGradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
       btnSecondaryGradient: "linear-gradient(135deg, #475569 0%, #334155 100%)",
       // Neutral & Backgrounds (100% Native Site Palette)
@@ -123,7 +125,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       buttonGradStart: "var(--colour1-secondary, #202324)",
       buttonGradEnd: "var(--colour1-primary, #17191a)",
       accentBlue: "var(--submit-colour1-primary, #3b82f6)",
-      accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)"
+      accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)",
+      // Toast notifications
+      toastInfoBg: "#333",
+      toastErrorBg: "#dc3545",
+      toastWarningBg: "#ffc107",
+      toastWarningText: "#212529",
+      toastText: "#fff"
     },
     borderRadius: {
       sm: "4px",
@@ -146,7 +154,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       toast: 10001,
       lightbox: 10001,
       lightboxNav: 10002,
-      modalOverlay: 10003
+      modalOverlay: 10003,
+      tooltip: 10010,
+      tooltipArrow: 10011
     },
     transitions: {
       fast: "var(--duration-fast, 0.25s)",
@@ -768,7 +778,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       whiteSpace: "normal",
       width: "230px",
       boxShadow: "0 10px 25px rgba(0, 0, 0, 0.6)",
-      zIndex: 10010,
+      zIndex: THEME.zIndex.tooltip,
       pointerEvents: "none",
       lineHeight: "1.4",
       textAlign: "left"
@@ -782,7 +792,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       borderWidth: "5px",
       borderStyle: "solid",
       borderColor: "var(--colour1-tertiary, #0f172a) transparent transparent transparent",
-      zIndex: 10011,
+      zIndex: THEME.zIndex.tooltipArrow,
       pointerEvents: "none"
     },
     ".kdl-settings-actions": {
@@ -956,7 +966,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       position: "relative",
       background: "linear-gradient(145deg, #1e2229 0%, #12151a 100%)",
       color: "#f8fafc",
-      borderRadius: "14px",
+      borderRadius: THEME.borderRadius.modal,
       padding: "24px",
       width: "560px",
       maxWidth: "92vw",
@@ -964,7 +974,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       display: "flex",
       flexDirection: "column",
       boxShadow: "0 20px 50px rgba(0, 0, 0, 0.6), 0 0 1px rgba(255, 255, 255, 0.15)",
-      border: "1px solid rgba(255, 255, 255, 0.12)",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
       boxSizing: "border-box",
       overflow: "hidden"
     },
@@ -978,7 +988,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     "#kdl-file-picker-modal h4": {
       margin: 0,
-      color: "#38bdf8",
+      color: THEME.colors.primary,
       fontSize: "1.15rem",
       fontWeight: "700",
       display: "flex",
@@ -992,7 +1002,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       fontSize: "1.25rem",
       cursor: "pointer",
       padding: "4px 8px",
-      borderRadius: "6px",
+      borderRadius: THEME.borderRadius.md,
       transition: "color 0.2s, background-color 0.2s"
     },
     "#kdl-file-picker-modal .kdl-modal-close:hover": {
@@ -1015,11 +1025,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     "#kdl-file-picker-list::-webkit-scrollbar-track, #kdl-multi-file-picker-list::-webkit-scrollbar-track": {
       background: "rgba(0, 0, 0, 0.2)",
-      borderRadius: "4px"
+      borderRadius: THEME.borderRadius.sm
     },
     "#kdl-file-picker-list::-webkit-scrollbar-thumb, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb": {
       background: "rgba(255, 255, 255, 0.2)",
-      borderRadius: "4px"
+      borderRadius: THEME.borderRadius.sm
     },
     "#kdl-file-picker-list::-webkit-scrollbar-thumb:hover, #kdl-multi-file-picker-list::-webkit-scrollbar-thumb:hover": {
       background: "rgba(255, 255, 255, 0.35)"
@@ -1036,7 +1046,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       padding: "12px 16px",
       backgroundColor: "rgba(255, 255, 255, 0.04)",
       border: "1px solid rgba(255, 255, 255, 0.08)",
-      borderRadius: "8px",
+      borderRadius: THEME.borderRadius.lg,
       color: "#e2e8f0",
       textDecoration: "none",
       transition: "all 0.2s ease",
@@ -1070,8 +1080,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".kdl-tb-btn": {
       backgroundColor: "rgba(255, 255, 255, 0.08)",
       color: "#e2e8f0",
-      border: "1px solid rgba(255, 255, 255, 0.12)",
-      borderRadius: "6px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.md,
       padding: "6px 12px",
       fontSize: "0.84rem",
       cursor: "pointer",
@@ -1083,10 +1093,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".kdl-multi-dl-btn": {
       marginLeft: "auto",
-      background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+      background: THEME.colors.successGradient,
       color: "#ffffff",
       border: "none",
-      borderRadius: "6px",
+      borderRadius: THEME.borderRadius.md,
       padding: "7px 16px",
       fontSize: "0.88rem",
       fontWeight: "600",
@@ -1113,7 +1123,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ".kdl-post-group-card": {
       backgroundColor: "rgba(255, 255, 255, 0.03)",
       border: "1px solid rgba(255, 255, 255, 0.08)",
-      borderRadius: "10px",
+      borderRadius: THEME.borderRadius.xl,
       padding: "12px"
     },
     ".kdl-post-group-header": {
@@ -1123,7 +1133,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       marginBottom: "8px",
       fontWeight: "600",
       fontSize: "0.92rem",
-      color: "#38bdf8"
+      color: THEME.colors.primary
     },
     ".kdl-post-group-date": {
       fontSize: "0.8rem",
@@ -1144,7 +1154,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       gap: "10px",
       padding: "8px 12px",
       backgroundColor: "rgba(0, 0, 0, 0.2)",
-      borderRadius: "6px",
+      borderRadius: THEME.borderRadius.md,
       cursor: "pointer",
       transition: "background-color 0.2s ease",
       fontSize: "0.88rem"
@@ -1197,8 +1207,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       fontSize: "1.25rem",
       fontWeight: "700"
     },
+    "#kdl-manager-cache-status": {
+      fontSize: "0.8em",
+      color: THEME.colors.textMuted,
+      marginLeft: "10px"
+    },
     "#kdl-manager-controls": {
       display: "flex",
+      flexWrap: "wrap",
       gap: "12px",
       padding: "12px 24px",
       borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
@@ -1225,10 +1241,38 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       padding: "9px 16px",
       border: "none",
       borderRadius: THEME.borderRadius.lg,
+      color: "#fff",
       cursor: "pointer",
       fontWeight: "600",
       fontSize: "0.88rem",
       transition: "all 0.2s ease"
+    },
+    ".kdl-manager-btn:hover:not(:disabled)": {
+      filter: "brightness(1.15)"
+    },
+    ".kdl-manager-btn:disabled": {
+      opacity: 0.55,
+      cursor: "not-allowed"
+    },
+    "#kdl-manager-refresh": {
+      background: THEME.colors.btnInfoGradient
+    },
+    "#kdl-manager-sort": {
+      padding: "8px 6px",
+      backgroundColor: THEME.colors.inputBg,
+      border: `1px solid ${THEME.colors.borderSubtle}`
+    },
+    "#kdl-manager-select-all": {
+      background: THEME.colors.btnPrimaryGradient
+    },
+    "#kdl-manager-deselect-all": {
+      background: THEME.colors.btnDangerGradient
+    },
+    "#kdl-manager-download": {
+      background: THEME.colors.btnSuccessGradient
+    },
+    "#kdl-manager-close": {
+      background: THEME.colors.btnSecondaryGradient
     },
     "#kdl-manager-post-list": {
       overflowY: "auto",
@@ -1347,6 +1391,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
+      gap: "8px",
       fontWeight: "700"
     },
     ".kdl-task-title": {
@@ -1357,7 +1402,28 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     },
     ".kdl-task-status": {
       fontSize: ".85em",
-      color: "#ccc"
+      color: "#ccc",
+      marginLeft: "auto"
+    },
+    ".kdl-task-cancel": {
+      flexShrink: 0,
+      background: "transparent",
+      border: "none",
+      color: "#ccc",
+      cursor: "pointer",
+      fontSize: ".9em",
+      lineHeight: 1,
+      padding: "3px 6px",
+      borderRadius: THEME.borderRadius.sm,
+      transition: "color .2s, background-color .2s"
+    },
+    ".kdl-task-cancel:hover:not(:disabled)": {
+      color: "#fff",
+      backgroundColor: "rgba(255,255,255,.12)"
+    },
+    ".kdl-task-cancel:disabled": {
+      opacity: 0.5,
+      cursor: "default"
     },
     ".kdl-task-files": {
       maxHeight: "150px",
@@ -3471,14 +3537,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
     HIDE_ADS: "kui_hide_ads"
   };
+  const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const kuiState = {
-    isDebugModeEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.DEBUG_MODE, false) : false,
-    isVerboseDebugEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false) : false,
-    isPreloadEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false) : false,
-    isHideEmptySectionsEnabled: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false) : false,
+    isDebugModeEnabled: readValue(KUI_STORAGE_KEYS.DEBUG_MODE, false),
+    isVerboseDebugEnabled: readValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
+    isPreloadEnabled: readValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
+    isHideEmptySectionsEnabled: readValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
     isPostPageModuleActive: false,
-    embedRules: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.EMBED_RULES, {}) : {},
-    sessionKey: typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.SESSION_KEY, "") : ""
+    embedRules: readValue(KUI_STORAGE_KEYS.EMBED_RULES, {}),
+    sessionKey: readValue(KUI_STORAGE_KEYS.SESSION_KEY, "")
   };
   function setDebugMode(enabled) {
     kuiState.isDebugModeEnabled = enabled;
@@ -3538,10 +3605,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   let messageBoxTimeout = null;
   function showMessage(message, type = "info") {
     const box = getOrCreateContainer("kemono-download-message-box");
-    if (type === "error") box.style.backgroundColor = "#dc3545";
-    else if (type === "warning") box.style.backgroundColor = "#ffc107";
-    else box.style.backgroundColor = "#333";
-    box.style.color = type === "warning" ? "#212529" : "#fff";
+    if (type === "error") box.style.backgroundColor = THEME.colors.toastErrorBg;
+    else if (type === "warning") box.style.backgroundColor = THEME.colors.toastWarningBg;
+    else box.style.backgroundColor = THEME.colors.toastInfoBg;
+    box.style.color = type === "warning" ? THEME.colors.toastWarningText : THEME.colors.toastText;
     box.textContent = message;
     box.style.opacity = "1";
     box.style.transform = "translate(0)";
@@ -3560,23 +3627,41 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       return false;
     }
   }
+  function abortError() {
+    return new DOMException("Download cancelled", "AbortError");
+  }
+  function isAbortError(error) {
+    return (error == null ? void 0 : error.name) === "AbortError";
+  }
+  function sleep(ms, signal) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(resolve, ms);
+      signal == null ? void 0 : signal.addEventListener("abort", () => {
+        clearTimeout(timer);
+        reject(abortError());
+      }, { once: true });
+    });
+  }
   async function gmXmlhttpRequestWithRetries(details) {
     const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
     const retryDelay = state.settings.downloadRetryDelay;
     let retries = 0;
     let currentUrl = details.url;
+    const { signal, ...requestDetails } = details;
     while (true) {
+      if (signal == null ? void 0 : signal.aborted) throw abortError();
+      let onAbort;
       try {
         return await new Promise((resolve, reject) => {
           const headers = { ...details.headers || {} };
-          if (state.settings.sessionCookie && isSiteUrl(currentUrl)) {
+          if (state.settings.sessionCookie && isSiteUrl(currentUrl) && !headers["Cookie"]) {
             headers["Cookie"] = state.settings.sessionCookie;
           }
           if (isSiteUrl(currentUrl) && currentUrl.includes("/api/") && !headers["Accept"]) {
             headers["Accept"] = "text/css";
           }
-          GM_xmlhttpRequest({
-            ...details,
+          const request = GM_xmlhttpRequest({
+            ...requestDetails,
             url: currentUrl,
             headers,
             onload: (response) => {
@@ -3603,10 +3688,18 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
                 reject(new Error(errStr || "Network Error"));
               }
             },
-            ontimeout: () => reject(new Error("Request Timeout"))
+            ontimeout: () => reject(new Error("Request Timeout")),
+            onabort: () => reject(abortError())
           });
+          onAbort = () => {
+            var _a2;
+            (_a2 = request == null ? void 0 : request.abort) == null ? void 0 : _a2.call(request);
+            reject(abortError());
+          };
+          signal == null ? void 0 : signal.addEventListener("abort", onAbort, { once: true });
         });
       } catch (error) {
+        if (signal == null ? void 0 : signal.aborted) throw abortError();
         const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);
         if (error.status === 404 && mainDataMatch && !/^(file|n\d+)\./.test(mainDataMatch[1])) {
           currentUrl = `https://file.${mainDataMatch[1]}${mainDataMatch[2]}`;
@@ -3618,18 +3711,21 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         }
         retries++;
         debugLog(`Attempt ${retries} failed for ${currentUrl}: ${error.message}. Retrying in ${retryDelay}ms...`);
-        await new Promise((res) => setTimeout(res, retryDelay));
+        await sleep(retryDelay, signal);
+      } finally {
+        if (onAbort) signal == null ? void 0 : signal.removeEventListener("abort", onAbort);
       }
     }
   }
-  async function downloadFileWithFallback(url, fileName, progressCallback) {
+  async function downloadFileWithFallback(url, fileName, progressCallback, signal) {
+    if (signal == null ? void 0 : signal.aborted) throw abortError();
     const cleanName = sanitizeFilename(fileName);
     if (typeof GM_download === "function") {
       const tryGmDownload = () => {
         return new Promise((resolve) => {
           try {
             let isDone = false;
-            GM_download({
+            const handle = GM_download({
               url,
               name: cleanName,
               saveAs: false,
@@ -3659,6 +3755,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
                 }
               }
             });
+            signal == null ? void 0 : signal.addEventListener("abort", () => {
+              var _a2;
+              (_a2 = handle == null ? void 0 : handle.abort) == null ? void 0 : _a2.call(handle);
+              if (!isDone) {
+                isDone = true;
+                resolve(false);
+              }
+            }, { once: true });
           } catch (e) {
             debugLog("GM_download exception:", e);
             resolve(false);
@@ -3668,10 +3772,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const success = await tryGmDownload();
       if (success) return;
     }
+    if (signal == null ? void 0 : signal.aborted) throw abortError();
     debugLog(`GM_download fallback activated for ${url}. Fetching via gmXmlhttpRequest...`);
     const response = await gmXmlhttpRequestWithRetries({
       method: "GET",
       url,
+      signal,
       responseType: "arraybuffer",
       timeout: state.settings.zipFileDownloadTimeout || 12e4,
       onprogress: (e) => {
@@ -6366,14 +6472,15 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         const existing = this.tasks.get(id);
         clearTimeout(this.removalTimers.get(id));
         this.removalTimers.delete(id);
-        existing.files.clear();
-        existing.filesContainer.replaceChildren();
+        existing.reset();
         existing.updateStatus("Restarting task...");
         return existing;
       }
+      let controller = new AbortController();
       const title = el("div", { className: "kdl-task-title" }, [titleText]);
       const status = el("div", { className: "kdl-task-status" }, ["Initializing..."]);
-      const header = el("div", { className: "kdl-task-header" }, [title, status]);
+      const cancelButton = el("button", { className: "kdl-task-cancel", title: "Cancel", onClick: () => task.cancel() }, ["✕"]);
+      const header = el("div", { className: "kdl-task-header" }, [title, status, cancelButton]);
       const filesContainer = el("div", { className: "kdl-task-files" });
       const taskElement = el("div", { className: "kdl-progress-task", id: `task-${id}` }, [header, filesContainer]);
       container.appendChild(taskElement);
@@ -6410,7 +6517,24 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
             file.label.classList.add(success ? "kdl-success" : "kdl-error");
           }
         },
+        get signal() {
+          return controller.signal;
+        },
+        cancel: () => {
+          if (controller.signal.aborted) return;
+          controller.abort();
+          status.textContent = "Cancelling...";
+          cancelButton.disabled = true;
+        },
+        reset: () => {
+          controller = new AbortController();
+          cancelButton.style.display = "";
+          cancelButton.disabled = false;
+          task.files.clear();
+          filesContainer.replaceChildren();
+        },
         finish: (autoRemoveDelay = 5e3) => {
+          cancelButton.style.display = "none";
           clearTimeout(this.removalTimers.get(id));
           this.removalTimers.set(id, setTimeout(() => {
             taskElement.remove();
@@ -6474,17 +6598,17 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const ignoredExts = state.settings.ignoredFileExtensions || [];
     return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
   }
-  async function runWithConcurrency(items, limit, worker) {
+  async function runWithConcurrency(items, limit, worker, signal) {
     let next = 0;
     const lanes = Array.from({ length: Math.min(Math.max(1, limit || 1), items.length) }, async () => {
-      while (next < items.length) {
+      while (next < items.length && !(signal == null ? void 0 : signal.aborted)) {
         const index = next++;
         await worker(items[index], index);
       }
     });
     await Promise.all(lanes);
   }
-  async function fetchFileBytes(url, onProgress, useCache) {
+  async function fetchFileBytes(url, onProgress, useCache, signal) {
     if (useCache) {
       const cached = await getCachedFile(url);
       if (cached && cached.byteLength > 0) {
@@ -6495,6 +6619,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const response = await gmXmlhttpRequestWithRetries({
       method: "GET",
       url,
+      signal,
       responseType: "arraybuffer",
       timeout: state.settings.zipFileDownloadTimeout || 12e4,
       onprogress: (e) => {
@@ -6513,22 +6638,24 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const fileTaskId = `${taskPrefix}-${index}`;
       task.addFile(fileTaskId, file.name);
       try {
-        const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache);
+        const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache, task.signal);
         zip.addFile(file.name || `file_${index + 1}.bin`, data);
         task.markFileComplete(fileTaskId, true);
       } catch (error) {
+        task.markFileComplete(fileTaskId, false);
+        if (isAbortError(error)) return;
         failed++;
         console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
-        task.markFileComplete(fileTaskId, false);
         const baseName = sanitizeFilename(file.name.split("/").pop() || "file");
         zip.addFile(`failed_${baseName}.txt`, `Failed to download file.
 URL: ${file.data}
 Error: ${(error == null ? void 0 : error.message) || error}`);
       } finally {
         done++;
-        task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
+        if (!task.signal.aborted) task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
       }
-    });
+    }, task.signal);
+    if (task.signal.aborted) throw abortError();
     return failed;
   }
   async function executeZipDownload(postDetails) {
@@ -6553,6 +6680,10 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       saveBlobViaAnchor(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
       task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ""}`);
     } catch (error) {
+      if (isAbortError(error)) {
+        task.updateStatus("Cancelled");
+        return;
+      }
       task.updateStatus(`Error: ${error.message}`);
       console.error("ZIP process error:", error);
       throw error;
@@ -6586,16 +6717,16 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         const fileTaskId = `indiv-${i2}`;
         task.addFile(fileTaskId, file.name);
         try {
-          await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
+          await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal);
           task.markFileComplete(fileTaskId, true);
         } catch (err2) {
           task.markFileComplete(fileTaskId, false);
         } finally {
           completedCount++;
-          task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
+          if (!task.signal.aborted) task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
         }
-      });
-      task.updateStatus("All downloads triggered!");
+      }, task.signal);
+      task.updateStatus(task.signal.aborted ? "Cancelled" : "All downloads triggered!");
     } catch (error) {
       task.updateStatus(`Error: ${error.message}`);
     } finally {
@@ -6615,21 +6746,28 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       const fileTaskId = `pick-${i2}`;
       task.addFile(fileTaskId, cleanName);
       try {
-        const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true);
+        const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true, task.signal);
         saveBlobViaAnchor(new Blob([data]), cleanName);
         task.markFileComplete(fileTaskId, true);
       } catch (err2) {
-        console.error(`[Kemono DL] Download error for ${cleanName}:`, err2);
         task.markFileComplete(fileTaskId, false);
+        if (isAbortError(err2)) return;
+        console.error(`[Kemono DL] Download error for ${cleanName}:`, err2);
         failCount++;
       } finally {
         completedCount++;
-        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ""}`);
+        if (!task.signal.aborted) {
+          task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ""}`);
+        }
       }
-    });
-    task.updateStatus(
-      failCount === 0 ? `✓ All ${downloadSpecs.length} files saved!` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
-    );
+    }, task.signal);
+    if (task.signal.aborted) {
+      task.updateStatus("Cancelled");
+    } else {
+      task.updateStatus(
+        failCount === 0 ? `✓ All ${downloadSpecs.length} files saved!` : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+      );
+    }
     task.finish(5e3);
   }
   async function downloadPostAsZip(details) {
@@ -6658,6 +6796,10 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       downloadBlobWithGm(await zip.toBlob(), zipFileName);
       postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ""}`);
     } catch (error) {
+      if (isAbortError(error)) {
+        postTask.updateStatus("Cancelled");
+        return;
+      }
       console.error(`Failed to download post ${details.postID} as ZIP:`, error);
       postTask.updateStatus(`Error: ${error.message}`);
       throw error;
@@ -6674,6 +6816,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       const addHtmlIndex = state.settings.addHtmlIndexInZip;
       let htmlIndex = addHtmlIndex ? `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${escapeHtml(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${escapeHtml(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>` : "";
       for (let i2 = 0; i2 < postIds.length; i2++) {
+        if (task.signal.aborted) throw abortError();
         const postCard = document.querySelector(`article.post-card[data-id="${postIds[i2]}"]`);
         if (!postCard) continue;
         const postDetails = getPostCardDetails(postCard, authorName);
@@ -6711,6 +6854,10 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       downloadBlobWithGm(await zip.toBlob(), finalZipName);
       task.updateStatus("Complete!");
     } catch (error) {
+      if (isAbortError(error)) {
+        task.updateStatus("Cancelled");
+        return;
+      }
       console.error("Bulk download (single) failed:", error);
       task.updateStatus(`Error: ${error.message}`);
     } finally {
@@ -6721,6 +6868,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     const task = progressManager.createTask(`bulk-multiple-${Date.now()}`, `Bulk Queuing (${postIds.length} Posts)`);
     task.updateStatus("Adding posts to the download queue...");
     for (let i2 = 0; i2 < postIds.length; i2++) {
+      if (task.signal.aborted) break;
       const postId = postIds[i2];
       const postCard = document.querySelector(`article.post-card[data-id="${postId}"]`);
       if (!postCard) continue;
@@ -6730,7 +6878,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       addTaskToQueue("Bulk-Single-Zip", downloadPostAsZip, postDetails, null);
       task.updateStatus(`Queued ${i2 + 1}/${postIds.length} posts...`);
     }
-    task.updateStatus("All posts queued! Downloads will start based on concurrency settings.");
+    task.updateStatus(task.signal.aborted ? "Cancelled: the remaining posts were not queued." : "All posts queued! Downloads will start based on concurrency settings.");
     task.finish(3e3);
   }
   async function executeBulkDownload(postIdsOrEvent = null) {
@@ -6938,23 +7086,8 @@ ${text}`;
         {
           className: "kdl-button",
           title,
-          style: {
-            padding: "7px 12px",
-            border: "none",
-            borderRadius: "6px",
-            cursor: "pointer",
-            fontSize: "0.86rem",
-            fontWeight: "600",
-            color: "#fff",
-            boxShadow: "0 2px 5px rgba(0,0,0,0.2)",
-            background: bgGradient,
-            width: "100%",
-            boxSizing: "border-box",
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "5px"
-          },
+          // Everything else comes from .kdl-button (postActions.styles.ts), which overrides inline styles anyway
+          style: { background: bgGradient },
           onClick,
           onContextMenu: onContext
         },
@@ -7001,14 +7134,14 @@ ${text}`;
       );
     }
     if (state.settings.showFilesButton) {
-      const btn = createButton(
-        "📎 Download Attachments",
-        "Download Attachments",
-        "linear-gradient(135deg, #f59e0b, #d97706)",
-        (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.target, "📎 Download Attachments")
+      downloadsCol.appendChild(
+        createButton(
+          "📎 Download Attachments",
+          "Download Attachments",
+          "linear-gradient(135deg, #f59e0b, #d97706)",
+          (e) => addTaskToQueue("Attachments", (pd) => executeIndividualDownload("Attachments", pd), postDetails, e.target, "📎 Download Attachments")
+        )
       );
-      btn.style.color = "#ffffff";
-      downloadsCol.appendChild(btn);
     }
     if (state.settings.showZipButton) {
       downloadsCol.appendChild(
@@ -7486,12 +7619,12 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         el("div", { id: "kdl-author-manager-modal" }, [
           el("div", { id: "kdl-manager-header" }, [
             el("h3", { id: "kdl-manager-title" }),
-            el("em", { id: "kdl-manager-cache-status", style: { fontSize: "0.8em", color: "#aaa", marginLeft: "10px" } })
+            el("em", { id: "kdl-manager-cache-status" })
           ]),
-          el("div", { id: "kdl-manager-controls", style: { flexWrap: "wrap" } }, [
-            el("button", { id: "kdl-manager-refresh", className: "kdl-manager-btn", title: "Force Refresh", style: { backgroundColor: "#17a2b8" } }, ["🔄"]),
+          el("div", { id: "kdl-manager-controls" }, [
+            el("button", { id: "kdl-manager-refresh", className: "kdl-manager-btn", title: "Force Refresh" }, ["🔄"]),
             el("input", { type: "text", id: "kdl-manager-search", placeholder: "Search by title..." }),
-            el("select", { id: "kdl-manager-sort", className: "kdl-manager-btn", style: { padding: "8px 6px" } }, [
+            el("select", { id: "kdl-manager-sort", className: "kdl-manager-btn" }, [
               el("option", { value: "date-desc" }, ["Newest First"]),
               el("option", { value: "date-asc" }, ["Oldest First"]),
               el("option", { value: "files-desc" }, ["Most Files"]),
@@ -7499,15 +7632,15 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
               el("option", { value: "title-asc" }, ["Title (A-Z)"]),
               el("option", { value: "title-desc" }, ["Title (Z-A)"])
             ]),
-            el("button", { id: "kdl-manager-select-all", className: "kdl-manager-btn", style: { backgroundColor: "#007bff" } }, ["Select Visible"]),
-            el("button", { id: "kdl-manager-deselect-all", className: "kdl-manager-btn", style: { backgroundColor: "#dc3545" } }, ["Deselect All"])
+            el("button", { id: "kdl-manager-select-all", className: "kdl-manager-btn" }, ["Select Visible"]),
+            el("button", { id: "kdl-manager-deselect-all", className: "kdl-manager-btn" }, ["Deselect All"])
           ]),
           el("div", { id: "kdl-manager-post-list" }),
           el("div", { id: "kdl-manager-footer" }, [
             el("span", { id: "kdl-manager-counter" }, ["Selected: 0"]),
             el("div", {}, [
-              el("button", { id: "kdl-manager-download", className: "kdl-manager-btn", style: { backgroundColor: "#28a745" }, disabled: true }, ["Download Selected"]),
-              el("button", { id: "kdl-manager-close", className: "kdl-manager-btn", style: { backgroundColor: "#6c757d" } }, ["Close"])
+              el("button", { id: "kdl-manager-download", className: "kdl-manager-btn", disabled: true }, ["Download Selected"]),
+              el("button", { id: "kdl-manager-close", className: "kdl-manager-btn" }, ["Close"])
             ])
           ])
         ])
@@ -7823,6 +7956,9 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     }
     return { name: host, gradient: "linear-gradient(135deg, #374151, #1f2937)", textColor: "#f3f4f6", borderColor: "#4b5563" };
   }
+  function isKnownService(hostname) {
+    return getServiceBrand(hostname).name !== hostname.toLowerCase().replace(/^www\./, "");
+  }
   function linkifyTextNodes(container) {
     const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
     const hasUrl = /https?:\/\//i;
@@ -8014,7 +8150,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
             break;
           }
         }
-        const action = bestMatch ? bestMatch.action : "button";
+        const action = bestMatch ? bestMatch.action : isKnownService(linkHostname) ? "button" : "keep";
         if (action === "hide" || action === "button") {
           const ownLine = isOnOwnLine(link, trailing);
           if (action === "hide" || ownLine) {
@@ -8182,20 +8318,21 @@ Password: ${password} (copied on click)`;
     const fileDataMap = /* @__PURE__ */ new Map();
     if (!urlMatch || !urlMatch.groups) return fileDataMap;
     const { service, creator_id, post_id } = urlMatch.groups;
-    const apiUrl = `/api/v1/${service}/user/${creator_id}/post/${post_id}`;
-    const fetchOptions = { headers: { Accept: "text/css" } };
+    const headers = {};
     if (kuiState.sessionKey) {
-      fetchOptions.headers["Cookie"] = `session=${kuiState.sessionKey}`;
-    } else {
-      fetchOptions.credentials = "include";
+      headers["Cookie"] = `session=${kuiState.sessionKey}`;
     }
     try {
-      const response = await fetch(apiUrl, fetchOptions);
-      if (!response.ok) throw new Error(`API request failed: ${response.status}`);
-      const postData = await response.json();
+      const response = await gmXmlhttpRequestWithRetries({
+        method: "GET",
+        url: `${window.location.origin}/api/v1/${service}/user/${creator_id}/post/${post_id}`,
+        headers,
+        responseType: "json"
+      });
+      const postData = response.response;
       const allFiles = [
-        ...((_a2 = postData.post) == null ? void 0 : _a2.file) ? [postData.post.file] : [],
-        ...((_b2 = postData.post) == null ? void 0 : _b2.attachments) ?? []
+        ...((_a2 = postData == null ? void 0 : postData.post) == null ? void 0 : _a2.file) ? [postData.post.file] : [],
+        ...((_b2 = postData == null ? void 0 : postData.post) == null ? void 0 : _b2.attachments) ?? []
       ];
       allFiles.forEach((file) => {
         if ((file == null ? void 0 : file.name) && file.path) {
@@ -9085,9 +9222,18 @@ Password: ${password} (copied on click)`;
       });
     }
   }
+  let viewedPostsCache = null;
+  function getViewedPosts() {
+    if (!viewedPostsCache) {
+      viewedPostsCache = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
+    }
+    return viewedPostsCache;
+  }
   function markViewedPosts() {
-    const viewedPosts = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
-    document.querySelectorAll(SELECTORS.postCard).forEach((card) => {
+    const unmarkedCards = document.querySelectorAll(`${SELECTORS.postCard}:not(.kui-viewed)`);
+    if (unmarkedCards.length === 0) return;
+    const viewedPosts = getViewedPosts();
+    unmarkedCards.forEach((card) => {
       const postId = card.getAttribute("data-id");
       if (postId && viewedPosts[postId]) {
         card.classList.add("kui-viewed");
@@ -9103,7 +9249,7 @@ Password: ${password} (copied on click)`;
       const card = link.closest(SELECTORS.postCard);
       const postId = card == null ? void 0 : card.getAttribute("data-id");
       if (!card || !postId) return;
-      const viewedPosts = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
+      const viewedPosts = getViewedPosts();
       viewedPosts[postId] = true;
       if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);
       card.classList.add("kui-viewed");
@@ -9309,6 +9455,14 @@ Password: ${password} (copied on click)`;
       runInitializationLogic(runForced);
     }, delay);
   }
+  function registerMenuCommands() {
+    if (typeof GM_registerMenuCommand !== "function") return;
+    GM_registerMenuCommand("⚙️ Download settings", () => toggleSettingsModal(true));
+    GM_registerMenuCommand("🎨 UI settings", () => {
+      var _a2;
+      return (_a2 = document.getElementById("kui-settings-panel")) == null ? void 0 : _a2.classList.add("kui-panel-active");
+    });
+  }
   function init() {
     ensureStylesInjected();
     applyAdBlock();
@@ -9317,6 +9471,7 @@ Password: ${password} (copied on click)`;
     lightboxModule.init();
     setupGlobalClickListener();
     createFixedControls();
+    registerMenuCommands();
     runInitializationLogic();
     const swapReplacesPost = (event) => {
       var _a2;

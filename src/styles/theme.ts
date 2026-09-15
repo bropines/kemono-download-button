@@ -53,6 +53,13 @@ export const THEME = {
     buttonGradEnd: "var(--colour1-primary, #17191a)",
     accentBlue: "var(--submit-colour1-primary, #3b82f6)",
     accentOrange: "var(--anchour-internal-colour1-primary, #e16d2d)",
+
+    // Toast notifications
+    toastInfoBg: "#333",
+    toastErrorBg: "#dc3545",
+    toastWarningBg: "#ffc107",
+    toastWarningText: "#212529",
+    toastText: "#fff",
   },
 
   borderRadius: {
@@ -81,6 +88,8 @@ export const THEME = {
     lightbox: 10001,
     lightboxNav: 10002,
     modalOverlay: 10003,
+    tooltip: 10010,
+    tooltipArrow: 10011,
   },
 
   transitions: {

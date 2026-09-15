@@ -40,8 +40,14 @@ export const authorManagerModalStyles = css({
     fontSize: '1.25rem',
     fontWeight: '700',
   },
+  '#kdl-manager-cache-status': {
+    fontSize: '0.8em',
+    color: THEME.colors.textMuted,
+    marginLeft: '10px',
+  },
   '#kdl-manager-controls': {
     display: 'flex',
+    flexWrap: 'wrap',
     gap: '12px',
     padding: '12px 24px',
     borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
@@ -68,10 +74,38 @@ export const authorManagerModalStyles = css({
     padding: '9px 16px',
     border: 'none',
     borderRadius: THEME.borderRadius.lg,
+    color: '#fff',
     cursor: 'pointer',
     fontWeight: '600',
     fontSize: '0.88rem',
     transition: 'all 0.2s ease',
+  },
+  '.kdl-manager-btn:hover:not(:disabled)': {
+    filter: 'brightness(1.15)',
+  },
+  '.kdl-manager-btn:disabled': {
+    opacity: 0.55,
+    cursor: 'not-allowed',
+  },
+  '#kdl-manager-refresh': {
+    background: THEME.colors.btnInfoGradient,
+  },
+  '#kdl-manager-sort': {
+    padding: '8px 6px',
+    backgroundColor: THEME.colors.inputBg,
+    border: `1px solid ${THEME.colors.borderSubtle}`,
+  },
+  '#kdl-manager-select-all': {
+    background: THEME.colors.btnPrimaryGradient,
+  },
+  '#kdl-manager-deselect-all': {
+    background: THEME.colors.btnDangerGradient,
+  },
+  '#kdl-manager-download': {
+    background: THEME.colors.btnSuccessGradient,
+  },
+  '#kdl-manager-close': {
+    background: THEME.colors.btnSecondaryGradient,
   },
   '#kdl-manager-post-list': {
     overflowY: 'auto',

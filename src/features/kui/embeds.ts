@@ -68,6 +68,11 @@ export function getServiceBrand(hostname: string): ServiceBrand {
   return { name: host, gradient: "linear-gradient(135deg, #374151, #1f2937)", textColor: "#f3f4f6", borderColor: "#4b5563" };
 }
 
+function isKnownService(hostname: string): boolean {
+  // getServiceBrand falls back to the bare host name for services it doesn't recognise
+  return getServiceBrand(hostname).name !== hostname.toLowerCase().replace(/^www\./, "");
+}
+
 export function linkifyTextNodes(container: Element): void {
   const urlRegex = /(https?:\/\/[^\s<>"']+)/gi;
   // Separate non-global regex: .test() on a /g regex keeps lastIndex and skips URLs in later nodes
@@ -285,7 +290,8 @@ export function processEmbeds(): void {
         }
       }
 
-      const action = bestMatch ? bestMatch.action : "button";
+      // Without a rule only recognised file hosts/services become buttons; other links stay plain links
+      const action = bestMatch ? bestMatch.action : isKnownService(linkHostname) ? "button" : "keep";
 
       if (action === "hide" || action === "button") {
         // A link inside a sentence keeps its place (the button is still added); "hide" always removes

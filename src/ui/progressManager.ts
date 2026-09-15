@@ -11,6 +11,11 @@ export interface ProgressTask {
   updateFileProgress: (fileId: string, percent: number) => void;
   markFileComplete: (fileId: string, success: boolean) => void;
   finish: (autoRemoveDelay?: number) => void;
+  /** Aborted when the user cancels the task; pass it to every request of the run */
+  readonly signal: AbortSignal;
+  cancel: () => void;
+  /** Prepares the task for another run with the same id */
+  reset: () => void;
 }
 
 class ProgressManager {
@@ -32,15 +37,16 @@ class ProgressManager {
       // Task ids repeat per post: the previous run's pending removal would delete this run's element
       clearTimeout(this.removalTimers.get(id));
       this.removalTimers.delete(id);
-      existing.files.clear();
-      existing.filesContainer.replaceChildren();
+      existing.reset();
       existing.updateStatus('Restarting task...');
       return existing;
     }
 
+    let controller = new AbortController();
     const title = el('div', { className: 'kdl-task-title' }, [titleText]);
     const status = el('div', { className: 'kdl-task-status' }, ['Initializing...']);
-    const header = el('div', { className: 'kdl-task-header' }, [title, status]);
+    const cancelButton = el('button', { className: 'kdl-task-cancel', title: 'Cancel', onClick: () => task.cancel() }, ['✕']) as HTMLButtonElement;
+    const header = el('div', { className: 'kdl-task-header' }, [title, status, cancelButton]);
     const filesContainer = el('div', { className: 'kdl-task-files' });
     const taskElement = el('div', { className: 'kdl-progress-task', id: `task-${id}` }, [header, filesContainer]);
 
@@ -84,7 +90,27 @@ class ProgressManager {
         }
       },
 
+      get signal() {
+        return controller.signal;
+      },
+
+      cancel: () => {
+        if (controller.signal.aborted) return;
+        controller.abort();
+        status.textContent = 'Cancelling...';
+        cancelButton.disabled = true;
+      },
+
+      reset: () => {
+        controller = new AbortController();
+        cancelButton.style.display = '';
+        cancelButton.disabled = false;
+        task.files.clear();
+        filesContainer.replaceChildren();
+      },
+
       finish: (autoRemoveDelay = 5000) => {
+        cancelButton.style.display = 'none';
         clearTimeout(this.removalTimers.get(id));
         this.removalTimers.set(id, setTimeout(() => {
           taskElement.remove();

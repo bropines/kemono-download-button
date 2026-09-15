@@ -1,4 +1,5 @@
 import { kuiState } from '../../state/kuiState';
+import { gmXmlhttpRequestWithRetries } from '../../utils/http';
 
 export async function fetchPostFileData(): Promise<Map<string, string>> {
   const urlMatch = window.location.pathname.match(/\/(?<service>[^/]+)\/user\/(?<creator_id>[^/]+)\/post\/(?<post_id>[^/]+)/);
@@ -6,23 +7,24 @@ export async function fetchPostFileData(): Promise<Map<string, string>> {
   if (!urlMatch || !urlMatch.groups) return fileDataMap;
 
   const { service, creator_id, post_id } = urlMatch.groups;
-  const apiUrl = `/api/v1/${service}/user/${creator_id}/post/${post_id}`;
-  // kemono/coomer answer API requests without this exact Accept header with 403
-  const fetchOptions: RequestInit = { headers: { Accept: "text/css" } };
-
+  // GM_xmlhttpRequest sends the browser's cookies by default and, unlike fetch(), can also send an explicit
+  // Cookie header, which is how the manual session key fallback reaches the API
+  const headers: Record<string, string> = {};
   if (kuiState.sessionKey) {
-    (fetchOptions.headers as Record<string, string>)["Cookie"] = `session=${kuiState.sessionKey}`;
-  } else {
-    fetchOptions.credentials = "include";
+    headers["Cookie"] = `session=${kuiState.sessionKey}`;
   }
 
   try {
-    const response = await fetch(apiUrl, fetchOptions);
-    if (!response.ok) throw new Error(`API request failed: ${response.status}`);
-    const postData = await response.json();
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "GET",
+      url: `${window.location.origin}/api/v1/${service}/user/${creator_id}/post/${post_id}`,
+      headers,
+      responseType: "json"
+    });
+    const postData = response.response;
     const allFiles = [
-      ...(postData.post?.file ? [postData.post.file] : []),
-      ...(postData.post?.attachments ?? [])
+      ...(postData?.post?.file ? [postData.post.file] : []),
+      ...(postData?.post?.attachments ?? [])
     ];
     allFiles.forEach((file: any) => {
       if (file?.name && file.path) {

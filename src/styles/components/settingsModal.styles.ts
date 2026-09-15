@@ -235,7 +235,7 @@ export const settingsModalStyles = css({
     whiteSpace: 'normal',
     width: '230px',
     boxShadow: '0 10px 25px rgba(0, 0, 0, 0.6)',
-    zIndex: 10010,
+    zIndex: THEME.zIndex.tooltip,
     pointerEvents: 'none',
     lineHeight: '1.4',
     textAlign: 'left',
@@ -249,7 +249,7 @@ export const settingsModalStyles = css({
     borderWidth: '5px',
     borderStyle: 'solid',
     borderColor: 'var(--colour1-tertiary, #0f172a) transparent transparent transparent',
-    zIndex: 10011,
+    zIndex: THEME.zIndex.tooltipArrow,
     pointerEvents: 'none',
   },
   '.kdl-settings-actions': {

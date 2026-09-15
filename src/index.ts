@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.39
+// @version      0.8.40
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -53,6 +53,7 @@ import { userPageModule } from './features/kui/userPageModule';
 import { postPageModule } from './features/kui/postPageModule';
 import { fetchAndCachePostData, getPostDetailsFromPage } from './services/collectorService';
 import { applyAdBlock } from './features/adblock';
+import { toggleSettingsModal } from './ui/components/settingsModal';
 
 export function ensureStylesInjected(): void {
   if (document.getElementById('kdl-global-styles')) return;
@@ -249,6 +250,13 @@ function scheduleInit(force = false, delay = 50): void {
   }, delay);
 }
 
+// Settings stay reachable from the userscript manager menu even when the page layout hides our buttons
+function registerMenuCommands(): void {
+  if (typeof GM_registerMenuCommand !== 'function') return;
+  GM_registerMenuCommand('⚙️ Download settings', () => toggleSettingsModal(true));
+  GM_registerMenuCommand('🎨 UI settings', () => document.getElementById('kui-settings-panel')?.classList.add('kui-panel-active'));
+}
+
 function init(): void {
   ensureStylesInjected();
   applyAdBlock();
@@ -257,6 +265,7 @@ function init(): void {
   lightboxModule.init();
   setupGlobalClickListener();
   createFixedControls();
+  registerMenuCommands();
 
   runInitializationLogic();
 

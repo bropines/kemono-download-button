@@ -23,23 +23,8 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
       {
         className: 'kdl-button',
         title,
-        style: {
-          padding: '7px 12px',
-          border: 'none',
-          borderRadius: '6px',
-          cursor: 'pointer',
-          fontSize: '0.86rem',
-          fontWeight: '600',
-          color: '#fff',
-          boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-          background: bgGradient,
-          width: '100%',
-          boxSizing: 'border-box',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '5px'
-        },
+        // Everything else comes from .kdl-button (postActions.styles.ts), which overrides inline styles anyway
+        style: { background: bgGradient },
         onClick,
         onContextMenu: onContext
       },
@@ -92,11 +77,11 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   }
 
   if (state.settings.showFilesButton) {
-    const btn = createButton('📎 Download Attachments', 'Download Attachments', 'linear-gradient(135deg, #f59e0b, #d97706)', (e) =>
-      addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.target as HTMLElement, '📎 Download Attachments')
+    downloadsCol.appendChild(
+      createButton('📎 Download Attachments', 'Download Attachments', 'linear-gradient(135deg, #f59e0b, #d97706)', (e) =>
+        addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.target as HTMLElement, '📎 Download Attachments')
+      )
     );
-    btn.style.color = '#ffffff';
-    downloadsCol.appendChild(btn);
   }
 
   if (state.settings.showZipButton) {

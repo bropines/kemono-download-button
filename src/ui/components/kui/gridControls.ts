@@ -6,7 +6,7 @@ export function setupGridControls(): void {
   const numberInput = document.getElementById("gridSizeInput") as HTMLInputElement | null;
 
   const getSavedSize = (): number => {
-    const savedSize = typeof GM_getValue === 'function' ? (GM_getValue<string>(KUI_STORAGE_KEYS.GRID_SIZE, "180") as any) : "180";
+    const savedSize = typeof GM_getValue === 'function' ? GM_getValue<string>(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
     return Math.max(120, Math.min(400, Number(savedSize) || 180));
   };
 

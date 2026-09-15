@@ -6,7 +6,14 @@ import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, resetMediaCounter, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
 import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
-import { gmXmlhttpRequestWithRetries, downloadFileWithFallback, downloadBlobWithGm, saveBlobViaAnchor } from '../utils/http';
+import {
+  abortError,
+  downloadBlobWithGm,
+  downloadFileWithFallback,
+  gmXmlhttpRequestWithRetries,
+  isAbortError,
+  saveBlobViaAnchor
+} from '../utils/http';
 import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
 
@@ -18,10 +25,16 @@ function filterIgnoredFiles(files: FileItem[]): FileItem[] {
   return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
 }
 
-async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T, index: number) => Promise<void>): Promise<void> {
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  worker: (item: T, index: number) => Promise<void>,
+  signal?: AbortSignal
+): Promise<void> {
   let next = 0;
   const lanes = Array.from({ length: Math.min(Math.max(1, limit || 1), items.length) }, async () => {
-    while (next < items.length) {
+    // A cancelled task stops picking up items; the ones in flight are aborted through the same signal
+    while (next < items.length && !signal?.aborted) {
       const index = next++;
       await worker(items[index], index);
     }
@@ -30,7 +43,12 @@ async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T
 }
 
 /** Fetches a file's bytes (optionally IndexedDB cache-first), reporting progress in percent. */
-async function fetchFileBytes(url: string, onProgress: (percent: number) => void, useCache: boolean): Promise<ArrayBuffer> {
+async function fetchFileBytes(
+  url: string,
+  onProgress: (percent: number) => void,
+  useCache: boolean,
+  signal?: AbortSignal
+): Promise<ArrayBuffer> {
   if (useCache) {
     const cached = await getCachedFile(url);
     if (cached && cached.byteLength > 0) {
@@ -42,6 +60,7 @@ async function fetchFileBytes(url: string, onProgress: (percent: number) => void
   const response = await gmXmlhttpRequestWithRetries({
     method: 'GET',
     url,
+    signal,
     responseType: 'arraybuffer',
     timeout: state.settings.zipFileDownloadTimeout || 120000,
     onprogress: (e: ProgressEvent) => {
@@ -71,21 +90,24 @@ async function addUrlFilesToZip(
     const fileTaskId = `${taskPrefix}-${index}`;
     task.addFile(fileTaskId, file.name);
     try {
-      const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache);
+      const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache, task.signal);
       zip.addFile(file.name || `file_${index + 1}.bin`, data);
       task.markFileComplete(fileTaskId, true);
     } catch (error: any) {
+      task.markFileComplete(fileTaskId, false);
+      if (isAbortError(error)) return;
       failed++;
       console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
-      task.markFileComplete(fileTaskId, false);
       const baseName = sanitizeFilename(file.name.split('/').pop() || 'file');
       zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
     } finally {
       done++;
-      task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
+      if (!task.signal.aborted) task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
     }
-  });
+  }, task.signal);
 
+  // Never hand a half-downloaded archive to the caller
+  if (task.signal.aborted) throw abortError();
   return failed;
 }
 
@@ -118,6 +140,10 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
     task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ''}`);
   } catch (error: any) {
+    if (isAbortError(error)) {
+      task.updateStatus('Cancelled');
+      return;
+    }
     task.updateStatus(`Error: ${error.message}`);
     console.error('ZIP process error:', error);
     throw error;
@@ -160,17 +186,17 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       const fileTaskId = `indiv-${i}`;
       task.addFile(fileTaskId, file.name);
       try {
-        await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct));
+        await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal);
         task.markFileComplete(fileTaskId, true);
       } catch (err: any) {
         task.markFileComplete(fileTaskId, false);
       } finally {
         completedCount++;
-        task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
+        if (!task.signal.aborted) task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
       }
-    });
+    }, task.signal);
 
-    task.updateStatus('All downloads triggered!');
+    task.updateStatus(task.signal.aborted ? 'Cancelled' : 'All downloads triggered!');
   } catch (error: any) {
     task.updateStatus(`Error: ${error.message}`);
   } finally {
@@ -204,23 +230,30 @@ export async function downloadFilesToDiskWithProgress(
     task.addFile(fileTaskId, cleanName);
 
     try {
-      const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true);
+      const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true, task.signal);
       saveBlobViaAnchor(new Blob([data]), cleanName);
       task.markFileComplete(fileTaskId, true);
     } catch (err: any) {
-      console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
       task.markFileComplete(fileTaskId, false);
+      if (isAbortError(err)) return;
+      console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
       failCount++;
     } finally {
       completedCount++;
-      task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      if (!task.signal.aborted) {
+        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
+      }
     }
-  });
+  }, task.signal);
 
-  task.updateStatus(failCount === 0
-    ? `✓ All ${downloadSpecs.length} files saved!`
-    : `Done: ${completedCount - failCount} ok, ${failCount} failed`
-  );
+  if (task.signal.aborted) {
+    task.updateStatus('Cancelled');
+  } else {
+    task.updateStatus(failCount === 0
+      ? `✓ All ${downloadSpecs.length} files saved!`
+      : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+    );
+  }
   task.finish(5000);
 }
 
@@ -255,6 +288,10 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     downloadBlobWithGm(await zip.toBlob(), zipFileName);
     postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ''}`);
   } catch (error: any) {
+    if (isAbortError(error)) {
+      postTask.updateStatus('Cancelled');
+      return;
+    }
     console.error(`Failed to download post ${details.postID} as ZIP:`, error);
     postTask.updateStatus(`Error: ${error.message}`);
     throw error;
@@ -275,6 +312,7 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
       : '';
 
     for (let i = 0; i < postIds.length; i++) {
+      if (task.signal.aborted) throw abortError();
       const postCard = document.querySelector(`article.post-card[data-id="${postIds[i]}"]`) as HTMLElement | null;
       if (!postCard) continue;
 
@@ -322,6 +360,10 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
     downloadBlobWithGm(await zip.toBlob(), finalZipName);
     task.updateStatus('Complete!');
   } catch (error: any) {
+    if (isAbortError(error)) {
+      task.updateStatus('Cancelled');
+      return;
+    }
     console.error('Bulk download (single) failed:', error);
     task.updateStatus(`Error: ${error.message}`);
   } finally {
@@ -334,6 +376,7 @@ export async function executeBulkDownloadMultiple(postIds: string[], authorName:
   task.updateStatus('Adding posts to the download queue...');
 
   for (let i = 0; i < postIds.length; i++) {
+    if (task.signal.aborted) break;
     const postId = postIds[i];
     const postCard = document.querySelector(`article.post-card[data-id="${postId}"]`) as HTMLElement | null;
     if (!postCard) continue;
@@ -346,7 +389,9 @@ export async function executeBulkDownloadMultiple(postIds: string[], authorName:
     task.updateStatus(`Queued ${i + 1}/${postIds.length} posts...`);
   }
 
-  task.updateStatus('All posts queued! Downloads will start based on concurrency settings.');
+  task.updateStatus(task.signal.aborted
+    ? 'Cancelled: the remaining posts were not queued.'
+    : 'All posts queued! Downloads will start based on concurrency settings.');
   task.finish(3000);
 }
 

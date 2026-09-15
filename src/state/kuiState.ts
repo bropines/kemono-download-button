@@ -1,14 +1,16 @@
 import { KUI_STORAGE_KEYS } from '../config/storage';
 import { KuiAppState, EmbedRules } from '../types';
 
+const readValue = <T>(key: string, fallback: T): T => (typeof GM_getValue === 'function' ? GM_getValue<T>(key, fallback) : fallback);
+
 export const kuiState: KuiAppState = {
-  isDebugModeEnabled: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.DEBUG_MODE, false) as any) : false,
-  isVerboseDebugEnabled: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false) as any) : false,
-  isPreloadEnabled: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false) as any) : false,
-  isHideEmptySectionsEnabled: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false) as any) : false,
+  isDebugModeEnabled: readValue(KUI_STORAGE_KEYS.DEBUG_MODE, false),
+  isVerboseDebugEnabled: readValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
+  isPreloadEnabled: readValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
+  isHideEmptySectionsEnabled: readValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
   isPostPageModuleActive: false,
-  embedRules: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.EMBED_RULES, {}) as any) : {},
-  sessionKey: typeof GM_getValue === 'function' ? (GM_getValue(KUI_STORAGE_KEYS.SESSION_KEY, "") as any) : ""
+  embedRules: readValue<EmbedRules>(KUI_STORAGE_KEYS.EMBED_RULES, {}),
+  sessionKey: readValue(KUI_STORAGE_KEYS.SESSION_KEY, "")
 };
 
 export function setDebugMode(enabled: boolean): void {

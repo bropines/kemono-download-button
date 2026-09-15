@@ -11,12 +11,12 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
       el('div', { id: 'kdl-author-manager-modal' }, [
         el('div', { id: 'kdl-manager-header' }, [
           el('h3', { id: 'kdl-manager-title' }),
-          el('em', { id: 'kdl-manager-cache-status', style: { fontSize: '0.8em', color: '#aaa', marginLeft: '10px' } })
+          el('em', { id: 'kdl-manager-cache-status' })
         ]),
-        el('div', { id: 'kdl-manager-controls', style: { flexWrap: 'wrap' } }, [
-          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh', style: { backgroundColor: '#17a2b8' } }, ['🔄']),
+        el('div', { id: 'kdl-manager-controls' }, [
+          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh' }, ['🔄']),
           el('input', { type: 'text', id: 'kdl-manager-search', placeholder: 'Search by title...' }),
-          el('select', { id: 'kdl-manager-sort', className: 'kdl-manager-btn', style: { padding: '8px 6px' } }, [
+          el('select', { id: 'kdl-manager-sort', className: 'kdl-manager-btn' }, [
             el('option', { value: 'date-desc' }, ['Newest First']),
             el('option', { value: 'date-asc' }, ['Oldest First']),
             el('option', { value: 'files-desc' }, ['Most Files']),
@@ -24,15 +24,15 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
             el('option', { value: 'title-asc' }, ['Title (A-Z)']),
             el('option', { value: 'title-desc' }, ['Title (Z-A)'])
           ]),
-          el('button', { id: 'kdl-manager-select-all', className: 'kdl-manager-btn', style: { backgroundColor: '#007bff' } }, ['Select Visible']),
-          el('button', { id: 'kdl-manager-deselect-all', className: 'kdl-manager-btn', style: { backgroundColor: '#dc3545' } }, ['Deselect All'])
+          el('button', { id: 'kdl-manager-select-all', className: 'kdl-manager-btn' }, ['Select Visible']),
+          el('button', { id: 'kdl-manager-deselect-all', className: 'kdl-manager-btn' }, ['Deselect All'])
         ]),
         el('div', { id: 'kdl-manager-post-list' }),
         el('div', { id: 'kdl-manager-footer' }, [
           el('span', { id: 'kdl-manager-counter' }, ['Selected: 0']),
           el('div', {}, [
-            el('button', { id: 'kdl-manager-download', className: 'kdl-manager-btn', style: { backgroundColor: '#28a745' }, disabled: true }, ['Download Selected']),
-            el('button', { id: 'kdl-manager-close', className: 'kdl-manager-btn', style: { backgroundColor: '#6c757d' } }, ['Close'])
+            el('button', { id: 'kdl-manager-download', className: 'kdl-manager-btn', disabled: true }, ['Download Selected']),
+            el('button', { id: 'kdl-manager-close', className: 'kdl-manager-btn' }, ['Close'])
           ])
         ])
       ])

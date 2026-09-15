@@ -12,7 +12,7 @@ const POPUNDER_KEY = 'lastPopunder';
 const POPUNDER_BLOCKED_UNTIL_MS = 10 * 365 * 24 * 60 * 60 * 1000;
 
 export function isAdBlockEnabled(): boolean {
-  return typeof GM_getValue === 'function' ? Boolean(GM_getValue(KUI_STORAGE_KEYS.HIDE_ADS, true) as any) : true;
+  return typeof GM_getValue === 'function' ? Boolean(GM_getValue(KUI_STORAGE_KEYS.HIDE_ADS, true)) : true;
 }
 
 export function setAdBlockEnabled(enabled: boolean): void {
