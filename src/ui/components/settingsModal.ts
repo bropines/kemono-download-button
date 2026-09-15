@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from '../../config/constants';
 import { clearAllCache, clearIncompleteCache, getCacheStats } from '../../services/cacheService';
+import { OPENAI_COMPATIBLE_PRESETS, TRANSLATION_LANGUAGES } from '../../services/translators';
 import { exportSettings, getSettings, importSettings, saveSetting, state } from '../../state/store';
 import { DownloaderSettings } from '../../types';
 import { el } from '../../utils/dom';
@@ -247,16 +248,7 @@ export async function toggleSettingsModal(forceShow?: boolean): Promise<void> {
 export function createSettingsModal(): void {
   if (settingsModalElement) return;
 
-  const langCodeMap: Record<string, string> = {
-    auto: 'Auto',
-    russian: 'Russian',
-    english: 'English',
-    chinese: 'Chinese',
-    japanese: 'Japanese',
-    korean: 'Korean'
-  };
-
-  const langOptions = Object.entries(langCodeMap).map(([value, text]) => ({ value, text }));
+  const langOptions = TRANSLATION_LANGUAGES.map(({ value, name }) => ({ value, text: name }));
 
   settingsOverlayElement = el('div', { id: 'kdl-settings-overlay' });
   settingsModalElement = el('div', { id: 'kdl-settings-modal' });
@@ -350,17 +342,32 @@ export function createSettingsModal(): void {
       'Translation Provider',
       [
         { value: 'none', text: 'None' },
-        { value: 'gemini', text: 'Gemini AI' },
-        { value: 'deepl', text: 'DeepL' },
-        { value: 'yandex', text: 'Yandex (Free)' },
-        { value: 'google', text: 'Google (Free)' }
+        { value: 'google', text: 'Google Translate (free, no key)' },
+        { value: 'yandex', text: 'Yandex Translate (free, no key)' },
+        { value: 'openai', text: 'OpenAI-compatible LLM (GPT, Gemini, OpenRouter, local…)' },
+        { value: 'gemini', text: 'Gemini AI (native API)' },
+        { value: 'deepl', text: 'DeepL' }
       ],
       'Service for automated translation of post titles and text content'
     ),
     selectItem('kdl-setting-translationLanguage', 'Target Language', langOptions),
+    el('small', { id: 'kdl-free-translator-note', style: { display: 'none' } }, [
+      'No API key needed: uses the public web translator endpoint, which may rate-limit very heavy use.'
+    ]),
+    el('div', { id: 'kdl-openai-settings', style: { display: 'none' } }, [
+      selectItem(
+        'kdl-openai-preset',
+        'Preset',
+        [{ value: '', text: '-- Fill from preset --' }, ...OPENAI_COMPATIBLE_PRESETS.map((preset) => ({ value: preset.id, text: preset.name }))],
+        'Fills in the base URL and a default model for a known provider'
+      ),
+      inputItem('kdl-setting-openaiBaseUrl', 'text', 'Base URL', { placeholder: 'https://api.openai.com/v1' }, 'API root; /chat/completions is appended'),
+      inputItem('kdl-setting-openaiApiKey', 'password', 'API Key', { placeholder: 'Not needed for local servers' }),
+      inputItem('kdl-setting-openaiModel', 'text', 'Model', { placeholder: 'gpt-4o-mini' })
+    ]),
     el('div', { id: 'kdl-gemini-settings', style: { display: 'none' } }, [
       inputItem('kdl-setting-geminiApiKey', 'password', 'Gemini API Key'),
-      inputItem('kdl-setting-translationModelName', 'text', 'Model Name')
+      inputItem('kdl-setting-translationModelName', 'text', 'Model Name', { placeholder: 'gemini-2.5-flash' })
     ]),
     el('div', { id: 'kdl-deepl-settings', style: { display: 'none' } }, [
       inputItem('kdl-setting-deeplApiKey', 'password', 'DeepL API Key'),
@@ -466,6 +473,12 @@ export function createSettingsModal(): void {
   });
 
   document.getElementById('kdl-setting-translationProvider')!.addEventListener('change', toggleTranslatorSettingsVisibility);
+  document.getElementById('kdl-openai-preset')!.addEventListener('change', (e) => {
+    const preset = OPENAI_COMPATIBLE_PRESETS.find((item) => item.id === (e.target as HTMLSelectElement).value);
+    if (!preset) return;
+    (document.getElementById('kdl-setting-openaiBaseUrl') as HTMLInputElement).value = preset.baseUrl;
+    (document.getElementById('kdl-setting-openaiModel') as HTMLInputElement).value = preset.model;
+  });
   document.getElementById('kdl-setting-enableDownloadRetries')!.addEventListener('change', toggleRetrySettingsVisibility);
 
   const templateSelect = document.getElementById('kdl-template-select') as HTMLSelectElement;
@@ -536,6 +549,13 @@ export function updateSettingsModalUI(): void {
 
   refreshCacheStatsUI();
 
+  // Older versions stored display names ("Russian"); options use lowercase values
+  const languageSelect = document.getElementById('kdl-setting-translationLanguage') as HTMLSelectElement | null;
+  if (languageSelect) {
+    languageSelect.value = (state.settings.translationLanguage || 'auto').toLowerCase();
+    if (!languageSelect.value) languageSelect.value = 'auto';
+  }
+
   const templateSelect = document.getElementById('kdl-template-select') as HTMLSelectElement;
   templateSelect.replaceChildren(el('option', { value: '' }, ['-- Load a saved template --']));
   if (state.settings.savedFileNameTemplates && state.settings.savedFileNameTemplates.length > 0) {
@@ -564,10 +584,16 @@ export function updateSettingsModalUI(): void {
 
 function toggleTranslatorSettingsVisibility(): void {
   const provider = (document.getElementById('kdl-setting-translationProvider') as HTMLSelectElement)?.value;
-  const geminiElem = document.getElementById('kdl-gemini-settings');
-  const deeplElem = document.getElementById('kdl-deepl-settings');
-  if (geminiElem) geminiElem.style.display = provider === 'gemini' ? 'block' : 'none';
-  if (deeplElem) deeplElem.style.display = provider === 'deepl' ? 'block' : 'none';
+  const sections: Record<string, boolean> = {
+    'kdl-free-translator-note': provider === 'google' || provider === 'yandex',
+    'kdl-openai-settings': provider === 'openai',
+    'kdl-gemini-settings': provider === 'gemini',
+    'kdl-deepl-settings': provider === 'deepl'
+  };
+  Object.entries(sections).forEach(([id, visible]) => {
+    const section = document.getElementById(id);
+    if (section) section.style.display = visible ? 'block' : 'none';
+  });
 }
 
 function toggleRetrySettingsVisibility(): void {

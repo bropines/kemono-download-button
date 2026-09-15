@@ -1,6 +1,7 @@
 import { downloadButtonStyles } from './downloadButton.styles';
 import { kuiMainStyles } from './components/kuiMain.styles';
 import { kuiPlyrStyles } from './components/kuiPlyr.styles';
+import { commentsStyles } from './components/comments.styles';
 
 export { downloadButtonStyles } from './downloadButton.styles';
 export { kuiMainStyles } from './components/kuiMain.styles';
@@ -15,4 +16,5 @@ export const CSS_STYLES = [
   KEMONO_DOWNLOADER_STYLES,
   KUI_STYLES,
   KUI_PLYR_STYLES,
+  commentsStyles,
 ].join('\n\n');

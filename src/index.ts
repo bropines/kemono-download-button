@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.40
+// @version      0.8.41
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -54,6 +54,7 @@ import { postPageModule } from './features/kui/postPageModule';
 import { fetchAndCachePostData, getPostDetailsFromPage } from './services/collectorService';
 import { applyAdBlock } from './features/adblock';
 import { toggleSettingsModal } from './ui/components/settingsModal';
+import { initializeComments } from './features/kui/comments';
 
 export function ensureStylesInjected(): void {
   if (document.getElementById('kdl-global-styles')) return;
@@ -315,6 +316,8 @@ function init(): void {
       if (window.location.href !== lastUrl || !document.querySelector('.kdl-button, #kdl-bulk-panel')) {
         runInitializationLogic();
       }
+      // Comments can render after the post (kemono SPA) or get re-rendered by the site
+      initializeComments();
     }, 300);
   });
 

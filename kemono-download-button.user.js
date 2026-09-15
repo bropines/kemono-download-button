@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.40
+// @version      0.8.41
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3254,13 +3254,126 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       display: "none!important"
     }
   });
+  const commentsStyles = css({
+    ".kui-comments-toolbar": {
+      display: "flex",
+      flexWrap: "wrap",
+      alignItems: "center",
+      gap: "8px 12px",
+      margin: "8px 0 12px"
+    },
+    ".kui-comments-count": {
+      marginRight: "auto",
+      color: THEME.colors.textMuted,
+      fontSize: "0.9em"
+    },
+    ".kui-comments-layouts, .kui-comments-nav": {
+      display: "inline-flex",
+      gap: "4px"
+    },
+    ".kui-comments-nav": {
+      display: "none"
+    },
+    ".kui-comments-toolbar--carousel .kui-comments-nav": {
+      display: "inline-flex"
+    },
+    ".kui-comments-btn": {
+      minWidth: "32px",
+      height: "30px",
+      padding: "0 8px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.md,
+      background: THEME.colors.cardBg,
+      color: THEME.colors.textMain,
+      fontSize: "15px",
+      lineHeight: 1,
+      cursor: "pointer",
+      transition: "background-color 0.2s, border-color 0.2s, color 0.2s"
+    },
+    ".kui-comments-btn:hover": {
+      background: THEME.colors.cardHoverBg
+    },
+    ".kui-comments-btn.kui-active": {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
+    },
+    ".kui-comments-limit": {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "6px",
+      color: THEME.colors.textMuted,
+      fontSize: "0.9em"
+    },
+    ".kui-comments-limit select": {
+      padding: "3px 6px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.sm,
+      background: THEME.colors.inputBg,
+      color: THEME.colors.textMain
+    },
+    ".kui-comment-hidden": {
+      display: "none !important"
+    },
+    ".post__comments.kui-comments--grid": {
+      display: "grid !important",
+      gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+      alignItems: "start",
+      gap: "10px"
+    },
+    ".post__comments.kui-comments--carousel": {
+      // Without it the row of cards reports its full width upwards and widens the whole page
+      contain: "inline-size",
+      display: "flex !important",
+      gap: "10px",
+      overflowX: "auto",
+      overscrollBehaviorX: "contain",
+      scrollSnapType: "x mandatory",
+      paddingBottom: "8px",
+      scrollbarWidth: "thin"
+    },
+    ".kui-comments--grid > .comment, .kui-comments--carousel > .comment": {
+      boxSizing: "border-box",
+      minWidth: 0,
+      margin: "0 !important",
+      padding: "10px 12px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.lg,
+      background: THEME.colors.cardBg,
+      overflowWrap: "anywhere"
+    },
+    // Replies from the post author are flat siblings marked comment--user
+    ".kui-comments--grid > .comment--user, .kui-comments--carousel > .comment--user": {
+      borderColor: THEME.colors.primary
+    },
+    ".kui-comments--carousel > .comment": {
+      flex: "0 0 min(320px, 85%)",
+      maxHeight: "320px",
+      overflowY: "auto",
+      scrollSnapAlign: "start"
+    },
+    ".kui-comments-more": {
+      display: "block",
+      margin: "12px auto 0",
+      padding: "7px 16px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.pill,
+      background: THEME.colors.cardBg,
+      color: THEME.colors.textMain,
+      cursor: "pointer",
+      transition: "background-color 0.2s"
+    },
+    ".kui-comments-more:hover": {
+      background: THEME.colors.cardHoverBg
+    }
+  });
   const KEMONO_DOWNLOADER_STYLES = downloadButtonStyles;
   const KUI_STYLES = kuiMainStyles;
   const KUI_PLYR_STYLES = kuiPlyrStyles;
   const CSS_STYLES = [
     KEMONO_DOWNLOADER_STYLES,
     KUI_STYLES,
-    KUI_PLYR_STYLES
+    KUI_PLYR_STYLES,
+    commentsStyles
   ].join("\n\n");
   const SELECTORS = {
     mainContent: "main#main",
@@ -3299,9 +3412,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     showShareButton: true,
     showTranslateButton: true,
     translationProvider: "none",
-    translationLanguage: "Russian",
+    translationLanguage: "russian",
     geminiApiKey: "",
-    translationModelName: "gemini-1.5-flash-latest",
+    translationModelName: "gemini-2.5-flash",
+    openaiBaseUrl: "https://api.openai.com/v1",
+    openaiApiKey: "",
+    openaiModel: "gpt-4o-mini",
     deeplApiKey: "",
     deeplApiTier: "free",
     maxConcurrentIndividualDownloads: 4,
@@ -3535,17 +3651,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     SESSION_KEY: "kui_session_key",
     PRELOAD_IMAGES: "kui_preload_images",
     HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
-    HIDE_ADS: "kui_hide_ads"
+    HIDE_ADS: "kui_hide_ads",
+    COMMENTS_LAYOUT: "kui_comments_layout",
+    COMMENTS_LIMIT: "kui_comments_limit"
   };
-  const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
+  const readValue$1 = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const kuiState = {
-    isDebugModeEnabled: readValue(KUI_STORAGE_KEYS.DEBUG_MODE, false),
-    isVerboseDebugEnabled: readValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
-    isPreloadEnabled: readValue(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
-    isHideEmptySectionsEnabled: readValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
+    isDebugModeEnabled: readValue$1(KUI_STORAGE_KEYS.DEBUG_MODE, false),
+    isVerboseDebugEnabled: readValue$1(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
+    isPreloadEnabled: readValue$1(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
+    isHideEmptySectionsEnabled: readValue$1(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, false),
     isPostPageModuleActive: false,
-    embedRules: readValue(KUI_STORAGE_KEYS.EMBED_RULES, {}),
-    sessionKey: readValue(KUI_STORAGE_KEYS.SESSION_KEY, "")
+    embedRules: readValue$1(KUI_STORAGE_KEYS.EMBED_RULES, {}),
+    sessionKey: readValue$1(KUI_STORAGE_KEYS.SESSION_KEY, "")
   };
   function setDebugMode(enabled) {
     kuiState.isDebugModeEnabled = enabled;
@@ -4452,6 +4570,214 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       return { count: 0, totalSizeBytes: 0 };
     }
   }
+  const TRANSLATION_LANGUAGES = [
+    { value: "auto", name: "Browser language", code: "" },
+    { value: "russian", name: "Russian", code: "ru" },
+    { value: "english", name: "English", code: "en" },
+    { value: "ukrainian", name: "Ukrainian", code: "uk" },
+    { value: "chinese", name: "Chinese (Simplified)", code: "zh-CN" },
+    { value: "chinese_traditional", name: "Chinese (Traditional)", code: "zh-TW" },
+    { value: "japanese", name: "Japanese", code: "ja" },
+    { value: "korean", name: "Korean", code: "ko" },
+    { value: "german", name: "German", code: "de" },
+    { value: "french", name: "French", code: "fr" },
+    { value: "spanish", name: "Spanish", code: "es" },
+    { value: "portuguese", name: "Portuguese", code: "pt" },
+    { value: "italian", name: "Italian", code: "it" },
+    { value: "polish", name: "Polish", code: "pl" },
+    { value: "turkish", name: "Turkish", code: "tr" },
+    { value: "vietnamese", name: "Vietnamese", code: "vi" },
+    { value: "indonesian", name: "Indonesian", code: "id" },
+    { value: "thai", name: "Thai", code: "th" },
+    { value: "arabic", name: "Arabic", code: "ar" }
+  ];
+  const OPENAI_COMPATIBLE_PRESETS = [
+    { id: "openai", name: "OpenAI", baseUrl: "https://api.openai.com/v1", model: "gpt-4o-mini" },
+    { id: "gemini", name: "Google Gemini", baseUrl: "https://generativelanguage.googleapis.com/v1beta/openai", model: "gemini-2.5-flash" },
+    { id: "openrouter", name: "OpenRouter", baseUrl: "https://openrouter.ai/api/v1", model: "google/gemini-2.5-flash" },
+    { id: "deepseek", name: "DeepSeek", baseUrl: "https://api.deepseek.com/v1", model: "deepseek-chat" },
+    { id: "groq", name: "Groq", baseUrl: "https://api.groq.com/openai/v1", model: "llama-3.3-70b-versatile" },
+    { id: "mistral", name: "Mistral", baseUrl: "https://api.mistral.ai/v1", model: "mistral-small-latest" },
+    { id: "ollama", name: "Ollama (local)", baseUrl: "http://localhost:11434/v1", model: "" },
+    { id: "lmstudio", name: "LM Studio (local)", baseUrl: "http://localhost:1234/v1", model: "" }
+  ];
+  const GOOGLE_API_URL = "https://translate-pa.googleapis.com/v1/translateHtml";
+  const GOOGLE_API_KEY = "AIzaSyATBXajvzQLTDHEQbcpq0Ihe0vWDHmO520";
+  const YANDEX_API_URL = "https://browser.translate.yandex.net/api/v1/tr.json/translate";
+  const YANDEX_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 YaBrowser/26.6.0.0 Safari/537.36";
+  const MACHINE_BATCH_CHARS = 4e3;
+  const MACHINE_BATCH_LINES = 100;
+  const LEGACY_GEMINI_MODEL = "gemini-1.5-flash-latest";
+  const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
+  const NAMED_ENTITIES = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+  function resolveLanguage(value) {
+    const normalized = (value || "").toLowerCase();
+    const known = TRANSLATION_LANGUAGES.find((lang) => lang.value === normalized && lang.code);
+    if (known) return known;
+    const browserCode = (navigator.language || "en").split("-")[0];
+    return TRANSLATION_LANGUAGES.find((lang) => lang.code.split("-")[0] === browserCode) || TRANSLATION_LANGUAGES[2];
+  }
+  function isTranslationConfigured(settings) {
+    switch (settings.translationProvider) {
+      case "google":
+      case "yandex":
+        return true;
+      case "gemini":
+        return !!settings.geminiApiKey;
+      case "deepl":
+        return !!settings.deeplApiKey;
+      case "openai":
+        return !!settings.openaiBaseUrl && !!settings.openaiModel;
+      default:
+        return false;
+    }
+  }
+  async function translateText(text, settings, signal) {
+    const language = resolveLanguage(settings.translationLanguage);
+    switch (settings.translationProvider) {
+      case "google":
+        return translateByLines(text, (lines) => translateGoogle(lines, language.code, signal));
+      case "yandex":
+        return translateByLines(text, (lines) => translateYandex(lines, language.code, signal));
+      case "deepl":
+        return translateDeepL(text, language.code, settings, signal);
+      case "gemini":
+        return translateGemini(text, language.name, settings, signal);
+      case "openai":
+        return translateOpenAiCompatible(text, language.name, settings, signal);
+      default:
+        throw new Error(`Provider ${settings.translationProvider} is not supported.`);
+    }
+  }
+  const escapeHtml$1 = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function decodeHtmlEntities(text) {
+    return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+      if (entity[0] === "#") {
+        const codePoint = entity[1].toLowerCase() === "x" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
+        return codePoint >= 0 && codePoint <= 1114111 ? String.fromCodePoint(codePoint) : match;
+      }
+      return NAMED_ENTITIES[entity.toLowerCase()] ?? match;
+    });
+  }
+  const llmInstruction = (languageName) => `You are a professional translator. Translate the text from the user into ${languageName}. Preserve line breaks, formatting, URLs, names and emoji. Reply with the translation only, without explanations or quotes.`;
+  async function translateByLines(text, translateBatch) {
+    const lines = text.split("\n");
+    const pending = lines.map((line, index) => ({ line, index })).filter(({ line }) => line.trim());
+    for (let start = 0; start < pending.length; ) {
+      let end = start;
+      let chars = 0;
+      while (end < pending.length && end - start < MACHINE_BATCH_LINES && (end === start || chars + pending[end].line.length <= MACHINE_BATCH_CHARS)) {
+        chars += pending[end].line.length;
+        end++;
+      }
+      const batch = pending.slice(start, end);
+      const translated = await translateBatch(batch.map(({ line }) => line));
+      batch.forEach(({ index }, i2) => {
+        if (translated[i2]) lines[index] = translated[i2];
+      });
+      start = end;
+    }
+    return lines.join("\n");
+  }
+  async function translateGoogle(lines, targetCode, signal) {
+    var _a2;
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "POST",
+      url: GOOGLE_API_URL,
+      signal,
+      headers: { "Content-Type": "application/json+protobuf", "X-Goog-API-Key": GOOGLE_API_KEY },
+      // translateHtml parses markup: escape the plain text going in, decode entities coming out
+      data: JSON.stringify([[lines.map(escapeHtml$1), "auto", targetCode], "wt_lib"])
+    });
+    const translations = (_a2 = JSON.parse(response.responseText)) == null ? void 0 : _a2[0];
+    if (!Array.isArray(translations)) throw new Error("Unexpected response from Google Translate");
+    return translations.map((item) => decodeHtmlEntities(String(item ?? "")));
+  }
+  async function translateYandex(lines, targetCode, signal) {
+    const lang = targetCode.split("-")[0];
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "POST",
+      url: `${YANDEX_API_URL}?srv=browser_video_translation&lang=${encodeURIComponent(lang)}`,
+      signal,
+      headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": YANDEX_USER_AGENT },
+      // Text goes in the body: long posts would exceed URL limits as query parameters
+      data: new URLSearchParams(lines.map((line) => ["text", line])).toString()
+    });
+    const data = JSON.parse(response.responseText);
+    if ((data == null ? void 0 : data.code) !== 200 || !Array.isArray(data.text)) {
+      throw new Error((data == null ? void 0 : data.message) || `Yandex Translate error ${data == null ? void 0 : data.code}`);
+    }
+    return data.text;
+  }
+  function deeplTargetCode(code) {
+    const upper = code.toUpperCase();
+    if (upper === "EN") return "EN-US";
+    if (upper === "PT") return "PT-PT";
+    if (upper.startsWith("ZH")) return upper === "ZH-TW" ? "ZH-HANT" : "ZH-HANS";
+    return upper;
+  }
+  async function translateDeepL(text, targetCode, settings, signal) {
+    var _a2, _b2, _c;
+    if (!settings.deeplApiKey) throw new Error("DeepL API key is missing in settings.");
+    const baseUrl = settings.deeplApiTier === "pro" ? "https://api.deepl.com" : "https://api-free.deepl.com";
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "POST",
+      url: `${baseUrl}/v2/translate`,
+      signal,
+      headers: { Authorization: `DeepL-Auth-Key ${settings.deeplApiKey}`, "Content-Type": "application/json" },
+      data: JSON.stringify({ text: [text], target_lang: deeplTargetCode(targetCode) }),
+      responseType: "json"
+    });
+    const output = (_c = (_b2 = (_a2 = response.response) == null ? void 0 : _a2.translations) == null ? void 0 : _b2[0]) == null ? void 0 : _c.text;
+    if (!output) throw new Error("Invalid response structure from DeepL API");
+    return output.trim();
+  }
+  async function translateGemini(text, languageName, settings, signal) {
+    var _a2, _b2, _c, _d, _e, _f;
+    if (!settings.geminiApiKey) throw new Error("Gemini API key is missing in settings.");
+    const storedModel = (_a2 = settings.translationModelName) == null ? void 0 : _a2.trim();
+    const model = !storedModel || storedModel === LEGACY_GEMINI_MODEL ? DEFAULT_GEMINI_MODEL : storedModel;
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "POST",
+      url: `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
+      signal,
+      headers: { "Content-Type": "application/json", "x-goog-api-key": settings.geminiApiKey },
+      data: JSON.stringify({
+        systemInstruction: { parts: [{ text: llmInstruction(languageName) }] },
+        contents: [{ role: "user", parts: [{ text }] }]
+      }),
+      responseType: "json"
+    });
+    const output = (_f = (_e = (_d = (_c = (_b2 = response.response) == null ? void 0 : _b2.candidates) == null ? void 0 : _c[0]) == null ? void 0 : _d.content) == null ? void 0 : _e.parts) == null ? void 0 : _f.map((part) => part.text || "").join("");
+    if (!output) throw new Error("Invalid response structure from Gemini API");
+    return output.trim();
+  }
+  async function translateOpenAiCompatible(text, languageName, settings, signal) {
+    var _a2, _b2, _c, _d;
+    const baseUrl = (settings.openaiBaseUrl || "").trim().replace(/\/+$/, "");
+    if (!baseUrl) throw new Error("OpenAI-compatible base URL is missing in settings.");
+    if (!settings.openaiModel) throw new Error("Model name is missing in settings.");
+    const headers = { "Content-Type": "application/json" };
+    if (settings.openaiApiKey) headers.Authorization = `Bearer ${settings.openaiApiKey}`;
+    const response = await gmXmlhttpRequestWithRetries({
+      method: "POST",
+      url: `${baseUrl}/chat/completions`,
+      signal,
+      headers,
+      data: JSON.stringify({
+        model: settings.openaiModel,
+        temperature: 0.2,
+        messages: [
+          { role: "system", content: llmInstruction(languageName) },
+          { role: "user", content: text }
+        ]
+      }),
+      responseType: "json"
+    });
+    const output = (_d = (_c = (_b2 = (_a2 = response.response) == null ? void 0 : _a2.choices) == null ? void 0 : _b2[0]) == null ? void 0 : _c.message) == null ? void 0 : _d.content;
+    if (typeof output !== "string" || !output.trim()) throw new Error("Invalid response from the OpenAI-compatible API");
+    return output.replace(/^\s*<think>[\s\S]*?<\/think>/i, "").trim();
+  }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
   function tooltipSpan(text) {
@@ -4646,15 +4972,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   function createSettingsModal() {
     if (settingsModalElement) return;
-    const langCodeMap = {
-      auto: "Auto",
-      russian: "Russian",
-      english: "English",
-      chinese: "Chinese",
-      japanese: "Japanese",
-      korean: "Korean"
-    };
-    const langOptions = Object.entries(langCodeMap).map(([value, text]) => ({ value, text }));
+    const langOptions = TRANSLATION_LANGUAGES.map(({ value, name }) => ({ value, text: name }));
     settingsOverlayElement = el("div", { id: "kdl-settings-overlay" });
     settingsModalElement = el("div", { id: "kdl-settings-modal" });
     const generalCard = cardContainer("⚙️ General & Cache", [
@@ -4739,17 +5057,32 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         "Translation Provider",
         [
           { value: "none", text: "None" },
-          { value: "gemini", text: "Gemini AI" },
-          { value: "deepl", text: "DeepL" },
-          { value: "yandex", text: "Yandex (Free)" },
-          { value: "google", text: "Google (Free)" }
+          { value: "google", text: "Google Translate (free, no key)" },
+          { value: "yandex", text: "Yandex Translate (free, no key)" },
+          { value: "openai", text: "OpenAI-compatible LLM (GPT, Gemini, OpenRouter, local…)" },
+          { value: "gemini", text: "Gemini AI (native API)" },
+          { value: "deepl", text: "DeepL" }
         ],
         "Service for automated translation of post titles and text content"
       ),
       selectItem("kdl-setting-translationLanguage", "Target Language", langOptions),
+      el("small", { id: "kdl-free-translator-note", style: { display: "none" } }, [
+        "No API key needed: uses the public web translator endpoint, which may rate-limit very heavy use."
+      ]),
+      el("div", { id: "kdl-openai-settings", style: { display: "none" } }, [
+        selectItem(
+          "kdl-openai-preset",
+          "Preset",
+          [{ value: "", text: "-- Fill from preset --" }, ...OPENAI_COMPATIBLE_PRESETS.map((preset) => ({ value: preset.id, text: preset.name }))],
+          "Fills in the base URL and a default model for a known provider"
+        ),
+        inputItem("kdl-setting-openaiBaseUrl", "text", "Base URL", { placeholder: "https://api.openai.com/v1" }, "API root; /chat/completions is appended"),
+        inputItem("kdl-setting-openaiApiKey", "password", "API Key", { placeholder: "Not needed for local servers" }),
+        inputItem("kdl-setting-openaiModel", "text", "Model", { placeholder: "gpt-4o-mini" })
+      ]),
       el("div", { id: "kdl-gemini-settings", style: { display: "none" } }, [
         inputItem("kdl-setting-geminiApiKey", "password", "Gemini API Key"),
-        inputItem("kdl-setting-translationModelName", "text", "Model Name")
+        inputItem("kdl-setting-translationModelName", "text", "Model Name", { placeholder: "gemini-2.5-flash" })
       ]),
       el("div", { id: "kdl-deepl-settings", style: { display: "none" } }, [
         inputItem("kdl-setting-deeplApiKey", "password", "DeepL API Key"),
@@ -4843,6 +5176,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       document.getElementById("kdl-bulk-multiple-settings").style.display = isSingleMode ? "none" : "block";
     });
     document.getElementById("kdl-setting-translationProvider").addEventListener("change", toggleTranslatorSettingsVisibility);
+    document.getElementById("kdl-openai-preset").addEventListener("change", (e) => {
+      const preset = OPENAI_COMPATIBLE_PRESETS.find((item) => item.id === e.target.value);
+      if (!preset) return;
+      document.getElementById("kdl-setting-openaiBaseUrl").value = preset.baseUrl;
+      document.getElementById("kdl-setting-openaiModel").value = preset.model;
+    });
     document.getElementById("kdl-setting-enableDownloadRetries").addEventListener("change", toggleRetrySettingsVisibility);
     const templateSelect = document.getElementById("kdl-template-select");
     const templateNameInput = document.getElementById("kdl-template-name-input");
@@ -4902,6 +5241,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
     }
     refreshCacheStatsUI();
+    const languageSelect = document.getElementById("kdl-setting-translationLanguage");
+    if (languageSelect) {
+      languageSelect.value = (state.settings.translationLanguage || "auto").toLowerCase();
+      if (!languageSelect.value) languageSelect.value = "auto";
+    }
     const templateSelect = document.getElementById("kdl-template-select");
     templateSelect.replaceChildren(el("option", { value: "" }, ["-- Load a saved template --"]));
     if (state.settings.savedFileNameTemplates && state.settings.savedFileNameTemplates.length > 0) {
@@ -4927,10 +5271,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   function toggleTranslatorSettingsVisibility() {
     var _a2;
     const provider = (_a2 = document.getElementById("kdl-setting-translationProvider")) == null ? void 0 : _a2.value;
-    const geminiElem = document.getElementById("kdl-gemini-settings");
-    const deeplElem = document.getElementById("kdl-deepl-settings");
-    if (geminiElem) geminiElem.style.display = provider === "gemini" ? "block" : "none";
-    if (deeplElem) deeplElem.style.display = provider === "deepl" ? "block" : "none";
+    const sections = {
+      "kdl-free-translator-note": provider === "google" || provider === "yandex",
+      "kdl-openai-settings": provider === "openai",
+      "kdl-gemini-settings": provider === "gemini",
+      "kdl-deepl-settings": provider === "deepl"
+    };
+    Object.entries(sections).forEach(([id, visible]) => {
+      const section = document.getElementById(id);
+      if (section) section.style.display = visible ? "block" : "none";
+    });
   }
   function toggleRetrySettingsVisibility() {
     var _a2;
@@ -6997,8 +7347,9 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         showMessage("No text content found to translate.", "info");
         return;
       }
-      if (appState.translationCache[originalText]) {
-        postContentNode.innerText = appState.translationCache[originalText];
+      const cacheKey = `${provider}:${state.settings.translationLanguage}:${originalText}`;
+      if (appState.translationCache[cacheKey]) {
+        postContentNode.innerText = appState.translationCache[cacheKey];
         button.dataset.isTranslated = "true";
         button.textContent = "Show Original ↩️";
         return;
@@ -7006,16 +7357,9 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       button.textContent = "Translating... ⏳";
       button.disabled = true;
       try {
-        let translatedText = "";
-        if (provider === "gemini") {
-          translatedText = await executeGeminiTranslation(originalText);
-        } else if (provider === "deepl") {
-          translatedText = await executeDeepLTranslation(originalText);
-        } else {
-          throw new Error(`Provider ${provider} is not supported yet.`);
-        }
+        const translatedText = await translateText(originalText, state.settings);
         if (translatedText) {
-          appState.translationCache[originalText] = translatedText;
+          appState.translationCache[cacheKey] = translatedText;
           postContentNode.innerText = translatedText;
           button.dataset.isTranslated = "true";
           button.textContent = "Show Original ↩️";
@@ -7023,58 +7367,13 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       } catch (error) {
         console.error("Translation error:", error);
         showMessage(`Translation failed: ${error.message}`, "error");
+        button.textContent = "Translate 📝";
       } finally {
         button.disabled = false;
       }
     } finally {
       if (embedContainer) postContentNode.prepend(embedContainer);
     }
-  }
-  async function executeGeminiTranslation(text) {
-    var _a2, _b2, _c, _d, _e;
-    const apiKey = state.settings.geminiApiKey;
-    if (!apiKey) throw new Error("Gemini API key is missing in settings.");
-    const model = state.settings.translationModelName || "gemini-1.5-flash-latest";
-    const targetLang = state.settings.translationLanguage || "Russian";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    const prompt = `Translate the following content into ${targetLang}. Preserve line breaks and formatting. Do not add conversational commentary:
-
-${text}`;
-    const response = await gmXmlhttpRequestWithRetries({
-      method: "POST",
-      url,
-      headers: { "Content-Type": "application/json" },
-      data: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-      responseType: "json"
-    });
-    const candidates = (_a2 = response.response) == null ? void 0 : _a2.candidates;
-    if (candidates && ((_e = (_d = (_c = (_b2 = candidates[0]) == null ? void 0 : _b2.content) == null ? void 0 : _c.parts) == null ? void 0 : _d[0]) == null ? void 0 : _e.text)) {
-      return candidates[0].content.parts[0].text.trim();
-    }
-    throw new Error("Invalid response structure from Gemini API");
-  }
-  async function executeDeepLTranslation(text) {
-    var _a2, _b2;
-    const apiKey = state.settings.deeplApiKey;
-    if (!apiKey) throw new Error("DeepL API key is missing in settings.");
-    const tier = state.settings.deeplApiTier || "free";
-    const baseUrl = tier === "pro" ? "https://api.deepl.com" : "https://api-free.deepl.com";
-    const targetLang = (state.settings.translationLanguage || "RU").substring(0, 2).toUpperCase();
-    const response = await gmXmlhttpRequestWithRetries({
-      method: "POST",
-      url: `${baseUrl}/v2/translate`,
-      headers: {
-        Authorization: `DeepL-Auth-Key ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      data: JSON.stringify({ text: [text], target_lang: targetLang }),
-      responseType: "json"
-    });
-    const translations = (_a2 = response.response) == null ? void 0 : _a2.translations;
-    if (translations && ((_b2 = translations[0]) == null ? void 0 : _b2.text)) {
-      return translations[0].text.trim();
-    }
-    throw new Error("Invalid response structure from DeepL API");
   }
   async function createAndInsertPostPageButtons(container, referenceElement) {
     await getSettings();
@@ -7120,7 +7419,7 @@ ${text}`;
         )
       );
     }
-    if (state.settings.showTranslateButton && state.settings.translationProvider !== "none" && (state.settings.geminiApiKey || state.settings.deeplApiKey)) {
+    if (state.settings.showTranslateButton && isTranslationConfigured(state.settings)) {
       toolsCol.appendChild(createButton("📝 Translate", "Translate", "linear-gradient(135deg, #6366f1, #4f46e5)", (e) => executeTranslation(e.target)));
     }
     if (state.settings.showImagesButton) {
@@ -8859,6 +9158,139 @@ Password: ${password} (copied on click)`;
     });
     fluidGuard.observe(playerContainer, { childList: true, subtree: true });
   }
+  const LAYOUTS = [
+    { id: "list", icon: "☰", title: "List" },
+    { id: "grid", icon: "▦", title: "Grid" },
+    { id: "carousel", icon: "⇆", title: "Carousel" }
+  ];
+  const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
+  const LIMIT_OPTIONS = [10, 20, 50, 100, 0];
+  const DEFAULT_LAYOUT = "grid";
+  const DEFAULT_LIMIT = 20;
+  const revealedCounts = /* @__PURE__ */ new WeakMap();
+  let delegatedListenersBound = false;
+  const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
+  const saveValue = (key, value) => {
+    if (typeof GM_setValue === "function") GM_setValue(key, value);
+  };
+  function readLayout() {
+    const value = readValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
+    return LAYOUTS.some(({ id }) => id === value) ? value : DEFAULT_LAYOUT;
+  }
+  function readLimit() {
+    const value = Number(readValue(KUI_STORAGE_KEYS.COMMENTS_LIMIT, DEFAULT_LIMIT));
+    return LIMIT_OPTIONS.includes(value) ? value : DEFAULT_LIMIT;
+  }
+  function getComments(container) {
+    return Array.from(container.children).filter((child) => child.classList.contains("comment"));
+  }
+  function findCommentsParts(node) {
+    const footer = node.closest(SELECTORS.postComments);
+    const container = footer == null ? void 0 : footer.querySelector(".post__comments");
+    const toolbar = footer == null ? void 0 : footer.querySelector(".kui-comments-toolbar");
+    return container && toolbar ? { container, toolbar } : null;
+  }
+  function buildToolbar() {
+    return el("div", { className: "kui-comments-toolbar" }, [
+      el("span", { className: "kui-comments-count" }),
+      el("div", { className: "kui-comments-layouts" }, LAYOUTS.map(
+        ({ id, icon, title }) => el("button", { type: "button", className: "kui-comments-btn", title, dataset: { kuiCommentsLayout: id } }, [icon])
+      )),
+      el("label", { className: "kui-comments-limit" }, [
+        "Show",
+        el("select", { dataset: { kuiCommentsLimit: "true" } }, LIMIT_OPTIONS.map(
+          (limit) => el("option", { value: String(limit) }, [limit === 0 ? "All" : String(limit)])
+        ))
+      ]),
+      el("div", { className: "kui-comments-nav" }, [
+        el("button", { type: "button", className: "kui-comments-btn", title: "Previous", dataset: { kuiCommentsScroll: "-1" } }, ["‹"]),
+        el("button", { type: "button", className: "kui-comments-btn", title: "Next", dataset: { kuiCommentsScroll: "1" } }, ["›"])
+      ])
+    ]);
+  }
+  function applyCommentsView(container, toolbar) {
+    const comments = getComments(container);
+    const layout = readLayout();
+    const limit = readLimit();
+    const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
+    container.classList.remove(...LAYOUT_CLASSES);
+    container.classList.add(`kui-comments--${layout}`);
+    comments.forEach((comment, index) => comment.classList.toggle("kui-comment-hidden", index >= visibleCount));
+    const count = toolbar.querySelector(".kui-comments-count");
+    if (count) {
+      count.textContent = visibleCount < comments.length ? `Showing ${visibleCount} of ${comments.length}` : `${comments.length} comment${comments.length === 1 ? "" : "s"}`;
+    }
+    toolbar.querySelectorAll("[data-kui-comments-layout]").forEach((button) => {
+      button.classList.toggle("kui-active", button.dataset.kuiCommentsLayout === layout);
+    });
+    const limitSelect = toolbar.querySelector("[data-kui-comments-limit]");
+    if (limitSelect) limitSelect.value = String(limit);
+    toolbar.classList.toggle("kui-comments-toolbar--carousel", layout === "carousel");
+    const next = container.nextElementSibling;
+    let moreButton = (next == null ? void 0 : next.classList.contains("kui-comments-more")) ? next : null;
+    const remaining = comments.length - visibleCount;
+    if (remaining > 0) {
+      if (!moreButton) {
+        moreButton = el("button", { type: "button", className: "kui-comments-more", dataset: { kuiCommentsMore: "true" } });
+        container.after(moreButton);
+      }
+      moreButton.textContent = `Show ${Math.min(limit, remaining)} more (${remaining} left)`;
+    } else {
+      moreButton == null ? void 0 : moreButton.remove();
+    }
+  }
+  function bindDelegatedListeners() {
+    if (delegatedListenersBound) return;
+    delegatedListenersBound = true;
+    document.addEventListener("click", (event) => {
+      var _a2;
+      const control = (_a2 = event.target) == null ? void 0 : _a2.closest(
+        "[data-kui-comments-layout], [data-kui-comments-scroll], [data-kui-comments-more]"
+      );
+      const parts = control && findCommentsParts(control);
+      if (!control || !parts) return;
+      event.preventDefault();
+      const { container, toolbar } = parts;
+      if (control.dataset.kuiCommentsScroll) {
+        container.scrollBy({ left: Number(control.dataset.kuiCommentsScroll) * container.clientWidth * 0.9, behavior: "smooth" });
+        return;
+      }
+      if (control.dataset.kuiCommentsLayout) {
+        saveValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
+        container.scrollLeft = 0;
+      } else {
+        const shown = getComments(container).filter((comment) => !comment.classList.contains("kui-comment-hidden")).length;
+        revealedCounts.set(container, shown + readLimit());
+      }
+      applyCommentsView(container, toolbar);
+    });
+    document.addEventListener("change", (event) => {
+      var _a2;
+      const select = (_a2 = event.target) == null ? void 0 : _a2.closest("[data-kui-comments-limit]");
+      const parts = select && findCommentsParts(select);
+      if (!select || !parts) return;
+      saveValue(KUI_STORAGE_KEYS.COMMENTS_LIMIT, Number(select.value));
+      revealedCounts.delete(parts.container);
+      applyCommentsView(parts.container, parts.toolbar);
+    });
+  }
+  function initializeComments() {
+    const container = document.querySelector(`${SELECTORS.postComments} .post__comments`);
+    if (!container || getComments(container).length === 0) return;
+    bindDelegatedListeners();
+    const footer = container.closest(SELECTORS.postComments);
+    let toolbar = footer.querySelector(".kui-comments-toolbar");
+    if (!toolbar) {
+      toolbar = buildToolbar();
+      container.before(toolbar);
+    }
+    applyCommentsView(container, toolbar);
+  }
+  function removeCommentsLayout() {
+    document.querySelectorAll(".kui-comments-toolbar, .kui-comments-more").forEach((node) => node.remove());
+    document.querySelectorAll(".post__comments").forEach((container) => container.classList.remove(...LAYOUT_CLASSES));
+    document.querySelectorAll(".kui-comment-hidden").forEach((comment) => comment.classList.remove("kui-comment-hidden"));
+  }
   const postPageModule = {
     originalContentHTML: null,
     init() {
@@ -8870,6 +9302,7 @@ Password: ${password} (copied on click)`;
       restructureLayout(processEmbeds);
       initializeImageGallery();
       initializeVideoGallery();
+      initializeComments();
       document.addEventListener("keydown", this.handleGlobalKeys, true);
       kuiState.isPostPageModuleActive = true;
     },
@@ -8877,6 +9310,7 @@ Password: ${password} (copied on click)`;
       document.removeEventListener("keydown", this.handleGlobalKeys, true);
       destroyVideoGallery();
       lightboxModule.close();
+      removeCommentsLayout();
       document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el2) => el2.remove());
       document.querySelectorAll(".kui-post-section").forEach((section) => {
         const parent = section.parentNode;
@@ -9510,6 +9944,7 @@ Password: ${password} (copied on click)`;
         if (window.location.href !== lastUrl || !document.querySelector(".kdl-button, #kdl-bulk-panel")) {
           runInitializationLogic();
         }
+        initializeComments();
       }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });

@@ -7,5 +7,7 @@ export const KUI_STORAGE_KEYS = {
   SESSION_KEY: "kui_session_key",
   PRELOAD_IMAGES: "kui_preload_images",
   HIDE_EMPTY_SECTIONS: "kui_hide_empty_sections",
-  HIDE_ADS: "kui_hide_ads"
+  HIDE_ADS: "kui_hide_ads",
+  COMMENTS_LAYOUT: "kui_comments_layout",
+  COMMENTS_LIMIT: "kui_comments_limit"
 };

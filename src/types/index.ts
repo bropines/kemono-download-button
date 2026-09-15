@@ -18,10 +18,13 @@ export interface DownloaderSettings {
   showCopyLinksButton: boolean;
   showShareButton: boolean;
   showTranslateButton: boolean;
-  translationProvider: 'none' | 'gemini' | 'deepl' | 'yandex' | 'google';
+  translationProvider: 'none' | 'gemini' | 'openai' | 'deepl' | 'yandex' | 'google';
   translationLanguage: string;
   geminiApiKey: string;
   translationModelName: string;
+  openaiBaseUrl: string;
+  openaiApiKey: string;
+  openaiModel: string;
   deeplApiKey: string;
   deeplApiTier: 'free' | 'pro';
   maxConcurrentIndividualDownloads: number;

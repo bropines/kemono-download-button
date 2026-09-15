@@ -3,6 +3,7 @@ import { executeIndividualDownload, executeZipDownload } from '../../services/do
 import { executeLinkAction } from '../../services/linkService';
 import { addTaskToQueue } from '../../services/queueService';
 import { executeTranslation } from '../../services/translationService';
+import { isTranslationConfigured } from '../../services/translators';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
 
@@ -59,11 +60,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
     );
   }
 
-  if (
-    state.settings.showTranslateButton &&
-    state.settings.translationProvider !== 'none' &&
-    (state.settings.geminiApiKey || state.settings.deeplApiKey)
-  ) {
+  if (state.settings.showTranslateButton && isTranslationConfigured(state.settings)) {
     toolsCol.appendChild(createButton('📝 Translate', 'Translate', 'linear-gradient(135deg, #6366f1, #4f46e5)', (e) => executeTranslation(e.target as HTMLElement)));
   }
 
