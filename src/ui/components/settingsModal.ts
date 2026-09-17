@@ -379,7 +379,41 @@ export function createSettingsModal(): void {
     ])
   ]);
 
-  // 5. Visible Buttons Card
+  // 5. Image Translation Card
+  const imageTranslationCard = cardContainer('image', 'Image Translation (Google Lens)', [
+    checkboxItem(
+      'kdl-setting-showImageTranslateButton',
+      'Show the button on post images',
+      'Translates the text drawn inside an image, in the gallery and in the lightbox. Needs no key; uses the target language above'
+    ),
+    checkboxItem(
+      'kdl-setting-imageTranslateManga',
+      'Manga mode',
+      'Reflows vertical Japanese into lines, wipes the speech bubble instead of patching each line, and raises the text size floor'
+    ),
+    selectItem(
+      'kdl-setting-imageTranslateErase',
+      'Erase the original text with',
+      [
+        { value: 'patch', text: 'Lens patches (what Chrome does)' },
+        { value: 'hull', text: 'Flat cover (cleaner inside bubbles)' }
+      ],
+      "Lens's patches keep the faded edges of the original letters; a flat cover wipes them, but only looks right where the background is one colour"
+    ),
+    inputItem('kdl-setting-imageTranslateMinPx', 'number', 'Minimum text size (px)', { min: 0, step: 1 }, 'Lens fits text to the original line, which on a large page can be a few pixels on screen. 0 turns the floor off'),
+    selectItem(
+      'kdl-setting-imageTranslateSharpness',
+      'Render sharpness',
+      [
+        { value: '1', text: '1x' },
+        { value: '2', text: '2x' },
+        { value: '3', text: '3x' }
+      ],
+      'Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp'
+    )
+  ]);
+
+  // 6. Visible Buttons Card
   const visibleButtonsCard = cardContainer('eye', 'Visible Buttons', [
     el('div', { className: 'kdl-setting-checkbox-grid' }, [
       checkboxItem('kdl-setting-showZipButton', 'ZIP Download'),
@@ -394,7 +428,7 @@ export function createSettingsModal(): void {
   // 3 Columns & Content Grid
   const col1 = el('div', { className: 'kdl-settings-col' }, [generalCard, templatesCard]);
   const col2 = el('div', { className: 'kdl-settings-col' }, [zipCard]);
-  const col3 = el('div', { className: 'kdl-settings-col' }, [translationCard, visibleButtonsCard]);
+  const col3 = el('div', { className: 'kdl-settings-col' }, [translationCard, imageTranslationCard, visibleButtonsCard]);
   const grid = el('div', { className: 'kdl-settings-grid' }, [col1, col2, col3]);
 
   const modalContent = el('div', { id: 'kdl-settings-modal-content' }, [

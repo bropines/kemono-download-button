@@ -1,7 +1,11 @@
 import { ICONS, iconSvg } from '../../config/icons';
+import { state } from '../../state/store';
+import { translateImage } from '../../services/lensImages';
+import { showMessage } from '../../ui/toast';
 
 export const lightboxModule = {
   isActive: false,
+  isTranslated: false,
   imageLinks: [] as HTMLAnchorElement[],
   currentIndex: 0,
   zoom: 1,
@@ -24,8 +28,12 @@ export const lightboxModule = {
   open(links: HTMLAnchorElement[], index: number) {
     if (this.isActive) return;
     this.isActive = true;
+    this.isTranslated = false;
     this.imageLinks = links;
     this.currentIndex = index;
+    const translateButton = state.settings.showImageTranslateButton
+      ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg('languages')}</button>`
+      : '';
     const lightboxHTML = `
       <div id="kui-lightbox" class="kui-active">
           <div class="kui-lightbox-top-actions">
@@ -34,6 +42,7 @@ export const lightboxModule = {
               <a id="kui-lightbox-lens-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" title="Search with Google Lens">
                   ${ICONS.LENS}
               </a>
+              ${translateButton}
               <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
           </div>
           <button class="kui-lightbox-nav prev" title="Previous (←)">${iconSvg('chevron-left')}</button>
@@ -71,6 +80,9 @@ export const lightboxModule = {
     const lensBtn = document.getElementById("kui-lightbox-lens-btn") as HTMLAnchorElement | null;
     if (downloadBtn) downloadBtn.href = originalPath;
     if (lensBtn) lensBtn.href = lensLink;
+    // Another image, so whatever was translated is no longer on screen
+    this.isTranslated = false;
+    document.getElementById("kui-lightbox-translate-btn")?.classList.remove("kui-active");
 
     this.resetPanZoom();
     this.canvas.style.opacity = "0.5";
@@ -122,6 +134,38 @@ export const lightboxModule = {
     document.querySelector(".kui-lightbox-nav.prev")?.addEventListener("click", () => this.navigate(-1));
     document.querySelector(".kui-lightbox-nav.next")?.addEventListener("click", () => this.navigate(1));
     document.getElementById("kui-lightbox-copy-btn")?.addEventListener("click", this.handleCopyLink.bind(this));
+    document.getElementById("kui-lightbox-translate-btn")?.addEventListener("click", this.handleTranslate.bind(this));
+  },
+  async handleTranslate() {
+    const btn = document.getElementById("kui-lightbox-translate-btn") as HTMLButtonElement | null;
+    const currentLink = this.imageLinks[this.currentIndex];
+    if (!btn || btn.disabled || !currentLink) return;
+    const originalPath = currentLink.dataset.originalPath || currentLink.href;
+
+    if (this.isTranslated) {
+      this.isTranslated = false;
+      btn.classList.remove("kui-active");
+      this.image.src = originalPath;
+      return;
+    }
+
+    const icon = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
+    try {
+      // What the result will be shown at: it decides whether Lens's own text size is legible
+      const displayedWidth = document.getElementById("kui-lightbox-img-container")?.clientWidth || window.innerWidth;
+      const translated = await translateImage(originalPath, displayedWidth);
+      if (!this.isActive) return;
+      this.image.src = translated;
+      this.isTranslated = true;
+      btn.classList.add("kui-active");
+    } catch (e) {
+      showMessage(`Lens: ${(e as Error).message}`, 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = icon;
+    }
   },
   removeEventListeners() {
     if (this.boundHandleKeydown) {

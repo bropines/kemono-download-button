@@ -282,6 +282,19 @@ export const kuiMainStyles = css({
     WebkitMaskImage: iconMaskUrl('panel-left-open'),
     maskImage: iconMaskUrl('panel-left-open'),
   },
+  '.kui-gallery-preview-actions': {
+    position: 'absolute',
+    top: '10px',
+    left: '10px',
+    zIndex: 10,
+    display: 'flex',
+    gap: '6px',
+  },
+  // A translated image is showing, in the gallery and in the lightbox alike
+  '.kui-action-btn.kui-active': {
+    borderColor: THEME.colors.primary,
+    color: THEME.colors.primary,
+  },
   '.kui-thumb-wrapper': {
     position: 'relative',
   },

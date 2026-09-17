@@ -1,6 +1,9 @@
 import { SELECTORS } from '../../config/selectors';
-import { ICONS } from '../../config/icons';
+import { ICONS, iconSvg } from '../../config/icons';
 import { kuiState } from '../../state/kuiState';
+import { state } from '../../state/store';
+import { translateImage } from '../../services/lensImages';
+import { showMessage } from '../../ui/toast';
 import { fetchPostFileData } from './api';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
@@ -52,6 +55,20 @@ export async function initializeImageGallery(): Promise<void> {
     thumbToggle.addEventListener("click", () => thumbList.classList.toggle("kui-collapsed"));
     previewContainer.appendChild(previewImage);
     previewContainer.appendChild(thumbToggle);
+
+    // Lens renderings, per image index: an image translated once toggles back instantly
+    const translatedByIndex = new Map<number, string>();
+    let translateBtn: HTMLButtonElement | null = null;
+    if (state.settings.showImageTranslateButton) {
+      translateBtn = document.createElement("button");
+      translateBtn.className = "kui-action-btn";
+      translateBtn.title = "Translate the text in this image";
+      translateBtn.innerHTML = iconSvg('languages');
+      const previewActions = document.createElement("div");
+      previewActions.className = "kui-gallery-preview-actions";
+      previewActions.appendChild(translateBtn);
+      previewContainer.appendChild(previewActions);
+    }
     galleryLayout.appendChild(thumbList);
     galleryLayout.appendChild(previewContainer);
 
@@ -68,16 +85,48 @@ export async function initializeImageGallery(): Promise<void> {
       if (!activeThumbLink || !originalPageLink) return;
       const imgEl = originalPageLink.querySelector<HTMLImageElement>("img");
       if (!imgEl) return;
-      const previewSrc = imgEl.src;
+      const previewSrc = translatedByIndex.get(currentIndex) || imgEl.src;
       if (previewImage.src !== previewSrc) {
         previewImage.src = previewSrc;
       }
+      translateBtn?.classList.toggle("kui-active", translatedByIndex.has(currentIndex));
       thumbLinks.forEach((link) => link.classList.remove("kui-thumb-active"));
       activeThumbLink.classList.add("kui-thumb-active");
       activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
     };
 
     galleryLayout.navigate = (direction: number) => setActive(currentIndex + direction);
+
+    translateBtn?.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const btn = translateBtn!;
+      if (btn.disabled) return;
+      // Dropping the rendering shows the original again; translating it back is a cache hit
+      if (translatedByIndex.delete(currentIndex)) {
+        setActive(currentIndex);
+        return;
+      }
+      const link = imageLinks[currentIndex];
+      if (!link) return;
+      const index = currentIndex;
+      const buttonIcon = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
+      try {
+        // The original, not the thumbnail: Lens reads small text badly
+        const translated = await translateImage(
+          link.dataset.originalPath || link.href,
+          previewImage.clientWidth || previewImage.naturalWidth
+        );
+        translatedByIndex.set(index, translated);
+        if (index === currentIndex) setActive(index);
+      } catch (error) {
+        showMessage(`Lens: ${(error as Error).message}`, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = buttonIcon;
+      }
+    });
 
     let touchStartX = 0;
     previewImage.addEventListener("touchstart", (e) => {

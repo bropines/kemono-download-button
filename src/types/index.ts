@@ -18,6 +18,11 @@ export interface DownloaderSettings {
   showCopyLinksButton: boolean;
   showShareButton: boolean;
   showTranslateButton: boolean;
+  showImageTranslateButton: boolean;
+  imageTranslateManga: boolean;
+  imageTranslateErase: 'patch' | 'hull';
+  imageTranslateMinPx: number;
+  imageTranslateSharpness: number;
   translationProvider: 'none' | 'gemini' | 'openai' | 'deepl' | 'yandex' | 'google';
   translationLanguage: string;
   geminiApiKey: string;
@@ -148,7 +153,16 @@ declare global {
   function GM_setValue<T>(key: string, value: T): void;
   function GM_registerMenuCommand(name: string, fn: () => void): void;
   function GM_setClipboard(text: string): void;
-  function GM_xmlhttpRequest(details: any): any;
+  // The callbacks are typed so handlers written inline get a response rather than an implicit any
+  function GM_xmlhttpRequest(details: {
+    onload?: (response: any) => void;
+    onerror?: (response: any) => void;
+    ontimeout?: (response?: any) => void;
+    onprogress?: (event: any) => void;
+    onreadystatechange?: (response: any) => void;
+    onabort?: (response?: any) => void;
+    [option: string]: any;
+  }): any;
 
   class Plyr {
     constructor(targets: HTMLElement | string, options?: Record<string, any>);

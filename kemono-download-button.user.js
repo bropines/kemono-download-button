@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.46
+// @version      0.8.47
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1867,6 +1867,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       WebkitMaskImage: iconMaskUrl("panel-left-open"),
       maskImage: iconMaskUrl("panel-left-open")
     },
+    ".kui-gallery-preview-actions": {
+      position: "absolute",
+      top: "10px",
+      left: "10px",
+      zIndex: 10,
+      display: "flex",
+      gap: "6px"
+    },
+    // A translated image is showing, in the gallery and in the lightbox alike
+    ".kui-action-btn.kui-active": {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
+    },
     ".kui-thumb-wrapper": {
       position: "relative"
     },
@@ -3648,6 +3661,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     showCopyLinksButton: true,
     showShareButton: true,
     showTranslateButton: true,
+    showImageTranslateButton: true,
+    imageTranslateManga: false,
+    imageTranslateErase: "patch",
+    imageTranslateMinPx: 12,
+    imageTranslateSharpness: 2,
     translationProvider: "none",
     translationLanguage: "russian",
     geminiApiKey: "",
@@ -4639,30 +4657,30 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   function readFileMeta(db) {
     return new Promise((resolve) => {
-      const entries = [];
+      const entries2 = [];
       const request = db.transaction(STORE_FILE_META, "readonly").objectStore(STORE_FILE_META).index("timestamp").openCursor();
       request.onsuccess = () => {
         const cursor = request.result;
         if (cursor) {
-          entries.push(cursor.value);
+          entries2.push(cursor.value);
           cursor.continue();
         } else {
-          resolve(entries);
+          resolve(entries2);
         }
       };
-      request.onerror = () => resolve(entries);
+      request.onerror = () => resolve(entries2);
     });
   }
   async function evictOldFiles() {
     try {
       const db = await getDB();
-      const entries = await readFileMeta(db);
-      let totalBytes = entries.reduce((sum, entry) => sum + entry.size, 0);
+      const entries2 = await readFileMeta(db);
+      let totalBytes2 = entries2.reduce((sum, entry) => sum + entry.size, 0);
       const evicted = [];
-      for (const entry of entries) {
-        if (totalBytes <= MAX_FILE_CACHE_BYTES) break;
+      for (const entry of entries2) {
+        if (totalBytes2 <= MAX_FILE_CACHE_BYTES) break;
         evicted.push(entry.url);
-        totalBytes -= entry.size;
+        totalBytes2 -= entry.size;
       }
       if (evicted.length === 0) return;
       const tx = db.transaction([STORE_FILES, STORE_FILE_META], "readwrite");
@@ -4801,8 +4819,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   async function getCacheStats() {
     try {
-      const entries = await readFileMeta(await getDB());
-      return { count: entries.length, totalSizeBytes: entries.reduce((sum, entry) => sum + entry.size, 0) };
+      const entries2 = await readFileMeta(await getDB());
+      return { count: entries2.length, totalSizeBytes: entries2.reduce((sum, entry) => sum + entry.size, 0) };
     } catch (e) {
       debugLog("Failed to get cache stats from IndexedDB:", e);
       return { count: 0, totalSizeBytes: 0 };
@@ -4870,26 +4888,26 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         return false;
     }
   }
-  async function translateText(text, settings, signal) {
+  async function translateText(text2, settings, signal) {
     const language = resolveLanguage(settings.translationLanguage);
     switch (settings.translationProvider) {
       case "google":
-        return translateByLines(text, (lines) => translateGoogle(lines, language.code, signal));
+        return translateByLines(text2, (lines) => translateGoogle(lines, language.code, signal));
       case "yandex":
-        return translateByLines(text, (lines) => translateYandex(lines, language.code, signal));
+        return translateByLines(text2, (lines) => translateYandex(lines, language.code, signal));
       case "deepl":
-        return translateDeepL(text, language.code, settings, signal);
+        return translateDeepL(text2, language.code, settings, signal);
       case "gemini":
-        return translateGemini(text, language.name, settings, signal);
+        return translateGemini(text2, language.name, settings, signal);
       case "openai":
-        return translateOpenAiCompatible(text, language.name, settings, signal);
+        return translateOpenAiCompatible(text2, language.name, settings, signal);
       default:
         throw new Error(`Provider ${settings.translationProvider} is not supported.`);
     }
   }
-  const escapeHtml$1 = (text) => text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  function decodeHtmlEntities(text) {
-    return text.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
+  const escapeHtml$1 = (text2) => text2.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  function decodeHtmlEntities(text2) {
+    return text2.replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (match, entity) => {
       if (entity[0] === "#") {
         const codePoint = entity[1].toLowerCase() === "x" ? parseInt(entity.slice(2), 16) : parseInt(entity.slice(1), 10);
         return codePoint >= 0 && codePoint <= 1114111 ? String.fromCodePoint(codePoint) : match;
@@ -4898,8 +4916,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     });
   }
   const llmInstruction = (languageName) => `You are a professional translator. Translate the text from the user into ${languageName}. Preserve line breaks, formatting, URLs, names and emoji. Reply with the translation only, without explanations or quotes.`;
-  async function translateByLines(text, translateBatch) {
-    const lines = text.split("\n");
+  async function translateByLines(text2, translateBatch) {
+    const lines = text2.split("\n");
     const pending = lines.map((line, index) => ({ line, index })).filter(({ line }) => line.trim());
     for (let start = 0; start < pending.length; ) {
       let end = start;
@@ -4954,7 +4972,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (upper.startsWith("ZH")) return upper === "ZH-TW" ? "ZH-HANT" : "ZH-HANS";
     return upper;
   }
-  async function translateDeepL(text, targetCode, settings, signal) {
+  async function translateDeepL(text2, targetCode, settings, signal) {
     var _a2, _b2, _c;
     if (!settings.deeplApiKey) throw new Error("DeepL API key is missing in settings.");
     const baseUrl = settings.deeplApiTier === "pro" ? "https://api.deepl.com" : "https://api-free.deepl.com";
@@ -4963,14 +4981,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       url: `${baseUrl}/v2/translate`,
       signal,
       headers: { Authorization: `DeepL-Auth-Key ${settings.deeplApiKey}`, "Content-Type": "application/json" },
-      data: JSON.stringify({ text: [text], target_lang: deeplTargetCode(targetCode) }),
+      data: JSON.stringify({ text: [text2], target_lang: deeplTargetCode(targetCode) }),
       responseType: "json"
     });
     const output = (_c = (_b2 = (_a2 = response.response) == null ? void 0 : _a2.translations) == null ? void 0 : _b2[0]) == null ? void 0 : _c.text;
     if (!output) throw new Error("Invalid response structure from DeepL API");
     return output.trim();
   }
-  async function translateGemini(text, languageName, settings, signal) {
+  async function translateGemini(text2, languageName, settings, signal) {
     var _a2, _b2, _c, _d, _e, _f;
     if (!settings.geminiApiKey) throw new Error("Gemini API key is missing in settings.");
     const storedModel = (_a2 = settings.translationModelName) == null ? void 0 : _a2.trim();
@@ -4982,7 +5000,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       headers: { "Content-Type": "application/json", "x-goog-api-key": settings.geminiApiKey },
       data: JSON.stringify({
         systemInstruction: { parts: [{ text: llmInstruction(languageName) }] },
-        contents: [{ role: "user", parts: [{ text }] }]
+        contents: [{ role: "user", parts: [{ text: text2 }] }]
       }),
       responseType: "json"
     });
@@ -4990,7 +5008,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (!output) throw new Error("Invalid response structure from Gemini API");
     return output.trim();
   }
-  async function translateOpenAiCompatible(text, languageName, settings, signal) {
+  async function translateOpenAiCompatible(text2, languageName, settings, signal) {
     var _a2, _b2, _c, _d;
     const baseUrl = (settings.openaiBaseUrl || "").trim().replace(/\/+$/, "");
     if (!baseUrl) throw new Error("OpenAI-compatible base URL is missing in settings.");
@@ -5007,7 +5025,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         temperature: 0.2,
         messages: [
           { role: "system", content: llmInstruction(languageName) },
-          { role: "user", content: text }
+          { role: "user", content: text2 }
         ]
       }),
       responseType: "json"
@@ -5018,12 +5036,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
-  function tooltipSpan(text) {
-    return el("span", { className: "kdl-tooltip-trigger", dataset: { tooltip: text } }, [icon("info")]);
+  function tooltipSpan(text2) {
+    return el("span", { className: "kdl-tooltip-trigger", dataset: { tooltip: text2 } }, [icon("info")]);
   }
-  function checkboxItem(id, text, tooltipText) {
+  function checkboxItem(id, text2, tooltipText) {
     const checkbox = el("input", { type: "checkbox", id });
-    const labelChildren = [checkbox, ` ${text}`];
+    const labelChildren = [checkbox, ` ${text2}`];
     if (tooltipText) labelChildren.push(" ", tooltipSpan(tooltipText));
     return el("div", { className: "kdl-setting-item" }, [el("label", {}, labelChildren)]);
   }
@@ -5330,6 +5348,38 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         ])
       ])
     ]);
+    const imageTranslationCard = cardContainer("image", "Image Translation (Google Lens)", [
+      checkboxItem(
+        "kdl-setting-showImageTranslateButton",
+        "Show the button on post images",
+        "Translates the text drawn inside an image, in the gallery and in the lightbox. Needs no key; uses the target language above"
+      ),
+      checkboxItem(
+        "kdl-setting-imageTranslateManga",
+        "Manga mode",
+        "Reflows vertical Japanese into lines, wipes the speech bubble instead of patching each line, and raises the text size floor"
+      ),
+      selectItem(
+        "kdl-setting-imageTranslateErase",
+        "Erase the original text with",
+        [
+          { value: "patch", text: "Lens patches (what Chrome does)" },
+          { value: "hull", text: "Flat cover (cleaner inside bubbles)" }
+        ],
+        "Lens's patches keep the faded edges of the original letters; a flat cover wipes them, but only looks right where the background is one colour"
+      ),
+      inputItem("kdl-setting-imageTranslateMinPx", "number", "Minimum text size (px)", { min: 0, step: 1 }, "Lens fits text to the original line, which on a large page can be a few pixels on screen. 0 turns the floor off"),
+      selectItem(
+        "kdl-setting-imageTranslateSharpness",
+        "Render sharpness",
+        [
+          { value: "1", text: "1x" },
+          { value: "2", text: "2x" },
+          { value: "3", text: "3x" }
+        ],
+        "Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp"
+      )
+    ]);
     const visibleButtonsCard = cardContainer("eye", "Visible Buttons", [
       el("div", { className: "kdl-setting-checkbox-grid" }, [
         checkboxItem("kdl-setting-showZipButton", "ZIP Download"),
@@ -5342,7 +5392,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ]);
     const col1 = el("div", { className: "kdl-settings-col" }, [generalCard, templatesCard]);
     const col2 = el("div", { className: "kdl-settings-col" }, [zipCard]);
-    const col3 = el("div", { className: "kdl-settings-col" }, [translationCard, visibleButtonsCard]);
+    const col3 = el("div", { className: "kdl-settings-col" }, [translationCard, imageTranslationCard, visibleButtonsCard]);
     const grid = el("div", { className: "kdl-settings-grid" }, [col1, col2, col3]);
     const modalContent = el("div", { id: "kdl-settings-modal-content" }, [
       el("h2", {}, [icon("settings"), " Downloader Settings"]),
@@ -5986,11 +6036,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     return null;
   }
   async function fetchAndCachePostData(service, userID, postID) {
-    const cacheKey = `post_${service}_${userID}_${postID}`;
-    const cached = await getCachedPost(cacheKey);
+    const cacheKey2 = `post_${service}_${userID}_${postID}`;
+    const cached = await getCachedPost(cacheKey2);
     if (cached) return cached;
     const rawApiData = await getApiAdapter().fetchPostData(service, userID, postID);
-    if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+    if (rawApiData) await setCachedPost(cacheKey2, rawApiData);
     return rawApiData;
   }
   async function collectFilesForPost(postDetails, options = {}) {
@@ -6006,20 +6056,20 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     if (state.settings.enableAPIFetch && postDetails.service !== "unknown" && postDetails.userID !== "unknown" && postDetails.postID !== "unknown") {
       try {
-        const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
+        const cacheKey2 = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
         const windowPost = getWindowPageData(postDetails.postID);
         if (windowPost) {
           rawApiData = windowPost;
           console.log(`[Kemono DL] Post metadata loaded directly from window.page_data: ${postDetails.postID}`);
         } else {
-          const cached = await getCachedPost(cacheKey);
+          const cached = await getCachedPost(cacheKey2);
           if (cached) {
             rawApiData = cached;
-            console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+            console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey2}`);
           } else {
             console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
             rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
-            if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+            if (rawApiData) await setCachedPost(cacheKey2, rawApiData);
           }
         }
         const post = (rawApiData == null ? void 0 : rawApiData.post) || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);
@@ -7008,10 +7058,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     /** Adds a file and returns the (deduplicated) name it was stored under. */
     addFile(name, data) {
       const entryName = this.uniqueName(name.replace(/^\/+/, "").trim() || "file");
-      const bytes = typeof data === "string" ? strToU8(data) : data instanceof Uint8Array ? data : new Uint8Array(data);
+      const bytes2 = typeof data === "string" ? strToU8(data) : data instanceof Uint8Array ? data : new Uint8Array(data);
       const entry = this.level > 0 ? new ZipDeflate(entryName, { level: this.level }) : new ZipPassThrough(entryName);
       this.zip.add(entry);
-      entry.push(bytes, true);
+      entry.push(bytes2, true);
       return entryName;
     }
     async toBlob() {
@@ -7078,8 +7128,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         statusElement: status,
         filesContainer,
         files: /* @__PURE__ */ new Map(),
-        updateStatus: (text) => {
-          status.textContent = text;
+        updateStatus: (text2) => {
+          status.textContent = text2;
         },
         addFile: (fileId, fileName) => {
           if (task.files.has(fileId)) return;
@@ -7189,7 +7239,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     appState.isQueueProcessing = false;
   }
   const textContentOf = (data) => typeof data === "string" ? data : JSON.stringify(data ?? "");
-  const escapeHtml = (text) => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
+  const escapeHtml = (text2) => text2.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
   function filterIgnoredFiles(files) {
     const ignoredExts = state.settings.ignoredFileExtensions || [];
     return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
@@ -7426,11 +7476,11 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         const files = filterIgnoredFiles(rawFiles);
         if (addHtmlIndex) {
           const postLink = ((_a2 = postCard.querySelector("a")) == null ? void 0 : _a2.href) || "#";
-          const entries = files.length > 0 ? files.map((file) => {
+          const entries2 = files.length > 0 ? files.map((file) => {
             const relativePath = file.name.split("/").map((part) => encodeURIComponent(part)).join("/");
             return `<li><a href="./${relativePath}">${escapeHtml(file.name.split("/").pop() || file.name)}</a></li>`;
           }).join("") : "<li>No files found.</li>";
-          htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postLink)}" target="_blank">[${escapeHtml(postDetails.postDate || "N/A")}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries}</ul></div>`;
+          htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postLink)}" target="_blank">[${escapeHtml(postDetails.postDate || "N/A")}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries2}</ul></div>`;
         }
         if (files.length === 0) continue;
         files.filter((f) => f.source === "text").forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
@@ -7567,7 +7617,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     await getSettings();
     document.querySelectorAll(".kdl-actions-container, .kdl-button").forEach((node) => node.remove());
     const postDetails = getPostDetailsFromPage();
-    const createButton = (iconName, text, title, bgGradient, onClick, onContext) => {
+    const createButton = (iconName, text2, title, bgGradient, onClick, onContext) => {
       return el(
         "button",
         {
@@ -7578,7 +7628,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
           onClick,
           onContextMenu: onContext
         },
-        [icon(iconName), text]
+        [icon(iconName), text2]
       );
     };
     const toolsCol = el("div", { className: "kdl-actions-col kdl-actions-tools" });
@@ -7645,7 +7695,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     const kdlContainer = el("div", { className: "kdl-actions-container" }, [toolsCol, downloadsCol]);
     container.appendChild(kdlContainer);
   }
-  const setHeading = (header, iconName, text) => header.querySelector("h4").replaceChildren(icon(iconName), text);
+  const setHeading = (header, iconName, text2) => header.querySelector("h4").replaceChildren(icon(iconName), text2);
   async function showFilePickerModal(postDetails) {
     const closeOverlay = () => {
       overlay.remove();
@@ -7843,7 +7893,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
     const details = getPostCardDetails(postCardNode, pageAuthorName);
     if (details.postID === "UnknownPostID") return;
     const controlsContainer = el("div", { className: "post-card-download-controls" });
-    const createMiniBtn = (text, title, cls, onClick) => {
+    const createMiniBtn = (text2, title, cls, onClick) => {
       controlsContainer.appendChild(
         el(
           "button",
@@ -7856,7 +7906,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
               onClick(e.currentTarget);
             }
           },
-          [text]
+          [text2]
         )
       );
     };
@@ -8153,9 +8203,9 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     if (!pathParts) return;
     const service = pathParts[1];
     const userID = pathParts[2];
-    const cacheKey = `kemono_posts_cache_${service}_${userID}`;
+    const cacheKey2 = `kemono_posts_cache_${service}_${userID}`;
     if (!forceRefresh && state.settings.cacheDurationHours > 0) {
-      const cachedData = await GM_getValue(cacheKey, null);
+      const cachedData = await GM_getValue(cacheKey2, null);
       if (cachedData && cachedData.postList) {
         const cacheAgeHours = (Date.now() - cachedData.timestamp) / (1e3 * 60 * 60);
         if (cacheAgeHours < state.settings.cacheDurationHours) {
@@ -8171,7 +8221,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID);
     if (allPosts.length > 0) {
       if (state.settings.cacheDurationHours > 0) {
-        await GM_setValue(cacheKey, { timestamp: Date.now(), postList: allPosts });
+        await GM_setValue(cacheKey2, { timestamp: Date.now(), postList: allPosts });
       }
       title.textContent = `Manage ${allPosts.length} posts by ${authorName}`;
       populateManagerList(allPosts);
@@ -8469,16 +8519,16 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     nodesToReplace.forEach((node) => {
       const parent = node.parentNode;
       if (!parent) return;
-      const text = node.nodeValue || "";
+      const text2 = node.nodeValue || "";
       const fragment = document.createDocumentFragment();
       let lastIndex = 0;
       urlRegex.lastIndex = 0;
       let match;
-      while ((match = urlRegex.exec(text)) !== null) {
+      while ((match = urlRegex.exec(text2)) !== null) {
         const matchIndex = match.index;
         const { url, password, trailing } = parseGluedUrl(match[0]);
         if (matchIndex > lastIndex) {
-          fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
+          fragment.appendChild(document.createTextNode(text2.substring(lastIndex, matchIndex)));
         }
         const a = document.createElement("a");
         a.href = url;
@@ -8491,8 +8541,8 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
         }
         lastIndex = urlRegex.lastIndex;
       }
-      if (lastIndex < text.length) {
-        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+      if (lastIndex < text2.length) {
+        fragment.appendChild(document.createTextNode(text2.substring(lastIndex)));
       }
       parent.replaceChild(fragment, node);
     });
@@ -8685,11 +8735,11 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
           favicon.onerror = () => {
             favicon.style.display = "none";
           };
-          const text = document.createElement("span");
-          text.className = "kui-embed-button-text";
-          text.textContent = brand.name;
+          const text2 = document.createElement("span");
+          text2.className = "kui-embed-button-text";
+          text2.textContent = brand.name;
           button.appendChild(favicon);
-          button.appendChild(text);
+          button.appendChild(text2);
           const password = linkPasswords.get(url);
           if (password) {
             const passwordChip = document.createElement("span");
@@ -8761,10 +8811,10 @@ Password: ${password} (copied on click)`;
       if (title === "content") {
         const content = section.querySelector(SELECTORS.postContent);
         if (content) {
-          const text = ((_b2 = content.textContent) == null ? void 0 : _b2.trim()) || "";
+          const text2 = ((_b2 = content.textContent) == null ? void 0 : _b2.trim()) || "";
           const hasImgs = content.querySelector("img, video, iframe, canvas") !== null;
           const hasEmbeds = content.querySelector(".kui-embed-button, a[href]") !== null;
-          if (!text && !hasImgs && !hasEmbeds) {
+          if (!text2 && !hasImgs && !hasEmbeds) {
             isEmpty = true;
           }
         } else {
@@ -8795,6 +8845,1235 @@ Password: ${password} (copied on click)`;
         section.style.removeProperty("display");
       }
     });
+  }
+  function weigh(blocks) {
+    var _a2;
+    let bytes2 = 0;
+    for (const block of blocks) {
+      bytes2 += block.translation.length * 2;
+      for (const line of block.lines) bytes2 += ((_a2 = line.background) == null ? void 0 : _a2.bytes.byteLength) ?? 0;
+    }
+    return bytes2;
+  }
+  const entries = /* @__PURE__ */ new Map();
+  let totalBytes = 0;
+  let clock = 0;
+  const RENDITION_PARAMS = /* @__PURE__ */ new Set([
+    "name",
+    "format",
+    "fm",
+    "w",
+    "width",
+    "h",
+    "height",
+    "size",
+    "s",
+    "q",
+    "quality",
+    "dpr",
+    "resize",
+    "fit",
+    "crop",
+    "auto"
+  ]);
+  function normalizeUrl(raw) {
+    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
+    try {
+      const url = new URL(raw, document.baseURI);
+      for (const name of [...url.searchParams.keys()]) {
+        if (RENDITION_PARAMS.has(name.toLowerCase())) url.searchParams.delete(name);
+      }
+      url.hash = "";
+      const query = url.searchParams.toString();
+      return `${url.origin}${url.pathname}${query ? `?${query}` : ""}`;
+    } catch {
+      return raw;
+    }
+  }
+  function cacheKey(url, settings) {
+    return [normalizeUrl(url), settings.targetLang, settings.sourceLang, settings.ocrLang].join("\0");
+  }
+  function getCached(key, settings) {
+    if (settings.cacheBytes <= 0) return null;
+    const entry = entries.get(key);
+    if (!entry) return null;
+    entry.used = ++clock;
+    return entry.result;
+  }
+  function putCached(key, result, settings) {
+    var _a2;
+    const limit = settings.cacheBytes;
+    if (limit <= 0) return;
+    const bytes2 = weigh(result.blocks);
+    if (bytes2 > limit) return;
+    const existing = entries.get(key);
+    if (existing) totalBytes -= existing.bytes;
+    entries.set(key, { result, bytes: bytes2, used: ++clock });
+    totalBytes += bytes2;
+    while (totalBytes > limit && entries.size > 1) {
+      let oldestKey = null;
+      let oldestUsed = Infinity;
+      for (const [candidate, entry] of entries) {
+        if (entry.used < oldestUsed) {
+          oldestUsed = entry.used;
+          oldestKey = candidate;
+        }
+      }
+      if (oldestKey === null) break;
+      totalBytes -= ((_a2 = entries.get(oldestKey)) == null ? void 0 : _a2.bytes) ?? 0;
+      entries.delete(oldestKey);
+    }
+  }
+  function renderKey(key, settings, displayedWidth) {
+    return [
+      key,
+      settings.renderMode,
+      settings.verticalText,
+      settings.fontFamily,
+      settings.drawBackground ? 1 : 0,
+      settings.minReadablePx,
+      settings.supersample,
+      settings.mangaMode ? 1 : 0,
+      settings.mangaBoxGrowth,
+      settings.outlineScale,
+      settings.eraseMode,
+      settings.hullPadding,
+      settings.textAlign,
+      Math.round(displayedWidth / 50)
+    ].join("");
+  }
+  const renders = /* @__PURE__ */ new Map();
+  let renderBytes = 0;
+  function getRender(key, settings) {
+    if (settings.cacheBytes <= 0) return null;
+    const entry = renders.get(key);
+    if (!entry) return null;
+    entry.used = ++clock;
+    return entry.blob;
+  }
+  function putRender(key, blob, settings) {
+    var _a2;
+    const limit = settings.cacheBytes;
+    if (limit <= 0 || blob.size > limit) return;
+    const existing = renders.get(key);
+    if (existing) renderBytes -= existing.blob.size;
+    renders.set(key, { blob, used: ++clock });
+    renderBytes += blob.size;
+    while (renderBytes > limit && renders.size > 1) {
+      let oldestKey = null;
+      let oldestUsed = Infinity;
+      for (const [candidate, entry] of renders) {
+        if (entry.used < oldestUsed) {
+          oldestUsed = entry.used;
+          oldestKey = candidate;
+        }
+      }
+      if (oldestKey === null) break;
+      renderBytes -= ((_a2 = renders.get(oldestKey)) == null ? void 0 : _a2.blob.size) ?? 0;
+      renders.delete(oldestKey);
+    }
+  }
+  const F = {
+    AppliedFilter: {
+      filterType: 1,
+      translate: 3
+    },
+    AppliedFilter_Translate: {
+      targetLanguage: 1,
+      sourceLanguage: 2
+    },
+    AppliedFilters: {
+      filter: 1
+    },
+    CenterRotatedBox: {
+      centerX: 1,
+      centerY: 2,
+      width: 3,
+      height: 4,
+      rotationZ: 5
+    },
+    DeepGleamData: {
+      translation: 10
+    },
+    Geometry: {
+      boundingBox: 1
+    },
+    ImageData: {
+      payload: 1,
+      imageMetadata: 3
+    },
+    ImageMetadata: {
+      width: 1,
+      height: 2
+    },
+    ImagePayload: {
+      imageBytes: 1
+    },
+    LensOverlayClientContext: {
+      platform: 1,
+      surface: 2,
+      localeContext: 4,
+      clientFilters: 17,
+      renderingContext: 20
+    },
+    LensOverlayObjectsRequest: {
+      requestContext: 1,
+      imageData: 3
+    },
+    LensOverlayObjectsResponse: {
+      text: 3,
+      deepGleams: 4
+    },
+    LensOverlayRequestContext: {
+      requestId: 3,
+      clientContext: 4
+    },
+    LensOverlayRequestId: {
+      uuid: 1,
+      sequenceId: 2,
+      imageSequenceId: 3
+    },
+    LensOverlayServerError: {
+      errorType: 1
+    },
+    LensOverlayServerRequest: {
+      objectsRequest: 1
+    },
+    LensOverlayServerResponse: {
+      error: 1,
+      objectsResponse: 2
+    },
+    LocaleContext: {
+      language: 1,
+      region: 2,
+      timeZone: 3
+    },
+    RenderingContext: {
+      renderingEnvironment: 2
+    },
+    Text: {
+      textLayout: 1,
+      contentLanguage: 2
+    },
+    TextLayout: {
+      paragraphs: 1
+    },
+    TextLayout_Line: {
+      words: 1,
+      geometry: 2
+    },
+    TextLayout_Paragraph: {
+      lines: 2,
+      geometry: 3,
+      writingDirection: 4
+    },
+    TextLayout_Word: {
+      plainText: 2,
+      textSeparator: 3,
+      geometry: 4,
+      type: 5,
+      formulaMetadata: 6
+    },
+    TextLayout_Word_FormulaMetadata: {
+      latex: 1
+    },
+    TranslationData: {
+      status: 1,
+      targetLanguage: 2,
+      sourceLanguage: 3,
+      translation: 4,
+      line: 5,
+      writingDirection: 7,
+      alignment: 8
+    },
+    TranslationData_BackgroundImageData: {
+      backgroundImage: 1,
+      verticalPadding: 4,
+      horizontalPadding: 5
+    },
+    TranslationData_Line: {
+      style: 3,
+      word: 5,
+      backgroundImageData: 9
+    },
+    TranslationData_Line_Word: {
+      start: 1,
+      end: 2
+    },
+    TranslationData_Status: {
+      code: 1
+    },
+    TranslationData_TextStyle: {
+      textColor: 1,
+      backgroundPrimaryColor: 2
+    }
+  };
+  const Wire = {
+    Varint: 0,
+    Fixed64: 1,
+    Length: 2,
+    Fixed32: 5
+  };
+  function encodeVarint(value) {
+    let v = BigInt(value);
+    const out = [];
+    while (v > 127n) {
+      out.push(Number(v & 127n) | 128);
+      v >>= 7n;
+    }
+    out.push(Number(v));
+    return out;
+  }
+  function writer() {
+    const parts = [];
+    const self = {
+      raw(bytes2) {
+        parts.push(bytes2);
+        return self;
+      },
+      tag(field, wire) {
+        return self.raw(encodeVarint(field * 8 + wire));
+      },
+      int(field, value) {
+        if (!value) return self;
+        return self.tag(field, Wire.Varint).raw(encodeVarint(value));
+      },
+      str(field, value) {
+        if (!value) return self;
+        const bytes2 = new TextEncoder().encode(value);
+        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
+      },
+      bytes(field, value) {
+        if (!value || !value.length) return self;
+        return self.tag(field, Wire.Length).raw(encodeVarint(value.length)).raw(value);
+      },
+      sub(field, build) {
+        const inner = writer();
+        build(inner);
+        const bytes2 = inner.finish();
+        if (!bytes2.length) return self;
+        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
+      },
+      finish() {
+        let length = 0;
+        for (const part of parts) length += part.length;
+        const out = new Uint8Array(length);
+        let offset = 0;
+        for (const part of parts) {
+          out.set(part, offset);
+          offset += part.length;
+        }
+        return out;
+      }
+    };
+    return self;
+  }
+  function decode(buf) {
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const out = {};
+    let p = 0;
+    const readVarint = () => {
+      let shift = 0n;
+      let result = 0n;
+      for (; ; ) {
+        const byte = buf[p++];
+        if (byte === void 0) throw new Error("Truncated protobuf varint");
+        result |= BigInt(byte & 127) << shift;
+        if (!(byte & 128)) return result;
+        shift += 7n;
+      }
+    };
+    while (p < buf.length) {
+      const key = Number(readVarint());
+      const field = key >> 3;
+      const wire = key & 7;
+      let value;
+      switch (wire) {
+        case Wire.Varint:
+          value = readVarint();
+          break;
+        case Wire.Fixed64:
+          value = view.getFloat64(p, true);
+          p += 8;
+          break;
+        case Wire.Length: {
+          const length = Number(readVarint());
+          value = buf.subarray(p, p + length);
+          p += length;
+          break;
+        }
+        case Wire.Fixed32:
+          value = view.getFloat32(p, true);
+          p += 4;
+          break;
+        default:
+          throw new Error(`Unsupported protobuf wire type ${wire} at byte ${p}`);
+      }
+      (out[field] ?? (out[field] = [])).push(value);
+    }
+    return out;
+  }
+  function one(msg, field) {
+    var _a2;
+    return (_a2 = msg == null ? void 0 : msg[field]) == null ? void 0 : _a2[0];
+  }
+  function all(msg, field) {
+    return (msg == null ? void 0 : msg[field]) ?? [];
+  }
+  function bytes(msg, field) {
+    const value = one(msg, field);
+    return value instanceof Uint8Array ? value : null;
+  }
+  function sub(msg, field) {
+    const value = bytes(msg, field);
+    return value ? decode(value) : null;
+  }
+  function subs(msg, field) {
+    return all(msg, field).filter((value) => value instanceof Uint8Array).map(decode);
+  }
+  function text(msg, field) {
+    const value = bytes(msg, field);
+    return value ? new TextDecoder().decode(value) : "";
+  }
+  function num(msg, field, fallback = 0) {
+    const value = one(msg, field);
+    if (value === void 0 || value instanceof Uint8Array) return fallback;
+    return Number(value);
+  }
+  const PLATFORM_WEB = 3;
+  const SURFACE_CHROMIUM = 4;
+  const FILTER_TRANSLATE = 2;
+  const FILTER_AUTO = 7;
+  const RENDERING_ENV_LENS_OVERLAY = 14;
+  function randomUuid() {
+    const high = BigInt(Math.floor(Math.random() * 1073741824));
+    const low = BigInt(Math.floor(Math.random() * 4294967296));
+    return high << 32n | low;
+  }
+  function buildRequest(image, settings) {
+    const translating = Boolean(settings.targetLang);
+    return writer().sub(F.LensOverlayServerRequest.objectsRequest, (objects) => {
+      objects.sub(F.LensOverlayObjectsRequest.requestContext, (ctx) => {
+        ctx.sub(
+          F.LensOverlayRequestContext.requestId,
+          (id) => id.int(F.LensOverlayRequestId.uuid, randomUuid()).int(F.LensOverlayRequestId.sequenceId, 1).int(F.LensOverlayRequestId.imageSequenceId, 1)
+        );
+        ctx.sub(F.LensOverlayRequestContext.clientContext, (client) => {
+          client.int(F.LensOverlayClientContext.platform, PLATFORM_WEB);
+          client.int(F.LensOverlayClientContext.surface, SURFACE_CHROMIUM);
+          client.sub(
+            F.LensOverlayClientContext.localeContext,
+            (locale) => locale.str(F.LocaleContext.language, settings.ocrLang || settings.targetLang).str(F.LocaleContext.region, settings.region).str(F.LocaleContext.timeZone, settings.timeZone)
+          );
+          client.sub(
+            F.LensOverlayClientContext.clientFilters,
+            (filters) => filters.sub(F.AppliedFilters.filter, (filter) => {
+              if (!translating) {
+                filter.int(F.AppliedFilter.filterType, FILTER_AUTO);
+                return;
+              }
+              filter.int(F.AppliedFilter.filterType, FILTER_TRANSLATE);
+              filter.sub(
+                F.AppliedFilter.translate,
+                (translate) => translate.str(F.AppliedFilter_Translate.targetLanguage, settings.targetLang).str(F.AppliedFilter_Translate.sourceLanguage, settings.sourceLang)
+              );
+            })
+          );
+          client.sub(
+            F.LensOverlayClientContext.renderingContext,
+            (rendering) => rendering.int(F.RenderingContext.renderingEnvironment, RENDERING_ENV_LENS_OVERLAY)
+          );
+        });
+      });
+      objects.sub(F.LensOverlayObjectsRequest.imageData, (data) => {
+        data.sub(
+          F.ImageData.payload,
+          (payload) => payload.bytes(F.ImagePayload.imageBytes, image.imageBytes)
+        );
+        data.sub(
+          F.ImageData.imageMetadata,
+          (meta) => meta.int(F.ImageMetadata.width, image.width).int(F.ImageMetadata.height, image.height)
+        );
+      });
+    }).finish();
+  }
+  const TRANSLATION_SUCCESS = 1;
+  const WORD_TYPE_FORMULA = 1;
+  function parseGeometry(geometry) {
+    const box = sub(geometry, F.Geometry.boundingBox);
+    if (!box) return null;
+    return {
+      cx: num(box, F.CenterRotatedBox.centerX),
+      cy: num(box, F.CenterRotatedBox.centerY),
+      w: num(box, F.CenterRotatedBox.width),
+      h: num(box, F.CenterRotatedBox.height),
+      // rotation_z is clockwise radians; CSS rotate() takes clockwise degrees.
+      angle: num(box, F.CenterRotatedBox.rotationZ) * 180 / Math.PI
+    };
+  }
+  function parseWord(word) {
+    const parsed = {
+      text: text(word, F.TextLayout_Word.plainText),
+      separator: text(word, F.TextLayout_Word.textSeparator),
+      geometry: parseGeometry(sub(word, F.TextLayout_Word.geometry))
+    };
+    if (num(word, F.TextLayout_Word.type) === WORD_TYPE_FORMULA) {
+      parsed.type = "FORMULA";
+      parsed.latex = text(sub(word, F.TextLayout_Word.formulaMetadata), F.TextLayout_Word_FormulaMetadata.latex);
+    }
+    return parsed;
+  }
+  function paragraphsOf(objects) {
+    const layout = sub(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.textLayout);
+    return subs(layout, F.TextLayout.paragraphs);
+  }
+  function parseOcr(objects) {
+    return paragraphsOf(objects).map((paragraph) => ({
+      writingDirection: num(paragraph, F.TextLayout_Paragraph.writingDirection),
+      geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
+      lines: subs(paragraph, F.TextLayout_Paragraph.lines).map((line) => {
+        const words = subs(line, F.TextLayout_Line.words).map(parseWord);
+        return {
+          text: words.map((w) => w.text + w.separator).join("").trim(),
+          words,
+          geometry: parseGeometry(sub(line, F.TextLayout_Line.geometry))
+        };
+      })
+    }));
+  }
+  function parseBackground(line) {
+    const data = sub(line, F.TranslationData_Line.backgroundImageData);
+    if (!data) return null;
+    const image = bytes(data, F.TranslationData_BackgroundImageData.backgroundImage);
+    if (!image) return null;
+    return {
+      bytes: image,
+      vPad: num(data, F.TranslationData_BackgroundImageData.verticalPadding),
+      hPad: num(data, F.TranslationData_BackgroundImageData.horizontalPadding)
+    };
+  }
+  function parseTranslation(objects) {
+    const paragraphs = paragraphsOf(objects);
+    const gleams = subs(objects, F.LensOverlayObjectsResponse.deepGleams);
+    const blocks = [];
+    paragraphs.forEach((paragraph, index) => {
+      const gleam = gleams[index];
+      const translation = gleam ? sub(gleam, F.DeepGleamData.translation) : null;
+      if (!translation) return;
+      if (num(sub(translation, F.TranslationData.status), F.TranslationData_Status.code) !== TRANSLATION_SUCCESS) return;
+      const sourceLines = subs(paragraph, F.TextLayout_Paragraph.lines);
+      const translatedLines = subs(translation, F.TranslationData.line);
+      if (sourceLines.length !== translatedLines.length) return;
+      const lines = translatedLines.map((line, i2) => {
+        const style = sub(line, F.TranslationData_Line.style);
+        const source = sourceLines[i2];
+        return {
+          words: subs(line, F.TranslationData_Line.word).map(
+            (word) => [num(word, F.TranslationData_Line_Word.start), num(word, F.TranslationData_Line_Word.end)]
+          ),
+          textColor: num(style, F.TranslationData_TextStyle.textColor),
+          bgColor: num(style, F.TranslationData_TextStyle.backgroundPrimaryColor),
+          geometry: source ? parseGeometry(sub(source, F.TextLayout_Line.geometry)) : null,
+          background: parseBackground(line)
+        };
+      });
+      blocks.push({
+        translation: text(translation, F.TranslationData.translation),
+        geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
+        sourceLang: text(translation, F.TranslationData.sourceLanguage),
+        targetLang: text(translation, F.TranslationData.targetLanguage),
+        writingDirection: num(translation, F.TranslationData.writingDirection),
+        alignment: num(translation, F.TranslationData.alignment),
+        lines
+      });
+    });
+    return blocks;
+  }
+  function parseResponse(raw) {
+    const response = decode(raw);
+    const error = sub(response, F.LensOverlayServerResponse.error);
+    const errorType = error ? num(error, F.LensOverlayServerError.errorType) : 0;
+    if (errorType) throw new Error(`Lens returned server error type ${errorType}`);
+    const objects = sub(response, F.LensOverlayServerResponse.objectsResponse);
+    if (!objects) return { contentLanguage: "", ocr: [], blocks: [] };
+    return {
+      contentLanguage: text(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.contentLanguage),
+      ocr: parseOcr(objects),
+      blocks: parseTranslation(objects)
+    };
+  }
+  const LENS_ENDPOINT = "https://lensfrontend-pa.googleapis.com/v1/crupload";
+  function callLens(image, settings) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: "POST",
+        url: LENS_ENDPOINT,
+        headers: {
+          "Content-Type": "application/x-protobuf",
+          "X-Goog-Api-Key": settings.apiKey
+        },
+        data: buildRequest(image, settings),
+        binary: true,
+        responseType: "arraybuffer",
+        timeout: settings.timeoutMs,
+        onload: (response) => {
+          if (response.status !== 200) {
+            reject(new Error(`Lens returned HTTP ${response.status}`));
+            return;
+          }
+          try {
+            resolve(parseResponse(new Uint8Array(response.response)));
+          } catch (e) {
+            reject(new Error(`Could not parse the Lens response: ${e.message}`));
+          }
+        },
+        onerror: () => reject(new Error("Network error talking to Lens")),
+        ontimeout: () => reject(new Error("Lens timed out"))
+      });
+    });
+  }
+  function fetchImageBlob(url) {
+    return new Promise((resolve, reject) => {
+      GM_xmlhttpRequest({
+        method: "GET",
+        url,
+        responseType: "blob",
+        onload: (response) => {
+          if (response.status && response.status >= 400) {
+            reject(new Error(`Image fetch returned HTTP ${response.status}`));
+            return;
+          }
+          resolve(response.response);
+        },
+        onerror: () => reject(
+          new Error(
+            "Could not fetch the image. If Tampermonkey blocked this domain, clear it under Settings > Security > Blocked domains."
+          )
+        )
+      });
+    });
+  }
+  function targetSize(width, height, { maxArea, maxSide }) {
+    if (width * height <= maxArea || width <= maxSide && height <= maxSide) {
+      return { width, height };
+    }
+    const scale = Math.min(maxSide / width, maxSide / height);
+    return {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale))
+    };
+  }
+  function sourceSize(source) {
+    return source instanceof HTMLImageElement ? { width: source.naturalWidth, height: source.naturalHeight } : { width: source.width, height: source.height };
+  }
+  async function encodeForUpload(source, settings, release = () => {
+  }) {
+    const natural = sourceSize(source);
+    const { width, height } = targetSize(natural.width, natural.height, settings);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get a 2d canvas context");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(source, 0, 0, width, height);
+    const jpeg = await new Promise((resolve, reject) => {
+      try {
+        canvas.toBlob(resolve, "image/jpeg", settings.jpegQuality);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    if (!jpeg) throw new Error("Canvas is tainted");
+    return {
+      imageBytes: new Uint8Array(await jpeg.arrayBuffer()),
+      width,
+      height,
+      source,
+      sourceWidth: natural.width,
+      sourceHeight: natural.height,
+      release
+    };
+  }
+  function loadWithCors(url) {
+    return new Promise((resolve, reject) => {
+      const probe = new Image();
+      probe.crossOrigin = "anonymous";
+      probe.decoding = "sync";
+      probe.onload = () => resolve(probe);
+      probe.onerror = () => reject(new Error("CORS load failed"));
+      probe.src = url;
+    });
+  }
+  async function acquireSource(img) {
+    const probe = document.createElement("canvas");
+    probe.width = 1;
+    probe.height = 1;
+    const readable = (candidate) => {
+      try {
+        const ctx = probe.getContext("2d");
+        if (!ctx) return false;
+        ctx.drawImage(candidate, 0, 0, 1, 1);
+        ctx.getImageData(0, 0, 1, 1);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (img.naturalWidth && img.naturalHeight && readable(img)) {
+      const size = sourceSize(img);
+      return { source: img, ...size, release: () => {
+      } };
+    }
+    const url = img.currentSrc || img.src;
+    if (!url) throw new Error("This image has no source to read");
+    try {
+      const cors = await loadWithCors(url);
+      if (readable(cors)) {
+        const size = sourceSize(cors);
+        return { source: cors, ...size, release: () => {
+        } };
+      }
+    } catch {
+    }
+    const blob = await fetchImageBlob(url);
+    const bitmap = await createImageBitmap(blob);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      release: () => bitmap.close()
+    };
+  }
+  const WritingDirection = {
+    RightToLeft: 1,
+    TopToBottom: 2
+  };
+  const Alignment = {
+    Left: 0,
+    Right: 1,
+    Center: 2
+  };
+  const MIN_FONT_SIZE = 3;
+  const MAX_FONT_SIZE = 150;
+  const OUTLINE_RATIO = 0.02;
+  const RTL_LANGS = /* @__PURE__ */ new Set([
+    "ar",
+    "bal",
+    "ckb",
+    "dv",
+    "fa",
+    "he",
+    "iw",
+    "ji",
+    "ks",
+    "ps",
+    "sd",
+    "ug",
+    "ur",
+    "yi"
+  ]);
+  const CJK_LANGS = /* @__PURE__ */ new Set(["ja", "zh", "ko", "yue"]);
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  const baseLang = (tag) => {
+    var _a2;
+    return ((_a2 = tag.split("-")[0]) == null ? void 0 : _a2.toLowerCase()) ?? "";
+  };
+  function fitFontSize(str, boxWidth, boxHeight, fontFamily) {
+    if (!measureCtx) return MIN_FONT_SIZE;
+    let low = MIN_FONT_SIZE;
+    let high = MAX_FONT_SIZE;
+    while (low <= high) {
+      const mid = low + high >> 1;
+      measureCtx.font = `${mid}px ${fontFamily}`;
+      const metrics = measureCtx.measureText(str);
+      const height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+      if (metrics.width >= boxWidth || height >= boxHeight) high = mid - 1;
+      else low = mid + 1;
+    }
+    return Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
+  }
+  function buildLineText(translation, line, nextLine) {
+    let out = "";
+    line.words.forEach(([start, end], i2) => {
+      out += translation.slice(start, end);
+      const next = line.words[i2 + 1];
+      if (next) out += translation.slice(end, next[0]);
+      else if (nextLine == null ? void 0 : nextLine.words[0]) out += translation.slice(end, nextLine.words[0][0]);
+    });
+    return out;
+  }
+  function wrapText(measure, text2, maxWidth, perCharacter = false) {
+    const lines = [];
+    for (const hardLine of text2.split("\n")) {
+      if (!hardLine) {
+        lines.push("");
+        continue;
+      }
+      const tokens = perCharacter ? [...hardLine] : hardLine.split(/\s+/);
+      const joiner = perCharacter ? "" : " ";
+      let current = "";
+      for (const token of tokens) {
+        const candidate = current ? `${current}${joiner}${token}` : token;
+        if (measure(candidate) <= maxWidth || !current) current = candidate;
+        else {
+          lines.push(current);
+          current = token;
+        }
+      }
+      if (current) lines.push(current);
+    }
+    return lines;
+  }
+  function fitTextBlock(setFont, measure, lineHeight, text2, boxWidth, boxHeight, perCharacter = false) {
+    let low = MIN_FONT_SIZE;
+    let high = MAX_FONT_SIZE;
+    let best = [];
+    while (low <= high) {
+      const mid = low + high >> 1;
+      setFont(mid);
+      const lines = wrapText(measure, text2, boxWidth, perCharacter);
+      const widest = lines.reduce((max, line) => Math.max(max, measure(line)), 0);
+      if (widest >= boxWidth || lines.length * lineHeight(mid) >= boxHeight) high = mid - 1;
+      else {
+        low = mid + 1;
+        best = lines;
+      }
+    }
+    const size = Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
+    if (!best.length) {
+      setFont(size);
+      best = wrapText(measure, text2, boxWidth, perCharacter);
+    }
+    return { size, lines: best };
+  }
+  function argbToCss(value) {
+    const alpha = (value >>> 24 & 255) / 255;
+    return `rgba(${value >> 16 & 255}, ${value >> 8 & 255}, ${value & 255}, ${alpha})`;
+  }
+  function shouldStayVertical(block, mode) {
+    if (block.writingDirection !== WritingDirection.TopToBottom) return false;
+    if (mode === "keep") return true;
+    if (mode === "horizontal") return false;
+    return CJK_LANGS.has(baseLang(block.targetLang));
+  }
+  function wrapsPerCharacter(block) {
+    return CJK_LANGS.has(baseLang(block.targetLang));
+  }
+  function isRtl(block) {
+    if (block.writingDirection === WritingDirection.RightToLeft) return true;
+    return RTL_LANGS.has(baseLang(block.targetLang));
+  }
+  function justification(alignment, rtl, override = "auto") {
+    if (override !== "auto") {
+      return { left: "flex-start", center: "center", right: "flex-end" }[override];
+    }
+    const map = {
+      [Alignment.Left]: "flex-start",
+      [Alignment.Right]: "flex-end",
+      [Alignment.Center]: "center"
+    };
+    const value = map[alignment] ?? "center";
+    return rtl && value === "flex-start" ? "flex-end" : value;
+  }
+  function boxCorners(geometry, width, height) {
+    const cx = geometry.cx * width;
+    const cy = geometry.cy * height;
+    const halfW = geometry.w * width / 2;
+    const halfH = geometry.h * height / 2;
+    const radians = geometry.angle * Math.PI / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    return [
+      [-halfW, -halfH],
+      [halfW, -halfH],
+      [halfW, halfH],
+      [-halfW, halfH]
+    ].map(([dx, dy]) => ({
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    }));
+  }
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  function convexHull(points) {
+    if (points.length < 3) return [...points];
+    const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+    const build = (input) => {
+      const chain = [];
+      for (const point of input) {
+        while (chain.length >= 2) {
+          const last = chain[chain.length - 1];
+          const prev = chain[chain.length - 2];
+          if (cross(prev, last, point) > 0) break;
+          chain.pop();
+        }
+        chain.push(point);
+      }
+      chain.pop();
+      return chain;
+    };
+    return [...build(sorted), ...build([...sorted].reverse())];
+  }
+  function fillHull(ctx, hull, colour, pad) {
+    if (hull.length < 3) return;
+    ctx.save();
+    ctx.beginPath();
+    const [first, ...rest] = hull;
+    ctx.moveTo(first.x, first.y);
+    for (const point of rest) ctx.lineTo(point.x, point.y);
+    ctx.closePath();
+    ctx.fillStyle = colour;
+    if (pad > 0) {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = pad * 2;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  const DEG = Math.PI / 180;
+  const UPRIGHT_RANGES = [
+    [4352, 4607],
+    [11904, 12351],
+    [12353, 13311],
+    [13312, 19903],
+    [19968, 40959],
+    [44032, 55215],
+    [63744, 64255],
+    [65040, 65103],
+    [65280, 65376],
+    [65504, 65510]
+  ];
+  const isUpright = (char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return UPRIGHT_RANGES.some(([low, high]) => code >= low && code <= high);
+  };
+  const CORNER_PUNCT = new Set("、。，．");
+  function verticalRuns(text2) {
+    const runs = [];
+    for (const char of text2) {
+      let upright = isUpright(char);
+      const last = runs[runs.length - 1];
+      if (/\s/.test(char) && last) upright = last[0];
+      if (last && last[0] === upright) last[1] += char;
+      else runs.push([upright, char]);
+    }
+    return runs;
+  }
+  function strokeThenFill(ctx, text2, x2, y, outline, outlineColor) {
+    if (outline <= 0 || !outlineColor) return;
+    ctx.save();
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = outline * 2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.miterLimit = 2;
+    ctx.strokeText(text2, x2, y);
+    ctx.restore();
+  }
+  function drawVertical({ ctx }, text2, boxW, boxH, size, fill, outline, outlineColor) {
+    const em = size * 1.16;
+    let total = 0;
+    for (const [upright, run] of verticalRuns(text2)) {
+      total += upright ? em * [...run].length : ctx.measureText(run).width;
+    }
+    let y = (boxH - total) / 2;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    for (const [upright, run] of verticalRuns(text2)) {
+      if (upright) {
+        for (const char of run) {
+          const advance = ctx.measureText(char).width;
+          const corner = CORNER_PUNCT.has(char);
+          const x2 = (boxW - advance) / 2 + (corner ? advance * 0.45 : 0);
+          const cy = y - (corner ? em * 0.4 : 0);
+          strokeThenFill(ctx, char, x2, cy, outline, outlineColor);
+          ctx.fillStyle = fill;
+          ctx.fillText(char, x2, cy);
+          y += em;
+        }
+      } else {
+        const advance = ctx.measureText(run).width;
+        ctx.save();
+        ctx.translate(boxW / 2, y);
+        ctx.rotate(90 * DEG);
+        strokeThenFill(ctx, run, 0, -size / 2, outline, outlineColor);
+        ctx.fillStyle = fill;
+        ctx.fillText(run, 0, -size / 2);
+        ctx.restore();
+        y += advance;
+      }
+    }
+  }
+  function drawReflowedParagraph(draw, block, settings) {
+    const geometry = block.geometry;
+    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
+    const { ctx, width, height, fontFamily } = draw;
+    const growth = settings.mangaMode ? Math.max(1, settings.mangaBoxGrowth) : 1;
+    const boxW = geometry.w * width * growth;
+    const boxH = geometry.h * height * Math.min(growth, 1.2);
+    const style = block.lines[0];
+    if (!style) return;
+    const text2 = block.translation.trim();
+    if (!text2) return;
+    ctx.save();
+    ctx.translate(geometry.cx * width, geometry.cy * height);
+    ctx.rotate(geometry.angle * DEG);
+    const { size, lines } = fitTextBlock(
+      (px) => {
+        ctx.font = `${px}px ${fontFamily}`;
+      },
+      (candidate) => ctx.measureText(candidate).width,
+      (px) => px * 1.25,
+      text2,
+      boxW,
+      boxH,
+      wrapsPerCharacter(block)
+    );
+    const fontSize = Math.max(size, draw.minFontPx);
+    ctx.font = `${fontSize}px ${fontFamily}`;
+    const lineHeight = fontSize * 1.25;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    const fill = argbToCss(style.textColor);
+    const outline = Math.max(
+      0,
+      Math.round(fontSize * OUTLINE_RATIO * 2 * settings.outlineScale)
+    );
+    const outlineColor = argbToCss(style.bgColor);
+    const justify = justification(block.alignment, isRtl(block), settings.textAlign);
+    let y = -Math.min(boxH, lines.length * lineHeight) / 2;
+    for (const line of lines) {
+      const advance = ctx.measureText(line).width;
+      const x2 = justify === "flex-start" ? -boxW / 2 : justify === "flex-end" ? boxW / 2 - advance : -advance / 2;
+      strokeThenFill(ctx, line, x2, y, outline, outlineColor);
+      ctx.fillStyle = fill;
+      ctx.fillText(line, x2, y);
+      y += lineHeight;
+    }
+    ctx.restore();
+  }
+  function eraseTextArea(draw, block, settings) {
+    const { ctx, width, height } = draw;
+    const points = [];
+    let thinnest = Infinity;
+    for (const line of block.lines) {
+      if (!line.geometry) continue;
+      points.push(...boxCorners(line.geometry, width, height));
+      thinnest = Math.min(thinnest, line.geometry.w * width, line.geometry.h * height);
+    }
+    if (points.length < 3) return;
+    const style = block.lines.find((line) => line.geometry) ?? block.lines[0];
+    if (!style) return;
+    const pad = Number.isFinite(thinnest) ? thinnest * settings.hullPadding : 0;
+    fillHull(ctx, convexHull(points), argbToCss(style.bgColor), pad);
+  }
+  async function drawLine(draw, block, line, nextLine, settings, backgroundOnly = false, skipBackground = false) {
+    const geometry = line.geometry;
+    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
+    const { ctx, width, height, fontFamily } = draw;
+    const boxW = geometry.w * width;
+    const boxH = geometry.h * height;
+    const cx = geometry.cx * width;
+    const cy = geometry.cy * height;
+    const patch = settings.drawBackground && !skipBackground ? line.background : null;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(geometry.angle * DEG);
+    if (patch) {
+      const padW = patch.hPad * boxH;
+      const padH = patch.vPad * boxH;
+      try {
+        const bitmap = await createImageBitmap(new Blob([patch.bytes], { type: "image/webp" }));
+        ctx.drawImage(bitmap, -(boxW + padW) / 2, -(boxH + padH) / 2, boxW + padW, boxH + padH);
+        bitmap.close();
+      } catch {
+        ctx.fillStyle = argbToCss(line.bgColor);
+        ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+      }
+    } else if (settings.drawBackground && !skipBackground) {
+      ctx.fillStyle = argbToCss(line.bgColor);
+      ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    }
+    const text2 = backgroundOnly ? "" : buildLineText(block.translation, line, nextLine);
+    if (text2.trim()) {
+      const vertical = shouldStayVertical(block, settings.verticalText);
+      const fitted = fitFontSize(text2, vertical ? boxH : boxW, vertical ? boxW : boxH, fontFamily);
+      const size = Math.max(fitted, draw.minFontPx);
+      ctx.font = `${size}px ${fontFamily}`;
+      ctx.direction = isRtl(block) ? "rtl" : "ltr";
+      const fill = argbToCss(line.textColor);
+      const outline = patch ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale)) : 0;
+      const outlineColor = patch ? argbToCss(line.bgColor) : null;
+      const enlarged = size > fitted;
+      const advance = ctx.measureText(text2).width;
+      const drawW = enlarged ? Math.min(Math.max(boxW, advance + size * 0.4), width) : boxW;
+      const drawH = enlarged ? Math.min(Math.max(boxH, size * 1.35), height) : boxH;
+      if (enlarged && settings.drawBackground && !skipBackground) {
+        ctx.fillStyle = argbToCss(line.bgColor);
+        ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      }
+      ctx.translate(-drawW / 2, -drawH / 2);
+      if (vertical) {
+        drawVertical(draw, text2, drawW, drawH, size, fill, outline, outlineColor);
+      } else {
+        const justify = justification(block.alignment, isRtl(block), settings.textAlign);
+        const advance2 = ctx.measureText(text2).width;
+        const x2 = justify === "flex-start" ? 0 : justify === "flex-end" ? drawW - advance2 : (drawW - advance2) / 2;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        strokeThenFill(ctx, text2, x2, drawH / 2, outline, outlineColor);
+        ctx.fillStyle = fill;
+        ctx.fillText(text2, x2, drawH / 2);
+      }
+    }
+    ctx.restore();
+  }
+  async function renderToBlob(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth = naturalWidth) {
+    const scale = Math.min(
+      Math.max(1, Math.round(settings.supersample)),
+      Math.max(1, Math.floor(8e3 / Math.max(naturalWidth, naturalHeight)))
+    );
+    const width = naturalWidth * scale;
+    const height = naturalHeight * scale;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get a 2d canvas context");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, width, height);
+    const fontFamily = settings.fontFamily || "system-ui, -apple-system, sans-serif";
+    const canvasPerCssPx = width / Math.max(1, displayedWidth);
+    const floorCssPx = settings.mangaMode ? Math.max(settings.minReadablePx, 14) : settings.minReadablePx;
+    const draw = {
+      ctx,
+      width,
+      height,
+      fontFamily,
+      minFontPx: floorCssPx > 0 ? floorCssPx * canvasPerCssPx : 0
+    };
+    for (const block of blocks) {
+      const vertical = block.writingDirection === 2;
+      const stayVertical = !settings.mangaMode && shouldStayVertical(block, settings.verticalText);
+      const hull = settings.drawBackground && (settings.eraseMode === "hull" || settings.mangaMode);
+      if (hull) eraseTextArea(draw, block, settings);
+      const reflow = vertical && !stayVertical && Boolean(block.geometry);
+      for (let i2 = 0; i2 < block.lines.length; i2 += 1) {
+        const line = block.lines[i2];
+        if (!line) continue;
+        if (reflow) {
+          if (!hull) await drawLine(draw, block, line, block.lines[i2 + 1], settings, true);
+        } else await drawLine(draw, block, line, block.lines[i2 + 1], settings, false, hull);
+      }
+      if (reflow) drawReflowedParagraph(draw, block, settings);
+    }
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("Could not encode the translated image");
+    return blob;
+  }
+  const LENS_DEFAULTS = {
+    targetLang: "ru",
+    sourceLang: "",
+    ocrLang: "",
+    region: "US",
+    timeZone: "America/New_York",
+    // The key Chromium ships with.
+    apiKey: "AIzaSyDr2UxVnv_U85AbhhY8XSHSIavUW0DC-sY",
+    timeoutMs: 6e4,
+    minImageSize: 50,
+    // Chromium's image budget: components/lens/lens_features.cc
+    maxArea: 15e5,
+    maxSide: 1600,
+    jpegQuality: 0.4,
+    showButton: true,
+    hotkey: "none",
+    fontFamily: "",
+    drawBackground: true,
+    verticalText: "auto",
+    renderMode: "canvas",
+    enabled: true,
+    minReadablePx: 12,
+    supersample: 2,
+    cacheBytes: 32 * 1024 * 1024,
+    mangaMode: false,
+    mangaBoxGrowth: 1.45,
+    outlineScale: 1,
+    eraseMode: "patch",
+    hullPadding: 0.45,
+    textAlign: "auto"
+  };
+  function lensSettings() {
+    const settings = state.settings;
+    return {
+      ...LENS_DEFAULTS,
+      // The same target language the text translators use
+      targetLang: resolveLanguage(settings.translationLanguage).code,
+      mangaMode: settings.imageTranslateManga,
+      eraseMode: settings.imageTranslateErase,
+      minReadablePx: Number(settings.imageTranslateMinPx) || 0,
+      supersample: Number(settings.imageTranslateSharpness) || 1
+    };
+  }
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not load the image"));
+      image.src = url;
+    });
+  }
+  const MAX_LIVE_URLS = 8;
+  const liveUrls = /* @__PURE__ */ new Map();
+  function keepUrl(key, blob) {
+    const url = URL.createObjectURL(blob);
+    liveUrls.set(key, url);
+    while (liveUrls.size > MAX_LIVE_URLS) {
+      const oldest = liveUrls.keys().next();
+      if (oldest.done) break;
+      URL.revokeObjectURL(liveUrls.get(oldest.value));
+      liveUrls.delete(oldest.value);
+    }
+    return url;
+  }
+  async function translateImage(url, displayedWidth) {
+    const settings = lensSettings();
+    const key = cacheKey(url, settings);
+    const rendered = renderKey(key, settings, displayedWidth);
+    const live = liveUrls.get(rendered);
+    if (live) return live;
+    const done = getRender(rendered, settings);
+    if (done) return keepUrl(rendered, done);
+    const image = await loadImage(url);
+    const prepared = await acquireSource(image);
+    try {
+      let result = getCached(key, settings);
+      if (!result) {
+        const upload = await encodeForUpload(prepared.source, settings);
+        result = await callLens(upload, settings);
+        putCached(key, result, settings);
+      }
+      if (!result.blocks.length) {
+        throw new Error(
+          result.ocr.some((paragraph) => paragraph.lines.length > 0) ? "Lens read the text but returned no translation (same language?)" : "Lens found no text in this image"
+        );
+      }
+      const blob = await renderToBlob(
+        prepared.source,
+        prepared.width,
+        prepared.height,
+        result.blocks,
+        settings,
+        displayedWidth
+      );
+      putRender(rendered, blob, settings);
+      return keepUrl(rendered, blob);
+    } finally {
+      prepared.release();
+    }
   }
   async function fetchPostFileData() {
     var _a2, _b2;
@@ -8832,6 +10111,7 @@ Password: ${password} (copied on click)`;
   }
   const lightboxModule = {
     isActive: false,
+    isTranslated: false,
     imageLinks: [],
     currentIndex: 0,
     zoom: 1,
@@ -8854,8 +10134,10 @@ Password: ${password} (copied on click)`;
     open(links, index) {
       if (this.isActive) return;
       this.isActive = true;
+      this.isTranslated = false;
       this.imageLinks = links;
       this.currentIndex = index;
+      const translateButton = state.settings.showImageTranslateButton ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg("languages")}</button>` : "";
       const lightboxHTML = `
       <div id="kui-lightbox" class="kui-active">
           <div class="kui-lightbox-top-actions">
@@ -8864,6 +10146,7 @@ Password: ${password} (copied on click)`;
               <a id="kui-lightbox-lens-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" title="Search with Google Lens">
                   ${ICONS.LENS}
               </a>
+              ${translateButton}
               <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
           </div>
           <button class="kui-lightbox-nav prev" title="Previous (←)">${iconSvg("chevron-left")}</button>
@@ -8893,6 +10176,7 @@ Password: ${password} (copied on click)`;
       document.body.style.overflow = "";
     },
     updateContent() {
+      var _a2;
       const currentLinkData = this.imageLinks[this.currentIndex];
       if (!currentLinkData || !this.canvas) return;
       const originalPath = currentLinkData.dataset.originalPath || currentLinkData.href;
@@ -8901,6 +10185,8 @@ Password: ${password} (copied on click)`;
       const lensBtn = document.getElementById("kui-lightbox-lens-btn");
       if (downloadBtn) downloadBtn.href = originalPath;
       if (lensBtn) lensBtn.href = lensLink;
+      this.isTranslated = false;
+      (_a2 = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _a2.classList.remove("kui-active");
       this.resetPanZoom();
       this.canvas.style.opacity = "0.5";
       this.image.src = "";
@@ -8932,7 +10218,7 @@ Password: ${password} (copied on click)`;
       });
     },
     addEventListeners() {
-      var _a2, _b2, _c, _d;
+      var _a2, _b2, _c, _d, _e;
       this.boundHandleKeydown = this.handleKeydown.bind(this);
       document.addEventListener("keydown", this.boundHandleKeydown, true);
       const container = document.getElementById("kui-lightbox-img-container");
@@ -8952,6 +10238,36 @@ Password: ${password} (copied on click)`;
       (_b2 = document.querySelector(".kui-lightbox-nav.prev")) == null ? void 0 : _b2.addEventListener("click", () => this.navigate(-1));
       (_c = document.querySelector(".kui-lightbox-nav.next")) == null ? void 0 : _c.addEventListener("click", () => this.navigate(1));
       (_d = document.getElementById("kui-lightbox-copy-btn")) == null ? void 0 : _d.addEventListener("click", this.handleCopyLink.bind(this));
+      (_e = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _e.addEventListener("click", this.handleTranslate.bind(this));
+    },
+    async handleTranslate() {
+      var _a2;
+      const btn = document.getElementById("kui-lightbox-translate-btn");
+      const currentLink = this.imageLinks[this.currentIndex];
+      if (!btn || btn.disabled || !currentLink) return;
+      const originalPath = currentLink.dataset.originalPath || currentLink.href;
+      if (this.isTranslated) {
+        this.isTranslated = false;
+        btn.classList.remove("kui-active");
+        this.image.src = originalPath;
+        return;
+      }
+      const icon2 = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
+      try {
+        const displayedWidth = ((_a2 = document.getElementById("kui-lightbox-img-container")) == null ? void 0 : _a2.clientWidth) || window.innerWidth;
+        const translated = await translateImage(originalPath, displayedWidth);
+        if (!this.isActive) return;
+        this.image.src = translated;
+        this.isTranslated = true;
+        btn.classList.add("kui-active");
+      } catch (e) {
+        showMessage(`Lens: ${e.message}`, "error");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = icon2;
+      }
     },
     removeEventListeners() {
       if (this.boundHandleKeydown) {
@@ -9098,6 +10414,18 @@ Password: ${password} (copied on click)`;
       thumbToggle.addEventListener("click", () => thumbList.classList.toggle("kui-collapsed"));
       previewContainer.appendChild(previewImage);
       previewContainer.appendChild(thumbToggle);
+      const translatedByIndex = /* @__PURE__ */ new Map();
+      let translateBtn = null;
+      if (state.settings.showImageTranslateButton) {
+        translateBtn = document.createElement("button");
+        translateBtn.className = "kui-action-btn";
+        translateBtn.title = "Translate the text in this image";
+        translateBtn.innerHTML = iconSvg("languages");
+        const previewActions = document.createElement("div");
+        previewActions.className = "kui-gallery-preview-actions";
+        previewActions.appendChild(translateBtn);
+        previewContainer.appendChild(previewActions);
+      }
       galleryLayout.appendChild(thumbList);
       galleryLayout.appendChild(previewContainer);
       targetSection.appendChild(galleryLayout);
@@ -9111,15 +10439,44 @@ Password: ${password} (copied on click)`;
         if (!activeThumbLink || !originalPageLink) return;
         const imgEl = originalPageLink.querySelector("img");
         if (!imgEl) return;
-        const previewSrc = imgEl.src;
+        const previewSrc = translatedByIndex.get(currentIndex) || imgEl.src;
         if (previewImage.src !== previewSrc) {
           previewImage.src = previewSrc;
         }
+        translateBtn == null ? void 0 : translateBtn.classList.toggle("kui-active", translatedByIndex.has(currentIndex));
         thumbLinks.forEach((link) => link.classList.remove("kui-thumb-active"));
         activeThumbLink.classList.add("kui-thumb-active");
         activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
       };
       galleryLayout.navigate = (direction) => setActive(currentIndex + direction);
+      translateBtn == null ? void 0 : translateBtn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        const btn = translateBtn;
+        if (btn.disabled) return;
+        if (translatedByIndex.delete(currentIndex)) {
+          setActive(currentIndex);
+          return;
+        }
+        const link = imageLinks[currentIndex];
+        if (!link) return;
+        const index = currentIndex;
+        const buttonIcon = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
+        try {
+          const translated = await translateImage(
+            link.dataset.originalPath || link.href,
+            previewImage.clientWidth || previewImage.naturalWidth
+          );
+          translatedByIndex.set(index, translated);
+          if (index === currentIndex) setActive(index);
+        } catch (error) {
+          showMessage(`Lens: ${error.message}`, "error");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = buttonIcon;
+        }
+      });
       let touchStartX = 0;
       previewImage.addEventListener("touchstart", (e) => {
         touchStartX = e.changedTouches[0].clientX;
@@ -9394,14 +10751,14 @@ Password: ${password} (copied on click)`;
       restoreOriginal(button, target, kind);
       return;
     }
-    const text = withoutKeptChildren(target, kind, () => target.innerText.trim());
-    if (!text) return;
+    const text2 = withoutKeptChildren(target, kind, () => target.innerText.trim());
+    if (!text2) return;
     setButtonState(button, "loading");
     try {
       await getSettings();
-      const cacheKey = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text}`;
-      const translated = appState.translationCache[cacheKey] ?? await translateText(text, state.settings);
-      appState.translationCache[cacheKey] = translated;
+      const cacheKey2 = `${state.settings.translationProvider}:${state.settings.translationLanguage}:${text2}`;
+      const translated = appState.translationCache[cacheKey2] ?? await translateText(text2, state.settings);
+      appState.translationCache[cacheKey2] = translated;
       withoutKeptChildren(target, kind, () => {
         target.dataset.kuiOriginal = target.innerHTML;
         target.innerText = translated;
