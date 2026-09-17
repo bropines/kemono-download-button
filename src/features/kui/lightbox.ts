@@ -153,9 +153,7 @@ export const lightboxModule = {
     btn.disabled = true;
     btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
     try {
-      // What the result will be shown at: it decides whether Lens's own text size is legible
-      const displayedWidth = document.getElementById("kui-lightbox-img-container")?.clientWidth || window.innerWidth;
-      const translated = await translateImage(originalPath, displayedWidth);
+      const translated = await translateImage(originalPath);
       if (!this.isActive) return;
       this.image.src = translated;
       this.isTranslated = true;

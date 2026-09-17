@@ -114,10 +114,7 @@ export async function initializeImageGallery(): Promise<void> {
       btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
       try {
         // The original, not the thumbnail: Lens reads small text badly
-        const translated = await translateImage(
-          link.dataset.originalPath || link.href,
-          previewImage.clientWidth || previewImage.naturalWidth
-        );
+        const translated = await translateImage(link.dataset.originalPath || link.href);
         translatedByIndex.set(index, translated);
         if (index === currentIndex) setActive(index);
       } catch (error) {

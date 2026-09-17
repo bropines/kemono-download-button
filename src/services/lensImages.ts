@@ -84,13 +84,22 @@ function keepUrl(key: string, blob: Blob): string {
 }
 
 /**
- * The image at `url` with its text translated, as an object URL.
+ * One display width for every place an image is shown.
  *
- * `displayedWidth` is the width the result will be shown at, in CSS pixels: it
- * decides whether Lens's own text size would be legible, and so how far the
- * readable-size floor has to raise it.
+ * The readable-size floor is relative to how wide the image is displayed, so
+ * rendering the gallery preview at its own width and the lightbox at the
+ * viewport's gave one image two renderings with two different text sizes. The
+ * viewport is where the image is actually read; quantising it keeps a resize
+ * from splitting the cache, and keeps both places on one rendering.
  */
-export async function translateImage(url: string, displayedWidth: number): Promise<string> {
+function referenceWidth(): number {
+  const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
+  return Math.round(width / 200) * 200;
+}
+
+/** The image at `url` with its text translated, as an object URL. */
+export async function translateImage(url: string): Promise<string> {
+  const displayedWidth = referenceWidth();
   const settings = lensSettings();
   const key = cacheKey(url, settings);
   const rendered = renderKey(key, settings, displayedWidth);

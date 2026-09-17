@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.47
+// @version      0.8.48
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -10039,7 +10039,12 @@ Password: ${password} (copied on click)`;
     }
     return url;
   }
-  async function translateImage(url, displayedWidth) {
+  function referenceWidth() {
+    const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
+    return Math.round(width / 200) * 200;
+  }
+  async function translateImage(url) {
+    const displayedWidth = referenceWidth();
     const settings = lensSettings();
     const key = cacheKey(url, settings);
     const rendered = renderKey(key, settings, displayedWidth);
@@ -10241,7 +10246,6 @@ Password: ${password} (copied on click)`;
       (_e = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _e.addEventListener("click", this.handleTranslate.bind(this));
     },
     async handleTranslate() {
-      var _a2;
       const btn = document.getElementById("kui-lightbox-translate-btn");
       const currentLink = this.imageLinks[this.currentIndex];
       if (!btn || btn.disabled || !currentLink) return;
@@ -10256,8 +10260,7 @@ Password: ${password} (copied on click)`;
       btn.disabled = true;
       btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
       try {
-        const displayedWidth = ((_a2 = document.getElementById("kui-lightbox-img-container")) == null ? void 0 : _a2.clientWidth) || window.innerWidth;
-        const translated = await translateImage(originalPath, displayedWidth);
+        const translated = await translateImage(originalPath);
         if (!this.isActive) return;
         this.image.src = translated;
         this.isTranslated = true;
@@ -10464,10 +10467,7 @@ Password: ${password} (copied on click)`;
         btn.disabled = true;
         btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
         try {
-          const translated = await translateImage(
-            link.dataset.originalPath || link.href,
-            previewImage.clientWidth || previewImage.naturalWidth
-          );
+          const translated = await translateImage(link.dataset.originalPath || link.href);
           translatedByIndex.set(index, translated);
           if (index === currentIndex) setActive(index);
         } catch (error) {
