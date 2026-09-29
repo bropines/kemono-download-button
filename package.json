@@ -4,7 +4,7 @@
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
-    "build": "vite build && node scripts/postbuild.js",
+    "build": "vite build && node scripts/postbuild.mjs",
     "typecheck": "tsc --noEmit",
     "dev": "vite build --watch"
   },
@@ -23,8 +23,6 @@
     "vite": "^5.0.0"
   },
   "dependencies": {
-    "fflate": "^0.8.2",
-    "jszip": "^3.10.1",
-    "plyr": "^3.7.8"
+    "fflate": "^0.8.2"
   }
 }

@@ -1,40 +1,43 @@
-name: CI Build Check
+name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  build-check:
-    name: Build & Validate Syntax
+  build:
+    name: Type check, build, verify
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
-          cache: 'npm'
+          node-version: 22
+          cache: npm
 
-      - name: Install Dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Type Check
+      - name: Type check
         run: npm run typecheck
 
-      - name: Build UserScript
+      - name: Build
         run: npm run build
 
-      - name: Validate Compiled JavaScript Syntax
+      - name: Check the compiled script parses
+        run: node --check kemono-download-button.user.js
+
+      - name: Check versions agree
+        run: node scripts/check-version.mjs
+
+      # @updateURL serves the committed file straight from main, so it must be the build of these sources
+      - name: Check the committed script is up to date
         run: |
-          for f in *.user.js; do
-            echo "Checking syntax for $f..."
-            node -c "$f"
-          done
+          if ! git diff --quiet -- kemono-download-button.user.js; then
+            echo "::error file=kemono-download-button.user.js::The committed build is stale. Run npm run build and commit the result."
+            git diff --stat -- kemono-download-button.user.js
+            exit 1
+          fi

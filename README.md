@@ -1,80 +1,94 @@
-# Kemono & Pawchive Download Button 🚀
+# Kemono & Pawchive Download Button
 
-![Version](https://img.shields.io/badge/version-0.2.1-blue.svg)
+[![Version](https://img.shields.io/github/package-json/v/bropines/kemono-download-button?label=version)](https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js)
+[![CI](https://github.com/bropines/kemono-download-button/actions/workflows/ci.yml/badge.svg)](https://github.com/bropines/kemono-download-button/actions/workflows/ci.yml)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)
-![Build](https://img.shields.io/badge/build-Vite-purple)
 
-A powerful, high-performance UserScript for batch and single-item downloading from **Kemono**, **Coomer**, and **Pawchive** with built-in **IndexedDB persistent binary file caching**, **fflate ZIP engine**, **CDN failover rotation**, and **AI translation capabilities**.
+A userscript for **Kemono**, **Coomer** and **Pawchive**: download posts, files and whole creators in one click, read posts in a cleaner interface, and translate titles, text, comments and even the text inside images.
 
----
+## Install
 
-## ⚡ Direct Installation (Permanent Auto-Update Link)
+**[Install / update the userscript](https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js)**
 
-Click the link below to install directly into your UserScript manager (**Tampermonkey**, **Violentmonkey**, or **Greasemonkey**). It will automatically check for future updates on GitHub:
+The link is permanent: your userscript manager checks it for updates on its own.
 
-👉 [**Install / Update UserScript**](https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js)
+| Manager | Status |
+| :--- | :--- |
+| Tampermonkey | Reference host |
+| Violentmonkey | Supported |
+| AdGuard (desktop and Android) | Supported. It has no userscript menu, so open settings with the **Downloader Settings** and **UI Settings** buttons in the site's header or sidebar |
 
----
+Greasemonkey 4 is not supported: it only offers the `GM.*` API.
 
-## 🌐 Supported Sites
+## Supported sites
 
 | Service | Domains |
 | :--- | :--- |
-| **Kemono** | `kemono.su`, `*.kemono.su`, `kemono.cr`, `*.kemono.cr` |
-| **Coomer** | `coomer.su`, `*.coomer.su`, `coomer.party`, `*.coomer.party` |
-| **Pawchive** | `pawchive.pw`, `*.pawchive.pw`, `pawchive.st`, `*.pawchive.st` |
+| Kemono | `kemono.su`, `kemono.cr` and their subdomains |
+| Coomer | `coomer.su`, `coomer.party` and their subdomains |
+| Pawchive | `pawchive.pw`, `pawchive.st` and their subdomains |
 
----
+## Features
 
-## ✨ Features
+### Downloading
+- **Post buttons**: the whole post as a ZIP, images only, attachments only, links copied in aria2/IDM format, links saved as a text file, or shared.
+- **Streaming ZIPs** built with `fflate`, so large archives do not freeze the page. Compression level is configurable; the archive can include `metadata.json`, the post text, tags, comments and an HTML index.
+- **Pick files** before downloading, and skip extensions you never want.
+- **Bulk downloads** from a creator's page: tick posts (or Ctrl+click and Shift+click cards) and get one archive or one per post. The author manager downloads every post a creator has.
+- **Reliable fetching**: configurable retries, cancel any task, automatic fallback to the file host, and an IndexedDB cache of files and post metadata.
+- **File name templates** with `{author_name}`, `{post_date}`, `{post_title}`, `{post_id}`, `{user_id}`, `{service}`, `{file_index}`, `{global_file_index}`, `{file_name}`, `{original_file_name}`, `{file_ext}`.
 
-- **🚀 Ultra-Fast `fflate` ZIP Engine**: Uses `fflate` synchronous packaging (`zipSync`) to build ZIP archives in milliseconds with **0% main-thread freezing**.
-- **⚙️ Configurable ZIP Compression Levels**: Choose between Level `0` (Store - Instant, recommended for media) up to Level `9` (Maximum Deflate).
-- **💾 IndexedDB Persistent File & Metadata Caching**:
-  - Downloaded images/videos are stored locally in IndexedDB as `ArrayBuffer` binaries.
-  - Re-downloading or re-zipping already fetched files takes **0ms without network calls**.
-  - Integrated Cache Management UI in Settings (Clear Incomplete vs. Clear All Cache with real-time size indicators).
-- **🔄 Multi-Domain CDN Failover Node Rotation**: Automatically rotates through mirror nodes (`file.` $\rightarrow$ `c1` $\rightarrow$ `c2` $\rightarrow$ `c3` $\rightarrow$ `c4` $\rightarrow$ `c5` $\rightarrow$ `c6`) if 404 or connection errors occur.
-- **📱 PWA & HTMX SPA Navigation Resilience**: Handlers intercept HTMX DOM swaps (`htmx:afterSettle`) and History API state changes so floating download controls remain persistent.
-- **🤖 AI Post Translation**: Supports real-time translation of Japanese/foreign post titles and content using **Google Gemini API** or **DeepL API**.
-- **📁 Custom File & Folder Templates**: Custom naming patterns with variables: `{author_name}`, `{post_date}`, `{post_title}`, `{post_id}`, `{file_index}`, `{file_name}`.
-- **📄 Complete Export Options**: Optional saving of `content.txt`, `metadata.json`, `tags.txt`, and `comments.txt` inside the output ZIP.
+### Reading
+- **Image gallery** with thumbnails and a lightbox (zoom, pan, swipe, download the original, search with Google Lens).
+- **Video player** built on Plyr, replacing the site's own player.
+- **Link buttons** for Mega, Gofile and other hosts, with passwords recognised even when glued to the link.
+- **Comments** as a list, a grid of equal cards or a carousel; author replies threaded under the comment they answer; long comments expand in place.
+- Empty sections hidden, viewed posts marked, adjustable card grid, and an optional built-in ad blocker.
 
----
+### Translation
+- **Text**: the post title, its content and every comment get their own translate button. Google and Yandex work without a key; OpenAI-compatible APIs (OpenAI, Gemini, OpenRouter, local servers), native Gemini and DeepL need one.
+- **Text inside images** through Google Lens, rendered in place the way Chrome's Lens overlay does it: manga mode, two ways of erasing the original, line spacing, re-wrapping, and answers remembered across reloads. No key needed.
 
-## 🛠️ Development & Building
+## Development
 
-The project is structured as a modular TypeScript application bundled with Vite.
-
-### Prerequisites
-- **Node.js**: v18 or higher
-- **npm**: v9 or higher
-
-### Setup & Installation
+Requires Node.js 22 or newer.
 
 ```bash
-# Clone repository
 git clone https://github.com/bropines/kemono-download-button.git
 cd kemono-download-button
-
-# Install dependencies
-npm install
-```
-
-### Build
-
-```bash
+npm ci
+npm run typecheck
 npm run build
 ```
 
-This compiles `src/index.ts` into self-contained UserScript bundles at the repository root:
-- `kemono-download-button.user.js` (Permanent auto-update link)
-- `Kemono Download Button-0.2.1.user.js`
-- `Kemono Download Button-0.2.1.txt`
+`npm run build` bundles `src/` with Vite and writes the single file `kemono-download-button.user.js`, with the metadata header taken from `src/index.ts`.
 
----
+```
+src/
+  api/          site REST clients (Kemono/Coomer, Pawchive)
+  config/       constants, selectors, icons, default settings
+  features/     reading UI: gallery, video, comments, translation buttons, ad blocker
+  services/     downloads, ZIP, cache, queue, translators, Lens image translation
+  state/        settings and GM storage
+  styles/       CSS written as TypeScript modules
+  ui/           settings modal, file picker, bulk panel, author manager
+  vendor/lens/  copy of the Lens engine; read its README before editing
+```
 
-## 📜 License
+### Releasing
+
+Every push to `main` reaches users through the auto-update link, so the committed script must always be a build of the committed sources. CI checks that, and that the versions agree.
+
+1. Bump the patch version in `package.json` and the `@version` line in `src/index.ts`.
+2. `npm run build` and commit the rebuilt `kemono-download-button.user.js` together with the sources.
+3. Push to `main`. For a GitHub Release, also push a tag: `git tag v0.8.49 && git push origin v0.8.49`.
+
+## Credits
+
+- Original script by hoami_523.
+- Image translation: the engine of [chrome-lens-userscript](https://github.com/bropines/chrome-lens-userscript) (MIT).
+- [Plyr](https://plyr.io) (MIT), [fflate](https://github.com/101arrowz/fflate) (MIT), [Lucide](https://lucide.dev) icons (ISC).
+
+## License
 
 MIT License. Free for personal and non-commercial use.

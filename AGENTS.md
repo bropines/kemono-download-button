@@ -30,8 +30,11 @@
 - UI components must be programmatically generated via dedicated component modules (`src/ui/components/*`).
 - **100% Visual & Functional Fidelity**: Generated DOM elements must strictly preserve all original IDs, CSS class names, attributes, layout hierarchies, hover states, and color schemes from the source script.
 
-### 5. Externalized Dependencies
-- **JSZip**: Must NEVER be bundled into the compiled output. Always use `@require https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js` in UserScript metadata header and consume `JSZip` from global scope.
+### 5. Dependencies & Userscript Hosts
+- **ZIP**: archives are streamed with `fflate`, which is small and bundled. JSZip is no longer used; do not bring it back.
+- **Plyr**: loaded at runtime with `@require https://cdn.plyr.io/3.7.8/plyr.js` and used from the global `Plyr`; never imported or bundled.
+- **Lens**: `src/vendor/lens/` is a copy of the chrome-lens-userscript engine. Read its README before touching it.
+- **Hosts**: Tampermonkey, Violentmonkey and AdGuard (desktop and Android). AdGuard has no `GM_download` or menu, drops objects written with `GM_setValue` on reload and ignores `responseType`, so store through `readStored`/`writeStored` (`src/state/gmStorage.ts`), save files through `saveBlob` (`src/utils/saveFile.ts`) and request through `gmXmlhttpRequestWithRetries`.
 
 ### 6. Multi-Domain & Pawchive Support
 - Supported site targets:
@@ -45,4 +48,5 @@
 
 ### 7. Versioning & Output Files
 - Always bump the patch version (the 3rd digit, e.g. `0.2.1` -> `0.2.2`) in `package.json` and `src/index.ts` header whenever code changes are made.
+- Commit the rebuilt `kemono-download-button.user.js` with every source change: users auto-update from `main`, and CI fails when the committed build does not match the sources.
 - The build process must only generate the single main output file `kemono-download-button.user.js` in the root directory. Do not generate `.txt` or extra version-suffixed `.user.js` files.
