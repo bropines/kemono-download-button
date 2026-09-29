@@ -387,43 +387,9 @@ export function createSettingsModal(): void {
       'Show the button on post images',
       'Translates the text drawn inside an image, in the gallery and in the lightbox. Needs no key; uses the target language above'
     ),
-    checkboxItem(
-      'kdl-setting-imageTranslateManga',
-      'Manga mode',
-      'Reflows vertical Japanese into lines, wipes the speech bubble instead of patching each line, and raises the text size floor'
-    ),
-    selectItem(
-      'kdl-setting-imageTranslateErase',
-      'Erase the original text with',
-      [
-        { value: 'patch', text: 'Lens patches (what Chrome does)' },
-        { value: 'hull', text: 'Flat cover (cleaner inside bubbles)' }
-      ],
-      "Lens's patches keep the faded edges of the original letters; a flat cover wipes them, but only looks right where the background is one colour"
-    ),
-    inputItem('kdl-setting-imageTranslateMinPx', 'number', 'Minimum text size (px)', { min: 0, step: 1 }, 'Lens fits text to the original line, which on a large page can be a few pixels on screen. 0 turns the floor off'),
-    selectItem(
-      'kdl-setting-imageTranslateSharpness',
-      'Render sharpness',
-      [
-        { value: '1', text: '1x' },
-        { value: '2', text: '2x' },
-        { value: '3', text: '3x' }
-      ],
-      'Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp'
-    ),
-    checkboxItem(
-      'kdl-setting-imageTranslateReflow',
-      'Re-wrap horizontal text',
-      'Treats a paragraph as one text area instead of repeating the lines Lens found, so line spacing has something to act on'
-    ),
-    checkboxItem('kdl-setting-imageTranslateFitToBox', 'Keep text out of the next bubble', 'Shrinks a paragraph that outgrows the room between its neighbours'),
-    selectItem(
-      'kdl-setting-imageTranslateLineSpacing',
-      'Line spacing',
-      [0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2].map((value) => ({ value: String(value), text: `${value}x` })),
-      'Acts on re-wrapped text: the switch above, or vertical text in manga mode'
-    ),
+    el('small', { style: { display: 'block', margin: '2px 0 10px', opacity: '0.75' } }, [
+      'Display settings (manga mode, erasing, outline, spacing and more) live in the image viewer: open an image and press the sliders button next to Translate. The picture redraws as you change them.'
+    ]),
     checkboxItem(
       'kdl-setting-imageTranslatePersist',
       'Remember across reloads',

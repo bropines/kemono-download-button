@@ -27,6 +27,13 @@ export interface DownloaderSettings {
   imageTranslateFitToBox: boolean;
   imageTranslateLineSpacing: number;
   imageTranslatePersist: boolean;
+  imageTranslateDrawBackground: boolean;
+  imageTranslateHullPadding: number;
+  imageTranslateOutline: number;
+  imageTranslateAlign: 'auto' | 'left' | 'center' | 'right';
+  imageTranslateVertical: 'auto' | 'keep' | 'horizontal';
+  imageTranslateMangaGrowth: number;
+  imageTranslateFont: string;
   translationProvider: 'none' | 'gemini' | 'openai' | 'deepl' | 'yandex' | 'google';
   translationLanguage: string;
   geminiApiKey: string;

@@ -2,7 +2,7 @@ import { SELECTORS } from '../../config/selectors';
 import { ICONS, iconSvg } from '../../config/icons';
 import { kuiState } from '../../state/kuiState';
 import { state } from '../../state/store';
-import { translateImage } from '../../services/lensImages';
+import { LENS_DISPLAY_CHANGED, translateImage } from '../../services/lensImages';
 import { showMessage } from '../../ui/toast';
 import { fetchPostFileData } from './api';
 import { lightboxModule } from './lightbox';
@@ -98,19 +98,12 @@ export async function initializeImageGallery(): Promise<void> {
 
     galleryLayout.navigate = (direction: number) => setActive(currentIndex + direction);
 
-    translateBtn?.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      const btn = translateBtn!;
-      if (btn.disabled) return;
-      // Dropping the rendering shows the original again; translating it back is a cache hit
-      if (translatedByIndex.delete(currentIndex)) {
-        setActive(currentIndex);
-        return;
-      }
+    // Translates the image on show, and redraws it when a display setting changes
+    const translateCurrent = async (): Promise<void> => {
+      const btn = translateBtn;
       const link = imageLinks[currentIndex];
-      if (!link) return;
+      if (!btn || !link) return;
       const index = currentIndex;
-      const buttonIcon = btn.innerHTML;
       btn.disabled = true;
       btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
       try {
@@ -122,9 +115,32 @@ export async function initializeImageGallery(): Promise<void> {
         showMessage(`Lens: ${(error as Error).message}`, 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = buttonIcon;
+        btn.innerHTML = iconSvg('languages');
       }
+    };
+
+    translateBtn?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (translateBtn!.disabled) return;
+      // Dropping the rendering shows the original again; translating it back is a cache hit
+      if (translatedByIndex.delete(currentIndex)) {
+        setActive(currentIndex);
+        return;
+      }
+      void translateCurrent();
     });
+
+    // After a display setting changes the renderings on hand are stale: redraw the one on screen
+    const onDisplayChanged = (): void => {
+      if (!galleryLayout.isConnected) {
+        document.removeEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
+        return;
+      }
+      const showing = translatedByIndex.has(currentIndex);
+      translatedByIndex.clear();
+      if (showing) void translateCurrent();
+    };
+    if (translateBtn) document.addEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
 
     let touchStartX = 0;
     previewImage.addEventListener("touchstart", (e) => {

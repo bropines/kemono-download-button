@@ -50,6 +50,11 @@ const LENS_DEFAULTS: Settings = {
   textAlign: 'auto'
 };
 
+const finite = (value: unknown, fallback: number): number => {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+};
+
 export function lensSettings(): Settings {
   const settings = state.settings;
   return {
@@ -63,8 +68,23 @@ export function lensSettings(): Settings {
     reflowHorizontal: settings.imageTranslateReflow,
     fitToBox: settings.imageTranslateFitToBox,
     lineSpacing: Number(settings.imageTranslateLineSpacing) || LENS_DEFAULTS.lineSpacing,
-    persistCache: settings.imageTranslatePersist
+    persistCache: settings.imageTranslatePersist,
+    drawBackground: settings.imageTranslateDrawBackground,
+    hullPadding: finite(settings.imageTranslateHullPadding, LENS_DEFAULTS.hullPadding),
+    outlineScale: finite(settings.imageTranslateOutline, LENS_DEFAULTS.outlineScale),
+    textAlign: settings.imageTranslateAlign,
+    verticalText: settings.imageTranslateVertical,
+    mangaBoxGrowth: finite(settings.imageTranslateMangaGrowth, LENS_DEFAULTS.mangaBoxGrowth),
+    fontFamily: settings.imageTranslateFont
   };
+}
+
+// A display setting changed: whatever shows a translation redraws it. The render cache is keyed by
+// every drawn setting, so this re-renders from the answer already in hand without asking Lens again
+export const LENS_DISPLAY_CHANGED = 'kdl:lens-display-changed';
+
+export function notifyLensDisplayChanged(): void {
+  document.dispatchEvent(new CustomEvent(LENS_DISPLAY_CHANGED));
 }
 
 function loadImage(url: string): Promise<HTMLImageElement> {

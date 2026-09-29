@@ -4,6 +4,17 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [0.8.51] - 2026-09-29
+
+### Added
+- **Translation display settings inside the image viewer.** The sliders button next to Translate opens every display setting of the Lens engine: manga mode and bubble fill, re-wrapping, line spacing, alignment, vertical text, font, how and how far the original is erased, text outline, minimum size and sharpness. The translation on screen redraws as you change them, from the answer Lens already gave, and so does the gallery preview.
+
+### Changed
+- Those settings moved out of the settings modal, which keeps showing the button, remembering answers across reloads and clearing the cache.
+
+### Fixed
+- Turning a translation on or off in the viewer reset the zoom and position.
+
 ## [0.8.50] - 2026-09-29
 
 ### Fixed

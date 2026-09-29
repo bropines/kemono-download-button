@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.50
+// @version      0.8.51
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1574,6 +1574,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     "rotate-ccw": '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
     "settings": '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
     "share-2": '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/>',
+    "sliders-horizontal": '<line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/>',
     "star": '<path d="M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z"/>',
     "triangle-alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
     "undo-2": '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"/>',
@@ -3614,6 +3615,127 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       cursor: "wait"
     }
   });
+  const PANEL_WIDTH = "min(320px, calc(100vw - 32px))";
+  const lensPanelStyles = css({
+    ".kui-lens-panel": {
+      position: "absolute",
+      top: "70px",
+      right: "15px",
+      zIndex: 5,
+      boxSizing: "border-box",
+      width: PANEL_WIDTH,
+      maxHeight: "calc(100% - 90px)",
+      overflowY: "auto",
+      padding: "10px 14px 14px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.lg,
+      background: "rgba(18, 20, 22, 0.92)",
+      backdropFilter: "blur(10px)",
+      boxShadow: "0 12px 32px rgba(0, 0, 0, 0.5)",
+      color: THEME.colors.textMain,
+      fontSize: "13px",
+      lineHeight: 1.35,
+      scrollbarWidth: "thin",
+      scrollbarColor: `${THEME.scrollbars.thumbBg} transparent`
+    },
+    ".kui-lens-panel[hidden]": {
+      display: "none"
+    },
+    ".kui-lens-panel-header": {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      marginBottom: "4px"
+    },
+    ".kui-lens-panel-header strong": {
+      marginRight: "auto",
+      fontSize: "14px"
+    },
+    ".kui-lens-panel-btn": {
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "28px",
+      height: "28px",
+      padding: 0,
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.md,
+      background: "transparent",
+      color: THEME.colors.textMuted,
+      fontSize: "15px",
+      cursor: "pointer"
+    },
+    ".kui-lens-panel-btn:hover": {
+      borderColor: THEME.colors.primary,
+      color: THEME.colors.primary
+    },
+    ".kui-lens-group h4": {
+      margin: "12px 0 4px",
+      color: THEME.colors.textMuted,
+      fontSize: "11px",
+      fontWeight: 600,
+      letterSpacing: "0.06em",
+      textTransform: "uppercase"
+    },
+    ".kui-lens-row": {
+      display: "grid",
+      gridTemplateColumns: "1fr auto",
+      alignItems: "center",
+      gap: "4px 10px",
+      margin: "6px 0",
+      transition: "opacity 0.15s"
+    },
+    ".kui-lens-row--inactive": {
+      opacity: 0.4
+    },
+    ".kui-lens-row--check": {
+      gridTemplateColumns: "auto 1fr",
+      cursor: "pointer"
+    },
+    '.kui-lens-row input[type="checkbox"], .kui-lens-row input[type="range"]': {
+      margin: 0,
+      accentColor: THEME.colors.primary
+    },
+    '.kui-lens-row--range input[type="range"]': {
+      gridColumn: "1 / -1",
+      width: "100%"
+    },
+    ".kui-lens-value": {
+      color: THEME.colors.textMuted,
+      fontVariantNumeric: "tabular-nums"
+    },
+    '.kui-lens-row select, .kui-lens-row input[type="text"]': {
+      boxSizing: "border-box",
+      width: "160px",
+      padding: "4px 6px",
+      border: `1px solid ${THEME.colors.borderSubtle}`,
+      borderRadius: THEME.borderRadius.sm,
+      background: THEME.colors.inputBg,
+      color: THEME.colors.textMain,
+      fontSize: "12px"
+    },
+    // The next-image arrow would sit on top of the panel
+    "#kui-lightbox.kui-lens-panel-open .kui-lightbox-nav.next": {
+      right: `calc(${PANEL_WIDTH} + 30px)`
+    },
+    "@media (max-width: 600px)": {
+      ".kui-lens-panel": {
+        top: "auto",
+        right: 0,
+        bottom: 0,
+        left: 0,
+        width: "100%",
+        maxHeight: "55vh",
+        borderRadius: `${THEME.borderRadius.lg} ${THEME.borderRadius.lg} 0 0`
+      },
+      "#kui-lightbox.kui-lens-panel-open .kui-lightbox-nav": {
+        top: "25%"
+      },
+      "#kui-lightbox.kui-lens-panel-open .kui-lightbox-nav.next": {
+        right: "15px"
+      }
+    }
+  });
   const KEMONO_DOWNLOADER_STYLES = downloadButtonStyles;
   const KUI_STYLES = kuiMainStyles;
   const KUI_PLYR_STYLES = kuiPlyrStyles;
@@ -3622,6 +3744,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     KUI_STYLES,
     KUI_PLYR_STYLES,
     commentsStyles,
+    lensPanelStyles,
     // Last, so its icon rules win over older "svg { fill }" rules
     iconStyles
   ].join("\n\n");
@@ -3670,6 +3793,13 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     imageTranslateFitToBox: true,
     imageTranslateLineSpacing: 1.25,
     imageTranslatePersist: true,
+    imageTranslateDrawBackground: true,
+    imageTranslateHullPadding: 0.45,
+    imageTranslateOutline: 1,
+    imageTranslateAlign: "auto",
+    imageTranslateVertical: "auto",
+    imageTranslateMangaGrowth: 1.45,
+    imageTranslateFont: "",
     translationProvider: "none",
     translationLanguage: "russian",
     geminiApiKey: "",
@@ -3944,7 +4074,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     HIDE_ADS: "kui_hide_ads",
     COMMENTS_LAYOUT: "kui_comments_layout",
     COMMENTS_LIMIT: "kui_comments_limit",
-    COMMENTS_LIST_LIMIT: "kui_comments_list_limit"
+    COMMENTS_LIST_LIMIT: "kui_comments_list_limit",
+    LENS_PANEL_OPEN: "kui_lens_panel_open"
   };
   const kuiState = {
     isDebugModeEnabled: readStored(KUI_STORAGE_KEYS.DEBUG_MODE, false),
@@ -6634,6 +6765,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     lineSpacing: 1.25,
     textAlign: "auto"
   };
+  const finite = (value, fallback) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
+  };
   function lensSettings() {
     const settings = state.settings;
     return {
@@ -6647,8 +6782,19 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       reflowHorizontal: settings.imageTranslateReflow,
       fitToBox: settings.imageTranslateFitToBox,
       lineSpacing: Number(settings.imageTranslateLineSpacing) || LENS_DEFAULTS.lineSpacing,
-      persistCache: settings.imageTranslatePersist
+      persistCache: settings.imageTranslatePersist,
+      drawBackground: settings.imageTranslateDrawBackground,
+      hullPadding: finite(settings.imageTranslateHullPadding, LENS_DEFAULTS.hullPadding),
+      outlineScale: finite(settings.imageTranslateOutline, LENS_DEFAULTS.outlineScale),
+      textAlign: settings.imageTranslateAlign,
+      verticalText: settings.imageTranslateVertical,
+      mangaBoxGrowth: finite(settings.imageTranslateMangaGrowth, LENS_DEFAULTS.mangaBoxGrowth),
+      fontFamily: settings.imageTranslateFont
     };
+  }
+  const LENS_DISPLAY_CHANGED = "kdl:lens-display-changed";
+  function notifyLensDisplayChanged() {
+    document.dispatchEvent(new CustomEvent(LENS_DISPLAY_CHANGED));
   }
   function loadImage(url) {
     return new Promise((resolve, reject) => {
@@ -7044,43 +7190,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         "Show the button on post images",
         "Translates the text drawn inside an image, in the gallery and in the lightbox. Needs no key; uses the target language above"
       ),
-      checkboxItem(
-        "kdl-setting-imageTranslateManga",
-        "Manga mode",
-        "Reflows vertical Japanese into lines, wipes the speech bubble instead of patching each line, and raises the text size floor"
-      ),
-      selectItem(
-        "kdl-setting-imageTranslateErase",
-        "Erase the original text with",
-        [
-          { value: "patch", text: "Lens patches (what Chrome does)" },
-          { value: "hull", text: "Flat cover (cleaner inside bubbles)" }
-        ],
-        "Lens's patches keep the faded edges of the original letters; a flat cover wipes them, but only looks right where the background is one colour"
-      ),
-      inputItem("kdl-setting-imageTranslateMinPx", "number", "Minimum text size (px)", { min: 0, step: 1 }, "Lens fits text to the original line, which on a large page can be a few pixels on screen. 0 turns the floor off"),
-      selectItem(
-        "kdl-setting-imageTranslateSharpness",
-        "Render sharpness",
-        [
-          { value: "1", text: "1x" },
-          { value: "2", text: "2x" },
-          { value: "3", text: "3x" }
-        ],
-        "Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp"
-      ),
-      checkboxItem(
-        "kdl-setting-imageTranslateReflow",
-        "Re-wrap horizontal text",
-        "Treats a paragraph as one text area instead of repeating the lines Lens found, so line spacing has something to act on"
-      ),
-      checkboxItem("kdl-setting-imageTranslateFitToBox", "Keep text out of the next bubble", "Shrinks a paragraph that outgrows the room between its neighbours"),
-      selectItem(
-        "kdl-setting-imageTranslateLineSpacing",
-        "Line spacing",
-        [0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2].map((value) => ({ value: String(value), text: `${value}x` })),
-        "Acts on re-wrapped text: the switch above, or vertical text in manga mode"
-      ),
+      el("small", { style: { display: "block", margin: "2px 0 10px", opacity: "0.75" } }, [
+        "Display settings (manga mode, erasing, outline, spacing and more) live in the image viewer: open an image and press the sliders button next to Translate. The picture redraws as you change them."
+      ]),
       checkboxItem(
         "kdl-setting-imageTranslatePersist",
         "Remember across reloads",
@@ -10588,9 +10700,181 @@ Password: ${password} (copied on click)`;
     }
     return fileDataMap;
   }
+  const manga = (settings) => settings.imageTranslateManga;
+  const erasing = (settings) => settings.imageTranslateDrawBackground;
+  const GROUPS = [
+    {
+      title: "Layout",
+      controls: [
+        { key: "imageTranslateManga", label: "Manga mode", type: "checkbox", hint: "Always reflow vertical text, widen the layout area, raise the minimum size" },
+        { key: "imageTranslateMangaGrowth", label: "Bubble fill", type: "range", min: 1, max: 2.5, step: 0.05, unit: "x", hint: "How far past the detected box to lay text out", activeWhen: manga },
+        { key: "imageTranslateReflow", label: "Re-wrap horizontal text", type: "checkbox", hint: "Treat a paragraph as one text area, not a repeat of the lines Lens found" },
+        { key: "imageTranslateFitToBox", label: "Keep text out of the next bubble", type: "checkbox", hint: "Shrink a paragraph that outgrows the room between its neighbours" },
+        {
+          key: "imageTranslateLineSpacing",
+          label: "Line spacing",
+          type: "range",
+          min: 0.8,
+          max: 2,
+          step: 0.05,
+          unit: "x",
+          hint: "Acts on re-wrapped text: the switch above, or vertical text in manga mode",
+          activeWhen: (settings) => settings.imageTranslateReflow || settings.imageTranslateManga
+        },
+        { key: "imageTranslateAlign", label: "Alignment", type: "select", options: [["auto", "Follow the source"], ["left", "Left"], ["center", "Center"], ["right", "Right"]] },
+        {
+          key: "imageTranslateVertical",
+          label: "Vertical CJK text",
+          type: "select",
+          options: [["auto", "Vertical for CJK targets only"], ["keep", "Always vertical"], ["horizontal", "Always horizontal"]],
+          hint: "Manga mode always reflows",
+          activeWhen: (settings) => !settings.imageTranslateManga
+        },
+        { key: "imageTranslateFont", label: "Font", type: "text", hint: "A CSS font family; blank uses the system font" }
+      ]
+    },
+    {
+      title: "Erasing the original",
+      controls: [
+        { key: "imageTranslateDrawBackground", label: "Erase the original text", type: "checkbox" },
+        {
+          key: "imageTranslateErase",
+          label: "How",
+          type: "select",
+          activeWhen: erasing,
+          options: [["patch", "Lens's patches, like Chrome"], ["hull", "Cover the text area with its background"]]
+        },
+        {
+          key: "imageTranslateHullPadding",
+          label: "Cover margin",
+          type: "range",
+          min: 0,
+          max: 2,
+          step: 0.05,
+          hint: "How far past the text the cover reaches, in line heights",
+          activeWhen: (settings) => erasing(settings) && (settings.imageTranslateErase === "hull" || settings.imageTranslateManga)
+        }
+      ]
+    },
+    {
+      title: "Legibility",
+      controls: [
+        { key: "imageTranslateOutline", label: "Text outline", type: "range", min: 0, max: 8, step: 0.1, unit: "x", hint: "Thickens the outline behind the text; 0 removes it" },
+        { key: "imageTranslateMinPx", label: "Minimum text size", type: "range", min: 0, max: 32, step: 1, unit: "px", hint: "Enlarges text too small to read on screen; 0 turns it off" },
+        { key: "imageTranslateSharpness", label: "Sharpness", type: "select", options: [["1", "1x"], ["2", "2x"], ["3", "3x"]], hint: "Renders at this multiple of the image size, so zooming in stays crisp" }
+      ]
+    }
+  ];
+  const CONTROLS = GROUPS.flatMap((group) => group.controls);
+  const SETTLE_MS = 200;
+  const readSetting = (key) => state.settings[key];
+  function formatValue(control, value) {
+    const number = Number(value);
+    const digits = (control.step ?? 1) < 0.1 ? 2 : (control.step ?? 1) < 1 ? 1 : 0;
+    return `${number.toFixed(digits)}${control.unit ?? ""}`;
+  }
+  function createLensPanel(onClose) {
+    const dirty = /* @__PURE__ */ new Set();
+    let settleTimer;
+    const rows = [];
+    const refreshActive = () => {
+      rows.forEach(({ control, row }) => {
+        row.classList.toggle("kui-lens-row--inactive", !!control.activeWhen && !control.activeWhen(state.settings));
+      });
+    };
+    const commit = () => {
+      dirty.forEach((key) => void saveSetting(key, state.settings[key]));
+      dirty.clear();
+      notifyLensDisplayChanged();
+    };
+    const set = (key, value) => {
+      state.settings[key] = value;
+      dirty.add(key);
+      refreshActive();
+      clearTimeout(settleTimer);
+      settleTimer = setTimeout(commit, SETTLE_MS);
+    };
+    const buildRow = (control) => {
+      const numeric = typeof DEFAULT_SETTINGS[control.key] === "number";
+      const parse = (raw) => numeric ? parseFloat(raw) : raw;
+      if (control.type === "checkbox") {
+        const input2 = el("input", { type: "checkbox", onChange: () => set(control.key, input2.checked) });
+        const row2 = el("label", { className: "kui-lens-row kui-lens-row--check", title: control.hint ?? "" }, [input2, el("span", {}, [control.label])]);
+        rows.push({ control, row: row2, sync: () => {
+          input2.checked = Boolean(readSetting(control.key));
+        } });
+        return row2;
+      }
+      if (control.type === "range") {
+        const value = el("span", { className: "kui-lens-value" });
+        const input2 = el("input", {
+          type: "range",
+          min: String(control.min),
+          max: String(control.max),
+          step: String(control.step),
+          onInput: () => {
+            value.textContent = formatValue(control, input2.value);
+            set(control.key, parse(input2.value));
+          }
+        });
+        const row2 = el("div", { className: "kui-lens-row kui-lens-row--range", title: control.hint ?? "" }, [
+          el("span", {}, [control.label]),
+          value,
+          input2
+        ]);
+        rows.push({
+          control,
+          row: row2,
+          sync: () => {
+            input2.value = String(readSetting(control.key));
+            value.textContent = formatValue(control, readSetting(control.key));
+          }
+        });
+        return row2;
+      }
+      const input = control.type === "select" ? el("select", { onChange: () => set(control.key, parse(input.value)) }, (control.options ?? []).map(([value, text2]) => el("option", { value }, [text2]))) : el("input", { type: "text", placeholder: "system-ui", onInput: () => set(control.key, input.value) });
+      const row = el("label", { className: "kui-lens-row", title: control.hint ?? "" }, [el("span", {}, [control.label]), input]);
+      rows.push({ control, row, sync: () => {
+        input.value = String(readSetting(control.key));
+      } });
+      return row;
+    };
+    const syncAll = () => {
+      rows.forEach(({ sync }) => sync());
+      refreshActive();
+    };
+    const panel = el("div", { className: "kui-lens-panel" }, [
+      el("div", { className: "kui-lens-panel-header" }, [
+        el("strong", {}, ["Translation display"]),
+        el("button", {
+          type: "button",
+          className: "kui-lens-panel-btn",
+          title: "Back to defaults",
+          onClick: () => {
+            CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key]));
+            syncAll();
+          }
+        }, [icon("rotate-ccw")]),
+        el("button", { type: "button", className: "kui-lens-panel-btn", title: "Close", onClick: onClose }, [icon("x")])
+      ]),
+      ...GROUPS.map((group) => el("section", { className: "kui-lens-group" }, [
+        el("h4", {}, [group.title]),
+        ...group.controls.map(buildRow)
+      ]))
+    ]);
+    syncAll();
+    return panel;
+  }
   const lightboxModule = {
     isActive: false,
     isTranslated: false,
+    // Where the original actually loaded from: the site's own link when the API-derived one failed
+    originalSrc: "",
+    // Set while swapping between the original and its translation, one picture at two resolutions
+    keepView: null,
+    // Renders finish out of order; only the latest one may reach the screen
+    renderToken: 0,
+    boundDisplayChanged: null,
     imageLinks: [],
     currentIndex: 0,
     zoom: 1,
@@ -10611,12 +10895,14 @@ Password: ${password} (copied on click)`;
       this.currentIndex = 0;
     },
     open(links, index) {
+      var _a2;
       if (this.isActive) return;
       this.isActive = true;
       this.isTranslated = false;
       this.imageLinks = links;
       this.currentIndex = index;
-      const translateButton = state.settings.showImageTranslateButton ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg("languages")}</button>` : "";
+      const translateButton = state.settings.showImageTranslateButton ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg("languages")}</button>
+         <button id="kui-lightbox-lens-settings-btn" class="kui-action-btn" title="Translation display settings">${iconSvg("sliders-horizontal")}</button>` : "";
       const lightboxHTML = `
       <div id="kui-lightbox" class="kui-active">
           <div class="kui-lightbox-top-actions">
@@ -10639,6 +10925,10 @@ Password: ${password} (copied on click)`;
       this.canvas = document.getElementById("kui-image-canvas");
       this.ctx = this.canvas.getContext("2d");
       this.image = new Image();
+      if (state.settings.showImageTranslateButton) {
+        (_a2 = document.getElementById("kui-lightbox")) == null ? void 0 : _a2.appendChild(createLensPanel(() => this.setPanelOpen(false)));
+        this.setPanelOpen(readStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, false));
+      }
       this.updateContent();
       this.addEventListeners();
       document.body.style.overflow = "hidden";
@@ -10655,7 +10945,6 @@ Password: ${password} (copied on click)`;
       document.body.style.overflow = "";
     },
     updateContent() {
-      var _a2;
       const currentLinkData = this.imageLinks[this.currentIndex];
       if (!currentLinkData || !this.canvas) return;
       const originalPath = currentLinkData.dataset.originalPath || currentLinkData.href;
@@ -10665,10 +10954,23 @@ Password: ${password} (copied on click)`;
       if (downloadBtn) downloadBtn.href = originalPath;
       if (lensBtn) lensBtn.href = lensLink;
       this.isTranslated = false;
-      (_a2 = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _a2.classList.remove("kui-active");
+      this.originalSrc = "";
+      this.keepView = null;
+      this.renderToken++;
+      this.setTranslateButton(false, false);
       this.canvas.style.opacity = "0.5";
       this.image.onload = () => {
         if (this.canvas) this.canvas.style.opacity = "1";
+        if (!this.isTranslated) this.originalSrc = this.image.src;
+        const keep = this.keepView;
+        this.keepView = null;
+        if (keep) {
+          this.zoom = keep.zoom * keep.width / this.image.naturalWidth;
+          this.offsetX = keep.x;
+          this.offsetY = keep.y;
+          this.drawImage();
+          return;
+        }
         this.resizeCanvas();
         this.resetPanZoom();
         this.drawImage();
@@ -10704,7 +11006,7 @@ Password: ${password} (copied on click)`;
       });
     },
     addEventListeners() {
-      var _a2, _b2, _c, _d, _e;
+      var _a2, _b2, _c, _d, _e, _f;
       this.boundHandleKeydown = this.handleKeydown.bind(this);
       document.addEventListener("keydown", this.boundHandleKeydown, true);
       const container = document.getElementById("kui-lightbox-img-container");
@@ -10725,37 +11027,78 @@ Password: ${password} (copied on click)`;
       (_c = document.querySelector(".kui-lightbox-nav.next")) == null ? void 0 : _c.addEventListener("click", () => this.navigate(1));
       (_d = document.getElementById("kui-lightbox-copy-btn")) == null ? void 0 : _d.addEventListener("click", this.handleCopyLink.bind(this));
       (_e = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _e.addEventListener("click", this.handleTranslate.bind(this));
+      (_f = document.getElementById("kui-lightbox-lens-settings-btn")) == null ? void 0 : _f.addEventListener("click", () => {
+        var _a3;
+        this.setPanelOpen(!((_a3 = document.getElementById("kui-lightbox")) == null ? void 0 : _a3.classList.contains("kui-lens-panel-open")));
+      });
+      this.boundDisplayChanged = () => {
+        if (this.isTranslated) void this.showTranslation();
+      };
+      document.addEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
+    },
+    setPanelOpen(open2) {
+      var _a2;
+      const lightbox = document.getElementById("kui-lightbox");
+      const panel = lightbox == null ? void 0 : lightbox.querySelector(".kui-lens-panel");
+      if (!lightbox || !panel) return;
+      panel.hidden = !open2;
+      lightbox.classList.toggle("kui-lens-panel-open", open2);
+      (_a2 = document.getElementById("kui-lightbox-lens-settings-btn")) == null ? void 0 : _a2.classList.toggle("kui-active", open2);
+      writeStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, open2);
+    },
+    setTranslateButton(busy, active) {
+      const btn = document.getElementById("kui-lightbox-translate-btn");
+      if (!btn) return;
+      btn.disabled = busy;
+      btn.innerHTML = busy ? iconSvg("loader-circle", "kdl-icon kdl-spin") : iconSvg("languages");
+      btn.classList.toggle("kui-active", active);
+    },
+    // Same picture, another bitmap: remember the view so the swap does not reset zoom and position
+    swapImage(src) {
+      if (this.image.src === src) return;
+      if (this.isDrawable()) {
+        this.keepView = { width: this.image.naturalWidth, zoom: this.zoom, x: this.offsetX, y: this.offsetY };
+      }
+      this.image.src = src;
     },
     async handleTranslate() {
       const btn = document.getElementById("kui-lightbox-translate-btn");
       const currentLink = this.imageLinks[this.currentIndex];
       if (!btn || btn.disabled || !currentLink) return;
-      const originalPath = currentLink.dataset.originalPath || currentLink.href;
       if (this.isTranslated) {
         this.isTranslated = false;
-        btn.classList.remove("kui-active");
-        this.image.src = originalPath;
+        this.renderToken++;
+        this.setTranslateButton(false, false);
+        this.swapImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
         return;
       }
-      const icon2 = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
+      await this.showTranslation();
+    },
+    // Translates the current image, and redraws its translation when a display setting changes
+    async showTranslation() {
+      const currentLink = this.imageLinks[this.currentIndex];
+      if (!currentLink) return;
+      const token = ++this.renderToken;
+      this.setTranslateButton(true, this.isTranslated);
       try {
-        const translated = await translateImage(originalPath);
-        if (!this.isActive) return;
-        this.image.src = translated;
+        const translated = await translateImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
+        if (!this.isActive || token !== this.renderToken) return;
         this.isTranslated = true;
-        btn.classList.add("kui-active");
+        this.swapImage(translated);
+        this.setTranslateButton(false, true);
       } catch (e) {
+        if (token !== this.renderToken) return;
+        this.setTranslateButton(false, this.isTranslated);
         showMessage(`Lens: ${e.message}`, "error");
-      } finally {
-        btn.disabled = false;
-        btn.innerHTML = icon2;
       }
     },
     removeEventListeners() {
       if (this.boundHandleKeydown) {
         document.removeEventListener("keydown", this.boundHandleKeydown, true);
+      }
+      if (this.boundDisplayChanged) {
+        document.removeEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
+        this.boundDisplayChanged = null;
       }
       if (this.boundResize) {
         window.removeEventListener("resize", this.boundResize);
@@ -10763,7 +11106,13 @@ Password: ${password} (copied on click)`;
       }
     },
     handleKeydown(e) {
+      var _a2, _b2;
       if (!this.isActive) return;
+      if (e.key !== "Escape" && ((_b2 = (_a2 = e.target) == null ? void 0 : _a2.closest) == null ? void 0 : _b2.call(_a2, ".kui-lens-panel"))) {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        return;
+      }
       if (["ArrowLeft", "ArrowRight", "Escape"].includes(e.key)) {
         e.preventDefault();
         e.stopPropagation();
@@ -10937,18 +11286,11 @@ Password: ${password} (copied on click)`;
         activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
       };
       galleryLayout.navigate = (direction) => setActive(currentIndex + direction);
-      translateBtn == null ? void 0 : translateBtn.addEventListener("click", async (e) => {
-        e.stopPropagation();
+      const translateCurrent = async () => {
         const btn = translateBtn;
-        if (btn.disabled) return;
-        if (translatedByIndex.delete(currentIndex)) {
-          setActive(currentIndex);
-          return;
-        }
         const link = imageLinks[currentIndex];
-        if (!link) return;
+        if (!btn || !link) return;
         const index = currentIndex;
-        const buttonIcon = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = iconSvg("loader-circle", "kdl-icon kdl-spin");
         try {
@@ -10959,9 +11301,28 @@ Password: ${password} (copied on click)`;
           showMessage(`Lens: ${error.message}`, "error");
         } finally {
           btn.disabled = false;
-          btn.innerHTML = buttonIcon;
+          btn.innerHTML = iconSvg("languages");
         }
+      };
+      translateBtn == null ? void 0 : translateBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (translateBtn.disabled) return;
+        if (translatedByIndex.delete(currentIndex)) {
+          setActive(currentIndex);
+          return;
+        }
+        void translateCurrent();
       });
+      const onDisplayChanged = () => {
+        if (!galleryLayout.isConnected) {
+          document.removeEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
+          return;
+        }
+        const showing = translatedByIndex.has(currentIndex);
+        translatedByIndex.clear();
+        if (showing) void translateCurrent();
+      };
+      if (translateBtn) document.addEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
       let touchStartX = 0;
       previewImage.addEventListener("touchstart", (e) => {
         touchStartX = e.changedTouches[0].clientX;

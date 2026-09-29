@@ -10,5 +10,6 @@ export const KUI_STORAGE_KEYS = {
   HIDE_ADS: "kui_hide_ads",
   COMMENTS_LAYOUT: "kui_comments_layout",
   COMMENTS_LIMIT: "kui_comments_limit",
-  COMMENTS_LIST_LIMIT: "kui_comments_list_limit"
+  COMMENTS_LIST_LIMIT: "kui_comments_list_limit",
+  LENS_PANEL_OPEN: "kui_lens_panel_open"
 };
