@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.49
+// @version      0.8.50
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -10666,14 +10666,21 @@ Password: ${password} (copied on click)`;
       if (lensBtn) lensBtn.href = lensLink;
       this.isTranslated = false;
       (_a2 = document.getElementById("kui-lightbox-translate-btn")) == null ? void 0 : _a2.classList.remove("kui-active");
-      this.resetPanZoom();
       this.canvas.style.opacity = "0.5";
-      this.image.src = "";
       this.image.onload = () => {
         if (this.canvas) this.canvas.style.opacity = "1";
         this.resizeCanvas();
         this.resetPanZoom();
         this.drawImage();
+      };
+      const fallbackPath = currentLinkData.href;
+      this.image.onerror = () => {
+        if (fallbackPath && this.image.src !== fallbackPath) {
+          this.image.src = fallbackPath;
+          return;
+        }
+        if (this.canvas) this.canvas.style.opacity = "1";
+        showMessage("Could not load this image", "error");
       };
       this.image.src = originalPath;
     },
@@ -10775,8 +10782,12 @@ Password: ${password} (copied on click)`;
       this.canvas.height = height;
       this.drawImage();
     },
+    // Only a loaded image can be drawn: one that is loading or failed makes drawImage throw
+    isDrawable() {
+      return this.image.complete && this.image.naturalWidth > 0;
+    },
     drawImage() {
-      if (!this.image.src || !this.ctx || !this.canvas) return;
+      if (!this.isDrawable() || !this.ctx || !this.canvas) return;
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.save();
       this.ctx.translate(this.offsetX, this.offsetY);
@@ -10785,7 +10796,7 @@ Password: ${password} (copied on click)`;
       this.ctx.restore();
     },
     resetPanZoom() {
-      if (!this.image.src || !this.canvas) return;
+      if (!this.isDrawable() || !this.canvas) return;
       const hRatio = this.canvas.width / this.image.width;
       const vRatio = this.canvas.height / this.image.height;
       this.zoom = Math.min(hRatio, vRatio, 1);
@@ -10977,7 +10988,7 @@ Password: ${password} (copied on click)`;
         if (fileName) {
           const relativePath = fileDataMap.get(fileName);
           if (relativePath) {
-            const fullOriginalPath = `${window.location.origin}/data${relativePath}`;
+            const fullOriginalPath = resolveMediaUrl(relativePath, fileName);
             thumbLink.dataset.originalPath = fullOriginalPath;
             const actionsContainer = document.createElement("div");
             actionsContainer.className = "kui-thumb-actions";

@@ -4,6 +4,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [0.8.50] - 2026-09-29
+
+### Fixed
+- On Pawchive the lightbox, the "download original" buttons and image translation pointed at the main domain, which does not serve files, so the image never loaded (404).
+- The lightbox threw errors on scroll, resize and navigation while its image was loading or had failed. It now falls back to the site's own link, and says so when that fails too.
+
 ## [0.8.49] - 2026-09-29
 
 Everything since 0.2.1.

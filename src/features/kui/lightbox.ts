@@ -84,14 +84,22 @@ export const lightboxModule = {
     this.isTranslated = false;
     document.getElementById("kui-lightbox-translate-btn")?.classList.remove("kui-active");
 
-    this.resetPanZoom();
     this.canvas.style.opacity = "0.5";
-    this.image.src = "";
     this.image.onload = () => {
       if (this.canvas) this.canvas.style.opacity = "1";
       this.resizeCanvas();
       this.resetPanZoom();
       this.drawImage();
+    };
+    // The site's own link is the fallback: it still opens when the API-derived original does not
+    const fallbackPath = currentLinkData.href;
+    this.image.onerror = () => {
+      if (fallbackPath && this.image.src !== fallbackPath) {
+        this.image.src = fallbackPath;
+        return;
+      }
+      if (this.canvas) this.canvas.style.opacity = "1";
+      showMessage("Could not load this image", "error");
     };
     this.image.src = originalPath;
   },
@@ -194,8 +202,12 @@ export const lightboxModule = {
     this.canvas.height = height;
     this.drawImage();
   },
+  // Only a loaded image can be drawn: one that is loading or failed makes drawImage throw
+  isDrawable(): boolean {
+    return this.image.complete && this.image.naturalWidth > 0;
+  },
   drawImage() {
-    if (!this.image.src || !this.ctx || !this.canvas) return;
+    if (!this.isDrawable() || !this.ctx || !this.canvas) return;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.save();
     this.ctx.translate(this.offsetX, this.offsetY);
@@ -204,7 +216,7 @@ export const lightboxModule = {
     this.ctx.restore();
   },
   resetPanZoom() {
-    if (!this.image.src || !this.canvas) return;
+    if (!this.isDrawable() || !this.canvas) return;
     const hRatio = this.canvas.width / this.image.width;
     const vRatio = this.canvas.height / this.image.height;
     this.zoom = Math.min(hRatio, vRatio, 1);

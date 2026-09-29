@@ -9,6 +9,7 @@ import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
 import { sanitizeDuplicates } from '../../utils/domChecker';
 import { debugModule } from '../../utils/logger';
+import { resolveMediaUrl } from '../../utils/helpers';
 
 // Per container: a slow fetch for the previous post must not block the gallery of the next one
 let initializingContainer: Element | null = null;
@@ -152,7 +153,8 @@ export async function initializeImageGallery(): Promise<void> {
       if (fileName) {
         const relativePath = fileDataMap.get(fileName);
         if (relativePath) {
-          const fullOriginalPath = `${window.location.origin}/data${relativePath}`;
+          // The file host, not the main domain: pawchive serves /data/ only from file.<domain>
+          const fullOriginalPath = resolveMediaUrl(relativePath, fileName);
           thumbLink.dataset.originalPath = fullOriginalPath;
           const actionsContainer = document.createElement("div");
           actionsContainer.className = "kui-thumb-actions";
