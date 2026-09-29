@@ -49,4 +49,5 @@
 ### 7. Versioning & Output Files
 - Always bump the patch version (the 3rd digit, e.g. `0.2.1` -> `0.2.2`) in `package.json` and `src/index.ts` header whenever code changes are made.
 - Commit the rebuilt `kemono-download-button.user.js` with every source change: users auto-update from `main`, and CI fails when the committed build does not match the sources.
+- Record user-facing changes in `CHANGELOG.md` under `## [Unreleased]`. Before tagging a release, move them under `## [X.Y.Z] - YYYY-MM-DD`: the release workflow takes its notes from that section and fails without it.
 - The build process must only generate the single main output file `kemono-download-button.user.js` in the root directory. Do not generate `.txt` or extra version-suffixed `.user.js` files.

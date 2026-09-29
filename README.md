@@ -10,7 +10,7 @@ A userscript for **Kemono**, **Coomer** and **Pawchive**: download posts, files 
 
 **[Install / update the userscript](https://raw.githubusercontent.com/bropines/kemono-download-button/main/kemono-download-button.user.js)**
 
-The link is permanent: your userscript manager checks it for updates on its own.
+The link is permanent: your userscript manager checks it for updates on its own. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 | Manager | Status |
 | :--- | :--- |
@@ -80,8 +80,9 @@ src/
 Every push to `main` reaches users through the auto-update link, so the committed script must always be a build of the committed sources. CI checks that, and that the versions agree.
 
 1. Bump the patch version in `package.json` and the `@version` line in `src/index.ts`.
-2. `npm run build` and commit the rebuilt `kemono-download-button.user.js` together with the sources.
-3. Push to `main`. For a GitHub Release, also push a tag: `git tag v0.8.49 && git push origin v0.8.49`.
+2. Note user-facing changes in `CHANGELOG.md` under `## [Unreleased]`.
+3. `npm run build` and commit the rebuilt `kemono-download-button.user.js` together with the sources.
+4. Push to `main`. For a GitHub Release, rename `[Unreleased]` to the version and date, commit, then push a tag: `git tag v0.8.50 && git push origin v0.8.50`. The release notes are that section of `CHANGELOG.md`, and the release fails if it is missing.
 
 ## Credits
 
