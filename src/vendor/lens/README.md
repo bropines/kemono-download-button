@@ -8,6 +8,17 @@ Copied verbatim except for two mechanical changes: `gm.ts` imports from
 `./monkey` instead of `vite-plugin-monkey`'s `'$'`, and `.js` extensions are
 stripped from relative imports.
 
+Three local changes to `render/canvas.ts`, worth taking upstream:
+
+- `renderToCanvas` is split out of `renderToBlob`, so the image viewer can draw the
+  rendering directly and redraw it live while a setting moves: the PNG encode and
+  decode were most of what a redraw cost.
+- Inpainting patches are decoded once per answer (`decodePatch`) instead of on
+  every redraw.
+- The per-line outline follows `drawBackground` rather than the patch. Keyed on the
+  patch, hull erasing (and so manga mode) drew horizontal lines with no outline,
+  and a floor of 1px meant an outline scale of 0 could not remove it.
+
 Two files here are not upstream's:
 
 - `monkey.ts` stands in for `'$'`. The plugin compiles each import into

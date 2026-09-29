@@ -211,7 +211,8 @@ export async function initializeImageGallery(): Promise<void> {
     }
 
     previewImage.addEventListener("click", () => {
-      lightboxModule.open(imageLinks, currentIndex);
+      // A translated preview opens translated
+      lightboxModule.open(imageLinks, currentIndex, translatedByIndex.has(currentIndex));
     });
 
     setActive(0);

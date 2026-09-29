@@ -441,6 +441,24 @@ interface LineFrame {
   rtl: boolean;
 }
 
+/**
+ * Decoded inpainting patches, by the bytes they came from.
+ *
+ * The bytes live in the cached Lens answer, so a redraw after a setting changes
+ * reuses the decode instead of repeating it for every line of the page.
+ */
+const decodedPatches = new WeakMap<Uint8Array, Promise<ImageBitmap>>();
+
+function decodePatch(bytes: Uint8Array<ArrayBuffer>): Promise<ImageBitmap> {
+  let decoded = decodedPatches.get(bytes);
+  if (!decoded) {
+    decoded = createImageBitmap(new Blob([bytes], { type: 'image/webp' }));
+    decodedPatches.set(bytes, decoded);
+    decoded.catch(() => decodedPatches.delete(bytes));
+  }
+  return decoded;
+}
+
 async function drawLine(
   draw: DrawContext,
   block: TranslationBlock,
@@ -477,9 +495,8 @@ async function drawLine(
     const padW = patch.hPad * boxH;
     const padH = patch.vPad * boxH;
     try {
-      const bitmap = await createImageBitmap(new Blob([patch.bytes], { type: 'image/webp' }));
+      const bitmap = await decodePatch(patch.bytes);
       ctx.drawImage(bitmap, -(boxW + padW) / 2, -(boxH + padH) / 2, boxW + padW, boxH + padH);
-      bitmap.close();
     } catch {
       // Fall back to a flat fill if the patch will not decode.
       ctx.fillStyle = argbToCss(line.bgColor);
@@ -503,10 +520,14 @@ async function drawLine(
     ctx.direction = isRtl(block) ? 'rtl' : 'ltr';
 
     const fill = argbToCss(line.textColor);
-    const outline = patch
+    // The outline is what keeps text readable over what erasing left behind, and a hull leaves
+    // residue as well as a patch does. Keyed on the patch alone, hull mode (and so manga mode) drew
+    // horizontal lines with no outline at all; and the floor of 1px meant 0 could not remove it.
+    const erased = settings.drawBackground;
+    const outline = erased && settings.outlineScale > 0
       ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale))
       : 0;
-    const outlineColor = patch ? argbToCss(line.bgColor) : null;
+    const outlineColor = erased ? argbToCss(line.bgColor) : null;
 
     // When the readable-size floor pushes the font past its box, the text needs
     // room the box does not have. Sizing that room by the *ratio* is what
@@ -565,6 +586,27 @@ export async function renderToBlob(
   settings: Settings,
   displayedWidth = naturalWidth
 ): Promise<Blob> {
+  const canvas = await renderToCanvas(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
+  if (!blob) throw new Error('Could not encode the translated image');
+  return blob;
+}
+
+/**
+ * The same rendering as a canvas, for a caller that draws it straight onto the screen.
+ *
+ * The PNG encode (and the decode that showing a blob costs) is most of the time a
+ * redraw takes on a large page, which is what stood between a slider and a live
+ * preview.
+ */
+export async function renderToCanvas(
+  source: CanvasImageSource,
+  naturalWidth: number,
+  naturalHeight: number,
+  blocks: TranslationBlock[],
+  settings: Settings,
+  displayedWidth = naturalWidth
+): Promise<HTMLCanvasElement> {
   // Supersampling: the canvas replaces the image, so rendering above natural
   // size is what keeps text sharp when the reader zooms in or opens it full
   // size. Capped so a large photo does not turn into a huge bitmap.
@@ -639,7 +681,5 @@ export async function renderToBlob(
     }
   }
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));
-  if (!blob) throw new Error('Could not encode the translated image');
-  return blob;
+  return canvas;
 }

@@ -2,21 +2,29 @@ import { ICONS, iconSvg } from '../../config/icons';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { state } from '../../state/store';
-import { LENS_DISPLAY_CHANGED, translateImage } from '../../services/lensImages';
+import { LENS_DISPLAY_CHANGED, LENS_DISPLAY_PREVIEW, NothingToTranslate, renderTranslation } from '../../services/lensImages';
 import { createLensPanel } from '../../ui/components/kui/lensPanel';
 import { showMessage } from '../../ui/toast';
 
-type SavedView = { width: number; zoom: number; x: number; y: number };
+type RenderKind = 'draft' | 'final';
 
 export const lightboxModule = {
   isActive: false,
+  // Translation is a mode, not a property of one picture: it stays on while paging through a post
+  translateMode: false,
+  // The translation is on screen (the mode is on and its render has arrived)
   isTranslated: false,
+  // The translated picture, at a multiple of the original's size, drawn over the same coordinates
+  translation: null as HTMLCanvasElement | null,
   // Where the original actually loaded from: the site's own link when the API-derived one failed
   originalSrc: '',
-  // Set while swapping between the original and its translation, one picture at two resolutions
-  keepView: null as SavedView | null,
-  // Renders finish out of order; only the latest one may reach the screen
+  // Renders finish out of order; one started for an earlier picture or mode must not reach the screen
   renderToken: 0,
+  rendering: false,
+  wantedRender: null as RenderKind | null,
+  // Set by the button, cleared by paging: a page without text is only worth a message when asked about
+  askedHere: false,
+  boundDisplayPreview: null as (() => void) | null,
   boundDisplayChanged: null as (() => void) | null,
   imageLinks: [] as HTMLAnchorElement[],
   currentIndex: 0,
@@ -37,10 +45,11 @@ export const lightboxModule = {
     this.imageLinks = [];
     this.currentIndex = 0;
   },
-  open(links: HTMLAnchorElement[], index: number) {
+  // `translated`: the picture was already translated where it was opened from, so it opens translated
+  open(links: HTMLAnchorElement[], index: number, translated = false) {
     if (this.isActive) return;
     this.isActive = true;
-    this.isTranslated = false;
+    this.translateMode = translated && state.settings.showImageTranslateButton;
     this.imageLinks = links;
     this.currentIndex = index;
     const translateButton = state.settings.showImageTranslateButton
@@ -86,6 +95,8 @@ export const lightboxModule = {
     }
     this.removeEventListeners();
     this.isActive = false;
+    this.wantedRender = null;
+    this.translation = null;
     document.body.style.overflow = "";
   },
   updateContent() {
@@ -97,30 +108,23 @@ export const lightboxModule = {
     const lensBtn = document.getElementById("kui-lightbox-lens-btn") as HTMLAnchorElement | null;
     if (downloadBtn) downloadBtn.href = originalPath;
     if (lensBtn) lensBtn.href = lensLink;
-    // Another image, so whatever was translated is no longer on screen, and a render still running is stale
+    // Another picture: its translation is still to come, and a render running for the last one is stale
     this.isTranslated = false;
+    this.translation = null;
     this.originalSrc = "";
-    this.keepView = null;
+    this.askedHere = false;
     this.renderToken++;
-    this.setTranslateButton(false, false);
+    this.setTranslateButton(false);
 
     this.canvas.style.opacity = "0.5";
     this.image.onload = () => {
       if (this.canvas) this.canvas.style.opacity = "1";
-      if (!this.isTranslated) this.originalSrc = this.image.src;
-      const keep = this.keepView;
-      this.keepView = null;
-      if (keep) {
-        // The translation is rendered at a multiple of the original's size: rescale so the view stays put
-        this.zoom = keep.zoom * keep.width / this.image.naturalWidth;
-        this.offsetX = keep.x;
-        this.offsetY = keep.y;
-        this.drawImage();
-        return;
-      }
+      this.originalSrc = this.image.src;
       this.resizeCanvas();
       this.resetPanZoom();
       this.drawImage();
+      // After the original, so the translation is made from the address that actually loaded
+      this.requestRender('final');
     };
     // The site's own link is the fallback: it still opens when the API-derived original does not
     const fallbackPath = currentLinkData.href;
@@ -177,10 +181,16 @@ export const lightboxModule = {
     document.getElementById("kui-lightbox-lens-settings-btn")?.addEventListener("click", () => {
       this.setPanelOpen(!document.getElementById("kui-lightbox")?.classList.contains("kui-lens-panel-open"));
     });
-    this.boundDisplayChanged = () => {
-      if (this.isTranslated) void this.showTranslation();
-    };
+    // A slider moving asks for quick drafts; letting go asks for the full-quality picture.
+    // A translation that is off screen is simply dropped: turning it back on renders it afresh.
+    this.boundDisplayPreview = () => this.onDisplaySettings('draft');
+    this.boundDisplayChanged = () => this.onDisplaySettings('final');
+    document.addEventListener(LENS_DISPLAY_PREVIEW, this.boundDisplayPreview);
     document.addEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
+  },
+  onDisplaySettings(kind: RenderKind) {
+    if (this.translateMode) this.requestRender(kind);
+    else this.translation = null;
   },
   setPanelOpen(open: boolean) {
     const lightbox = document.getElementById("kui-lightbox");
@@ -191,57 +201,81 @@ export const lightboxModule = {
     document.getElementById("kui-lightbox-lens-settings-btn")?.classList.toggle("kui-active", open);
     writeStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, open);
   },
-  setTranslateButton(busy: boolean, active: boolean) {
+  setTranslateButton(busy: boolean) {
     const btn = document.getElementById("kui-lightbox-translate-btn") as HTMLButtonElement | null;
     if (!btn) return;
-    btn.disabled = busy;
     btn.innerHTML = busy ? iconSvg('loader-circle', 'kdl-icon kdl-spin') : iconSvg('languages');
-    btn.classList.toggle("kui-active", active);
+    btn.classList.toggle("kui-active", this.translateMode);
+    btn.title = this.translateMode ? "Show the original" : "Translate the text in this image";
   },
-  // Same picture, another bitmap: remember the view so the swap does not reset zoom and position
-  swapImage(src: string) {
-    // The same bitmap again (a setting moved back to a value already rendered): nothing to load
-    if (this.image.src === src) return;
-    if (this.isDrawable()) {
-      this.keepView = { width: this.image.naturalWidth, zoom: this.zoom, x: this.offsetX, y: this.offsetY };
-    }
-    this.image.src = src;
-  },
-  async handleTranslate() {
-    const btn = document.getElementById("kui-lightbox-translate-btn") as HTMLButtonElement | null;
-    const currentLink = this.imageLinks[this.currentIndex];
-    if (!btn || btn.disabled || !currentLink) return;
-
-    if (this.isTranslated) {
+  handleTranslate() {
+    if (this.translateMode) {
+      // Off, including while a render is still running: its result is dropped
+      this.translateMode = false;
       this.isTranslated = false;
+      this.wantedRender = null;
       this.renderToken++;
-      this.setTranslateButton(false, false);
-      this.swapImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
+      this.setTranslateButton(false);
+      this.drawImage();
       return;
     }
-    await this.showTranslation();
-  },
-  // Translates the current image, and redraws its translation when a display setting changes
-  async showTranslation() {
-    const currentLink = this.imageLinks[this.currentIndex];
-    if (!currentLink) return;
-    const token = ++this.renderToken;
-    this.setTranslateButton(true, this.isTranslated);
-    try {
-      const translated = await translateImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
-      if (!this.isActive || token !== this.renderToken) return;
+    this.translateMode = true;
+    this.askedHere = true;
+    if (this.translation) {
       this.isTranslated = true;
-      this.swapImage(translated);
-      this.setTranslateButton(false, true);
-    } catch (e) {
-      if (token !== this.renderToken) return;
-      this.setTranslateButton(false, this.isTranslated);
-      showMessage(`Lens: ${(e as Error).message}`, 'error');
+      this.setTranslateButton(false);
+      this.drawImage();
+      return;
+    }
+    this.requestRender('final');
+  },
+  requestRender(kind: RenderKind) {
+    if (!this.translateMode || !this.isDrawable()) return;
+    // A final render outranks a waiting draft, and a draft never downgrades a waiting final
+    this.wantedRender = kind === 'final' || this.wantedRender === 'final' ? 'final' : 'draft';
+    if (!this.rendering) void this.renderLoop();
+  },
+  // One render at a time, always of the latest settings: requests made while one runs collapse into the next
+  async renderLoop() {
+    this.rendering = true;
+    this.setTranslateButton(true);
+    try {
+      while (this.wantedRender && this.translateMode && this.isActive) {
+        const draft = this.wantedRender === 'draft';
+        this.wantedRender = null;
+        const token = this.renderToken;
+        const link = this.imageLinks[this.currentIndex];
+        if (!link) break;
+        try {
+          const rendered = await renderTranslation(this.originalSrc || link.dataset.originalPath || link.href, draft);
+          if (!this.isActive || token !== this.renderToken || !this.translateMode) continue;
+          this.translation = rendered;
+          this.isTranslated = true;
+          this.drawImage();
+        } catch (e) {
+          if (!this.isActive || token !== this.renderToken) continue;
+          this.isTranslated = false;
+          if (e instanceof NothingToTranslate) {
+            // A page with no text (a splash page) leaves translation on for the pages after it
+            if (this.askedHere) showMessage(`Lens: ${e.message}`, 'info');
+            continue;
+          }
+          this.translateMode = false;
+          showMessage(`Lens: ${(e as Error).message}`, 'error');
+        }
+      }
+    } finally {
+      this.rendering = false;
+      if (this.isActive) this.setTranslateButton(false);
     }
   },
   removeEventListeners() {
     if (this.boundHandleKeydown) {
       document.removeEventListener("keydown", this.boundHandleKeydown, true);
+    }
+    if (this.boundDisplayPreview) {
+      document.removeEventListener(LENS_DISPLAY_PREVIEW, this.boundDisplayPreview);
+      this.boundDisplayPreview = null;
     }
     if (this.boundDisplayChanged) {
       document.removeEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
@@ -285,11 +319,15 @@ export const lightboxModule = {
   },
   drawImage() {
     if (!this.isDrawable() || !this.ctx || !this.canvas) return;
+    const shown = this.isTranslated && this.translation ? this.translation : this.image;
     this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     this.ctx.save();
     this.ctx.translate(this.offsetX, this.offsetY);
     this.ctx.scale(this.zoom, this.zoom);
-    this.ctx.drawImage(this.image, 0, 0);
+    // Always in the original's size, whatever the resolution of what is shown: the translation is the
+    // same picture at a multiple of it, so zoom and position mean the same for both and survive a toggle
+    this.ctx.imageSmoothingQuality = "high";
+    this.ctx.drawImage(shown, 0, 0, this.image.naturalWidth, this.image.naturalHeight);
     this.ctx.restore();
   },
   resetPanZoom() {

@@ -1,6 +1,6 @@
 import { icon } from '../../../config/icons';
 import { DEFAULT_SETTINGS } from '../../../config/constants';
-import { notifyLensDisplayChanged } from '../../../services/lensImages';
+import { notifyLensDisplayChanged, notifyLensDisplayPreview } from '../../../services/lensImages';
 import { saveSetting, state } from '../../../state/store';
 import type { DownloaderSettings } from '../../../types';
 import { el } from '../../../utils/dom';
@@ -19,32 +19,37 @@ interface Control {
   unit?: string;
   // Dimmed while it has no effect on the picture
   activeWhen?: (settings: DownloaderSettings) => boolean;
+  // Acts on re-wrapped paragraphs only, so changing it switches horizontal re-wrapping on
+  reflows?: boolean;
 }
 
 const manga = (settings: DownloaderSettings) => settings.imageTranslateManga;
 const erasing = (settings: DownloaderSettings) => settings.imageTranslateDrawBackground;
 
-// The display settings of the Lens engine (chrome-lens-userscript's settings.ts), grouped as it groups them
+// The display settings of the Lens engine (chrome-lens-userscript's settings.ts), grouped by what they act on.
+// Horizontal text is drawn line by line in the boxes Lens found unless it is re-wrapped, and only a
+// re-wrapped paragraph has a spacing, an alignment or a room to fit: those controls switch re-wrapping on.
+// Vertical text is re-wrapped anyway, unless it is kept vertical.
 const GROUPS: Array<{ title: string; controls: Control[] }> = [
   {
-    title: 'Layout',
+    title: 'Paragraphs',
     controls: [
-      { key: 'imageTranslateManga', label: 'Manga mode', type: 'checkbox', hint: 'Always reflow vertical text, widen the layout area, raise the minimum size' },
-      { key: 'imageTranslateMangaGrowth', label: 'Bubble fill', type: 'range', min: 1, max: 2.5, step: 0.05, unit: 'x', hint: 'How far past the detected box to lay text out', activeWhen: manga },
-      { key: 'imageTranslateReflow', label: 'Re-wrap horizontal text', type: 'checkbox', hint: 'Treat a paragraph as one text area, not a repeat of the lines Lens found' },
-      { key: 'imageTranslateFitToBox', label: 'Keep text out of the next bubble', type: 'checkbox', hint: 'Shrink a paragraph that outgrows the room between its neighbours' },
-      {
-        key: 'imageTranslateLineSpacing', label: 'Line spacing', type: 'range', min: 0.8, max: 2, step: 0.05, unit: 'x',
-        hint: 'Acts on re-wrapped text: the switch above, or vertical text in manga mode',
-        activeWhen: (settings) => settings.imageTranslateReflow || settings.imageTranslateManga
-      },
-      { key: 'imageTranslateAlign', label: 'Alignment', type: 'select', options: [['auto', 'Follow the source'], ['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
+      { key: 'imageTranslateReflow', label: 'Re-wrap horizontal text', type: 'checkbox', hint: 'Lay each paragraph out as one text area instead of repeating the lines Lens found. The settings below need it for horizontal text' },
+      { key: 'imageTranslateAlign', label: 'Alignment', type: 'select', reflows: true, options: [['auto', 'Follow the source'], ['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
+      { key: 'imageTranslateLineSpacing', label: 'Line spacing', type: 'range', min: 0.8, max: 2, step: 0.05, unit: 'x', reflows: true },
+      { key: 'imageTranslateFitToBox', label: 'Keep text out of the next bubble', type: 'checkbox', reflows: true, hint: 'Shrink a paragraph that outgrows the room between its neighbours' }
+    ]
+  },
+  {
+    title: 'Manga & vertical text',
+    controls: [
+      { key: 'imageTranslateManga', label: 'Manga mode', type: 'checkbox', hint: 'Always re-wrap vertical text, cover it instead of patching, widen its room, raise the minimum size' },
+      { key: 'imageTranslateMangaGrowth', label: 'Bubble fill', type: 'range', min: 1, max: 2.5, step: 0.05, unit: 'x', hint: 'How far past the detected text a re-wrapped paragraph may spread', activeWhen: manga },
       {
         key: 'imageTranslateVertical', label: 'Vertical CJK text', type: 'select',
         options: [['auto', 'Vertical for CJK targets only'], ['keep', 'Always vertical'], ['horizontal', 'Always horizontal']],
-        hint: 'Manga mode always reflows', activeWhen: (settings) => !settings.imageTranslateManga
-      },
-      { key: 'imageTranslateFont', label: 'Font', type: 'text', hint: 'A CSS font family; blank uses the system font' }
+        hint: 'Manga mode always re-wraps', activeWhen: (settings) => !settings.imageTranslateManga
+      }
     ]
   },
   {
@@ -52,7 +57,7 @@ const GROUPS: Array<{ title: string; controls: Control[] }> = [
     controls: [
       { key: 'imageTranslateDrawBackground', label: 'Erase the original text', type: 'checkbox' },
       {
-        key: 'imageTranslateErase', label: 'How', type: 'select', activeWhen: erasing,
+        key: 'imageTranslateErase', label: 'How', type: 'select', activeWhen: erasing, hint: 'Manga mode always covers',
         options: [['patch', "Lens's patches, like Chrome"], ['hull', 'Cover the text area with its background']]
       },
       {
@@ -63,10 +68,15 @@ const GROUPS: Array<{ title: string; controls: Control[] }> = [
     ]
   },
   {
-    title: 'Legibility',
+    title: 'Text',
     controls: [
-      { key: 'imageTranslateOutline', label: 'Text outline', type: 'range', min: 0, max: 8, step: 0.1, unit: 'x', hint: 'Thickens the outline behind the text; 0 removes it' },
-      { key: 'imageTranslateMinPx', label: 'Minimum text size', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'Enlarges text too small to read on screen; 0 turns it off' },
+      { key: 'imageTranslateFont', label: 'Font', type: 'text', hint: 'A CSS font family; blank uses the system font' },
+      {
+        key: 'imageTranslateOutline', label: 'Outline', type: 'range', min: 0, max: 8, step: 0.1, unit: 'x',
+        hint: 'Thickens the outline in the background colour behind the text; 0 removes it. Lines drawn without erasing have none',
+        activeWhen: (settings) => erasing(settings) || settings.imageTranslateReflow || settings.imageTranslateManga
+      },
+      { key: 'imageTranslateMinPx', label: 'Minimum size', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'Enlarges text too small to read on screen; 0 turns it off' },
       { key: 'imageTranslateSharpness', label: 'Sharpness', type: 'select', options: [['1', '1x'], ['2', '2x'], ['3', '3x']], hint: 'Renders at this multiple of the image size, so zooming in stays crisp' }
     ]
   }
@@ -102,10 +112,19 @@ export function createLensPanel(onClose: () => void): HTMLElement {
     notifyLensDisplayChanged();
   };
 
-  const set = (key: Key, value: unknown) => {
-    (state.settings as unknown as Record<string, unknown>)[key] = value;
+  // `cascade` off for a reset, which sets re-wrapping itself and must not have it switched back on
+  const set = (key: Key, value: unknown, cascade = true) => {
+    const settings = state.settings as unknown as Record<string, unknown>;
+    settings[key] = value;
     dirty.add(key);
+    if (cascade && CONTROLS.find((control) => control.key === key)?.reflows && !state.settings.imageTranslateReflow) {
+      settings.imageTranslateReflow = true;
+      dirty.add('imageTranslateReflow');
+      rows.find((row) => row.control.key === 'imageTranslateReflow')?.sync();
+    }
     refreshActive();
+    // The picture follows at once, as a draft; saving and the full-quality redraw wait for it to settle
+    notifyLensDisplayPreview();
     clearTimeout(settleTimer);
     settleTimer = setTimeout(commit, SETTLE_MS);
   };
@@ -170,7 +189,7 @@ export function createLensPanel(onClose: () => void): HTMLElement {
         className: 'kui-lens-panel-btn',
         title: 'Back to defaults',
         onClick: () => {
-          CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key]));
+          CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key], false));
           syncAll();
         }
       }, [icon('rotate-ccw')]),

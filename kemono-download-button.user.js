@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.51
+// @version      0.8.52
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -6523,6 +6523,16 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const sn = Math.sin(radians);
     draw.ctx.translate(dx * c + dy * sn, dy * c - dx * sn);
   }
+  const decodedPatches = /* @__PURE__ */ new WeakMap();
+  function decodePatch(bytes2) {
+    let decoded = decodedPatches.get(bytes2);
+    if (!decoded) {
+      decoded = createImageBitmap(new Blob([bytes2], { type: "image/webp" }));
+      decodedPatches.set(bytes2, decoded);
+      decoded.catch(() => decodedPatches.delete(bytes2));
+    }
+    return decoded;
+  }
   async function drawLine(draw, block, line, nextLine, settings, backgroundOnly = false, skipBackground = false) {
     const geometry = line.geometry;
     if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
@@ -6539,9 +6549,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       const padW = patch.hPad * boxH;
       const padH = patch.vPad * boxH;
       try {
-        const bitmap = await createImageBitmap(new Blob([patch.bytes], { type: "image/webp" }));
+        const bitmap = await decodePatch(patch.bytes);
         ctx.drawImage(bitmap, -(boxW + padW) / 2, -(boxH + padH) / 2, boxW + padW, boxH + padH);
-        bitmap.close();
       } catch {
         ctx.fillStyle = argbToCss(line.bgColor);
         ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
@@ -6558,8 +6567,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       ctx.font = `${size}px ${fontFamily}`;
       ctx.direction = isRtl(block) ? "rtl" : "ltr";
       const fill = argbToCss(line.textColor);
-      const outline = patch ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale)) : 0;
-      const outlineColor = patch ? argbToCss(line.bgColor) : null;
+      const erased = settings.drawBackground;
+      const outline = erased && settings.outlineScale > 0 ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale)) : 0;
+      const outlineColor = erased ? argbToCss(line.bgColor) : null;
       const enlarged = size > fitted;
       const advance = ctx.measureText(text2).width;
       const drawW = enlarged ? Math.min(Math.max(boxW, advance + size * 0.4), width) : boxW;
@@ -6586,6 +6596,12 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     ctx.restore();
   }
   async function renderToBlob(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth = naturalWidth) {
+    const canvas = await renderToCanvas(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("Could not encode the translated image");
+    return blob;
+  }
+  async function renderToCanvas(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth = naturalWidth) {
     const scale = Math.min(
       Math.max(1, Math.round(settings.supersample)),
       Math.max(1, Math.floor(8e3 / Math.max(naturalWidth, naturalHeight)))
@@ -6634,9 +6650,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
         }
       }
     }
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!blob) throw new Error("Could not encode the translated image");
-    return blob;
+    return canvas;
   }
   const DB_NAME = "lens-translate";
   const DB_VERSION = 1;
@@ -6792,7 +6806,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       fontFamily: settings.imageTranslateFont
     };
   }
+  const LENS_DISPLAY_PREVIEW = "kdl:lens-display-preview";
   const LENS_DISPLAY_CHANGED = "kdl:lens-display-changed";
+  function notifyLensDisplayPreview() {
+    document.dispatchEvent(new CustomEvent(LENS_DISPLAY_PREVIEW));
+  }
   function notifyLensDisplayChanged() {
     document.dispatchEvent(new CustomEvent(LENS_DISPLAY_CHANGED));
   }
@@ -6803,6 +6821,51 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       image.onerror = () => reject(new Error("Could not load the image"));
       image.src = url;
     });
+  }
+  const MAX_PICTURES = 2;
+  const pictures = /* @__PURE__ */ new Map();
+  function picture(url) {
+    var _a2;
+    const known = pictures.get(url);
+    if (known) {
+      pictures.delete(url);
+      pictures.set(url, known);
+      return known;
+    }
+    const loading = loadImage(url).then((image) => acquireSource({ element: image, url }));
+    loading.catch(() => pictures.delete(url));
+    pictures.set(url, loading);
+    while (pictures.size > MAX_PICTURES) {
+      const oldest = pictures.keys().next();
+      if (oldest.done) break;
+      void ((_a2 = pictures.get(oldest.value)) == null ? void 0 : _a2.then((pixels) => setTimeout(() => pixels.release(), 3e4), () => {
+      }));
+      pictures.delete(oldest.value);
+    }
+    return loading;
+  }
+  class NothingToTranslate extends Error {
+  }
+  async function answer(url, settings, pixels) {
+    const key = cacheKey(url, settings);
+    let result = getCached(key, settings);
+    const hash = result ? "" : fingerprint(pixels.source, pixels.width, pixels.height);
+    if (!result && hash) {
+      result = await getStored(hash, settings);
+      if (result) putCached(key, result, settings);
+    }
+    if (!result) {
+      const upload = await encodeForUpload(pixels.source, settings);
+      result = await callLens(upload, settings);
+      putCached(key, result, settings);
+      void putStored(hash, result, settings);
+    }
+    if (!result.blocks.length) {
+      throw new NothingToTranslate(
+        result.ocr.some((paragraph) => paragraph.lines.length > 0) ? "Lens read the text but returned no translation (same language?)" : "Lens found no text in this image"
+      );
+    }
+    return result;
   }
   const MAX_LIVE_URLS = 8;
   const liveUrls = /* @__PURE__ */ new Map();
@@ -6824,45 +6887,23 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   async function translateImage(url) {
     const settings = lensSettings();
     const displayedWidth = referenceWidth();
-    const key = cacheKey(url, settings);
-    const rendered = renderKey(key, settings, displayedWidth);
+    const rendered = renderKey(cacheKey(url, settings), settings, displayedWidth);
     const live = liveUrls.get(rendered);
     if (live) return live;
     const done = getRender(rendered, settings);
     if (done) return keepUrl(rendered, done);
-    const image = await loadImage(url);
-    const prepared = await acquireSource({ element: image, url });
-    try {
-      let result = getCached(key, settings);
-      const hash = result ? "" : fingerprint(prepared.source, prepared.width, prepared.height);
-      if (!result && hash) {
-        result = await getStored(hash, settings);
-        if (result) putCached(key, result, settings);
-      }
-      if (!result) {
-        const upload = await encodeForUpload(prepared.source, settings);
-        result = await callLens(upload, settings);
-        putCached(key, result, settings);
-        void putStored(hash, result, settings);
-      }
-      if (!result.blocks.length) {
-        throw new Error(
-          result.ocr.some((paragraph) => paragraph.lines.length > 0) ? "Lens read the text but returned no translation (same language?)" : "Lens found no text in this image"
-        );
-      }
-      const blob = await renderToBlob(
-        prepared.source,
-        prepared.width,
-        prepared.height,
-        result.blocks,
-        settings,
-        displayedWidth
-      );
-      putRender(rendered, blob, settings);
-      return keepUrl(rendered, blob);
-    } finally {
-      prepared.release();
-    }
+    const pixels = await picture(url);
+    const result = await answer(url, settings, pixels);
+    const blob = await renderToBlob(pixels.source, pixels.width, pixels.height, result.blocks, settings, displayedWidth);
+    putRender(rendered, blob, settings);
+    return keepUrl(rendered, blob);
+  }
+  async function renderTranslation(url, draft = false) {
+    const settings = lensSettings();
+    if (draft) settings.supersample = 1;
+    const pixels = await picture(url);
+    const result = await answer(url, settings, pixels);
+    return renderToCanvas(pixels.source, pixels.width, pixels.height, result.blocks, settings, referenceWidth());
   }
   async function clearImageTranslationCache() {
     const stored = await storedStats();
@@ -10704,33 +10745,27 @@ Password: ${password} (copied on click)`;
   const erasing = (settings) => settings.imageTranslateDrawBackground;
   const GROUPS = [
     {
-      title: "Layout",
+      title: "Paragraphs",
       controls: [
-        { key: "imageTranslateManga", label: "Manga mode", type: "checkbox", hint: "Always reflow vertical text, widen the layout area, raise the minimum size" },
-        { key: "imageTranslateMangaGrowth", label: "Bubble fill", type: "range", min: 1, max: 2.5, step: 0.05, unit: "x", hint: "How far past the detected box to lay text out", activeWhen: manga },
-        { key: "imageTranslateReflow", label: "Re-wrap horizontal text", type: "checkbox", hint: "Treat a paragraph as one text area, not a repeat of the lines Lens found" },
-        { key: "imageTranslateFitToBox", label: "Keep text out of the next bubble", type: "checkbox", hint: "Shrink a paragraph that outgrows the room between its neighbours" },
-        {
-          key: "imageTranslateLineSpacing",
-          label: "Line spacing",
-          type: "range",
-          min: 0.8,
-          max: 2,
-          step: 0.05,
-          unit: "x",
-          hint: "Acts on re-wrapped text: the switch above, or vertical text in manga mode",
-          activeWhen: (settings) => settings.imageTranslateReflow || settings.imageTranslateManga
-        },
-        { key: "imageTranslateAlign", label: "Alignment", type: "select", options: [["auto", "Follow the source"], ["left", "Left"], ["center", "Center"], ["right", "Right"]] },
+        { key: "imageTranslateReflow", label: "Re-wrap horizontal text", type: "checkbox", hint: "Lay each paragraph out as one text area instead of repeating the lines Lens found. The settings below need it for horizontal text" },
+        { key: "imageTranslateAlign", label: "Alignment", type: "select", reflows: true, options: [["auto", "Follow the source"], ["left", "Left"], ["center", "Center"], ["right", "Right"]] },
+        { key: "imageTranslateLineSpacing", label: "Line spacing", type: "range", min: 0.8, max: 2, step: 0.05, unit: "x", reflows: true },
+        { key: "imageTranslateFitToBox", label: "Keep text out of the next bubble", type: "checkbox", reflows: true, hint: "Shrink a paragraph that outgrows the room between its neighbours" }
+      ]
+    },
+    {
+      title: "Manga & vertical text",
+      controls: [
+        { key: "imageTranslateManga", label: "Manga mode", type: "checkbox", hint: "Always re-wrap vertical text, cover it instead of patching, widen its room, raise the minimum size" },
+        { key: "imageTranslateMangaGrowth", label: "Bubble fill", type: "range", min: 1, max: 2.5, step: 0.05, unit: "x", hint: "How far past the detected text a re-wrapped paragraph may spread", activeWhen: manga },
         {
           key: "imageTranslateVertical",
           label: "Vertical CJK text",
           type: "select",
           options: [["auto", "Vertical for CJK targets only"], ["keep", "Always vertical"], ["horizontal", "Always horizontal"]],
-          hint: "Manga mode always reflows",
+          hint: "Manga mode always re-wraps",
           activeWhen: (settings) => !settings.imageTranslateManga
-        },
-        { key: "imageTranslateFont", label: "Font", type: "text", hint: "A CSS font family; blank uses the system font" }
+        }
       ]
     },
     {
@@ -10742,6 +10777,7 @@ Password: ${password} (copied on click)`;
           label: "How",
           type: "select",
           activeWhen: erasing,
+          hint: "Manga mode always covers",
           options: [["patch", "Lens's patches, like Chrome"], ["hull", "Cover the text area with its background"]]
         },
         {
@@ -10757,10 +10793,21 @@ Password: ${password} (copied on click)`;
       ]
     },
     {
-      title: "Legibility",
+      title: "Text",
       controls: [
-        { key: "imageTranslateOutline", label: "Text outline", type: "range", min: 0, max: 8, step: 0.1, unit: "x", hint: "Thickens the outline behind the text; 0 removes it" },
-        { key: "imageTranslateMinPx", label: "Minimum text size", type: "range", min: 0, max: 32, step: 1, unit: "px", hint: "Enlarges text too small to read on screen; 0 turns it off" },
+        { key: "imageTranslateFont", label: "Font", type: "text", hint: "A CSS font family; blank uses the system font" },
+        {
+          key: "imageTranslateOutline",
+          label: "Outline",
+          type: "range",
+          min: 0,
+          max: 8,
+          step: 0.1,
+          unit: "x",
+          hint: "Thickens the outline in the background colour behind the text; 0 removes it. Lines drawn without erasing have none",
+          activeWhen: (settings) => erasing(settings) || settings.imageTranslateReflow || settings.imageTranslateManga
+        },
+        { key: "imageTranslateMinPx", label: "Minimum size", type: "range", min: 0, max: 32, step: 1, unit: "px", hint: "Enlarges text too small to read on screen; 0 turns it off" },
         { key: "imageTranslateSharpness", label: "Sharpness", type: "select", options: [["1", "1x"], ["2", "2x"], ["3", "3x"]], hint: "Renders at this multiple of the image size, so zooming in stays crisp" }
       ]
     }
@@ -10787,10 +10834,18 @@ Password: ${password} (copied on click)`;
       dirty.clear();
       notifyLensDisplayChanged();
     };
-    const set = (key, value) => {
-      state.settings[key] = value;
+    const set = (key, value, cascade = true) => {
+      var _a2, _b2;
+      const settings = state.settings;
+      settings[key] = value;
       dirty.add(key);
+      if (cascade && ((_a2 = CONTROLS.find((control) => control.key === key)) == null ? void 0 : _a2.reflows) && !state.settings.imageTranslateReflow) {
+        settings.imageTranslateReflow = true;
+        dirty.add("imageTranslateReflow");
+        (_b2 = rows.find((row) => row.control.key === "imageTranslateReflow")) == null ? void 0 : _b2.sync();
+      }
       refreshActive();
+      notifyLensDisplayPreview();
       clearTimeout(settleTimer);
       settleTimer = setTimeout(commit, SETTLE_MS);
     };
@@ -10851,7 +10906,7 @@ Password: ${password} (copied on click)`;
           className: "kui-lens-panel-btn",
           title: "Back to defaults",
           onClick: () => {
-            CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key]));
+            CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key], false));
             syncAll();
           }
         }, [icon("rotate-ccw")]),
@@ -10867,13 +10922,21 @@ Password: ${password} (copied on click)`;
   }
   const lightboxModule = {
     isActive: false,
+    // Translation is a mode, not a property of one picture: it stays on while paging through a post
+    translateMode: false,
+    // The translation is on screen (the mode is on and its render has arrived)
     isTranslated: false,
+    // The translated picture, at a multiple of the original's size, drawn over the same coordinates
+    translation: null,
     // Where the original actually loaded from: the site's own link when the API-derived one failed
     originalSrc: "",
-    // Set while swapping between the original and its translation, one picture at two resolutions
-    keepView: null,
-    // Renders finish out of order; only the latest one may reach the screen
+    // Renders finish out of order; one started for an earlier picture or mode must not reach the screen
     renderToken: 0,
+    rendering: false,
+    wantedRender: null,
+    // Set by the button, cleared by paging: a page without text is only worth a message when asked about
+    askedHere: false,
+    boundDisplayPreview: null,
     boundDisplayChanged: null,
     imageLinks: [],
     currentIndex: 0,
@@ -10894,11 +10957,12 @@ Password: ${password} (copied on click)`;
       this.imageLinks = [];
       this.currentIndex = 0;
     },
-    open(links, index) {
+    // `translated`: the picture was already translated where it was opened from, so it opens translated
+    open(links, index, translated = false) {
       var _a2;
       if (this.isActive) return;
       this.isActive = true;
-      this.isTranslated = false;
+      this.translateMode = translated && state.settings.showImageTranslateButton;
       this.imageLinks = links;
       this.currentIndex = index;
       const translateButton = state.settings.showImageTranslateButton ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg("languages")}</button>
@@ -10942,6 +11006,8 @@ Password: ${password} (copied on click)`;
       }
       this.removeEventListeners();
       this.isActive = false;
+      this.wantedRender = null;
+      this.translation = null;
       document.body.style.overflow = "";
     },
     updateContent() {
@@ -10954,26 +11020,19 @@ Password: ${password} (copied on click)`;
       if (downloadBtn) downloadBtn.href = originalPath;
       if (lensBtn) lensBtn.href = lensLink;
       this.isTranslated = false;
+      this.translation = null;
       this.originalSrc = "";
-      this.keepView = null;
+      this.askedHere = false;
       this.renderToken++;
-      this.setTranslateButton(false, false);
+      this.setTranslateButton(false);
       this.canvas.style.opacity = "0.5";
       this.image.onload = () => {
         if (this.canvas) this.canvas.style.opacity = "1";
-        if (!this.isTranslated) this.originalSrc = this.image.src;
-        const keep = this.keepView;
-        this.keepView = null;
-        if (keep) {
-          this.zoom = keep.zoom * keep.width / this.image.naturalWidth;
-          this.offsetX = keep.x;
-          this.offsetY = keep.y;
-          this.drawImage();
-          return;
-        }
+        this.originalSrc = this.image.src;
         this.resizeCanvas();
         this.resetPanZoom();
         this.drawImage();
+        this.requestRender("final");
       };
       const fallbackPath = currentLinkData.href;
       this.image.onerror = () => {
@@ -11031,10 +11090,14 @@ Password: ${password} (copied on click)`;
         var _a3;
         this.setPanelOpen(!((_a3 = document.getElementById("kui-lightbox")) == null ? void 0 : _a3.classList.contains("kui-lens-panel-open")));
       });
-      this.boundDisplayChanged = () => {
-        if (this.isTranslated) void this.showTranslation();
-      };
+      this.boundDisplayPreview = () => this.onDisplaySettings("draft");
+      this.boundDisplayChanged = () => this.onDisplaySettings("final");
+      document.addEventListener(LENS_DISPLAY_PREVIEW, this.boundDisplayPreview);
       document.addEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
+    },
+    onDisplaySettings(kind) {
+      if (this.translateMode) this.requestRender(kind);
+      else this.translation = null;
     },
     setPanelOpen(open2) {
       var _a2;
@@ -11046,55 +11109,78 @@ Password: ${password} (copied on click)`;
       (_a2 = document.getElementById("kui-lightbox-lens-settings-btn")) == null ? void 0 : _a2.classList.toggle("kui-active", open2);
       writeStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, open2);
     },
-    setTranslateButton(busy, active) {
+    setTranslateButton(busy) {
       const btn = document.getElementById("kui-lightbox-translate-btn");
       if (!btn) return;
-      btn.disabled = busy;
       btn.innerHTML = busy ? iconSvg("loader-circle", "kdl-icon kdl-spin") : iconSvg("languages");
-      btn.classList.toggle("kui-active", active);
+      btn.classList.toggle("kui-active", this.translateMode);
+      btn.title = this.translateMode ? "Show the original" : "Translate the text in this image";
     },
-    // Same picture, another bitmap: remember the view so the swap does not reset zoom and position
-    swapImage(src) {
-      if (this.image.src === src) return;
-      if (this.isDrawable()) {
-        this.keepView = { width: this.image.naturalWidth, zoom: this.zoom, x: this.offsetX, y: this.offsetY };
-      }
-      this.image.src = src;
-    },
-    async handleTranslate() {
-      const btn = document.getElementById("kui-lightbox-translate-btn");
-      const currentLink = this.imageLinks[this.currentIndex];
-      if (!btn || btn.disabled || !currentLink) return;
-      if (this.isTranslated) {
+    handleTranslate() {
+      if (this.translateMode) {
+        this.translateMode = false;
         this.isTranslated = false;
+        this.wantedRender = null;
         this.renderToken++;
-        this.setTranslateButton(false, false);
-        this.swapImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
+        this.setTranslateButton(false);
+        this.drawImage();
         return;
       }
-      await this.showTranslation();
-    },
-    // Translates the current image, and redraws its translation when a display setting changes
-    async showTranslation() {
-      const currentLink = this.imageLinks[this.currentIndex];
-      if (!currentLink) return;
-      const token = ++this.renderToken;
-      this.setTranslateButton(true, this.isTranslated);
-      try {
-        const translated = await translateImage(this.originalSrc || currentLink.dataset.originalPath || currentLink.href);
-        if (!this.isActive || token !== this.renderToken) return;
+      this.translateMode = true;
+      this.askedHere = true;
+      if (this.translation) {
         this.isTranslated = true;
-        this.swapImage(translated);
-        this.setTranslateButton(false, true);
-      } catch (e) {
-        if (token !== this.renderToken) return;
-        this.setTranslateButton(false, this.isTranslated);
-        showMessage(`Lens: ${e.message}`, "error");
+        this.setTranslateButton(false);
+        this.drawImage();
+        return;
+      }
+      this.requestRender("final");
+    },
+    requestRender(kind) {
+      if (!this.translateMode || !this.isDrawable()) return;
+      this.wantedRender = kind === "final" || this.wantedRender === "final" ? "final" : "draft";
+      if (!this.rendering) void this.renderLoop();
+    },
+    // One render at a time, always of the latest settings: requests made while one runs collapse into the next
+    async renderLoop() {
+      this.rendering = true;
+      this.setTranslateButton(true);
+      try {
+        while (this.wantedRender && this.translateMode && this.isActive) {
+          const draft = this.wantedRender === "draft";
+          this.wantedRender = null;
+          const token = this.renderToken;
+          const link = this.imageLinks[this.currentIndex];
+          if (!link) break;
+          try {
+            const rendered = await renderTranslation(this.originalSrc || link.dataset.originalPath || link.href, draft);
+            if (!this.isActive || token !== this.renderToken || !this.translateMode) continue;
+            this.translation = rendered;
+            this.isTranslated = true;
+            this.drawImage();
+          } catch (e) {
+            if (!this.isActive || token !== this.renderToken) continue;
+            this.isTranslated = false;
+            if (e instanceof NothingToTranslate) {
+              if (this.askedHere) showMessage(`Lens: ${e.message}`, "info");
+              continue;
+            }
+            this.translateMode = false;
+            showMessage(`Lens: ${e.message}`, "error");
+          }
+        }
+      } finally {
+        this.rendering = false;
+        if (this.isActive) this.setTranslateButton(false);
       }
     },
     removeEventListeners() {
       if (this.boundHandleKeydown) {
         document.removeEventListener("keydown", this.boundHandleKeydown, true);
+      }
+      if (this.boundDisplayPreview) {
+        document.removeEventListener(LENS_DISPLAY_PREVIEW, this.boundDisplayPreview);
+        this.boundDisplayPreview = null;
       }
       if (this.boundDisplayChanged) {
         document.removeEventListener(LENS_DISPLAY_CHANGED, this.boundDisplayChanged);
@@ -11137,11 +11223,13 @@ Password: ${password} (copied on click)`;
     },
     drawImage() {
       if (!this.isDrawable() || !this.ctx || !this.canvas) return;
+      const shown = this.isTranslated && this.translation ? this.translation : this.image;
       this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
       this.ctx.save();
       this.ctx.translate(this.offsetX, this.offsetY);
       this.ctx.scale(this.zoom, this.zoom);
-      this.ctx.drawImage(this.image, 0, 0);
+      this.ctx.imageSmoothingQuality = "high";
+      this.ctx.drawImage(shown, 0, 0, this.image.naturalWidth, this.image.naturalHeight);
       this.ctx.restore();
     },
     resetPanZoom() {
@@ -11388,7 +11476,7 @@ Password: ${password} (copied on click)`;
         });
       }
       previewImage.addEventListener("click", () => {
-        lightboxModule.open(imageLinks, currentIndex);
+        lightboxModule.open(imageLinks, currentIndex, translatedByIndex.has(currentIndex));
       });
       setActive(0);
       sanitizeDuplicates();
