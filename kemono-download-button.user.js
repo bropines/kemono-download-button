@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.52
+// @version      0.8.53
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -6440,35 +6440,40 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (!style) return;
     const text2 = block.translation.trim();
     if (!text2) return;
-    ctx.save();
-    ctx.translate(box.cx, box.cy);
-    ctx.rotate(geometry.angle * DEG);
     const spacing = settings.lineSpacing > 0 ? settings.lineSpacing : 1.25;
+    ctx.save();
     const perCharacter = wrapsPerCharacter(block);
     const measure = (candidate) => ctx.measureText(candidate).width;
+    const widestOf = (candidates) => candidates.reduce((max, line) => Math.max(max, measure(line)), 0);
     const setFont = (px) => {
       ctx.font = `${px}px ${fontFamily}`;
     };
     const { size } = fitTextBlock(setFont, measure, (px) => px * spacing, text2, boxW, boxH, perCharacter);
+    const floor = Math.max(MIN_FONT_SIZE, draw.minFontPx);
     let fontSize = Math.max(size, draw.minFontPx);
     setFont(fontSize);
     let lines = wrapText(measure, text2, boxW, perCharacter);
-    const widest = lines.reduce((max, line) => Math.max(max, measure(line)), 0);
-    if (widest > boxW && widest > 0) {
-      fontSize = Math.max(MIN_FONT_SIZE, fontSize * boxW / widest);
+    const widest = widestOf(lines);
+    if (widest > boxW && widest > 0 && fontSize > floor) {
+      fontSize = Math.max(floor, fontSize * boxW / widest);
       setFont(fontSize);
       lines = wrapText(measure, text2, boxW, perCharacter);
     }
     if (settings.fitToBox) {
       for (let pass = 0; pass < 3; pass += 1) {
         const needed = lines.length * fontSize * spacing;
-        if (needed <= boxH || fontSize <= MIN_FONT_SIZE) break;
-        fontSize = Math.max(MIN_FONT_SIZE, fontSize * boxH / needed);
+        if (needed <= boxH || fontSize <= floor) break;
+        fontSize = Math.max(floor, fontSize * boxH / needed);
         setFont(fontSize);
         lines = wrapText(measure, text2, boxW, perCharacter);
       }
     }
     const lineHeight = fontSize * spacing;
+    const blockW = Math.max(boxW, widestOf(lines));
+    const blockH = lines.length * lineHeight;
+    const inside = (centre, half, limit) => half * 2 >= limit ? limit / 2 - centre : Math.min(Math.max(centre, half), limit - half) - centre;
+    ctx.translate(box.cx + inside(box.cx, blockW / 2, width), box.cy + inside(box.cy, blockH / 2, height));
+    ctx.rotate(geometry.angle * DEG);
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
     const fill = argbToCss(style.textColor);
@@ -6478,10 +6483,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     );
     const outlineColor = argbToCss(style.bgColor);
     const justify = justification(block.alignment, isRtl(block), settings.textAlign);
-    let y = -Math.min(boxH, lines.length * lineHeight) / 2;
+    let y = -blockH / 2;
     for (const line of lines) {
       const advance = ctx.measureText(line).width;
-      const x2 = justify === "flex-start" ? -boxW / 2 : justify === "flex-end" ? boxW / 2 - advance : -advance / 2;
+      const x2 = justify === "flex-start" ? -blockW / 2 : justify === "flex-end" ? blockW / 2 - advance : -advance / 2;
       strokeThenFill(ctx, line, x2, y, outline, outlineColor);
       ctx.fillStyle = fill;
       ctx.fillText(line, x2, y);
@@ -6880,19 +6885,21 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     }
     return url;
   }
-  function referenceWidth() {
-    const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
-    return Math.round(width / 200) * 200;
+  function displayedWidthOf(width, height) {
+    const viewWidth = window.innerWidth || 1280;
+    const viewHeight = window.innerHeight || 800;
+    const fitted = width * Math.min(1, viewWidth / width, viewHeight / height);
+    return Math.max(100, Math.round(fitted / 50) * 50);
   }
   async function translateImage(url) {
     const settings = lensSettings();
-    const displayedWidth = referenceWidth();
+    const pixels = await picture(url);
+    const displayedWidth = displayedWidthOf(pixels.width, pixels.height);
     const rendered = renderKey(cacheKey(url, settings), settings, displayedWidth);
     const live = liveUrls.get(rendered);
     if (live) return live;
     const done = getRender(rendered, settings);
     if (done) return keepUrl(rendered, done);
-    const pixels = await picture(url);
     const result = await answer(url, settings, pixels);
     const blob = await renderToBlob(pixels.source, pixels.width, pixels.height, result.blocks, settings, displayedWidth);
     putRender(rendered, blob, settings);
@@ -6903,7 +6910,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     if (draft) settings.supersample = 1;
     const pixels = await picture(url);
     const result = await answer(url, settings, pixels);
-    return renderToCanvas(pixels.source, pixels.width, pixels.height, result.blocks, settings, referenceWidth());
+    return renderToCanvas(pixels.source, pixels.width, pixels.height, result.blocks, settings, displayedWidthOf(pixels.width, pixels.height));
   }
   async function clearImageTranslationCache() {
     const stored = await storedStats();
@@ -10750,7 +10757,7 @@ Password: ${password} (copied on click)`;
         { key: "imageTranslateReflow", label: "Re-wrap horizontal text", type: "checkbox", hint: "Lay each paragraph out as one text area instead of repeating the lines Lens found. The settings below need it for horizontal text" },
         { key: "imageTranslateAlign", label: "Alignment", type: "select", reflows: true, options: [["auto", "Follow the source"], ["left", "Left"], ["center", "Center"], ["right", "Right"]] },
         { key: "imageTranslateLineSpacing", label: "Line spacing", type: "range", min: 0.8, max: 2, step: 0.05, unit: "x", reflows: true },
-        { key: "imageTranslateFitToBox", label: "Keep text out of the next bubble", type: "checkbox", reflows: true, hint: "Shrink a paragraph that outgrows the room between its neighbours" }
+        { key: "imageTranslateFitToBox", label: "Keep text out of the next bubble", type: "checkbox", reflows: true, hint: "Shrink a paragraph that outgrows the room between its neighbours, down to the minimum size" }
       ]
     },
     {
@@ -10807,7 +10814,7 @@ Password: ${password} (copied on click)`;
           hint: "Thickens the outline in the background colour behind the text; 0 removes it. Lines drawn without erasing have none",
           activeWhen: (settings) => erasing(settings) || settings.imageTranslateReflow || settings.imageTranslateManga
         },
-        { key: "imageTranslateMinPx", label: "Minimum size", type: "range", min: 0, max: 32, step: 1, unit: "px", hint: "Enlarges text too small to read on screen; 0 turns it off" },
+        { key: "imageTranslateMinPx", label: "Minimum size", type: "range", min: 0, max: 32, step: 1, unit: "px", hint: "The smallest the text may be on screen when the viewer fits the picture; 0 turns it off. Text kept at this size may spill past its bubble" },
         { key: "imageTranslateSharpness", label: "Sharpness", type: "select", options: [["1", "1x"], ["2", "2x"], ["3", "3x"]], hint: "Renders at this multiple of the image size, so zooming in stays crisp" }
       ]
     }

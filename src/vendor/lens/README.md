@@ -8,7 +8,7 @@ Copied verbatim except for two mechanical changes: `gm.ts` imports from
 `./monkey` instead of `vite-plugin-monkey`'s `'$'`, and `.js` extensions are
 stripped from relative imports.
 
-Three local changes to `render/canvas.ts`, worth taking upstream:
+Four local changes to `render/canvas.ts`, worth taking upstream:
 
 - `renderToCanvas` is split out of `renderToBlob`, so the image viewer can draw the
   rendering directly and redraw it live while a setting moves: the PNG encode and
@@ -18,6 +18,10 @@ Three local changes to `render/canvas.ts`, worth taking upstream:
 - The per-line outline follows `drawBackground` rather than the patch. Keyed on the
   patch, hull erasing (and so manga mode) drew horizontal lines with no outline,
   and a floor of 1px meant an outline scale of 0 could not remove it.
+- In a re-wrapped paragraph the readable-size floor wins over the room: fitting
+  the width and Keep text out of the next bubble shrink only down to it, and a
+  paragraph still too big spills past its room, kept inside the picture.
+  Upstream lets the room win, so on a tight bubble the minimum did nothing.
 
 Two files here are not upstream's:
 

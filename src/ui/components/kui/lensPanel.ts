@@ -37,7 +37,7 @@ const GROUPS: Array<{ title: string; controls: Control[] }> = [
       { key: 'imageTranslateReflow', label: 'Re-wrap horizontal text', type: 'checkbox', hint: 'Lay each paragraph out as one text area instead of repeating the lines Lens found. The settings below need it for horizontal text' },
       { key: 'imageTranslateAlign', label: 'Alignment', type: 'select', reflows: true, options: [['auto', 'Follow the source'], ['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
       { key: 'imageTranslateLineSpacing', label: 'Line spacing', type: 'range', min: 0.8, max: 2, step: 0.05, unit: 'x', reflows: true },
-      { key: 'imageTranslateFitToBox', label: 'Keep text out of the next bubble', type: 'checkbox', reflows: true, hint: 'Shrink a paragraph that outgrows the room between its neighbours' }
+      { key: 'imageTranslateFitToBox', label: 'Keep text out of the next bubble', type: 'checkbox', reflows: true, hint: 'Shrink a paragraph that outgrows the room between its neighbours, down to the minimum size' }
     ]
   },
   {
@@ -76,7 +76,7 @@ const GROUPS: Array<{ title: string; controls: Control[] }> = [
         hint: 'Thickens the outline in the background colour behind the text; 0 removes it. Lines drawn without erasing have none',
         activeWhen: (settings) => erasing(settings) || settings.imageTranslateReflow || settings.imageTranslateManga
       },
-      { key: 'imageTranslateMinPx', label: 'Minimum size', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'Enlarges text too small to read on screen; 0 turns it off' },
+      { key: 'imageTranslateMinPx', label: 'Minimum size', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'The smallest the text may be on screen when the viewer fits the picture; 0 turns it off. Text kept at this size may spill past its bubble' },
       { key: 'imageTranslateSharpness', label: 'Sharpness', type: 'select', options: [['1', '1x'], ['2', '2x'], ['3', '3x']], hint: 'Renders at this multiple of the image size, so zooming in stays crisp' }
     ]
   }

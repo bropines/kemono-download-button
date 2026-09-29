@@ -183,32 +183,35 @@ function keepUrl(key: string, blob: Blob): string {
 }
 
 /**
- * One display width for every place an image is shown.
+ * How wide the picture is shown when the viewer fits it to the screen, which is where it is read.
  *
- * The readable-size floor is relative to how wide the image is displayed, so
- * rendering the gallery preview at its own width and the lightbox at the
- * viewport's gave one image two renderings with two different text sizes. The
- * viewport is where the image is actually read; quantising it keeps a resize
- * from splitting the cache, and keeps both places on one rendering.
+ * The readable-size floor is set in on-screen pixels, so it has to know this. The viewport's width
+ * stood in for it and was far too generous for a tall page: a manga page fitted to the screen's
+ * height is shown at a fraction of that width, so the floor came out several times too small and the
+ * minimum size seemed to do nothing. The gallery uses the same width, so both places show one
+ * rendering; quantised, so a resize does not split the cache.
  */
-function referenceWidth(): number {
-  const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
-  return Math.round(width / 200) * 200;
+function displayedWidthOf(width: number, height: number): number {
+  const viewWidth = window.innerWidth || 1280;
+  const viewHeight = window.innerHeight || 800;
+  const fitted = width * Math.min(1, viewWidth / width, viewHeight / height);
+  return Math.max(100, Math.round(fitted / 50) * 50);
 }
 
 /** The image at `url` with its text translated, as an object URL, for an <img>. */
 export async function translateImage(url: string): Promise<string> {
   const settings = lensSettings();
-  const displayedWidth = referenceWidth();
+  // The picture's size decides how it is shown, and so the rendering; decoded once and kept
+  const pixels = await picture(url);
+  const displayedWidth = displayedWidthOf(pixels.width, pixels.height);
   const rendered = renderKey(cacheKey(url, settings), settings, displayedWidth);
 
   const live = liveUrls.get(rendered);
   if (live) return live;
-  // A finished rendering short-circuits everything: no pixels, no round trip
+  // A finished rendering short-circuits the rest: no round trip, no drawing
   const done = getRender(rendered, settings);
   if (done) return keepUrl(rendered, done);
 
-  const pixels = await picture(url);
   const result = await answer(url, settings, pixels);
   const blob = await renderToBlob(pixels.source, pixels.width, pixels.height, result.blocks, settings, displayedWidth);
   putRender(rendered, blob, settings);
@@ -225,7 +228,7 @@ export async function renderTranslation(url: string, draft = false): Promise<HTM
   if (draft) settings.supersample = 1;
   const pixels = await picture(url);
   const result = await answer(url, settings, pixels);
-  return renderToCanvas(pixels.source, pixels.width, pixels.height, result.blocks, settings, referenceWidth());
+  return renderToCanvas(pixels.source, pixels.width, pixels.height, result.blocks, settings, displayedWidthOf(pixels.width, pixels.height));
 }
 
 /** Forgets every Lens answer, in memory and across reloads. Returns what the persistent store held. */

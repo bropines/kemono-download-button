@@ -289,53 +289,69 @@ function drawReflowedParagraph(
   const text = block.translation.trim();
   if (!text) return;
 
-  ctx.save();
-  ctx.translate(box.cx, box.cy);
-  ctx.rotate(geometry.angle * DEG);
-
   // The same multiple has to reach both the fit and the draw: choosing a size
   // against one spacing and then painting at another overflows the box.
   const spacing = settings.lineSpacing > 0 ? settings.lineSpacing : 1.25;
 
+  ctx.save();
   const perCharacter = wrapsPerCharacter(block);
   const measure = (candidate: string): number => ctx.measureText(candidate).width;
+  const widestOf = (candidates: string[]): number =>
+    candidates.reduce((max: number, line: string) => Math.max(max, measure(line)), 0);
   const setFont = (px: number): void => {
     ctx.font = `${px}px ${fontFamily}`;
   };
 
   const { size } = fitTextBlock(setFont, measure, (px) => px * spacing, text, boxW, boxH, perCharacter);
 
-  // The readable-size floor overrides what fits, and the wrap has to be redone
-  // at the size actually drawn. Wrapping for one size and painting at another
-  // is what sent whole lines off the picture: every line was measured against
-  // the box at a font nobody used.
+  // The readable-size floor is a floor: the room gives way to it, not the other
+  // way round. A paragraph that only fits its room below the size the reader
+  // asked for is drawn at that size and spills past the room, instead of
+  // shrinking back into the unreadable text the floor exists to prevent. Upstream
+  // lets the room win, and on a tight bubble the minimum then did nothing at all.
+  const floor = Math.max(MIN_FONT_SIZE, draw.minFontPx);
+
+  // The wrap has to be redone at the size actually drawn. Wrapping for one size
+  // and painting at another is what sent whole lines off the picture: every line
+  // was measured against the box at a font nobody used.
   let fontSize = Math.max(size, draw.minFontPx);
   setFont(fontSize);
   let lines = wrapText(measure, text, boxW, perCharacter);
 
   // wrapText keeps a token that cannot be broken even when it overruns, so the
-  // box is not a guarantee yet. One proportional step down makes it one.
-  const widest = lines.reduce((max: number, line: string) => Math.max(max, measure(line)), 0);
-  if (widest > boxW && widest > 0) {
-    fontSize = Math.max(MIN_FONT_SIZE, (fontSize * boxW) / widest);
+  // box is not a guarantee yet. One proportional step down makes it one, as far
+  // as the floor allows.
+  const widest = widestOf(lines);
+  if (widest > boxW && widest > 0 && fontSize > floor) {
+    fontSize = Math.max(floor, (fontSize * boxW) / widest);
     setFont(fontSize);
     lines = wrapText(measure, text, boxW, perCharacter);
   }
 
   // A paragraph taller than its room is one written across the next bubble, so
-  // the readable-size floor gives way here rather than the layout. Repeated,
-  // because a smaller font rewraps into fewer lines and may then fit outright.
+  // it shrinks, down to the floor. Repeated, because a smaller font rewraps into
+  // fewer lines and may then fit outright.
   if (settings.fitToBox) {
     for (let pass = 0; pass < 3; pass += 1) {
       const needed = lines.length * fontSize * spacing;
-      if (needed <= boxH || fontSize <= MIN_FONT_SIZE) break;
-      fontSize = Math.max(MIN_FONT_SIZE, (fontSize * boxH) / needed);
+      if (needed <= boxH || fontSize <= floor) break;
+      fontSize = Math.max(floor, (fontSize * boxH) / needed);
       setFont(fontSize);
       lines = wrapText(measure, text, boxW, perCharacter);
     }
   }
 
   const lineHeight = fontSize * spacing;
+  // What the text really takes, which is more than the room when the floor won.
+  // Kept inside the picture, where the canvas would only clip it; a paragraph
+  // that fits its room is not moved. Rotation is ignored as in roomFor.
+  const blockW = Math.max(boxW, widestOf(lines));
+  const blockH = lines.length * lineHeight;
+  const inside = (centre: number, half: number, limit: number): number =>
+    half * 2 >= limit ? limit / 2 - centre : Math.min(Math.max(centre, half), limit - half) - centre;
+
+  ctx.translate(box.cx + inside(box.cx, blockW / 2, width), box.cy + inside(box.cy, blockH / 2, height));
+  ctx.rotate(geometry.angle * DEG);
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -351,14 +367,14 @@ function drawReflowedParagraph(
   const outlineColor = argbToCss(style.bgColor);
   const justify = justification(block.alignment, isRtl(block), settings.textAlign);
 
-  let y = -Math.min(boxH, lines.length * lineHeight) / 2;
+  let y = -blockH / 2;
   for (const line of lines) {
     const advance = ctx.measureText(line).width;
     const x =
       justify === 'flex-start'
-        ? -boxW / 2
+        ? -blockW / 2
         : justify === 'flex-end'
-          ? boxW / 2 - advance
+          ? blockW / 2 - advance
           : -advance / 2;
     strokeThenFill(ctx, line, x, y, outline, outlineColor);
     ctx.fillStyle = fill;
