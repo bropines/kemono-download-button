@@ -1,4 +1,5 @@
 import { getApiAdapter } from '../../api';
+import { readStored, writeStored } from '../../state/gmStorage';
 import { executeBulkDownload } from '../../services/downloadService';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
@@ -61,7 +62,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
   const cacheKey = `kemono_posts_cache_${service}_${userID}`;
 
   if (!forceRefresh && state.settings.cacheDurationHours > 0) {
-    const cachedData = await GM_getValue<{ timestamp: number; postList: any[] } | null>(cacheKey, null);
+    const cachedData = readStored<{ timestamp: number; postList: any[] } | null>(cacheKey, null);
     if (cachedData && cachedData.postList) {
       const cacheAgeHours = (Date.now() - cachedData.timestamp) / (1000 * 60 * 60);
       if (cacheAgeHours < state.settings.cacheDurationHours) {
@@ -79,7 +80,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
 
   if (allPosts.length > 0) {
     if (state.settings.cacheDurationHours > 0) {
-      await GM_setValue(cacheKey, { timestamp: Date.now(), postList: allPosts });
+      writeStored(cacheKey, { timestamp: Date.now(), postList: allPosts });
     }
     title.textContent = `Manage ${allPosts.length} posts by ${authorName}`;
     populateManagerList(allPosts);

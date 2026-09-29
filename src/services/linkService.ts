@@ -1,4 +1,5 @@
 import { showMessage } from '../ui/toast';
+import { saveBlob } from '../utils/saveFile';
 import { PostDetails } from '../types';
 import { collectFilesForPost } from './collectorService';
 import { state } from '../state/store';
@@ -26,11 +27,7 @@ export async function executeLinkAction(
     const textContent = urlFiles.map((f) => f.data).join('\n');
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const fileName = `${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_links.txt`;
-    GM_download({
-      url: URL.createObjectURL(blob),
-      name: fileName,
-      saveAs: false
-    });
+    saveBlob(blob, fileName);
     showMessage(`Downloaded ${urlFiles.length} links as text file for ADM!`, 'info');
   } else if (actionType === 'share') {
     if (typeof navigator.share === 'function') {

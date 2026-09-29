@@ -1,4 +1,5 @@
 import { fetchImageBlob } from './lens/client';
+import type { Target } from './detect';
 import type { Bytes, PreparedImage, Settings } from './types';
 
 /**
@@ -23,12 +24,82 @@ export function targetSize(
   };
 }
 
-export type Source = HTMLImageElement | ImageBitmap;
+export type Source = HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ImageBitmap;
 
 function sourceSize(source: Source): { width: number; height: number } {
-  return source instanceof HTMLImageElement
-    ? { width: source.naturalWidth, height: source.naturalHeight }
-    : { width: source.width, height: source.height };
+  if (source instanceof HTMLImageElement) {
+    return { width: source.naturalWidth, height: source.naturalHeight };
+  }
+  // A video's frame is videoWidth, not the box it is displayed in.
+  if (source instanceof HTMLVideoElement) {
+    return { width: source.videoWidth, height: source.videoHeight };
+  }
+  return { width: source.width, height: source.height };
+}
+
+/**
+ * The pixels a target already has on the page, if it has any of its own.
+ *
+ * An `<img>` that has not decoded yet, and a background, have none - those go
+ * round by URL instead. A canvas and a video always do, and there is no URL to
+ * fall back on for either, so what they hold is all there will ever be.
+ */
+function ownPixels(target: Target): Source | null {
+  if (target.kind === 'canvas') return target.element as HTMLCanvasElement;
+  if (target.kind === 'video') {
+    const video = target.element as HTMLVideoElement;
+    return video.videoWidth && video.videoHeight ? video : null;
+  }
+  if (target.kind === 'img') {
+    const img = target.element as HTMLImageElement;
+    return img.naturalWidth && img.naturalHeight ? img : null;
+  }
+  return null;
+}
+
+/**
+ * A short, stable name for what this picture *is*.
+ *
+ * Keyed on content rather than address, because the address is the unreliable
+ * half: a CDN serves the same photo under a dozen URLs, a reader re-mints a
+ * blob: URL on every load, and neither survives a reload. The same pixels,
+ * wherever they came from, answer to the same name.
+ *
+ * Taken from a fixed 128x128 downscale, so the cost does not depend on the
+ * image and no JPEG encode is needed - the encode is the expensive half of a
+ * miss, and this runs before it. The natural size joins the hash because two
+ * pictures that differ only in resolution are not the same upload.
+ *
+ * Downscaling is deterministic within a browser but not promised across
+ * versions; the worst an upgrade can do is miss and ask Lens again.
+ */
+const FINGERPRINT_SIZE = 128;
+
+export function fingerprint(source: Source, width: number, height: number): string {
+  const canvas = document.createElement('canvas');
+  canvas.width = FINGERPRINT_SIZE;
+  canvas.height = FINGERPRINT_SIZE;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return '';
+
+  try {
+    ctx.drawImage(source, 0, 0, FINGERPRINT_SIZE, FINGERPRINT_SIZE);
+    const { data } = ctx.getImageData(0, 0, FINGERPRINT_SIZE, FINGERPRINT_SIZE);
+    // FNV-1a over two offset lanes: one 32-bit lane collides often enough to
+    // matter across a few thousand pictures, two do not, and both are one pass.
+    let a = 0x811c9dc5;
+    let b = 0x01000193;
+    for (let i = 0; i < data.length; i += 1) {
+      a = Math.imul(a ^ (data[i] as number), 0x01000193);
+      b = Math.imul(b + (data[i] as number) + i, 0x85ebca6b);
+    }
+    const lane = (n: number): string => (n >>> 0).toString(36);
+    return `${lane(a)}.${lane(b)}.${width}x${height}`;
+  } catch {
+    // A tainted canvas has no readable pixels, so it has no fingerprint; the
+    // caller falls back to the address.
+    return '';
+  }
 }
 
 /** Draw, then JPEG-encode at Chromium's quality. Throws if the canvas is tainted. */
@@ -103,19 +174,20 @@ function loadWithCors(url: string): Promise<HTMLImageElement> {
  * reached.
  */
 export async function prepareImage(
-  img: HTMLImageElement,
+  target: Target,
   settings: Settings
 ): Promise<PreparedImage> {
-  if (img.naturalWidth && img.naturalHeight) {
+  const own = ownPixels(target);
+  if (own) {
     try {
-      return await encodeForUpload(img, settings);
+      return await encodeForUpload(own, settings);
     } catch {
       // Tainted canvas; fall through to fetching the bytes ourselves.
     }
   }
 
-  const url = img.currentSrc || img.src;
-  if (!url) throw new Error('This image has no source to read');
+  const url = target.url;
+  if (!url) throw new Error('There is nothing to read from this element');
 
   try {
     const cors = await loadWithCors(url);
@@ -145,7 +217,7 @@ export async function prepareImage(
  * the element as it stands, the URL re-requested with CORS, then the raw bytes.
  */
 export async function acquireSource(
-  img: HTMLImageElement
+  target: Target
 ): Promise<{ source: Source; width: number; height: number; release(): void }> {
   const probe = document.createElement('canvas');
   probe.width = 1;
@@ -164,13 +236,22 @@ export async function acquireSource(
     }
   };
 
-  if (img.naturalWidth && img.naturalHeight && readable(img)) {
-    const size = sourceSize(img);
-    return { source: img, ...size, release: () => {} };
+  const own = ownPixels(target);
+  if (own && readable(own)) {
+    const size = sourceSize(own);
+    return { source: own, ...size, release: () => {} };
   }
 
-  const url = img.currentSrc || img.src;
-  if (!url) throw new Error('This image has no source to read');
+  const url = target.url;
+  // A canvas or a video that cannot be read back has nowhere else to go: it
+  // never had an address, so there is no request that would recover it.
+  if (!url) {
+    throw new Error(
+      own
+        ? 'This element is drawn from another origin and cannot be read'
+        : 'There is nothing to read from this element'
+    );
+  }
 
   try {
     const cors = await loadWithCors(url);

@@ -1,4 +1,5 @@
 import { icon, IconName } from '../../config/icons';
+import { readStored, writeStored } from '../../state/gmStorage';
 import { SELECTORS } from '../../config/selectors';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 import { el } from '../../utils/dom';
@@ -27,13 +28,8 @@ const resizeObservers = new WeakMap<Element, ResizeObserver>();
 const CARD_CLASSES = ['kui-comment-clipped', 'kui-comment-expandable', 'kui-comment-expanded'];
 let delegatedListenersBound = false;
 
-const readValue = <T>(key: string, fallback: T): T => (typeof GM_getValue === 'function' ? GM_getValue<T>(key, fallback) : fallback);
-const saveValue = (key: string, value: unknown): void => {
-  if (typeof GM_setValue === 'function') GM_setValue(key, value);
-};
-
 function readLayout(): CommentsLayout {
-  const value = readValue<string>(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
+  const value = readStored<string>(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
   return LAYOUTS.some(({ id }) => id === value) ? (value as CommentsLayout) : DEFAULT_LAYOUT;
 }
 
@@ -43,7 +39,7 @@ function limitSetting(layout: CommentsLayout): { key: string; fallback: number }
 
 function readLimit(layout: CommentsLayout): number {
   const { key, fallback } = limitSetting(layout);
-  const value = Number(readValue<number>(key, fallback));
+  const value = Number(readStored<number>(key, fallback));
   return LIMIT_OPTIONS.includes(value) ? value : fallback;
 }
 
@@ -256,7 +252,7 @@ function bindDelegatedListeners(): void {
       return;
     }
     if (control.dataset.kuiCommentsLayout) {
-      saveValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
+      writeStored(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
       container.scrollLeft = 0;
       container.querySelectorAll('.kui-comment-expanded').forEach((comment) => comment.classList.remove('kui-comment-expanded'));
       // Each layout has its own limit, so "Show more" starts over
@@ -272,7 +268,7 @@ function bindDelegatedListeners(): void {
     const select = (event.target as HTMLElement | null)?.closest<HTMLSelectElement>('[data-kui-comments-limit]');
     const parts = select && findCommentsParts(select);
     if (!select || !parts) return;
-    saveValue(limitSetting(readLayout()).key, Number(select.value));
+    writeStored(limitSetting(readLayout()).key, Number(select.value));
     revealedCounts.delete(parts.container);
     applyCommentsView(parts.container, parts.toolbar);
   });

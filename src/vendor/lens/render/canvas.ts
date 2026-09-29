@@ -1,4 +1,5 @@
 import {
+  MIN_FONT_SIZE,
   OUTLINE_RATIO,
   argbToCss,
   buildLineText,
@@ -7,11 +8,12 @@ import {
   isRtl,
   justification,
   shouldStayVertical,
+  wrapText,
   wrapsPerCharacter,
 } from './layout';
 import { boxCorners, convexHull, fillHull } from './hull';
 import type { Point } from './hull';
-import type { Settings, TranslatedLine, TranslationBlock } from '../types';
+import type { Geometry, Settings, TranslatedLine, TranslationBlock } from '../types';
 
 /**
  * Bake the translation into a bitmap that replaces the image.
@@ -153,10 +155,111 @@ function drawVertical(
  * the translation is not itself going to be set vertically, the paragraph box
  * becomes one text area and the text is re-wrapped into it.
  */
+/**
+ * Bring a box inside the image, by the cheapest means that works.
+ *
+ * The bound is the picture itself: nothing may be drawn where the canvas will
+ * only clip it. There are two ways back in and they are not equal - moving the
+ * box changes nothing about the text, while shrinking it costs a smaller font.
+ * So shrink only by what no amount of moving could fix, then move.
+ *
+ * For a rotated box the bound is its axis-aligned extent, because that is the
+ * shape the canvas actually clips against: `w * |cos| + h * |sin|` is how far a
+ * rotated rectangle really reaches.
+ */
+function fitInside(
+  box: { cx: number; cy: number; w: number; h: number; angle: number },
+  width: number,
+  height: number
+): { cx: number; cy: number; w: number; h: number } {
+  const radians = box.angle * DEG;
+  const cos = Math.abs(Math.cos(radians));
+  const sin = Math.abs(Math.sin(radians));
+
+  const spanX = box.w * cos + box.h * sin;
+  const spanY = box.w * sin + box.h * cos;
+  // Only as far as it takes to fit at all; a box that already fits is untouched.
+  const scale = Math.min(1, width / spanX, height / spanY);
+  const w = box.w * scale;
+  const h = box.h * scale;
+
+  const halfX = (w * cos + h * sin) / 2;
+  const halfY = (w * sin + h * cos) / 2;
+  const place = (centre: number, half: number, limit: number): number =>
+    half * 2 >= limit ? limit / 2 : Math.min(Math.max(centre, half), limit - half);
+
+  return { cx: place(box.cx, halfX, width), cy: place(box.cy, halfY, height), w, h };
+}
+
+interface Rect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+const rectOf = (geometry: Geometry, width: number, height: number): Rect => ({
+  left: (geometry.cx - geometry.w / 2) * width,
+  right: (geometry.cx + geometry.w / 2) * width,
+  top: (geometry.cy - geometry.h / 2) * height,
+  bottom: (geometry.cy + geometry.h / 2) * height,
+});
+
+/** Never let two paragraphs share an edge; a pixel of daylight reads as one. */
+const GAP = 2;
+
+/**
+ * How much room a paragraph actually has.
+ *
+ * The detected box hugs the glyphs, so it has to grow - a bubble is round and
+ * has space the box does not describe. Growing by a fixed multiple is a guess
+ * that is wrong in both directions at once: too little where a bubble is
+ * generous, and too much where the next one is close, which is how a
+ * translation ends up written across its neighbour.
+ *
+ * The real limit is the neighbours. Each side grows until it would reach
+ * another paragraph, capped by the multiple and by the picture. Only a
+ * paragraph that actually shares the band on the perpendicular axis can block a
+ * side: one diagonally away is not in the way.
+ *
+ * Rotation is ignored here, deliberately. These are axis-aligned extents of
+ * boxes that come back within a tenth of a degree of upright in practice, and
+ * an approximation that errs towards less room cannot cause an overlap.
+ */
+function roomFor(own: Rect, others: Rect[], growth: number, width: number, height: number): Rect {
+  const growX = ((own.right - own.left) * (growth - 1)) / 2;
+  const growY = ((own.bottom - own.top) * (growth - 1)) / 2;
+
+  let left = Math.max(0, own.left - growX);
+  let right = Math.min(width, own.right + growX);
+  let top = Math.max(0, own.top - growY);
+  let bottom = Math.min(height, own.bottom + growY);
+
+  for (const other of others) {
+    if (other.bottom > own.top && other.top < own.bottom) {
+      if (other.right <= own.left) left = Math.max(left, other.right + GAP);
+      if (other.left >= own.right) right = Math.min(right, other.left - GAP);
+    }
+    if (other.right > own.left && other.left < own.right) {
+      if (other.bottom <= own.top) top = Math.max(top, other.bottom + GAP);
+      if (other.top >= own.bottom) bottom = Math.min(bottom, other.top - GAP);
+    }
+  }
+
+  // A neighbour closer than the box itself would invert it; the box wins.
+  return {
+    left: Math.min(left, own.left),
+    right: Math.max(right, own.right),
+    top: Math.min(top, own.top),
+    bottom: Math.max(bottom, own.bottom),
+  };
+}
+
 function drawReflowedParagraph(
   draw: DrawContext,
   block: TranslationBlock,
-  settings: Settings
+  settings: Settings,
+  room: Rect
 ): void {
   const geometry = block.geometry;
   if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
@@ -165,9 +268,21 @@ function drawReflowedParagraph(
   // The detected box hugs the glyphs. A speech bubble is round and has room
   // around them, so manga mode lays out wider than the box and lets the text
   // use it - otherwise a bubble's worth of Russian wraps into a thin column.
-  const growth = settings.mangaMode ? Math.max(1, settings.mangaBoxGrowth) : 1;
-  const boxW = geometry.w * width * growth;
-  const boxH = geometry.h * height * Math.min(growth, 1.2);
+  // The room was measured against the neighbours; fitInside then answers for
+  // the picture's own edges, which a rotated box can still cross.
+  const box = fitInside(
+    {
+      cx: (room.left + room.right) / 2,
+      cy: (room.top + room.bottom) / 2,
+      w: room.right - room.left,
+      h: room.bottom - room.top,
+      angle: geometry.angle,
+    },
+    width,
+    height
+  );
+  const boxW = box.w;
+  const boxH = box.h;
   const style = block.lines[0];
   if (!style) return;
 
@@ -175,23 +290,52 @@ function drawReflowedParagraph(
   if (!text) return;
 
   ctx.save();
-  ctx.translate(geometry.cx * width, geometry.cy * height);
+  ctx.translate(box.cx, box.cy);
   ctx.rotate(geometry.angle * DEG);
 
-  const { size, lines } = fitTextBlock(
-    (px) => {
-      ctx.font = `${px}px ${fontFamily}`;
-    },
-    (candidate) => ctx.measureText(candidate).width,
-    (px) => px * 1.25,
-    text,
-    boxW,
-    boxH,
-    wrapsPerCharacter(block)
-  );
-  const fontSize = Math.max(size, draw.minFontPx);
-  ctx.font = `${fontSize}px ${fontFamily}`;
-  const lineHeight = fontSize * 1.25;
+  // The same multiple has to reach both the fit and the draw: choosing a size
+  // against one spacing and then painting at another overflows the box.
+  const spacing = settings.lineSpacing > 0 ? settings.lineSpacing : 1.25;
+
+  const perCharacter = wrapsPerCharacter(block);
+  const measure = (candidate: string): number => ctx.measureText(candidate).width;
+  const setFont = (px: number): void => {
+    ctx.font = `${px}px ${fontFamily}`;
+  };
+
+  const { size } = fitTextBlock(setFont, measure, (px) => px * spacing, text, boxW, boxH, perCharacter);
+
+  // The readable-size floor overrides what fits, and the wrap has to be redone
+  // at the size actually drawn. Wrapping for one size and painting at another
+  // is what sent whole lines off the picture: every line was measured against
+  // the box at a font nobody used.
+  let fontSize = Math.max(size, draw.minFontPx);
+  setFont(fontSize);
+  let lines = wrapText(measure, text, boxW, perCharacter);
+
+  // wrapText keeps a token that cannot be broken even when it overruns, so the
+  // box is not a guarantee yet. One proportional step down makes it one.
+  const widest = lines.reduce((max: number, line: string) => Math.max(max, measure(line)), 0);
+  if (widest > boxW && widest > 0) {
+    fontSize = Math.max(MIN_FONT_SIZE, (fontSize * boxW) / widest);
+    setFont(fontSize);
+    lines = wrapText(measure, text, boxW, perCharacter);
+  }
+
+  // A paragraph taller than its room is one written across the next bubble, so
+  // the readable-size floor gives way here rather than the layout. Repeated,
+  // because a smaller font rewraps into fewer lines and may then fit outright.
+  if (settings.fitToBox) {
+    for (let pass = 0; pass < 3; pass += 1) {
+      const needed = lines.length * fontSize * spacing;
+      if (needed <= boxH || fontSize <= MIN_FONT_SIZE) break;
+      fontSize = Math.max(MIN_FONT_SIZE, (fontSize * boxH) / needed);
+      setFont(fontSize);
+      lines = wrapText(measure, text, boxW, perCharacter);
+    }
+  }
+
+  const lineHeight = fontSize * spacing;
 
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
@@ -249,6 +393,52 @@ function eraseTextArea(draw: DrawContext, block: TranslationBlock, settings: Set
   // Padding in line heights, so it scales with the text rather than the image.
   const pad = Number.isFinite(thinnest) ? thinnest * settings.hullPadding : 0;
   fillHull(ctx, convexHull(points), argbToCss(style.bgColor), pad);
+}
+
+/**
+ * Nudge a line back inside the image.
+ *
+ * Text is drawn centred on its own box, so a line the readable-size floor has
+ * widened near an edge runs off the canvas and is simply clipped - half a
+ * sentence gone, which is what it looks like on a phone, where the image is
+ * displayed narrow and the floor therefore multiplies hardest. Shifting it back
+ * in is not where the source sat, but a whole sentence a few pixels off its
+ * bubble beats half a sentence in exactly the right place.
+ *
+ * The bounds are in canvas space and the context is in the line's rotated
+ * frame, so the shift is worked out in the first and rotated into the second.
+ * A box too big to fit at all is aligned to the start of the line rather than
+ * centred, because the half that survives should be the half you read first.
+ */
+function nudgeInside(draw: DrawContext, box: { w: number; h: number }, line: LineFrame): void {
+  const radians = line.angle * DEG;
+  const cos = Math.abs(Math.cos(radians));
+  const sin = Math.abs(Math.sin(radians));
+  // Half-extents of the rotated box, measured along the canvas axes.
+  const halfW = (box.w * cos + box.h * sin) / 2;
+  const halfH = (box.w * sin + box.h * cos) / 2;
+
+  const shift = (centre: number, half: number, limit: number, fromEnd: boolean): number => {
+    if (half * 2 >= limit) return fromEnd ? limit - half - centre : half - centre;
+    if (centre - half < 0) return half - centre;
+    if (centre + half > limit) return limit - half - centre;
+    return 0;
+  };
+
+  const dx = shift(line.cx, halfW, draw.width, line.rtl);
+  const dy = shift(line.cy, halfH, draw.height, false);
+  if (dx === 0 && dy === 0) return;
+
+  const c = Math.cos(radians);
+  const sn = Math.sin(radians);
+  draw.ctx.translate(dx * c + dy * sn, dy * c - dx * sn);
+}
+
+interface LineFrame {
+  cx: number;
+  cy: number;
+  angle: number;
+  rtl: boolean;
 }
 
 async function drawLine(
@@ -327,6 +517,10 @@ async function drawLine(
     const advance = ctx.measureText(text).width;
     const drawW = enlarged ? Math.min(Math.max(boxW, advance + size * 0.4), width) : boxW;
     const drawH = enlarged ? Math.min(Math.max(boxH, size * 1.35), height) : boxH;
+    // Before anything is painted, so the enlarged background travels with the
+    // text it belongs to. The inpainted patch above stays put: it erases the
+    // original, which has not moved.
+    nudgeInside(draw, { w: drawW, h: drawH }, { cx, cy, angle: geometry.angle, rtl: isRtl(block) });
     if (enlarged && settings.drawBackground && !skipBackground) {
       ctx.fillStyle = argbToCss(line.bgColor);
       ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
@@ -405,7 +599,12 @@ export async function renderToBlob(
     minFontPx: floorCssPx > 0 ? floorCssPx * canvasPerCssPx : 0,
   };
 
-  for (const block of blocks) {
+  const boxes = blocks.map((block) =>
+    block.geometry ? rectOf(block.geometry, width, height) : null
+  );
+  const growth = settings.mangaMode ? Math.max(1, settings.mangaBoxGrowth) : 1;
+
+  for (const [index, block] of blocks.entries()) {
     const vertical = block.writingDirection === 2;
     // Manga mode never leaves a column standing: that is the whole point of it.
     const stayVertical =
@@ -414,7 +613,13 @@ export async function renderToBlob(
     const hull = settings.drawBackground && (settings.eraseMode === 'hull' || settings.mangaMode);
     if (hull) eraseTextArea(draw, block, settings);
     // Erase the source either way; only the text placement changes.
-    const reflow = vertical && !stayVertical && Boolean(block.geometry);
+    //
+    // A vertical column has to be re-wrapped or the translation cannot be set
+    // in it at all. A horizontal paragraph does not have to be, and Chromium
+    // never is - but keeping the server's lines is also what leaves the spacing
+    // between them out of anyone's hands, so it is a setting.
+    const reflow =
+      Boolean(block.geometry) && !stayVertical && (vertical || settings.reflowHorizontal);
 
     for (let i = 0; i < block.lines.length; i += 1) {
       const line = block.lines[i];
@@ -425,7 +630,13 @@ export async function renderToBlob(
         if (!hull) await drawLine(draw, block, line, block.lines[i + 1], settings, true);
       } else await drawLine(draw, block, line, block.lines[i + 1], settings, false, hull);
     }
-    if (reflow) drawReflowedParagraph(draw, block, settings);
+    if (reflow) {
+      const own = boxes[index];
+      if (own) {
+        const others = boxes.filter((rect, at): rect is Rect => rect !== null && at !== index);
+        drawReflowedParagraph(draw, block, settings, roomFor(own, others, growth, width, height));
+      }
+    }
   }
 
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'));

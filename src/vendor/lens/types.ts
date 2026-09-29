@@ -101,6 +101,7 @@ export type Alignment = (typeof Alignment)[keyof typeof Alignment];
 
 export type VerticalTextMode = 'auto' | 'keep' | 'horizontal';
 export type HotkeyModifier = 'alt' | 'ctrl' | 'shift' | 'none';
+export type ButtonMode = 'auto' | 'hover' | 'pinned';
 
 export interface Settings {
   targetLang: string;
@@ -115,6 +116,13 @@ export interface Settings {
   maxSide: number;
   jpegQuality: number;
   showButton: boolean;
+  /**
+   * When the translate button is on screen.
+   *   'auto'   - pinned on a touch screen, on hover everywhere else.
+   *   'hover'  - only while the cursor is over an image.
+   *   'pinned' - always, over whichever image fills most of the viewport.
+   */
+  buttonMode: ButtonMode;
   hotkey: HotkeyModifier;
   fontFamily: string;
   drawBackground: boolean;
@@ -129,6 +137,14 @@ export interface Settings {
   minReadablePx: number;
   /** Canvas is rendered at this multiple of the image's natural size. */
   supersample: number;
+  /**
+   * Keep Lens's answers across reloads, keyed by what the picture *is*.
+   *
+   * The in-memory cache dies with the page, so reopening a chapter asked the
+   * same questions again. Only the answer is kept; the picture is drawn again
+   * locally, which costs milliseconds and no bytes at all.
+   */
+  persistCache: boolean;
   /**
    * How much of Lens's answers to keep in memory, in bytes. Weighed by the
    * inpainted patches, which dominate. 0 disables caching.
@@ -160,6 +176,37 @@ export interface Settings {
   eraseMode: 'patch' | 'hull';
   /** How far past the text's hull to extend the cover, as a fraction of line height. */
   hullPadding: number;
+  /**
+   * Lay a horizontal paragraph out again instead of keeping the server's lines.
+   *
+   * Chromium repeats the detected layout: one source line, one drawn line, at
+   * the box the server reported for it. Faithful, and it leaves nothing to
+   * adjust - the gap between two lines is the source's, so `lineSpacing` has
+   * nothing to act on. Re-wrapping makes the paragraph one text area, which is
+   * what a speech bubble actually is.
+   *
+   * A vertical column is re-wrapped regardless: horizontal text cannot occupy
+   * a tall narrow box at all.
+   */
+  reflowHorizontal: boolean;
+  /**
+   * Let the readable-size floor give way rather than the layout.
+   *
+   * The floor raises text past what its box can hold, and a re-wrapped
+   * paragraph that outgrows its room is one written across the next bubble.
+   * With this on, the size yields until the paragraph fits the space between
+   * its neighbours - which is also why that space is measured against them
+   * rather than guessed at with a fixed multiple.
+   */
+  fitToBox: boolean;
+  /**
+   * Line spacing as a multiple of the font size, for reflowed paragraphs.
+   *
+   * It only reaches text that was re-wrapped - a vertical column set
+   * horizontally, or manga mode. Everywhere else each line is placed at the box
+   * the server reported for it, and there is no spacing to set.
+   */
+  lineSpacing: number;
   /**
    * Override the alignment the server reports. 'auto' follows it, which is what
    * Chromium does; the rest force a side, which is usually what you want once

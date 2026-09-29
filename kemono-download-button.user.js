@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    http://tampermonkey.net/
-// @version      0.8.48
+// @version      0.8.49
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -3666,6 +3666,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     imageTranslateErase: "patch",
     imageTranslateMinPx: 12,
     imageTranslateSharpness: 2,
+    imageTranslateReflow: false,
+    imageTranslateFitToBox: true,
+    imageTranslateLineSpacing: 1.25,
+    imageTranslatePersist: true,
     translationProvider: "none",
     translationLanguage: "russian",
     geminiApiKey: "",
@@ -3692,6 +3696,43 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
     ignoredFileExtensions: []
   };
+  const isPrimitive = (value) => typeof value === "string" || typeof value === "number" || typeof value === "boolean";
+  function readStored(key, fallback) {
+    if (typeof GM_getValue !== "function") return fallback;
+    const raw = GM_getValue(key, fallback);
+    if (typeof raw === "string" && !isPrimitive(fallback)) {
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return fallback;
+      }
+    }
+    return raw;
+  }
+  function writeStored(key, value) {
+    if (typeof GM_setValue !== "function") return;
+    GM_setValue(key, value !== null && typeof value === "object" ? JSON.stringify(value) : value);
+  }
+  function saveBlobViaAnchor(blob, name) {
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = name;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
+  }
+  function saveBlob(blob, name, saveAs = false) {
+    if (typeof GM_download !== "function") {
+      saveBlobViaAnchor(blob, name);
+      return;
+    }
+    const blobUrl = URL.createObjectURL(blob);
+    const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 1e4);
+    GM_download({ url: blobUrl, name, saveAs, onload: revoke, onerror: revoke, ontimeout: revoke });
+  }
   function debugLog(...args) {
     if (state.settings.enableDebugLogging) {
       console.log("[Kemono DL Debug]", ...args);
@@ -3846,7 +3887,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const loadedSettings = {};
     const keys = Object.keys(DEFAULT_SETTINGS);
     const values = await Promise.all(
-      keys.map((key) => GM_getValue(key, DEFAULT_SETTINGS[key]))
+      keys.map((key) => readStored(key, DEFAULT_SETTINGS[key]))
     );
     for (let i2 = 0; i2 < keys.length; i2++) {
       const key = keys[i2];
@@ -3865,20 +3906,14 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     return settingsLoadPromise;
   }
   async function saveSetting(key, value) {
-    await GM_setValue(key, value);
+    writeStored(key, value);
     state.settings[key] = value;
   }
   async function exportSettings() {
     await getSettings();
     const settingsJson = JSON.stringify(state.settings, null, 2);
     const blob = new Blob([settingsJson], { type: "application/json;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    GM_download({
-      url,
-      name: `kemono-downloader-settings-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`,
-      saveAs: true,
-      onload: () => URL.revokeObjectURL(url)
-    });
+    saveBlob(blob, `kemono-downloader-settings-${(/* @__PURE__ */ new Date()).toISOString().split("T")[0]}.json`, true);
   }
   async function importSettings(jsonString) {
     const newSettings = JSON.parse(jsonString);
@@ -3911,35 +3946,34 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     COMMENTS_LIMIT: "kui_comments_limit",
     COMMENTS_LIST_LIMIT: "kui_comments_list_limit"
   };
-  const readValue$1 = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
   const kuiState = {
-    isDebugModeEnabled: readValue$1(KUI_STORAGE_KEYS.DEBUG_MODE, false),
-    isVerboseDebugEnabled: readValue$1(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
-    isPreloadEnabled: readValue$1(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
-    isHideEmptySectionsEnabled: readValue$1(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, true),
+    isDebugModeEnabled: readStored(KUI_STORAGE_KEYS.DEBUG_MODE, false),
+    isVerboseDebugEnabled: readStored(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
+    isPreloadEnabled: readStored(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
+    isHideEmptySectionsEnabled: readStored(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, true),
     isPostPageModuleActive: false,
-    embedRules: readValue$1(KUI_STORAGE_KEYS.EMBED_RULES, {}),
-    sessionKey: readValue$1(KUI_STORAGE_KEYS.SESSION_KEY, "")
+    embedRules: readStored(KUI_STORAGE_KEYS.EMBED_RULES, {}),
+    sessionKey: readStored(KUI_STORAGE_KEYS.SESSION_KEY, "")
   };
   function setDebugMode(enabled) {
     kuiState.isDebugModeEnabled = enabled;
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.DEBUG_MODE, enabled);
+    writeStored(KUI_STORAGE_KEYS.DEBUG_MODE, enabled);
   }
   function setVerboseDebugMode(enabled) {
     kuiState.isVerboseDebugEnabled = enabled;
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.VERBOSE_DEBUG, enabled);
+    writeStored(KUI_STORAGE_KEYS.VERBOSE_DEBUG, enabled);
   }
   function setHideEmptySections(enabled) {
     kuiState.isHideEmptySectionsEnabled = enabled;
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, enabled);
+    writeStored(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, enabled);
   }
   function setEmbedRules(rules) {
     kuiState.embedRules = rules;
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.EMBED_RULES, rules);
+    writeStored(KUI_STORAGE_KEYS.EMBED_RULES, rules);
   }
   function setSessionKey(key) {
     kuiState.sessionKey = key;
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.SESSION_KEY, key);
+    writeStored(KUI_STORAGE_KEYS.SESSION_KEY, key);
   }
   function el(tag, props = {}, children = []) {
     const element = document.createElement(tag);
@@ -4016,6 +4050,42 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }, { once: true });
     });
   }
+  const BINARY_MIME$1 = "text/plain; charset=x-user-defined";
+  const isKind = (value, kind) => Object.prototype.toString.call(value) === `[object ${kind}]`;
+  async function toArrayBuffer(body, text2) {
+    if (isKind(body, "ArrayBuffer")) return body;
+    if (ArrayBuffer.isView(body)) return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+    if (body && typeof body.arrayBuffer === "function") return body.arrayBuffer();
+    const latin1 = typeof body === "string" ? body : typeof text2 === "string" ? text2 : null;
+    if (latin1 === null) return null;
+    const bytes2 = new Uint8Array(latin1.length);
+    for (let i2 = 0; i2 < latin1.length; i2++) bytes2[i2] = latin1.charCodeAt(i2) & 255;
+    return bytes2.buffer;
+  }
+  async function normalizeResponse(response, responseType) {
+    let body = response.response;
+    let text2 = "";
+    if (responseType === "arraybuffer" && !isKind(body, "ArrayBuffer")) {
+      body = await toArrayBuffer(body, response.responseText);
+    } else if (responseType === "json" && (body === null || body === void 0 || typeof body !== "object")) {
+      text2 = typeof body === "string" ? body : response.responseText;
+      try {
+        body = JSON.parse(text2);
+      } catch {
+        return response;
+      }
+    } else {
+      return response;
+    }
+    return {
+      status: response.status,
+      statusText: response.statusText,
+      finalUrl: response.finalUrl,
+      responseHeaders: response.responseHeaders,
+      responseText: text2,
+      response: body
+    };
+  }
   async function gmXmlhttpRequestWithRetries(details) {
     const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
     const retryDelay = state.settings.downloadRetryDelay;
@@ -4034,20 +4104,26 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           if (isSiteUrl(currentUrl) && currentUrl.includes("/api/") && !headers["Accept"]) {
             headers["Accept"] = "text/css";
           }
-          const request = GM_xmlhttpRequest({
+          const settle = (response) => {
+            if (response.status >= 200 && response.status < 300) {
+              normalizeResponse(response, requestDetails.responseType).then(resolve, reject);
+            } else {
+              const err2 = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
+              err2.status = response.status;
+              reject(err2);
+            }
+          };
+          const request2 = GM_xmlhttpRequest({
             ...requestDetails,
+            ...requestDetails.responseType === "arraybuffer" && !requestDetails.overrideMimeType ? { overrideMimeType: BINARY_MIME$1 } : {},
             url: currentUrl,
             headers,
-            onload: (response) => {
-              if (response.status >= 200 && response.status < 300) {
-                resolve(response);
-              } else {
-                const err2 = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
-                err2.status = response.status;
-                reject(err2);
-              }
-            },
+            onload: settle,
             onerror: (error) => {
+              if (error && typeof error === "object" && error.status > 0) {
+                settle(error);
+                return;
+              }
               let errStr = "";
               if (typeof error === "string") {
                 errStr = error;
@@ -4067,7 +4143,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           });
           onAbort = () => {
             var _a2;
-            (_a2 = request == null ? void 0 : request.abort) == null ? void 0 : _a2.call(request);
+            (_a2 = request2 == null ? void 0 : request2.abort) == null ? void 0 : _a2.call(request2);
             reject(abortError());
           };
           signal == null ? void 0 : signal.addEventListener("abort", onAbort, { once: true });
@@ -4165,22 +4241,6 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       throw new Error("Downloaded file array buffer is empty");
     }
     saveBlobViaAnchor(new Blob([arrayBuffer]), cleanName);
-  }
-  function saveBlobViaAnchor(blob, name) {
-    const blobUrl = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = blobUrl;
-    a.download = name;
-    a.style.display = "none";
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    setTimeout(() => URL.revokeObjectURL(blobUrl), 3e4);
-  }
-  function downloadBlobWithGm(blob, name) {
-    const blobUrl = URL.createObjectURL(blob);
-    const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 1e4);
-    GM_download({ url: blobUrl, name, saveAs: false, onload: revoke, onerror: revoke, ontimeout: revoke });
   }
   async function fetchPostDataFromAPI(service, userID, postID) {
     const url = getApiUrl(`/api/v1/${service}/user/${userID}/post/${postID}`);
@@ -4589,8 +4649,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       }
     }
   }
-  const DB_NAME = "KemonoDownloaderCache";
-  const DB_VERSION = 2;
+  const DB_NAME$1 = "KemonoDownloaderCache";
+  const DB_VERSION$1 = 2;
   const STORE_FILES = "files";
   const STORE_FILE_META = "fileMeta";
   const STORE_POSTS = "posts";
@@ -4608,8 +4668,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       if (typeof indexedDB === "undefined") {
         return reject(new Error("IndexedDB is not supported in this browser."));
       }
-      const request = indexedDB.open(DB_NAME, DB_VERSION);
-      request.onupgradeneeded = (event) => {
+      const request2 = indexedDB.open(DB_NAME$1, DB_VERSION$1);
+      request2.onupgradeneeded = (event) => {
         const db = event.target.result;
         if (event.oldVersion < 2 && db.objectStoreNames.contains(STORE_FILES)) {
           db.deleteObjectStore(STORE_FILES);
@@ -4625,8 +4685,8 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           db.createObjectStore(STORE_POSTS, { keyPath: "key" });
         }
       };
-      request.onsuccess = (event) => resolve(event.target.result);
-      request.onerror = (event) => {
+      request2.onsuccess = (event) => resolve(event.target.result);
+      request2.onerror = (event) => {
         console.error("Failed to open IndexedDB:", event.target.error);
         reject(event.target.error);
       };
@@ -4658,9 +4718,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
   function readFileMeta(db) {
     return new Promise((resolve) => {
       const entries2 = [];
-      const request = db.transaction(STORE_FILE_META, "readonly").objectStore(STORE_FILE_META).index("timestamp").openCursor();
-      request.onsuccess = () => {
-        const cursor = request.result;
+      const request2 = db.transaction(STORE_FILE_META, "readonly").objectStore(STORE_FILE_META).index("timestamp").openCursor();
+      request2.onsuccess = () => {
+        const cursor = request2.result;
         if (cursor) {
           entries2.push(cursor.value);
           cursor.continue();
@@ -4668,7 +4728,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           resolve(entries2);
         }
       };
-      request.onerror = () => resolve(entries2);
+      request2.onerror = () => resolve(entries2);
     });
   }
   async function evictOldFiles() {
@@ -4785,9 +4845,9 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     try {
       const db = await getDB();
       const tx = db.transaction([STORE_FILES, STORE_FILE_META], "readwrite");
-      const request = tx.objectStore(STORE_FILES).openCursor();
-      request.onsuccess = () => {
-        const cursor = request.result;
+      const request2 = tx.objectStore(STORE_FILES).openCursor();
+      request2.onsuccess = () => {
+        const cursor = request2.result;
         if (!cursor) return;
         if (!cursor.value.completed) {
           tx.objectStore(STORE_FILE_META).delete(cursor.value.url);
@@ -5033,6 +5093,1636 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
     const output = (_d = (_c = (_b2 = (_a2 = response.response) == null ? void 0 : _a2.choices) == null ? void 0 : _b2[0]) == null ? void 0 : _c.message) == null ? void 0 : _d.content;
     if (typeof output !== "string" || !output.trim()) throw new Error("Invalid response from the OpenAI-compatible API");
     return output.replace(/^\s*<think>[\s\S]*?<\/think>/i, "").trim();
+  }
+  function weigh$1(blocks) {
+    var _a2;
+    let bytes2 = 0;
+    for (const block of blocks) {
+      bytes2 += block.translation.length * 2;
+      for (const line of block.lines) bytes2 += ((_a2 = line.background) == null ? void 0 : _a2.bytes.byteLength) ?? 0;
+    }
+    return bytes2;
+  }
+  const entries = /* @__PURE__ */ new Map();
+  let totalBytes = 0;
+  let clock = 0;
+  const RENDITION_PARAMS = /* @__PURE__ */ new Set([
+    "name",
+    "format",
+    "fm",
+    "w",
+    "width",
+    "h",
+    "height",
+    "size",
+    "s",
+    "q",
+    "quality",
+    "dpr",
+    "resize",
+    "fit",
+    "crop",
+    "auto"
+  ]);
+  function normalizeUrl(raw) {
+    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
+    try {
+      const url = new URL(raw, document.baseURI);
+      for (const name of [...url.searchParams.keys()]) {
+        if (RENDITION_PARAMS.has(name.toLowerCase())) url.searchParams.delete(name);
+      }
+      url.hash = "";
+      const query = url.searchParams.toString();
+      return `${url.origin}${url.pathname}${query ? `?${query}` : ""}`;
+    } catch {
+      return raw;
+    }
+  }
+  function cacheKey(url, settings) {
+    return [normalizeUrl(url), settings.targetLang, settings.sourceLang, settings.ocrLang].join("\0");
+  }
+  function getCached(key, settings) {
+    if (settings.cacheBytes <= 0) return null;
+    const entry = entries.get(key);
+    if (!entry) return null;
+    entry.used = ++clock;
+    return entry.result;
+  }
+  function putCached(key, result, settings) {
+    var _a2;
+    const limit = settings.cacheBytes;
+    if (limit <= 0) return;
+    const bytes2 = weigh$1(result.blocks);
+    if (bytes2 > limit) return;
+    const existing = entries.get(key);
+    if (existing) totalBytes -= existing.bytes;
+    entries.set(key, { result, bytes: bytes2, used: ++clock });
+    totalBytes += bytes2;
+    while (totalBytes > limit && entries.size > 1) {
+      let oldestKey = null;
+      let oldestUsed = Infinity;
+      for (const [candidate, entry] of entries) {
+        if (entry.used < oldestUsed) {
+          oldestUsed = entry.used;
+          oldestKey = candidate;
+        }
+      }
+      if (oldestKey === null) break;
+      totalBytes -= ((_a2 = entries.get(oldestKey)) == null ? void 0 : _a2.bytes) ?? 0;
+      entries.delete(oldestKey);
+    }
+  }
+  const SEPARATOR = String.fromCharCode(0);
+  const NOT_DRAWN = /* @__PURE__ */ new Set([
+    "enabled",
+    "showButton",
+    "buttonMode",
+    "hotkey",
+    "minImageSize",
+    "apiKey",
+    "timeoutMs",
+    "cacheBytes",
+    "region",
+    "timeZone",
+    "targetLang",
+    "sourceLang",
+    "ocrLang",
+    "maxArea",
+    "maxSide",
+    "jpegQuality"
+  ]);
+  function renderKey(key, settings, displayedWidth) {
+    const parts = [key];
+    for (const name of Object.keys(settings).sort()) {
+      if (NOT_DRAWN.has(name)) continue;
+      parts.push(`${name}=${String(settings[name])}`);
+    }
+    parts.push(`w=${Math.round(displayedWidth / 50)}`);
+    return parts.join(SEPARATOR);
+  }
+  const renders = /* @__PURE__ */ new Map();
+  let renderBytes = 0;
+  function getRender(key, settings) {
+    if (settings.cacheBytes <= 0) return null;
+    const entry = renders.get(key);
+    if (!entry) return null;
+    entry.used = ++clock;
+    return entry.blob;
+  }
+  function putRender(key, blob, settings) {
+    var _a2;
+    const limit = settings.cacheBytes;
+    if (limit <= 0 || blob.size > limit) return;
+    const existing = renders.get(key);
+    if (existing) renderBytes -= existing.blob.size;
+    renders.set(key, { blob, used: ++clock });
+    renderBytes += blob.size;
+    while (renderBytes > limit && renders.size > 1) {
+      let oldestKey = null;
+      let oldestUsed = Infinity;
+      for (const [candidate, entry] of renders) {
+        if (entry.used < oldestUsed) {
+          oldestUsed = entry.used;
+          oldestKey = candidate;
+        }
+      }
+      if (oldestKey === null) break;
+      renderBytes -= ((_a2 = renders.get(oldestKey)) == null ? void 0 : _a2.blob.size) ?? 0;
+      renders.delete(oldestKey);
+    }
+  }
+  function clearCache() {
+    const stats = { entries: entries.size + renders.size, bytes: totalBytes + renderBytes };
+    entries.clear();
+    renders.clear();
+    totalBytes = 0;
+    renderBytes = 0;
+    return stats;
+  }
+  const gm = typeof GM !== "undefined" ? GM : void 0;
+  const gmInfo = typeof GM_info !== "undefined" ? GM_info : void 0;
+  typeof GM_getValue !== "undefined" ? GM_getValue : void 0;
+  typeof GM_setValue !== "undefined" ? GM_setValue : void 0;
+  typeof GM_registerMenuCommand !== "undefined" ? GM_registerMenuCommand : void 0;
+  const xmlhttpRequest = typeof GM_xmlhttpRequest !== "undefined" ? GM_xmlhttpRequest : void 0;
+  typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+  function hostName() {
+    return (gmInfo == null ? void 0 : gmInfo.scriptHandler) ?? "The userscript host";
+  }
+  const request = typeof xmlhttpRequest === "function" ? xmlhttpRequest : gm == null ? void 0 : gm.xmlHttpRequest;
+  const BINARY_MIME = "text/plain; charset=x-user-defined";
+  function fromLatin1(text2) {
+    const bytes2 = new Uint8Array(text2.length);
+    for (let i2 = 0; i2 < text2.length; i2 += 1) bytes2[i2] = text2.charCodeAt(i2) & 255;
+    return bytes2;
+  }
+  function toLatin1(bytes2) {
+    const CHUNK = 32768;
+    let text2 = "";
+    for (let i2 = 0; i2 < bytes2.length; i2 += CHUNK) {
+      text2 += String.fromCharCode(...bytes2.subarray(i2, i2 + CHUNK));
+    }
+    return text2;
+  }
+  async function toBytes(response, responseText) {
+    if (response instanceof ArrayBuffer) return new Uint8Array(response);
+    if (response instanceof Blob) return new Uint8Array(await response.arrayBuffer());
+    if (ArrayBuffer.isView(response)) {
+      const { buffer, byteOffset, byteLength } = response;
+      return new Uint8Array(buffer.slice(byteOffset, byteOffset + byteLength));
+    }
+    if (typeof response === "string") return fromLatin1(response);
+    if (typeof responseText === "string") return fromLatin1(responseText);
+    return null;
+  }
+  function contentTypeOf(headers) {
+    var _a2;
+    const match = /^content-type:\s*(.+)$/im.exec(headers ?? "");
+    return ((_a2 = match == null ? void 0 : match[1]) == null ? void 0 : _a2.trim()) ?? "";
+  }
+  function timedOut() {
+    const error = new Error("Timed out");
+    error.name = "TimeoutError";
+    return error;
+  }
+  function sendViaGm(attempt) {
+    return new Promise((resolve, reject) => {
+      if (!request) {
+        reject(new Error(`${hostName()} has no GM_xmlhttpRequest`));
+        return;
+      }
+      const deliver = (response) => {
+        void (async () => {
+          const bytes2 = await toBytes(response.response, response.responseText);
+          if (!bytes2) {
+            reject(new Error(`${hostName()} returned a response this script cannot read`));
+            return;
+          }
+          resolve({
+            status: response.status,
+            bytes: bytes2,
+            contentType: contentTypeOf(response.responseHeaders)
+          });
+        })();
+      };
+      const data = attempt.body === null ? void 0 : attempt.encoding === "typed" ? attempt.body : toLatin1(attempt.body);
+      request({
+        method: attempt.method,
+        url: attempt.url,
+        headers: attempt.headers,
+        ...data === void 0 ? {} : { data, binary: true },
+        responseType: "arraybuffer",
+        overrideMimeType: BINARY_MIME,
+        timeout: attempt.timeoutMs,
+        onload: deliver,
+        onerror: (response) => {
+          if (response.status > 0) {
+            deliver(response);
+            return;
+          }
+          const detail = response.error || response.statusText || "network error";
+          reject(new Error(`via ${hostName()}: ${detail}`));
+        },
+        ontimeout: () => reject(timedOut())
+      });
+    });
+  }
+  async function sendViaFetch(attempt) {
+    let response;
+    try {
+      response = await fetch(attempt.url, {
+        method: attempt.method,
+        headers: attempt.headers,
+        ...attempt.body === null ? {} : { body: attempt.body },
+        credentials: "omit",
+        referrerPolicy: "no-referrer",
+        signal: AbortSignal.timeout(attempt.timeoutMs)
+      });
+    } catch (error) {
+      if (error.name === "TimeoutError") throw timedOut();
+      throw new Error(`via fetch: ${error.message}`);
+    }
+    return {
+      status: response.status,
+      bytes: new Uint8Array(await response.arrayBuffer()),
+      contentType: response.headers.get("content-type") ?? ""
+    };
+  }
+  let workingTransport = null;
+  let workingEncoding = null;
+  function ladder(hasBody, remember) {
+    const latchedEncoding = remember ? workingEncoding : null;
+    const encodings = !hasBody ? ["typed"] : latchedEncoding ? [latchedEncoding] : ["typed", "binary-string"];
+    const rungs = encodings.map((encoding) => ({ transport: "gm", encoding }));
+    rungs.push({ transport: "fetch", encoding: "typed" });
+    const latchedTransport = remember ? workingTransport : null;
+    return latchedTransport ? rungs.filter((rung) => rung.transport === latchedTransport) : rungs;
+  }
+  const BAD_REQUEST = 400;
+  async function climb(attempt, remember) {
+    const failures = [];
+    for (const rung of ladder(attempt.body !== null, remember)) {
+      const next = { ...attempt, encoding: rung.encoding };
+      let response;
+      try {
+        response = rung.transport === "fetch" ? await sendViaFetch(next) : await sendViaGm(next);
+      } catch (error) {
+        failures.push(error.message);
+        if (error.name === "TimeoutError") break;
+        continue;
+      }
+      if (response.status < 400) {
+        if (remember) {
+          workingTransport = rung.transport;
+          if (rung.transport === "gm") workingEncoding = rung.encoding;
+        }
+        return response;
+      }
+      failures.push(`HTTP ${response.status}`);
+      if (response.status !== BAD_REQUEST) break;
+    }
+    throw new Error(failures.join("; ") || "the request was never sent");
+  }
+  function postBinary(options) {
+    return climb({ ...options, method: "POST", encoding: "typed" }, true);
+  }
+  function getBinary(url, timeoutMs) {
+    return climb(
+      { method: "GET", url, headers: {}, body: null, encoding: "typed", timeoutMs },
+      false
+    );
+  }
+  const F = {
+    AppliedFilter: {
+      filterType: 1,
+      translate: 3
+    },
+    AppliedFilter_Translate: {
+      targetLanguage: 1,
+      sourceLanguage: 2
+    },
+    AppliedFilters: {
+      filter: 1
+    },
+    CenterRotatedBox: {
+      centerX: 1,
+      centerY: 2,
+      width: 3,
+      height: 4,
+      rotationZ: 5
+    },
+    DeepGleamData: {
+      translation: 10
+    },
+    Geometry: {
+      boundingBox: 1
+    },
+    ImageData: {
+      payload: 1,
+      imageMetadata: 3
+    },
+    ImageMetadata: {
+      width: 1,
+      height: 2
+    },
+    ImagePayload: {
+      imageBytes: 1
+    },
+    LensOverlayClientContext: {
+      platform: 1,
+      surface: 2,
+      localeContext: 4,
+      clientFilters: 17,
+      renderingContext: 20
+    },
+    LensOverlayObjectsRequest: {
+      requestContext: 1,
+      imageData: 3
+    },
+    LensOverlayObjectsResponse: {
+      text: 3,
+      deepGleams: 4
+    },
+    LensOverlayRequestContext: {
+      requestId: 3,
+      clientContext: 4
+    },
+    LensOverlayRequestId: {
+      uuid: 1,
+      sequenceId: 2,
+      imageSequenceId: 3
+    },
+    LensOverlayServerError: {
+      errorType: 1
+    },
+    LensOverlayServerRequest: {
+      objectsRequest: 1
+    },
+    LensOverlayServerResponse: {
+      error: 1,
+      objectsResponse: 2
+    },
+    LocaleContext: {
+      language: 1,
+      region: 2,
+      timeZone: 3
+    },
+    RenderingContext: {
+      renderingEnvironment: 2
+    },
+    Text: {
+      textLayout: 1,
+      contentLanguage: 2
+    },
+    TextLayout: {
+      paragraphs: 1
+    },
+    TextLayout_Line: {
+      words: 1,
+      geometry: 2
+    },
+    TextLayout_Paragraph: {
+      lines: 2,
+      geometry: 3,
+      writingDirection: 4
+    },
+    TextLayout_Word: {
+      plainText: 2,
+      textSeparator: 3,
+      geometry: 4,
+      type: 5,
+      formulaMetadata: 6
+    },
+    TextLayout_Word_FormulaMetadata: {
+      latex: 1
+    },
+    TranslationData: {
+      status: 1,
+      targetLanguage: 2,
+      sourceLanguage: 3,
+      translation: 4,
+      line: 5,
+      writingDirection: 7,
+      alignment: 8
+    },
+    TranslationData_BackgroundImageData: {
+      backgroundImage: 1,
+      verticalPadding: 4,
+      horizontalPadding: 5
+    },
+    TranslationData_Line: {
+      style: 3,
+      word: 5,
+      backgroundImageData: 9
+    },
+    TranslationData_Line_Word: {
+      start: 1,
+      end: 2
+    },
+    TranslationData_Status: {
+      code: 1
+    },
+    TranslationData_TextStyle: {
+      textColor: 1,
+      backgroundPrimaryColor: 2
+    }
+  };
+  const Wire = {
+    Varint: 0,
+    Fixed64: 1,
+    Length: 2,
+    Fixed32: 5
+  };
+  function encodeVarint(value) {
+    let v = BigInt(value);
+    const out = [];
+    while (v > 127n) {
+      out.push(Number(v & 127n) | 128);
+      v >>= 7n;
+    }
+    out.push(Number(v));
+    return out;
+  }
+  function writer() {
+    const parts = [];
+    const self = {
+      raw(bytes2) {
+        parts.push(bytes2);
+        return self;
+      },
+      tag(field, wire) {
+        return self.raw(encodeVarint(field * 8 + wire));
+      },
+      int(field, value) {
+        if (!value) return self;
+        return self.tag(field, Wire.Varint).raw(encodeVarint(value));
+      },
+      str(field, value) {
+        if (!value) return self;
+        const bytes2 = new TextEncoder().encode(value);
+        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
+      },
+      bytes(field, value) {
+        if (!value || !value.length) return self;
+        return self.tag(field, Wire.Length).raw(encodeVarint(value.length)).raw(value);
+      },
+      sub(field, build) {
+        const inner = writer();
+        build(inner);
+        const bytes2 = inner.finish();
+        if (!bytes2.length) return self;
+        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
+      },
+      finish() {
+        let length = 0;
+        for (const part of parts) length += part.length;
+        const out = new Uint8Array(length);
+        let offset = 0;
+        for (const part of parts) {
+          out.set(part, offset);
+          offset += part.length;
+        }
+        return out;
+      }
+    };
+    return self;
+  }
+  function decode(buf) {
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const out = {};
+    let p = 0;
+    const readVarint = () => {
+      let shift = 0n;
+      let result = 0n;
+      for (; ; ) {
+        const byte = buf[p++];
+        if (byte === void 0) throw new Error("Truncated protobuf varint");
+        result |= BigInt(byte & 127) << shift;
+        if (!(byte & 128)) return result;
+        shift += 7n;
+      }
+    };
+    while (p < buf.length) {
+      const key = Number(readVarint());
+      const field = key >> 3;
+      const wire = key & 7;
+      let value;
+      switch (wire) {
+        case Wire.Varint:
+          value = readVarint();
+          break;
+        case Wire.Fixed64:
+          value = view.getFloat64(p, true);
+          p += 8;
+          break;
+        case Wire.Length: {
+          const length = Number(readVarint());
+          value = buf.subarray(p, p + length);
+          p += length;
+          break;
+        }
+        case Wire.Fixed32:
+          value = view.getFloat32(p, true);
+          p += 4;
+          break;
+        default:
+          throw new Error(`Unsupported protobuf wire type ${wire} at byte ${p}`);
+      }
+      (out[field] ?? (out[field] = [])).push(value);
+    }
+    return out;
+  }
+  function one(msg, field) {
+    var _a2;
+    return (_a2 = msg == null ? void 0 : msg[field]) == null ? void 0 : _a2[0];
+  }
+  function all(msg, field) {
+    return (msg == null ? void 0 : msg[field]) ?? [];
+  }
+  function bytes(msg, field) {
+    const value = one(msg, field);
+    return value instanceof Uint8Array ? value : null;
+  }
+  function sub(msg, field) {
+    const value = bytes(msg, field);
+    return value ? decode(value) : null;
+  }
+  function subs(msg, field) {
+    return all(msg, field).filter((value) => value instanceof Uint8Array).map(decode);
+  }
+  function text(msg, field) {
+    const value = bytes(msg, field);
+    return value ? new TextDecoder().decode(value) : "";
+  }
+  function num(msg, field, fallback = 0) {
+    const value = one(msg, field);
+    if (value === void 0 || value instanceof Uint8Array) return fallback;
+    return Number(value);
+  }
+  const PLATFORM_WEB = 3;
+  const SURFACE_CHROMIUM = 4;
+  const FILTER_TRANSLATE = 2;
+  const FILTER_AUTO = 7;
+  const RENDERING_ENV_LENS_OVERLAY = 14;
+  function randomUuid() {
+    const high = BigInt(Math.floor(Math.random() * 1073741824));
+    const low = BigInt(Math.floor(Math.random() * 4294967296));
+    return high << 32n | low;
+  }
+  function buildRequest(image, settings) {
+    const translating = Boolean(settings.targetLang);
+    return writer().sub(F.LensOverlayServerRequest.objectsRequest, (objects) => {
+      objects.sub(F.LensOverlayObjectsRequest.requestContext, (ctx) => {
+        ctx.sub(
+          F.LensOverlayRequestContext.requestId,
+          (id) => id.int(F.LensOverlayRequestId.uuid, randomUuid()).int(F.LensOverlayRequestId.sequenceId, 1).int(F.LensOverlayRequestId.imageSequenceId, 1)
+        );
+        ctx.sub(F.LensOverlayRequestContext.clientContext, (client) => {
+          client.int(F.LensOverlayClientContext.platform, PLATFORM_WEB);
+          client.int(F.LensOverlayClientContext.surface, SURFACE_CHROMIUM);
+          client.sub(
+            F.LensOverlayClientContext.localeContext,
+            (locale) => locale.str(F.LocaleContext.language, settings.ocrLang || settings.targetLang).str(F.LocaleContext.region, settings.region).str(F.LocaleContext.timeZone, settings.timeZone)
+          );
+          client.sub(
+            F.LensOverlayClientContext.clientFilters,
+            (filters) => filters.sub(F.AppliedFilters.filter, (filter) => {
+              if (!translating) {
+                filter.int(F.AppliedFilter.filterType, FILTER_AUTO);
+                return;
+              }
+              filter.int(F.AppliedFilter.filterType, FILTER_TRANSLATE);
+              filter.sub(
+                F.AppliedFilter.translate,
+                (translate) => translate.str(F.AppliedFilter_Translate.targetLanguage, settings.targetLang).str(F.AppliedFilter_Translate.sourceLanguage, settings.sourceLang)
+              );
+            })
+          );
+          client.sub(
+            F.LensOverlayClientContext.renderingContext,
+            (rendering) => rendering.int(F.RenderingContext.renderingEnvironment, RENDERING_ENV_LENS_OVERLAY)
+          );
+        });
+      });
+      objects.sub(F.LensOverlayObjectsRequest.imageData, (data) => {
+        data.sub(
+          F.ImageData.payload,
+          (payload) => payload.bytes(F.ImagePayload.imageBytes, image.imageBytes)
+        );
+        data.sub(
+          F.ImageData.imageMetadata,
+          (meta) => meta.int(F.ImageMetadata.width, image.width).int(F.ImageMetadata.height, image.height)
+        );
+      });
+    }).finish();
+  }
+  const TRANSLATION_SUCCESS = 1;
+  const WORD_TYPE_FORMULA = 1;
+  function parseGeometry(geometry) {
+    const box = sub(geometry, F.Geometry.boundingBox);
+    if (!box) return null;
+    return {
+      cx: num(box, F.CenterRotatedBox.centerX),
+      cy: num(box, F.CenterRotatedBox.centerY),
+      w: num(box, F.CenterRotatedBox.width),
+      h: num(box, F.CenterRotatedBox.height),
+      // rotation_z is clockwise radians; CSS rotate() takes clockwise degrees.
+      angle: num(box, F.CenterRotatedBox.rotationZ) * 180 / Math.PI
+    };
+  }
+  function parseWord(word) {
+    const parsed = {
+      text: text(word, F.TextLayout_Word.plainText),
+      separator: text(word, F.TextLayout_Word.textSeparator),
+      geometry: parseGeometry(sub(word, F.TextLayout_Word.geometry))
+    };
+    if (num(word, F.TextLayout_Word.type) === WORD_TYPE_FORMULA) {
+      parsed.type = "FORMULA";
+      parsed.latex = text(sub(word, F.TextLayout_Word.formulaMetadata), F.TextLayout_Word_FormulaMetadata.latex);
+    }
+    return parsed;
+  }
+  function paragraphsOf(objects) {
+    const layout = sub(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.textLayout);
+    return subs(layout, F.TextLayout.paragraphs);
+  }
+  function parseOcr(objects) {
+    return paragraphsOf(objects).map((paragraph) => ({
+      writingDirection: num(paragraph, F.TextLayout_Paragraph.writingDirection),
+      geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
+      lines: subs(paragraph, F.TextLayout_Paragraph.lines).map((line) => {
+        const words = subs(line, F.TextLayout_Line.words).map(parseWord);
+        return {
+          text: words.map((w) => w.text + w.separator).join("").trim(),
+          words,
+          geometry: parseGeometry(sub(line, F.TextLayout_Line.geometry))
+        };
+      })
+    }));
+  }
+  function parseBackground(line) {
+    const data = sub(line, F.TranslationData_Line.backgroundImageData);
+    if (!data) return null;
+    const image = bytes(data, F.TranslationData_BackgroundImageData.backgroundImage);
+    if (!image) return null;
+    return {
+      bytes: image,
+      vPad: num(data, F.TranslationData_BackgroundImageData.verticalPadding),
+      hPad: num(data, F.TranslationData_BackgroundImageData.horizontalPadding)
+    };
+  }
+  function parseTranslation(objects) {
+    const paragraphs = paragraphsOf(objects);
+    const gleams = subs(objects, F.LensOverlayObjectsResponse.deepGleams);
+    const blocks = [];
+    paragraphs.forEach((paragraph, index) => {
+      const gleam = gleams[index];
+      const translation = gleam ? sub(gleam, F.DeepGleamData.translation) : null;
+      if (!translation) return;
+      if (num(sub(translation, F.TranslationData.status), F.TranslationData_Status.code) !== TRANSLATION_SUCCESS) return;
+      const sourceLines = subs(paragraph, F.TextLayout_Paragraph.lines);
+      const translatedLines = subs(translation, F.TranslationData.line);
+      if (sourceLines.length !== translatedLines.length) return;
+      const lines = translatedLines.map((line, i2) => {
+        const style = sub(line, F.TranslationData_Line.style);
+        const source = sourceLines[i2];
+        return {
+          words: subs(line, F.TranslationData_Line.word).map(
+            (word) => [num(word, F.TranslationData_Line_Word.start), num(word, F.TranslationData_Line_Word.end)]
+          ),
+          textColor: num(style, F.TranslationData_TextStyle.textColor),
+          bgColor: num(style, F.TranslationData_TextStyle.backgroundPrimaryColor),
+          geometry: source ? parseGeometry(sub(source, F.TextLayout_Line.geometry)) : null,
+          background: parseBackground(line)
+        };
+      });
+      blocks.push({
+        translation: text(translation, F.TranslationData.translation),
+        geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
+        sourceLang: text(translation, F.TranslationData.sourceLanguage),
+        targetLang: text(translation, F.TranslationData.targetLanguage),
+        writingDirection: num(translation, F.TranslationData.writingDirection),
+        alignment: num(translation, F.TranslationData.alignment),
+        lines
+      });
+    });
+    return blocks;
+  }
+  function parseResponse(raw) {
+    const response = decode(raw);
+    const error = sub(response, F.LensOverlayServerResponse.error);
+    const errorType = error ? num(error, F.LensOverlayServerError.errorType) : 0;
+    if (errorType) throw new Error(`Lens returned server error type ${errorType}`);
+    const objects = sub(response, F.LensOverlayServerResponse.objectsResponse);
+    if (!objects) return { contentLanguage: "", ocr: [], blocks: [] };
+    return {
+      contentLanguage: text(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.contentLanguage),
+      ocr: parseOcr(objects),
+      blocks: parseTranslation(objects)
+    };
+  }
+  const LENS_ENDPOINT = "https://lensfrontend-pa.googleapis.com/v1/crupload";
+  const IMAGE_TIMEOUT_MS = 3e4;
+  async function callLens(image, settings) {
+    const response = await postBinary({
+      url: LENS_ENDPOINT,
+      headers: {
+        "Content-Type": "application/x-protobuf",
+        "X-Goog-Api-Key": settings.apiKey
+      },
+      body: buildRequest(image, settings),
+      timeoutMs: settings.timeoutMs
+    });
+    try {
+      return parseResponse(response.bytes);
+    } catch (e) {
+      throw new Error(`Could not parse the Lens response: ${e.message}`);
+    }
+  }
+  async function fetchImageBlob(url) {
+    let response;
+    try {
+      response = await getBinary(url, IMAGE_TIMEOUT_MS);
+    } catch (error) {
+      const hint = hostName() === "Tampermonkey" ? " If Tampermonkey blocked this domain, clear it under Settings > Security > Blocked domains." : "";
+      throw new Error(`Could not fetch the image (${error.message}).${hint}`);
+    }
+    return new Blob([response.bytes], { type: response.contentType });
+  }
+  function targetSize(width, height, { maxArea, maxSide }) {
+    if (width * height <= maxArea || width <= maxSide && height <= maxSide) {
+      return { width, height };
+    }
+    const scale = Math.min(maxSide / width, maxSide / height);
+    return {
+      width: Math.max(1, Math.round(width * scale)),
+      height: Math.max(1, Math.round(height * scale))
+    };
+  }
+  function sourceSize(source) {
+    if (source instanceof HTMLImageElement) {
+      return { width: source.naturalWidth, height: source.naturalHeight };
+    }
+    if (source instanceof HTMLVideoElement) {
+      return { width: source.videoWidth, height: source.videoHeight };
+    }
+    return { width: source.width, height: source.height };
+  }
+  function ownPixels(target) {
+    {
+      const img = target.element;
+      return img.naturalWidth && img.naturalHeight ? img : null;
+    }
+  }
+  const FINGERPRINT_SIZE = 128;
+  function fingerprint(source, width, height) {
+    const canvas = document.createElement("canvas");
+    canvas.width = FINGERPRINT_SIZE;
+    canvas.height = FINGERPRINT_SIZE;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return "";
+    try {
+      ctx.drawImage(source, 0, 0, FINGERPRINT_SIZE, FINGERPRINT_SIZE);
+      const { data } = ctx.getImageData(0, 0, FINGERPRINT_SIZE, FINGERPRINT_SIZE);
+      let a = 2166136261;
+      let b = 16777619;
+      for (let i2 = 0; i2 < data.length; i2 += 1) {
+        a = Math.imul(a ^ data[i2], 16777619);
+        b = Math.imul(b + data[i2] + i2, 2246822507);
+      }
+      const lane = (n) => (n >>> 0).toString(36);
+      return `${lane(a)}.${lane(b)}.${width}x${height}`;
+    } catch {
+      return "";
+    }
+  }
+  async function encodeForUpload(source, settings, release = () => {
+  }) {
+    const natural = sourceSize(source);
+    const { width, height } = targetSize(natural.width, natural.height, settings);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get a 2d canvas context");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(source, 0, 0, width, height);
+    const jpeg = await new Promise((resolve, reject) => {
+      try {
+        canvas.toBlob(resolve, "image/jpeg", settings.jpegQuality);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    if (!jpeg) throw new Error("Canvas is tainted");
+    return {
+      imageBytes: new Uint8Array(await jpeg.arrayBuffer()),
+      width,
+      height,
+      source,
+      sourceWidth: natural.width,
+      sourceHeight: natural.height,
+      release
+    };
+  }
+  function loadWithCors(url) {
+    return new Promise((resolve, reject) => {
+      const probe = new Image();
+      probe.crossOrigin = "anonymous";
+      probe.decoding = "sync";
+      probe.onload = () => resolve(probe);
+      probe.onerror = () => reject(new Error("CORS load failed"));
+      probe.src = url;
+    });
+  }
+  async function acquireSource(target) {
+    const probe = document.createElement("canvas");
+    probe.width = 1;
+    probe.height = 1;
+    const readable = (candidate) => {
+      try {
+        const ctx = probe.getContext("2d");
+        if (!ctx) return false;
+        ctx.drawImage(candidate, 0, 0, 1, 1);
+        ctx.getImageData(0, 0, 1, 1);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    const own = ownPixels(target);
+    if (own && readable(own)) {
+      const size = sourceSize(own);
+      return { source: own, ...size, release: () => {
+      } };
+    }
+    const url = target.url;
+    if (!url) {
+      throw new Error(
+        own ? "This element is drawn from another origin and cannot be read" : "There is nothing to read from this element"
+      );
+    }
+    try {
+      const cors = await loadWithCors(url);
+      if (readable(cors)) {
+        const size = sourceSize(cors);
+        return { source: cors, ...size, release: () => {
+        } };
+      }
+    } catch {
+    }
+    const blob = await fetchImageBlob(url);
+    const bitmap = await createImageBitmap(blob);
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      release: () => bitmap.close()
+    };
+  }
+  const WritingDirection = {
+    RightToLeft: 1,
+    TopToBottom: 2
+  };
+  const Alignment = {
+    Left: 0,
+    Right: 1,
+    Center: 2
+  };
+  const MIN_FONT_SIZE = 3;
+  const MAX_FONT_SIZE = 150;
+  const OUTLINE_RATIO = 0.02;
+  const RTL_LANGS = /* @__PURE__ */ new Set([
+    "ar",
+    "bal",
+    "ckb",
+    "dv",
+    "fa",
+    "he",
+    "iw",
+    "ji",
+    "ks",
+    "ps",
+    "sd",
+    "ug",
+    "ur",
+    "yi"
+  ]);
+  const CJK_LANGS = /* @__PURE__ */ new Set(["ja", "zh", "ko", "yue"]);
+  const measureCtx = document.createElement("canvas").getContext("2d");
+  const baseLang = (tag) => {
+    var _a2;
+    return ((_a2 = tag.split("-")[0]) == null ? void 0 : _a2.toLowerCase()) ?? "";
+  };
+  function fitFontSize(str, boxWidth, boxHeight, fontFamily) {
+    if (!measureCtx) return MIN_FONT_SIZE;
+    let low = MIN_FONT_SIZE;
+    let high = MAX_FONT_SIZE;
+    while (low <= high) {
+      const mid = low + high >> 1;
+      measureCtx.font = `${mid}px ${fontFamily}`;
+      const metrics = measureCtx.measureText(str);
+      const height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
+      if (metrics.width >= boxWidth || height >= boxHeight) high = mid - 1;
+      else low = mid + 1;
+    }
+    return Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
+  }
+  function buildLineText(translation, line, nextLine) {
+    let out = "";
+    line.words.forEach(([start, end], i2) => {
+      out += translation.slice(start, end);
+      const next = line.words[i2 + 1];
+      if (next) out += translation.slice(end, next[0]);
+      else if (nextLine == null ? void 0 : nextLine.words[0]) out += translation.slice(end, nextLine.words[0][0]);
+    });
+    return out;
+  }
+  function wrapText(measure, text2, maxWidth, perCharacter = false) {
+    const lines = [];
+    for (const hardLine of text2.split("\n")) {
+      if (!hardLine) {
+        lines.push("");
+        continue;
+      }
+      const tokens = perCharacter ? [...hardLine] : hardLine.split(/\s+/);
+      const joiner = perCharacter ? "" : " ";
+      let current = "";
+      for (const token of tokens) {
+        const candidate = current ? `${current}${joiner}${token}` : token;
+        if (measure(candidate) <= maxWidth || !current) current = candidate;
+        else {
+          lines.push(current);
+          current = token;
+        }
+      }
+      if (current) lines.push(current);
+    }
+    return lines;
+  }
+  function fitTextBlock(setFont, measure, lineHeight, text2, boxWidth, boxHeight, perCharacter = false) {
+    let low = MIN_FONT_SIZE;
+    let high = MAX_FONT_SIZE;
+    let best = [];
+    while (low <= high) {
+      const mid = low + high >> 1;
+      setFont(mid);
+      const lines = wrapText(measure, text2, boxWidth, perCharacter);
+      const widest = lines.reduce((max, line) => Math.max(max, measure(line)), 0);
+      if (widest >= boxWidth || lines.length * lineHeight(mid) >= boxHeight) high = mid - 1;
+      else {
+        low = mid + 1;
+        best = lines;
+      }
+    }
+    const size = Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
+    if (!best.length) {
+      setFont(size);
+      best = wrapText(measure, text2, boxWidth, perCharacter);
+    }
+    return { size, lines: best };
+  }
+  function argbToCss(value) {
+    const alpha = (value >>> 24 & 255) / 255;
+    return `rgba(${value >> 16 & 255}, ${value >> 8 & 255}, ${value & 255}, ${alpha})`;
+  }
+  function shouldStayVertical(block, mode) {
+    if (block.writingDirection !== WritingDirection.TopToBottom) return false;
+    if (mode === "keep") return true;
+    if (mode === "horizontal") return false;
+    return CJK_LANGS.has(baseLang(block.targetLang));
+  }
+  function wrapsPerCharacter(block) {
+    return CJK_LANGS.has(baseLang(block.targetLang));
+  }
+  function isRtl(block) {
+    if (block.writingDirection === WritingDirection.RightToLeft) return true;
+    return RTL_LANGS.has(baseLang(block.targetLang));
+  }
+  function justification(alignment, rtl, override = "auto") {
+    if (override !== "auto") {
+      return { left: "flex-start", center: "center", right: "flex-end" }[override];
+    }
+    const map = {
+      [Alignment.Left]: "flex-start",
+      [Alignment.Right]: "flex-end",
+      [Alignment.Center]: "center"
+    };
+    const value = map[alignment] ?? "center";
+    return rtl && value === "flex-start" ? "flex-end" : value;
+  }
+  function boxCorners(geometry, width, height) {
+    const cx = geometry.cx * width;
+    const cy = geometry.cy * height;
+    const halfW = geometry.w * width / 2;
+    const halfH = geometry.h * height / 2;
+    const radians = geometry.angle * Math.PI / 180;
+    const cos = Math.cos(radians);
+    const sin = Math.sin(radians);
+    return [
+      [-halfW, -halfH],
+      [halfW, -halfH],
+      [halfW, halfH],
+      [-halfW, halfH]
+    ].map(([dx, dy]) => ({
+      x: cx + dx * cos - dy * sin,
+      y: cy + dx * sin + dy * cos
+    }));
+  }
+  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+  function convexHull(points) {
+    if (points.length < 3) return [...points];
+    const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+    const build = (input) => {
+      const chain = [];
+      for (const point of input) {
+        while (chain.length >= 2) {
+          const last = chain[chain.length - 1];
+          const prev = chain[chain.length - 2];
+          if (cross(prev, last, point) > 0) break;
+          chain.pop();
+        }
+        chain.push(point);
+      }
+      chain.pop();
+      return chain;
+    };
+    return [...build(sorted), ...build([...sorted].reverse())];
+  }
+  function fillHull(ctx, hull, colour, pad) {
+    if (hull.length < 3) return;
+    ctx.save();
+    ctx.beginPath();
+    const [first, ...rest] = hull;
+    ctx.moveTo(first.x, first.y);
+    for (const point of rest) ctx.lineTo(point.x, point.y);
+    ctx.closePath();
+    ctx.fillStyle = colour;
+    if (pad > 0) {
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = pad * 2;
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.stroke();
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  const DEG = Math.PI / 180;
+  const UPRIGHT_RANGES = [
+    [4352, 4607],
+    [11904, 12351],
+    [12353, 13311],
+    [13312, 19903],
+    [19968, 40959],
+    [44032, 55215],
+    [63744, 64255],
+    [65040, 65103],
+    [65280, 65376],
+    [65504, 65510]
+  ];
+  const isUpright = (char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return UPRIGHT_RANGES.some(([low, high]) => code >= low && code <= high);
+  };
+  const CORNER_PUNCT = new Set("、。，．");
+  function verticalRuns(text2) {
+    const runs = [];
+    for (const char of text2) {
+      let upright = isUpright(char);
+      const last = runs[runs.length - 1];
+      if (/\s/.test(char) && last) upright = last[0];
+      if (last && last[0] === upright) last[1] += char;
+      else runs.push([upright, char]);
+    }
+    return runs;
+  }
+  function strokeThenFill(ctx, text2, x2, y, outline, outlineColor) {
+    if (outline <= 0 || !outlineColor) return;
+    ctx.save();
+    ctx.strokeStyle = outlineColor;
+    ctx.lineWidth = outline * 2;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.miterLimit = 2;
+    ctx.strokeText(text2, x2, y);
+    ctx.restore();
+  }
+  function drawVertical({ ctx }, text2, boxW, boxH, size, fill, outline, outlineColor) {
+    const em = size * 1.16;
+    let total = 0;
+    for (const [upright, run2] of verticalRuns(text2)) {
+      total += upright ? em * [...run2].length : ctx.measureText(run2).width;
+    }
+    let y = (boxH - total) / 2;
+    ctx.textBaseline = "top";
+    ctx.textAlign = "left";
+    for (const [upright, run2] of verticalRuns(text2)) {
+      if (upright) {
+        for (const char of run2) {
+          const advance = ctx.measureText(char).width;
+          const corner = CORNER_PUNCT.has(char);
+          const x2 = (boxW - advance) / 2 + (corner ? advance * 0.45 : 0);
+          const cy = y - (corner ? em * 0.4 : 0);
+          strokeThenFill(ctx, char, x2, cy, outline, outlineColor);
+          ctx.fillStyle = fill;
+          ctx.fillText(char, x2, cy);
+          y += em;
+        }
+      } else {
+        const advance = ctx.measureText(run2).width;
+        ctx.save();
+        ctx.translate(boxW / 2, y);
+        ctx.rotate(90 * DEG);
+        strokeThenFill(ctx, run2, 0, -size / 2, outline, outlineColor);
+        ctx.fillStyle = fill;
+        ctx.fillText(run2, 0, -size / 2);
+        ctx.restore();
+        y += advance;
+      }
+    }
+  }
+  function fitInside(box, width, height) {
+    const radians = box.angle * DEG;
+    const cos = Math.abs(Math.cos(radians));
+    const sin = Math.abs(Math.sin(radians));
+    const spanX = box.w * cos + box.h * sin;
+    const spanY = box.w * sin + box.h * cos;
+    const scale = Math.min(1, width / spanX, height / spanY);
+    const w = box.w * scale;
+    const h = box.h * scale;
+    const halfX = (w * cos + h * sin) / 2;
+    const halfY = (w * sin + h * cos) / 2;
+    const place = (centre, half, limit) => half * 2 >= limit ? limit / 2 : Math.min(Math.max(centre, half), limit - half);
+    return { cx: place(box.cx, halfX, width), cy: place(box.cy, halfY, height), w, h };
+  }
+  const rectOf = (geometry, width, height) => ({
+    left: (geometry.cx - geometry.w / 2) * width,
+    right: (geometry.cx + geometry.w / 2) * width,
+    top: (geometry.cy - geometry.h / 2) * height,
+    bottom: (geometry.cy + geometry.h / 2) * height
+  });
+  const GAP = 2;
+  function roomFor(own, others, growth, width, height) {
+    const growX = (own.right - own.left) * (growth - 1) / 2;
+    const growY = (own.bottom - own.top) * (growth - 1) / 2;
+    let left = Math.max(0, own.left - growX);
+    let right = Math.min(width, own.right + growX);
+    let top = Math.max(0, own.top - growY);
+    let bottom = Math.min(height, own.bottom + growY);
+    for (const other of others) {
+      if (other.bottom > own.top && other.top < own.bottom) {
+        if (other.right <= own.left) left = Math.max(left, other.right + GAP);
+        if (other.left >= own.right) right = Math.min(right, other.left - GAP);
+      }
+      if (other.right > own.left && other.left < own.right) {
+        if (other.bottom <= own.top) top = Math.max(top, other.bottom + GAP);
+        if (other.top >= own.bottom) bottom = Math.min(bottom, other.top - GAP);
+      }
+    }
+    return {
+      left: Math.min(left, own.left),
+      right: Math.max(right, own.right),
+      top: Math.min(top, own.top),
+      bottom: Math.max(bottom, own.bottom)
+    };
+  }
+  function drawReflowedParagraph(draw, block, settings, room) {
+    const geometry = block.geometry;
+    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
+    const { ctx, width, height, fontFamily } = draw;
+    const box = fitInside(
+      {
+        cx: (room.left + room.right) / 2,
+        cy: (room.top + room.bottom) / 2,
+        w: room.right - room.left,
+        h: room.bottom - room.top,
+        angle: geometry.angle
+      },
+      width,
+      height
+    );
+    const boxW = box.w;
+    const boxH = box.h;
+    const style = block.lines[0];
+    if (!style) return;
+    const text2 = block.translation.trim();
+    if (!text2) return;
+    ctx.save();
+    ctx.translate(box.cx, box.cy);
+    ctx.rotate(geometry.angle * DEG);
+    const spacing = settings.lineSpacing > 0 ? settings.lineSpacing : 1.25;
+    const perCharacter = wrapsPerCharacter(block);
+    const measure = (candidate) => ctx.measureText(candidate).width;
+    const setFont = (px) => {
+      ctx.font = `${px}px ${fontFamily}`;
+    };
+    const { size } = fitTextBlock(setFont, measure, (px) => px * spacing, text2, boxW, boxH, perCharacter);
+    let fontSize = Math.max(size, draw.minFontPx);
+    setFont(fontSize);
+    let lines = wrapText(measure, text2, boxW, perCharacter);
+    const widest = lines.reduce((max, line) => Math.max(max, measure(line)), 0);
+    if (widest > boxW && widest > 0) {
+      fontSize = Math.max(MIN_FONT_SIZE, fontSize * boxW / widest);
+      setFont(fontSize);
+      lines = wrapText(measure, text2, boxW, perCharacter);
+    }
+    if (settings.fitToBox) {
+      for (let pass = 0; pass < 3; pass += 1) {
+        const needed = lines.length * fontSize * spacing;
+        if (needed <= boxH || fontSize <= MIN_FONT_SIZE) break;
+        fontSize = Math.max(MIN_FONT_SIZE, fontSize * boxH / needed);
+        setFont(fontSize);
+        lines = wrapText(measure, text2, boxW, perCharacter);
+      }
+    }
+    const lineHeight = fontSize * spacing;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    const fill = argbToCss(style.textColor);
+    const outline = Math.max(
+      0,
+      Math.round(fontSize * OUTLINE_RATIO * 2 * settings.outlineScale)
+    );
+    const outlineColor = argbToCss(style.bgColor);
+    const justify = justification(block.alignment, isRtl(block), settings.textAlign);
+    let y = -Math.min(boxH, lines.length * lineHeight) / 2;
+    for (const line of lines) {
+      const advance = ctx.measureText(line).width;
+      const x2 = justify === "flex-start" ? -boxW / 2 : justify === "flex-end" ? boxW / 2 - advance : -advance / 2;
+      strokeThenFill(ctx, line, x2, y, outline, outlineColor);
+      ctx.fillStyle = fill;
+      ctx.fillText(line, x2, y);
+      y += lineHeight;
+    }
+    ctx.restore();
+  }
+  function eraseTextArea(draw, block, settings) {
+    const { ctx, width, height } = draw;
+    const points = [];
+    let thinnest = Infinity;
+    for (const line of block.lines) {
+      if (!line.geometry) continue;
+      points.push(...boxCorners(line.geometry, width, height));
+      thinnest = Math.min(thinnest, line.geometry.w * width, line.geometry.h * height);
+    }
+    if (points.length < 3) return;
+    const style = block.lines.find((line) => line.geometry) ?? block.lines[0];
+    if (!style) return;
+    const pad = Number.isFinite(thinnest) ? thinnest * settings.hullPadding : 0;
+    fillHull(ctx, convexHull(points), argbToCss(style.bgColor), pad);
+  }
+  function nudgeInside(draw, box, line) {
+    const radians = line.angle * DEG;
+    const cos = Math.abs(Math.cos(radians));
+    const sin = Math.abs(Math.sin(radians));
+    const halfW = (box.w * cos + box.h * sin) / 2;
+    const halfH = (box.w * sin + box.h * cos) / 2;
+    const shift = (centre, half, limit, fromEnd) => {
+      if (half * 2 >= limit) return fromEnd ? limit - half - centre : half - centre;
+      if (centre - half < 0) return half - centre;
+      if (centre + half > limit) return limit - half - centre;
+      return 0;
+    };
+    const dx = shift(line.cx, halfW, draw.width, line.rtl);
+    const dy = shift(line.cy, halfH, draw.height, false);
+    if (dx === 0 && dy === 0) return;
+    const c = Math.cos(radians);
+    const sn = Math.sin(radians);
+    draw.ctx.translate(dx * c + dy * sn, dy * c - dx * sn);
+  }
+  async function drawLine(draw, block, line, nextLine, settings, backgroundOnly = false, skipBackground = false) {
+    const geometry = line.geometry;
+    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
+    const { ctx, width, height, fontFamily } = draw;
+    const boxW = geometry.w * width;
+    const boxH = geometry.h * height;
+    const cx = geometry.cx * width;
+    const cy = geometry.cy * height;
+    const patch = settings.drawBackground && !skipBackground ? line.background : null;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(geometry.angle * DEG);
+    if (patch) {
+      const padW = patch.hPad * boxH;
+      const padH = patch.vPad * boxH;
+      try {
+        const bitmap = await createImageBitmap(new Blob([patch.bytes], { type: "image/webp" }));
+        ctx.drawImage(bitmap, -(boxW + padW) / 2, -(boxH + padH) / 2, boxW + padW, boxH + padH);
+        bitmap.close();
+      } catch {
+        ctx.fillStyle = argbToCss(line.bgColor);
+        ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+      }
+    } else if (settings.drawBackground && !skipBackground) {
+      ctx.fillStyle = argbToCss(line.bgColor);
+      ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
+    }
+    const text2 = backgroundOnly ? "" : buildLineText(block.translation, line, nextLine);
+    if (text2.trim()) {
+      const vertical = shouldStayVertical(block, settings.verticalText);
+      const fitted = fitFontSize(text2, vertical ? boxH : boxW, vertical ? boxW : boxH, fontFamily);
+      const size = Math.max(fitted, draw.minFontPx);
+      ctx.font = `${size}px ${fontFamily}`;
+      ctx.direction = isRtl(block) ? "rtl" : "ltr";
+      const fill = argbToCss(line.textColor);
+      const outline = patch ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale)) : 0;
+      const outlineColor = patch ? argbToCss(line.bgColor) : null;
+      const enlarged = size > fitted;
+      const advance = ctx.measureText(text2).width;
+      const drawW = enlarged ? Math.min(Math.max(boxW, advance + size * 0.4), width) : boxW;
+      const drawH = enlarged ? Math.min(Math.max(boxH, size * 1.35), height) : boxH;
+      nudgeInside(draw, { w: drawW, h: drawH }, { cx, cy, angle: geometry.angle, rtl: isRtl(block) });
+      if (enlarged && settings.drawBackground && !skipBackground) {
+        ctx.fillStyle = argbToCss(line.bgColor);
+        ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
+      }
+      ctx.translate(-drawW / 2, -drawH / 2);
+      if (vertical) {
+        drawVertical(draw, text2, drawW, drawH, size, fill, outline, outlineColor);
+      } else {
+        const justify = justification(block.alignment, isRtl(block), settings.textAlign);
+        const advance2 = ctx.measureText(text2).width;
+        const x2 = justify === "flex-start" ? 0 : justify === "flex-end" ? drawW - advance2 : (drawW - advance2) / 2;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        strokeThenFill(ctx, text2, x2, drawH / 2, outline, outlineColor);
+        ctx.fillStyle = fill;
+        ctx.fillText(text2, x2, drawH / 2);
+      }
+    }
+    ctx.restore();
+  }
+  async function renderToBlob(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth = naturalWidth) {
+    const scale = Math.min(
+      Math.max(1, Math.round(settings.supersample)),
+      Math.max(1, Math.floor(8e3 / Math.max(naturalWidth, naturalHeight)))
+    );
+    const width = naturalWidth * scale;
+    const height = naturalHeight * scale;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Could not get a 2d canvas context");
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(source, 0, 0, width, height);
+    const fontFamily = settings.fontFamily || "system-ui, -apple-system, sans-serif";
+    const canvasPerCssPx = width / Math.max(1, displayedWidth);
+    const floorCssPx = settings.mangaMode ? Math.max(settings.minReadablePx, 14) : settings.minReadablePx;
+    const draw = {
+      ctx,
+      width,
+      height,
+      fontFamily,
+      minFontPx: floorCssPx > 0 ? floorCssPx * canvasPerCssPx : 0
+    };
+    const boxes = blocks.map(
+      (block) => block.geometry ? rectOf(block.geometry, width, height) : null
+    );
+    const growth = settings.mangaMode ? Math.max(1, settings.mangaBoxGrowth) : 1;
+    for (const [index, block] of blocks.entries()) {
+      const vertical = block.writingDirection === 2;
+      const stayVertical = !settings.mangaMode && shouldStayVertical(block, settings.verticalText);
+      const hull = settings.drawBackground && (settings.eraseMode === "hull" || settings.mangaMode);
+      if (hull) eraseTextArea(draw, block, settings);
+      const reflow = Boolean(block.geometry) && !stayVertical && (vertical || settings.reflowHorizontal);
+      for (let i2 = 0; i2 < block.lines.length; i2 += 1) {
+        const line = block.lines[i2];
+        if (!line) continue;
+        if (reflow) {
+          if (!hull) await drawLine(draw, block, line, block.lines[i2 + 1], settings, true);
+        } else await drawLine(draw, block, line, block.lines[i2 + 1], settings, false, hull);
+      }
+      if (reflow) {
+        const own = boxes[index];
+        if (own) {
+          const others = boxes.filter((rect, at) => rect !== null && at !== index);
+          drawReflowedParagraph(draw, block, settings, roomFor(own, others, growth, width, height));
+        }
+      }
+    }
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    if (!blob) throw new Error("Could not encode the translated image");
+    return blob;
+  }
+  const DB_NAME = "lens-translate";
+  const DB_VERSION = 1;
+  const STORE = "responses";
+  let open = null;
+  function database() {
+    if (open) return open;
+    open = new Promise((resolve) => {
+      let request2;
+      try {
+        request2 = indexedDB.open(DB_NAME, DB_VERSION);
+      } catch {
+        resolve(null);
+        return;
+      }
+      request2.onupgradeneeded = () => {
+        const db = request2.result;
+        if (!db.objectStoreNames.contains(STORE)) {
+          db.createObjectStore(STORE, { keyPath: "hash" }).createIndex("used", "used");
+        }
+      };
+      request2.onsuccess = () => resolve(request2.result);
+      request2.onerror = () => resolve(null);
+      request2.onblocked = () => resolve(null);
+    });
+    return open;
+  }
+  function run(mode, body) {
+    return database().then(
+      (db) => new Promise((resolve) => {
+        if (!db) {
+          resolve(null);
+          return;
+        }
+        try {
+          const transaction = db.transaction(STORE, mode);
+          const request2 = body(transaction.objectStore(STORE));
+          request2.onsuccess = () => resolve(request2.result);
+          request2.onerror = () => resolve(null);
+          transaction.onabort = () => resolve(null);
+        } catch {
+          resolve(null);
+        }
+      })
+    );
+  }
+  const languagesOf = (settings) => [settings.targetLang, settings.sourceLang, settings.ocrLang].join("|");
+  function weigh(result) {
+    var _a2;
+    let bytes2 = 0;
+    for (const block of result.blocks) {
+      bytes2 += block.translation.length * 2;
+      for (const line of block.lines) bytes2 += ((_a2 = line.background) == null ? void 0 : _a2.bytes.byteLength) ?? 0;
+    }
+    return bytes2;
+  }
+  async function getStored(hash, settings) {
+    if (!hash || !settings.persistCache) return null;
+    const entry = await run("readonly", (store) => store.get(hash)) ?? null;
+    if (!entry || entry.languages !== languagesOf(settings)) return null;
+    void run("readwrite", (store) => store.put({ ...entry, used: Date.now() }));
+    return entry.result;
+  }
+  async function putStored(hash, result, settings) {
+    if (!hash || !settings.persistCache || settings.cacheBytes <= 0) return;
+    const entry = {
+      hash,
+      languages: languagesOf(settings),
+      result,
+      bytes: weigh(result),
+      used: Date.now()
+    };
+    await run("readwrite", (store) => store.put(entry));
+    await evict(settings.cacheBytes);
+  }
+  async function evict(budget) {
+    const all2 = await run("readonly", (store) => store.getAll()) ?? [];
+    let total = all2.reduce((sum, entry) => sum + entry.bytes, 0);
+    if (total <= budget) return;
+    for (const entry of [...all2].sort((a, b) => a.used - b.used)) {
+      if (total <= budget) break;
+      total -= entry.bytes;
+      await run("readwrite", (store) => store.delete(entry.hash));
+    }
+  }
+  async function clearStored() {
+    await run("readwrite", (store) => store.clear());
+  }
+  async function storedStats() {
+    const all2 = await run("readonly", (store) => store.getAll()) ?? [];
+    return { entries: all2.length, bytes: all2.reduce((sum, entry) => sum + entry.bytes, 0) };
+  }
+  const LENS_DEFAULTS = {
+    targetLang: "ru",
+    sourceLang: "",
+    ocrLang: "",
+    region: "US",
+    timeZone: "America/New_York",
+    // The key Chromium ships with.
+    apiKey: "AIzaSyDr2UxVnv_U85AbhhY8XSHSIavUW0DC-sY",
+    timeoutMs: 6e4,
+    minImageSize: 50,
+    // Chromium's image budget: components/lens/lens_features.cc
+    maxArea: 15e5,
+    maxSide: 1600,
+    jpegQuality: 0.4,
+    showButton: true,
+    buttonMode: "auto",
+    hotkey: "none",
+    fontFamily: "",
+    drawBackground: true,
+    verticalText: "auto",
+    renderMode: "canvas",
+    enabled: true,
+    minReadablePx: 12,
+    supersample: 2,
+    cacheBytes: 32 * 1024 * 1024,
+    persistCache: true,
+    mangaMode: false,
+    mangaBoxGrowth: 1.45,
+    outlineScale: 1,
+    eraseMode: "patch",
+    hullPadding: 0.45,
+    reflowHorizontal: false,
+    fitToBox: true,
+    lineSpacing: 1.25,
+    textAlign: "auto"
+  };
+  function lensSettings() {
+    const settings = state.settings;
+    return {
+      ...LENS_DEFAULTS,
+      // The same target language the text translators use
+      targetLang: resolveLanguage(settings.translationLanguage).code,
+      mangaMode: settings.imageTranslateManga,
+      eraseMode: settings.imageTranslateErase,
+      minReadablePx: Number(settings.imageTranslateMinPx) || 0,
+      supersample: Number(settings.imageTranslateSharpness) || 1,
+      reflowHorizontal: settings.imageTranslateReflow,
+      fitToBox: settings.imageTranslateFitToBox,
+      lineSpacing: Number(settings.imageTranslateLineSpacing) || LENS_DEFAULTS.lineSpacing,
+      persistCache: settings.imageTranslatePersist
+    };
+  }
+  function loadImage(url) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error("Could not load the image"));
+      image.src = url;
+    });
+  }
+  const MAX_LIVE_URLS = 8;
+  const liveUrls = /* @__PURE__ */ new Map();
+  function keepUrl(key, blob) {
+    const url = URL.createObjectURL(blob);
+    liveUrls.set(key, url);
+    while (liveUrls.size > MAX_LIVE_URLS) {
+      const oldest = liveUrls.keys().next();
+      if (oldest.done) break;
+      URL.revokeObjectURL(liveUrls.get(oldest.value));
+      liveUrls.delete(oldest.value);
+    }
+    return url;
+  }
+  function referenceWidth() {
+    const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
+    return Math.round(width / 200) * 200;
+  }
+  async function translateImage(url) {
+    const settings = lensSettings();
+    const displayedWidth = referenceWidth();
+    const key = cacheKey(url, settings);
+    const rendered = renderKey(key, settings, displayedWidth);
+    const live = liveUrls.get(rendered);
+    if (live) return live;
+    const done = getRender(rendered, settings);
+    if (done) return keepUrl(rendered, done);
+    const image = await loadImage(url);
+    const prepared = await acquireSource({ element: image, url });
+    try {
+      let result = getCached(key, settings);
+      const hash = result ? "" : fingerprint(prepared.source, prepared.width, prepared.height);
+      if (!result && hash) {
+        result = await getStored(hash, settings);
+        if (result) putCached(key, result, settings);
+      }
+      if (!result) {
+        const upload = await encodeForUpload(prepared.source, settings);
+        result = await callLens(upload, settings);
+        putCached(key, result, settings);
+        void putStored(hash, result, settings);
+      }
+      if (!result.blocks.length) {
+        throw new Error(
+          result.ocr.some((paragraph) => paragraph.lines.length > 0) ? "Lens read the text but returned no translation (same language?)" : "Lens found no text in this image"
+        );
+      }
+      const blob = await renderToBlob(
+        prepared.source,
+        prepared.width,
+        prepared.height,
+        result.blocks,
+        settings,
+        displayedWidth
+      );
+      putRender(rendered, blob, settings);
+      return keepUrl(rendered, blob);
+    } finally {
+      prepared.release();
+    }
+  }
+  async function clearImageTranslationCache() {
+    const stored = await storedStats();
+    clearCache();
+    await clearStored();
+    return stored;
   }
   let settingsModalElement = null;
   let settingsOverlayElement = null;
@@ -5378,7 +7068,25 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           { value: "3", text: "3x" }
         ],
         "Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp"
-      )
+      ),
+      checkboxItem(
+        "kdl-setting-imageTranslateReflow",
+        "Re-wrap horizontal text",
+        "Treats a paragraph as one text area instead of repeating the lines Lens found, so line spacing has something to act on"
+      ),
+      checkboxItem("kdl-setting-imageTranslateFitToBox", "Keep text out of the next bubble", "Shrinks a paragraph that outgrows the room between its neighbours"),
+      selectItem(
+        "kdl-setting-imageTranslateLineSpacing",
+        "Line spacing",
+        [0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2].map((value) => ({ value: String(value), text: `${value}x` })),
+        "Acts on re-wrapped text: the switch above, or vertical text in manga mode"
+      ),
+      checkboxItem(
+        "kdl-setting-imageTranslatePersist",
+        "Remember across reloads",
+        "Recognises a picture by its pixels, so reopening a post asks Lens nothing. Kept by this browser, per site"
+      ),
+      el("button", { id: "kdl-clear-lens-cache-btn", className: "kdl-btn-warn" }, ["Clear image translation cache"])
     ]);
     const visibleButtonsCard = cardContainer("eye", "Visible Buttons", [
       el("div", { className: "kdl-setting-checkbox-grid" }, [
@@ -5423,7 +7131,7 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
           if (element.type === "checkbox") {
             value = element.checked;
           } else if (typeof defaultValue === "number") {
-            const parsed = parseInt(element.value, 10);
+            const parsed = parseFloat(element.value);
             const { min, max } = element;
             value = Number.isFinite(parsed) ? parsed : defaultValue;
             if (min) value = Math.max(Number(min), value);
@@ -5438,6 +7146,10 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
       toggleSettingsModal(false);
     });
     settingsModalElement.querySelector(".kdl-close").addEventListener("click", () => toggleSettingsModal(false));
+    document.getElementById("kdl-clear-lens-cache-btn").addEventListener("click", async () => {
+      const { entries: entries2 } = await clearImageTranslationCache();
+      showMessage(entries2 ? `Forgot ${entries2} image translation${entries2 === 1 ? "" : "s"}` : "Image translation cache cleared", "info");
+    });
     settingsOverlayElement.addEventListener("click", (e) => {
       if (e.target === settingsOverlayElement) toggleSettingsModal(false);
     });
@@ -7439,7 +9151,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         service: details.service,
         post_date: details.postDate || "UnknownDate"
       });
-      downloadBlobWithGm(await zip.toBlob(), zipFileName);
+      saveBlob(await zip.toBlob(), zipFileName);
       postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ""}`);
     } catch (error) {
       if (isAbortError(error)) {
@@ -7497,7 +9209,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
         author_name: authorName,
         post_count: postIds.length
       });
-      downloadBlobWithGm(await zip.toBlob(), finalZipName);
+      saveBlob(await zip.toBlob(), finalZipName);
       task.updateStatus("Complete!");
     } catch (error) {
       if (isAbortError(error)) {
@@ -7590,11 +9302,7 @@ Error: ${(error == null ? void 0 : error.message) || error}`);
       const textContent = urlFiles.map((f) => f.data).join("\n");
       const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
       const fileName = `${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_links.txt`;
-      GM_download({
-        url: URL.createObjectURL(blob),
-        name: fileName,
-        saveAs: false
-      });
+      saveBlob(blob, fileName);
       showMessage(`Downloaded ${urlFiles.length} links as text file for ADM!`, "info");
     } else if (actionType === "share") {
       if (typeof navigator.share === "function") {
@@ -8205,7 +9913,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const userID = pathParts[2];
     const cacheKey2 = `kemono_posts_cache_${service}_${userID}`;
     if (!forceRefresh && state.settings.cacheDurationHours > 0) {
-      const cachedData = await GM_getValue(cacheKey2, null);
+      const cachedData = readStored(cacheKey2, null);
       if (cachedData && cachedData.postList) {
         const cacheAgeHours = (Date.now() - cachedData.timestamp) / (1e3 * 60 * 60);
         if (cacheAgeHours < state.settings.cacheDurationHours) {
@@ -8221,7 +9929,7 @@ Total Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main fi
     const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID);
     if (allPosts.length > 0) {
       if (state.settings.cacheDurationHours > 0) {
-        await GM_setValue(cacheKey2, { timestamp: Date.now(), postList: allPosts });
+        writeStored(cacheKey2, { timestamp: Date.now(), postList: allPosts });
       }
       title.textContent = `Manage ${allPosts.length} posts by ${authorName}`;
       populateManagerList(allPosts);
@@ -8846,1242 +10554,8 @@ Password: ${password} (copied on click)`;
       }
     });
   }
-  function weigh(blocks) {
-    var _a2;
-    let bytes2 = 0;
-    for (const block of blocks) {
-      bytes2 += block.translation.length * 2;
-      for (const line of block.lines) bytes2 += ((_a2 = line.background) == null ? void 0 : _a2.bytes.byteLength) ?? 0;
-    }
-    return bytes2;
-  }
-  const entries = /* @__PURE__ */ new Map();
-  let totalBytes = 0;
-  let clock = 0;
-  const RENDITION_PARAMS = /* @__PURE__ */ new Set([
-    "name",
-    "format",
-    "fm",
-    "w",
-    "width",
-    "h",
-    "height",
-    "size",
-    "s",
-    "q",
-    "quality",
-    "dpr",
-    "resize",
-    "fit",
-    "crop",
-    "auto"
-  ]);
-  function normalizeUrl(raw) {
-    if (!raw || raw.startsWith("data:") || raw.startsWith("blob:")) return raw;
-    try {
-      const url = new URL(raw, document.baseURI);
-      for (const name of [...url.searchParams.keys()]) {
-        if (RENDITION_PARAMS.has(name.toLowerCase())) url.searchParams.delete(name);
-      }
-      url.hash = "";
-      const query = url.searchParams.toString();
-      return `${url.origin}${url.pathname}${query ? `?${query}` : ""}`;
-    } catch {
-      return raw;
-    }
-  }
-  function cacheKey(url, settings) {
-    return [normalizeUrl(url), settings.targetLang, settings.sourceLang, settings.ocrLang].join("\0");
-  }
-  function getCached(key, settings) {
-    if (settings.cacheBytes <= 0) return null;
-    const entry = entries.get(key);
-    if (!entry) return null;
-    entry.used = ++clock;
-    return entry.result;
-  }
-  function putCached(key, result, settings) {
-    var _a2;
-    const limit = settings.cacheBytes;
-    if (limit <= 0) return;
-    const bytes2 = weigh(result.blocks);
-    if (bytes2 > limit) return;
-    const existing = entries.get(key);
-    if (existing) totalBytes -= existing.bytes;
-    entries.set(key, { result, bytes: bytes2, used: ++clock });
-    totalBytes += bytes2;
-    while (totalBytes > limit && entries.size > 1) {
-      let oldestKey = null;
-      let oldestUsed = Infinity;
-      for (const [candidate, entry] of entries) {
-        if (entry.used < oldestUsed) {
-          oldestUsed = entry.used;
-          oldestKey = candidate;
-        }
-      }
-      if (oldestKey === null) break;
-      totalBytes -= ((_a2 = entries.get(oldestKey)) == null ? void 0 : _a2.bytes) ?? 0;
-      entries.delete(oldestKey);
-    }
-  }
-  function renderKey(key, settings, displayedWidth) {
-    return [
-      key,
-      settings.renderMode,
-      settings.verticalText,
-      settings.fontFamily,
-      settings.drawBackground ? 1 : 0,
-      settings.minReadablePx,
-      settings.supersample,
-      settings.mangaMode ? 1 : 0,
-      settings.mangaBoxGrowth,
-      settings.outlineScale,
-      settings.eraseMode,
-      settings.hullPadding,
-      settings.textAlign,
-      Math.round(displayedWidth / 50)
-    ].join("");
-  }
-  const renders = /* @__PURE__ */ new Map();
-  let renderBytes = 0;
-  function getRender(key, settings) {
-    if (settings.cacheBytes <= 0) return null;
-    const entry = renders.get(key);
-    if (!entry) return null;
-    entry.used = ++clock;
-    return entry.blob;
-  }
-  function putRender(key, blob, settings) {
-    var _a2;
-    const limit = settings.cacheBytes;
-    if (limit <= 0 || blob.size > limit) return;
-    const existing = renders.get(key);
-    if (existing) renderBytes -= existing.blob.size;
-    renders.set(key, { blob, used: ++clock });
-    renderBytes += blob.size;
-    while (renderBytes > limit && renders.size > 1) {
-      let oldestKey = null;
-      let oldestUsed = Infinity;
-      for (const [candidate, entry] of renders) {
-        if (entry.used < oldestUsed) {
-          oldestUsed = entry.used;
-          oldestKey = candidate;
-        }
-      }
-      if (oldestKey === null) break;
-      renderBytes -= ((_a2 = renders.get(oldestKey)) == null ? void 0 : _a2.blob.size) ?? 0;
-      renders.delete(oldestKey);
-    }
-  }
-  const F = {
-    AppliedFilter: {
-      filterType: 1,
-      translate: 3
-    },
-    AppliedFilter_Translate: {
-      targetLanguage: 1,
-      sourceLanguage: 2
-    },
-    AppliedFilters: {
-      filter: 1
-    },
-    CenterRotatedBox: {
-      centerX: 1,
-      centerY: 2,
-      width: 3,
-      height: 4,
-      rotationZ: 5
-    },
-    DeepGleamData: {
-      translation: 10
-    },
-    Geometry: {
-      boundingBox: 1
-    },
-    ImageData: {
-      payload: 1,
-      imageMetadata: 3
-    },
-    ImageMetadata: {
-      width: 1,
-      height: 2
-    },
-    ImagePayload: {
-      imageBytes: 1
-    },
-    LensOverlayClientContext: {
-      platform: 1,
-      surface: 2,
-      localeContext: 4,
-      clientFilters: 17,
-      renderingContext: 20
-    },
-    LensOverlayObjectsRequest: {
-      requestContext: 1,
-      imageData: 3
-    },
-    LensOverlayObjectsResponse: {
-      text: 3,
-      deepGleams: 4
-    },
-    LensOverlayRequestContext: {
-      requestId: 3,
-      clientContext: 4
-    },
-    LensOverlayRequestId: {
-      uuid: 1,
-      sequenceId: 2,
-      imageSequenceId: 3
-    },
-    LensOverlayServerError: {
-      errorType: 1
-    },
-    LensOverlayServerRequest: {
-      objectsRequest: 1
-    },
-    LensOverlayServerResponse: {
-      error: 1,
-      objectsResponse: 2
-    },
-    LocaleContext: {
-      language: 1,
-      region: 2,
-      timeZone: 3
-    },
-    RenderingContext: {
-      renderingEnvironment: 2
-    },
-    Text: {
-      textLayout: 1,
-      contentLanguage: 2
-    },
-    TextLayout: {
-      paragraphs: 1
-    },
-    TextLayout_Line: {
-      words: 1,
-      geometry: 2
-    },
-    TextLayout_Paragraph: {
-      lines: 2,
-      geometry: 3,
-      writingDirection: 4
-    },
-    TextLayout_Word: {
-      plainText: 2,
-      textSeparator: 3,
-      geometry: 4,
-      type: 5,
-      formulaMetadata: 6
-    },
-    TextLayout_Word_FormulaMetadata: {
-      latex: 1
-    },
-    TranslationData: {
-      status: 1,
-      targetLanguage: 2,
-      sourceLanguage: 3,
-      translation: 4,
-      line: 5,
-      writingDirection: 7,
-      alignment: 8
-    },
-    TranslationData_BackgroundImageData: {
-      backgroundImage: 1,
-      verticalPadding: 4,
-      horizontalPadding: 5
-    },
-    TranslationData_Line: {
-      style: 3,
-      word: 5,
-      backgroundImageData: 9
-    },
-    TranslationData_Line_Word: {
-      start: 1,
-      end: 2
-    },
-    TranslationData_Status: {
-      code: 1
-    },
-    TranslationData_TextStyle: {
-      textColor: 1,
-      backgroundPrimaryColor: 2
-    }
-  };
-  const Wire = {
-    Varint: 0,
-    Fixed64: 1,
-    Length: 2,
-    Fixed32: 5
-  };
-  function encodeVarint(value) {
-    let v = BigInt(value);
-    const out = [];
-    while (v > 127n) {
-      out.push(Number(v & 127n) | 128);
-      v >>= 7n;
-    }
-    out.push(Number(v));
-    return out;
-  }
-  function writer() {
-    const parts = [];
-    const self = {
-      raw(bytes2) {
-        parts.push(bytes2);
-        return self;
-      },
-      tag(field, wire) {
-        return self.raw(encodeVarint(field * 8 + wire));
-      },
-      int(field, value) {
-        if (!value) return self;
-        return self.tag(field, Wire.Varint).raw(encodeVarint(value));
-      },
-      str(field, value) {
-        if (!value) return self;
-        const bytes2 = new TextEncoder().encode(value);
-        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
-      },
-      bytes(field, value) {
-        if (!value || !value.length) return self;
-        return self.tag(field, Wire.Length).raw(encodeVarint(value.length)).raw(value);
-      },
-      sub(field, build) {
-        const inner = writer();
-        build(inner);
-        const bytes2 = inner.finish();
-        if (!bytes2.length) return self;
-        return self.tag(field, Wire.Length).raw(encodeVarint(bytes2.length)).raw(bytes2);
-      },
-      finish() {
-        let length = 0;
-        for (const part of parts) length += part.length;
-        const out = new Uint8Array(length);
-        let offset = 0;
-        for (const part of parts) {
-          out.set(part, offset);
-          offset += part.length;
-        }
-        return out;
-      }
-    };
-    return self;
-  }
-  function decode(buf) {
-    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-    const out = {};
-    let p = 0;
-    const readVarint = () => {
-      let shift = 0n;
-      let result = 0n;
-      for (; ; ) {
-        const byte = buf[p++];
-        if (byte === void 0) throw new Error("Truncated protobuf varint");
-        result |= BigInt(byte & 127) << shift;
-        if (!(byte & 128)) return result;
-        shift += 7n;
-      }
-    };
-    while (p < buf.length) {
-      const key = Number(readVarint());
-      const field = key >> 3;
-      const wire = key & 7;
-      let value;
-      switch (wire) {
-        case Wire.Varint:
-          value = readVarint();
-          break;
-        case Wire.Fixed64:
-          value = view.getFloat64(p, true);
-          p += 8;
-          break;
-        case Wire.Length: {
-          const length = Number(readVarint());
-          value = buf.subarray(p, p + length);
-          p += length;
-          break;
-        }
-        case Wire.Fixed32:
-          value = view.getFloat32(p, true);
-          p += 4;
-          break;
-        default:
-          throw new Error(`Unsupported protobuf wire type ${wire} at byte ${p}`);
-      }
-      (out[field] ?? (out[field] = [])).push(value);
-    }
-    return out;
-  }
-  function one(msg, field) {
-    var _a2;
-    return (_a2 = msg == null ? void 0 : msg[field]) == null ? void 0 : _a2[0];
-  }
-  function all(msg, field) {
-    return (msg == null ? void 0 : msg[field]) ?? [];
-  }
-  function bytes(msg, field) {
-    const value = one(msg, field);
-    return value instanceof Uint8Array ? value : null;
-  }
-  function sub(msg, field) {
-    const value = bytes(msg, field);
-    return value ? decode(value) : null;
-  }
-  function subs(msg, field) {
-    return all(msg, field).filter((value) => value instanceof Uint8Array).map(decode);
-  }
-  function text(msg, field) {
-    const value = bytes(msg, field);
-    return value ? new TextDecoder().decode(value) : "";
-  }
-  function num(msg, field, fallback = 0) {
-    const value = one(msg, field);
-    if (value === void 0 || value instanceof Uint8Array) return fallback;
-    return Number(value);
-  }
-  const PLATFORM_WEB = 3;
-  const SURFACE_CHROMIUM = 4;
-  const FILTER_TRANSLATE = 2;
-  const FILTER_AUTO = 7;
-  const RENDERING_ENV_LENS_OVERLAY = 14;
-  function randomUuid() {
-    const high = BigInt(Math.floor(Math.random() * 1073741824));
-    const low = BigInt(Math.floor(Math.random() * 4294967296));
-    return high << 32n | low;
-  }
-  function buildRequest(image, settings) {
-    const translating = Boolean(settings.targetLang);
-    return writer().sub(F.LensOverlayServerRequest.objectsRequest, (objects) => {
-      objects.sub(F.LensOverlayObjectsRequest.requestContext, (ctx) => {
-        ctx.sub(
-          F.LensOverlayRequestContext.requestId,
-          (id) => id.int(F.LensOverlayRequestId.uuid, randomUuid()).int(F.LensOverlayRequestId.sequenceId, 1).int(F.LensOverlayRequestId.imageSequenceId, 1)
-        );
-        ctx.sub(F.LensOverlayRequestContext.clientContext, (client) => {
-          client.int(F.LensOverlayClientContext.platform, PLATFORM_WEB);
-          client.int(F.LensOverlayClientContext.surface, SURFACE_CHROMIUM);
-          client.sub(
-            F.LensOverlayClientContext.localeContext,
-            (locale) => locale.str(F.LocaleContext.language, settings.ocrLang || settings.targetLang).str(F.LocaleContext.region, settings.region).str(F.LocaleContext.timeZone, settings.timeZone)
-          );
-          client.sub(
-            F.LensOverlayClientContext.clientFilters,
-            (filters) => filters.sub(F.AppliedFilters.filter, (filter) => {
-              if (!translating) {
-                filter.int(F.AppliedFilter.filterType, FILTER_AUTO);
-                return;
-              }
-              filter.int(F.AppliedFilter.filterType, FILTER_TRANSLATE);
-              filter.sub(
-                F.AppliedFilter.translate,
-                (translate) => translate.str(F.AppliedFilter_Translate.targetLanguage, settings.targetLang).str(F.AppliedFilter_Translate.sourceLanguage, settings.sourceLang)
-              );
-            })
-          );
-          client.sub(
-            F.LensOverlayClientContext.renderingContext,
-            (rendering) => rendering.int(F.RenderingContext.renderingEnvironment, RENDERING_ENV_LENS_OVERLAY)
-          );
-        });
-      });
-      objects.sub(F.LensOverlayObjectsRequest.imageData, (data) => {
-        data.sub(
-          F.ImageData.payload,
-          (payload) => payload.bytes(F.ImagePayload.imageBytes, image.imageBytes)
-        );
-        data.sub(
-          F.ImageData.imageMetadata,
-          (meta) => meta.int(F.ImageMetadata.width, image.width).int(F.ImageMetadata.height, image.height)
-        );
-      });
-    }).finish();
-  }
-  const TRANSLATION_SUCCESS = 1;
-  const WORD_TYPE_FORMULA = 1;
-  function parseGeometry(geometry) {
-    const box = sub(geometry, F.Geometry.boundingBox);
-    if (!box) return null;
-    return {
-      cx: num(box, F.CenterRotatedBox.centerX),
-      cy: num(box, F.CenterRotatedBox.centerY),
-      w: num(box, F.CenterRotatedBox.width),
-      h: num(box, F.CenterRotatedBox.height),
-      // rotation_z is clockwise radians; CSS rotate() takes clockwise degrees.
-      angle: num(box, F.CenterRotatedBox.rotationZ) * 180 / Math.PI
-    };
-  }
-  function parseWord(word) {
-    const parsed = {
-      text: text(word, F.TextLayout_Word.plainText),
-      separator: text(word, F.TextLayout_Word.textSeparator),
-      geometry: parseGeometry(sub(word, F.TextLayout_Word.geometry))
-    };
-    if (num(word, F.TextLayout_Word.type) === WORD_TYPE_FORMULA) {
-      parsed.type = "FORMULA";
-      parsed.latex = text(sub(word, F.TextLayout_Word.formulaMetadata), F.TextLayout_Word_FormulaMetadata.latex);
-    }
-    return parsed;
-  }
-  function paragraphsOf(objects) {
-    const layout = sub(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.textLayout);
-    return subs(layout, F.TextLayout.paragraphs);
-  }
-  function parseOcr(objects) {
-    return paragraphsOf(objects).map((paragraph) => ({
-      writingDirection: num(paragraph, F.TextLayout_Paragraph.writingDirection),
-      geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
-      lines: subs(paragraph, F.TextLayout_Paragraph.lines).map((line) => {
-        const words = subs(line, F.TextLayout_Line.words).map(parseWord);
-        return {
-          text: words.map((w) => w.text + w.separator).join("").trim(),
-          words,
-          geometry: parseGeometry(sub(line, F.TextLayout_Line.geometry))
-        };
-      })
-    }));
-  }
-  function parseBackground(line) {
-    const data = sub(line, F.TranslationData_Line.backgroundImageData);
-    if (!data) return null;
-    const image = bytes(data, F.TranslationData_BackgroundImageData.backgroundImage);
-    if (!image) return null;
-    return {
-      bytes: image,
-      vPad: num(data, F.TranslationData_BackgroundImageData.verticalPadding),
-      hPad: num(data, F.TranslationData_BackgroundImageData.horizontalPadding)
-    };
-  }
-  function parseTranslation(objects) {
-    const paragraphs = paragraphsOf(objects);
-    const gleams = subs(objects, F.LensOverlayObjectsResponse.deepGleams);
-    const blocks = [];
-    paragraphs.forEach((paragraph, index) => {
-      const gleam = gleams[index];
-      const translation = gleam ? sub(gleam, F.DeepGleamData.translation) : null;
-      if (!translation) return;
-      if (num(sub(translation, F.TranslationData.status), F.TranslationData_Status.code) !== TRANSLATION_SUCCESS) return;
-      const sourceLines = subs(paragraph, F.TextLayout_Paragraph.lines);
-      const translatedLines = subs(translation, F.TranslationData.line);
-      if (sourceLines.length !== translatedLines.length) return;
-      const lines = translatedLines.map((line, i2) => {
-        const style = sub(line, F.TranslationData_Line.style);
-        const source = sourceLines[i2];
-        return {
-          words: subs(line, F.TranslationData_Line.word).map(
-            (word) => [num(word, F.TranslationData_Line_Word.start), num(word, F.TranslationData_Line_Word.end)]
-          ),
-          textColor: num(style, F.TranslationData_TextStyle.textColor),
-          bgColor: num(style, F.TranslationData_TextStyle.backgroundPrimaryColor),
-          geometry: source ? parseGeometry(sub(source, F.TextLayout_Line.geometry)) : null,
-          background: parseBackground(line)
-        };
-      });
-      blocks.push({
-        translation: text(translation, F.TranslationData.translation),
-        geometry: parseGeometry(sub(paragraph, F.TextLayout_Paragraph.geometry)),
-        sourceLang: text(translation, F.TranslationData.sourceLanguage),
-        targetLang: text(translation, F.TranslationData.targetLanguage),
-        writingDirection: num(translation, F.TranslationData.writingDirection),
-        alignment: num(translation, F.TranslationData.alignment),
-        lines
-      });
-    });
-    return blocks;
-  }
-  function parseResponse(raw) {
-    const response = decode(raw);
-    const error = sub(response, F.LensOverlayServerResponse.error);
-    const errorType = error ? num(error, F.LensOverlayServerError.errorType) : 0;
-    if (errorType) throw new Error(`Lens returned server error type ${errorType}`);
-    const objects = sub(response, F.LensOverlayServerResponse.objectsResponse);
-    if (!objects) return { contentLanguage: "", ocr: [], blocks: [] };
-    return {
-      contentLanguage: text(sub(objects, F.LensOverlayObjectsResponse.text), F.Text.contentLanguage),
-      ocr: parseOcr(objects),
-      blocks: parseTranslation(objects)
-    };
-  }
-  const LENS_ENDPOINT = "https://lensfrontend-pa.googleapis.com/v1/crupload";
-  function callLens(image, settings) {
-    return new Promise((resolve, reject) => {
-      GM_xmlhttpRequest({
-        method: "POST",
-        url: LENS_ENDPOINT,
-        headers: {
-          "Content-Type": "application/x-protobuf",
-          "X-Goog-Api-Key": settings.apiKey
-        },
-        data: buildRequest(image, settings),
-        binary: true,
-        responseType: "arraybuffer",
-        timeout: settings.timeoutMs,
-        onload: (response) => {
-          if (response.status !== 200) {
-            reject(new Error(`Lens returned HTTP ${response.status}`));
-            return;
-          }
-          try {
-            resolve(parseResponse(new Uint8Array(response.response)));
-          } catch (e) {
-            reject(new Error(`Could not parse the Lens response: ${e.message}`));
-          }
-        },
-        onerror: () => reject(new Error("Network error talking to Lens")),
-        ontimeout: () => reject(new Error("Lens timed out"))
-      });
-    });
-  }
-  function fetchImageBlob(url) {
-    return new Promise((resolve, reject) => {
-      GM_xmlhttpRequest({
-        method: "GET",
-        url,
-        responseType: "blob",
-        onload: (response) => {
-          if (response.status && response.status >= 400) {
-            reject(new Error(`Image fetch returned HTTP ${response.status}`));
-            return;
-          }
-          resolve(response.response);
-        },
-        onerror: () => reject(
-          new Error(
-            "Could not fetch the image. If Tampermonkey blocked this domain, clear it under Settings > Security > Blocked domains."
-          )
-        )
-      });
-    });
-  }
-  function targetSize(width, height, { maxArea, maxSide }) {
-    if (width * height <= maxArea || width <= maxSide && height <= maxSide) {
-      return { width, height };
-    }
-    const scale = Math.min(maxSide / width, maxSide / height);
-    return {
-      width: Math.max(1, Math.round(width * scale)),
-      height: Math.max(1, Math.round(height * scale))
-    };
-  }
-  function sourceSize(source) {
-    return source instanceof HTMLImageElement ? { width: source.naturalWidth, height: source.naturalHeight } : { width: source.width, height: source.height };
-  }
-  async function encodeForUpload(source, settings, release = () => {
-  }) {
-    const natural = sourceSize(source);
-    const { width, height } = targetSize(natural.width, natural.height, settings);
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not get a 2d canvas context");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(source, 0, 0, width, height);
-    const jpeg = await new Promise((resolve, reject) => {
-      try {
-        canvas.toBlob(resolve, "image/jpeg", settings.jpegQuality);
-      } catch (e) {
-        reject(e);
-      }
-    });
-    if (!jpeg) throw new Error("Canvas is tainted");
-    return {
-      imageBytes: new Uint8Array(await jpeg.arrayBuffer()),
-      width,
-      height,
-      source,
-      sourceWidth: natural.width,
-      sourceHeight: natural.height,
-      release
-    };
-  }
-  function loadWithCors(url) {
-    return new Promise((resolve, reject) => {
-      const probe = new Image();
-      probe.crossOrigin = "anonymous";
-      probe.decoding = "sync";
-      probe.onload = () => resolve(probe);
-      probe.onerror = () => reject(new Error("CORS load failed"));
-      probe.src = url;
-    });
-  }
-  async function acquireSource(img) {
-    const probe = document.createElement("canvas");
-    probe.width = 1;
-    probe.height = 1;
-    const readable = (candidate) => {
-      try {
-        const ctx = probe.getContext("2d");
-        if (!ctx) return false;
-        ctx.drawImage(candidate, 0, 0, 1, 1);
-        ctx.getImageData(0, 0, 1, 1);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-    if (img.naturalWidth && img.naturalHeight && readable(img)) {
-      const size = sourceSize(img);
-      return { source: img, ...size, release: () => {
-      } };
-    }
-    const url = img.currentSrc || img.src;
-    if (!url) throw new Error("This image has no source to read");
-    try {
-      const cors = await loadWithCors(url);
-      if (readable(cors)) {
-        const size = sourceSize(cors);
-        return { source: cors, ...size, release: () => {
-        } };
-      }
-    } catch {
-    }
-    const blob = await fetchImageBlob(url);
-    const bitmap = await createImageBitmap(blob);
-    return {
-      source: bitmap,
-      width: bitmap.width,
-      height: bitmap.height,
-      release: () => bitmap.close()
-    };
-  }
-  const WritingDirection = {
-    RightToLeft: 1,
-    TopToBottom: 2
-  };
-  const Alignment = {
-    Left: 0,
-    Right: 1,
-    Center: 2
-  };
-  const MIN_FONT_SIZE = 3;
-  const MAX_FONT_SIZE = 150;
-  const OUTLINE_RATIO = 0.02;
-  const RTL_LANGS = /* @__PURE__ */ new Set([
-    "ar",
-    "bal",
-    "ckb",
-    "dv",
-    "fa",
-    "he",
-    "iw",
-    "ji",
-    "ks",
-    "ps",
-    "sd",
-    "ug",
-    "ur",
-    "yi"
-  ]);
-  const CJK_LANGS = /* @__PURE__ */ new Set(["ja", "zh", "ko", "yue"]);
-  const measureCtx = document.createElement("canvas").getContext("2d");
-  const baseLang = (tag) => {
-    var _a2;
-    return ((_a2 = tag.split("-")[0]) == null ? void 0 : _a2.toLowerCase()) ?? "";
-  };
-  function fitFontSize(str, boxWidth, boxHeight, fontFamily) {
-    if (!measureCtx) return MIN_FONT_SIZE;
-    let low = MIN_FONT_SIZE;
-    let high = MAX_FONT_SIZE;
-    while (low <= high) {
-      const mid = low + high >> 1;
-      measureCtx.font = `${mid}px ${fontFamily}`;
-      const metrics = measureCtx.measureText(str);
-      const height = metrics.fontBoundingBoxAscent + metrics.fontBoundingBoxDescent;
-      if (metrics.width >= boxWidth || height >= boxHeight) high = mid - 1;
-      else low = mid + 1;
-    }
-    return Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
-  }
-  function buildLineText(translation, line, nextLine) {
-    let out = "";
-    line.words.forEach(([start, end], i2) => {
-      out += translation.slice(start, end);
-      const next = line.words[i2 + 1];
-      if (next) out += translation.slice(end, next[0]);
-      else if (nextLine == null ? void 0 : nextLine.words[0]) out += translation.slice(end, nextLine.words[0][0]);
-    });
-    return out;
-  }
-  function wrapText(measure, text2, maxWidth, perCharacter = false) {
-    const lines = [];
-    for (const hardLine of text2.split("\n")) {
-      if (!hardLine) {
-        lines.push("");
-        continue;
-      }
-      const tokens = perCharacter ? [...hardLine] : hardLine.split(/\s+/);
-      const joiner = perCharacter ? "" : " ";
-      let current = "";
-      for (const token of tokens) {
-        const candidate = current ? `${current}${joiner}${token}` : token;
-        if (measure(candidate) <= maxWidth || !current) current = candidate;
-        else {
-          lines.push(current);
-          current = token;
-        }
-      }
-      if (current) lines.push(current);
-    }
-    return lines;
-  }
-  function fitTextBlock(setFont, measure, lineHeight, text2, boxWidth, boxHeight, perCharacter = false) {
-    let low = MIN_FONT_SIZE;
-    let high = MAX_FONT_SIZE;
-    let best = [];
-    while (low <= high) {
-      const mid = low + high >> 1;
-      setFont(mid);
-      const lines = wrapText(measure, text2, boxWidth, perCharacter);
-      const widest = lines.reduce((max, line) => Math.max(max, measure(line)), 0);
-      if (widest >= boxWidth || lines.length * lineHeight(mid) >= boxHeight) high = mid - 1;
-      else {
-        low = mid + 1;
-        best = lines;
-      }
-    }
-    const size = Math.max(MIN_FONT_SIZE, Math.min(low - 1, MAX_FONT_SIZE));
-    if (!best.length) {
-      setFont(size);
-      best = wrapText(measure, text2, boxWidth, perCharacter);
-    }
-    return { size, lines: best };
-  }
-  function argbToCss(value) {
-    const alpha = (value >>> 24 & 255) / 255;
-    return `rgba(${value >> 16 & 255}, ${value >> 8 & 255}, ${value & 255}, ${alpha})`;
-  }
-  function shouldStayVertical(block, mode) {
-    if (block.writingDirection !== WritingDirection.TopToBottom) return false;
-    if (mode === "keep") return true;
-    if (mode === "horizontal") return false;
-    return CJK_LANGS.has(baseLang(block.targetLang));
-  }
-  function wrapsPerCharacter(block) {
-    return CJK_LANGS.has(baseLang(block.targetLang));
-  }
-  function isRtl(block) {
-    if (block.writingDirection === WritingDirection.RightToLeft) return true;
-    return RTL_LANGS.has(baseLang(block.targetLang));
-  }
-  function justification(alignment, rtl, override = "auto") {
-    if (override !== "auto") {
-      return { left: "flex-start", center: "center", right: "flex-end" }[override];
-    }
-    const map = {
-      [Alignment.Left]: "flex-start",
-      [Alignment.Right]: "flex-end",
-      [Alignment.Center]: "center"
-    };
-    const value = map[alignment] ?? "center";
-    return rtl && value === "flex-start" ? "flex-end" : value;
-  }
-  function boxCorners(geometry, width, height) {
-    const cx = geometry.cx * width;
-    const cy = geometry.cy * height;
-    const halfW = geometry.w * width / 2;
-    const halfH = geometry.h * height / 2;
-    const radians = geometry.angle * Math.PI / 180;
-    const cos = Math.cos(radians);
-    const sin = Math.sin(radians);
-    return [
-      [-halfW, -halfH],
-      [halfW, -halfH],
-      [halfW, halfH],
-      [-halfW, halfH]
-    ].map(([dx, dy]) => ({
-      x: cx + dx * cos - dy * sin,
-      y: cy + dx * sin + dy * cos
-    }));
-  }
-  const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-  function convexHull(points) {
-    if (points.length < 3) return [...points];
-    const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
-    const build = (input) => {
-      const chain = [];
-      for (const point of input) {
-        while (chain.length >= 2) {
-          const last = chain[chain.length - 1];
-          const prev = chain[chain.length - 2];
-          if (cross(prev, last, point) > 0) break;
-          chain.pop();
-        }
-        chain.push(point);
-      }
-      chain.pop();
-      return chain;
-    };
-    return [...build(sorted), ...build([...sorted].reverse())];
-  }
-  function fillHull(ctx, hull, colour, pad) {
-    if (hull.length < 3) return;
-    ctx.save();
-    ctx.beginPath();
-    const [first, ...rest] = hull;
-    ctx.moveTo(first.x, first.y);
-    for (const point of rest) ctx.lineTo(point.x, point.y);
-    ctx.closePath();
-    ctx.fillStyle = colour;
-    if (pad > 0) {
-      ctx.strokeStyle = colour;
-      ctx.lineWidth = pad * 2;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
-    }
-    ctx.fill();
-    ctx.restore();
-  }
-  const DEG = Math.PI / 180;
-  const UPRIGHT_RANGES = [
-    [4352, 4607],
-    [11904, 12351],
-    [12353, 13311],
-    [13312, 19903],
-    [19968, 40959],
-    [44032, 55215],
-    [63744, 64255],
-    [65040, 65103],
-    [65280, 65376],
-    [65504, 65510]
-  ];
-  const isUpright = (char) => {
-    const code = char.codePointAt(0) ?? 0;
-    return UPRIGHT_RANGES.some(([low, high]) => code >= low && code <= high);
-  };
-  const CORNER_PUNCT = new Set("、。，．");
-  function verticalRuns(text2) {
-    const runs = [];
-    for (const char of text2) {
-      let upright = isUpright(char);
-      const last = runs[runs.length - 1];
-      if (/\s/.test(char) && last) upright = last[0];
-      if (last && last[0] === upright) last[1] += char;
-      else runs.push([upright, char]);
-    }
-    return runs;
-  }
-  function strokeThenFill(ctx, text2, x2, y, outline, outlineColor) {
-    if (outline <= 0 || !outlineColor) return;
-    ctx.save();
-    ctx.strokeStyle = outlineColor;
-    ctx.lineWidth = outline * 2;
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.miterLimit = 2;
-    ctx.strokeText(text2, x2, y);
-    ctx.restore();
-  }
-  function drawVertical({ ctx }, text2, boxW, boxH, size, fill, outline, outlineColor) {
-    const em = size * 1.16;
-    let total = 0;
-    for (const [upright, run] of verticalRuns(text2)) {
-      total += upright ? em * [...run].length : ctx.measureText(run).width;
-    }
-    let y = (boxH - total) / 2;
-    ctx.textBaseline = "top";
-    ctx.textAlign = "left";
-    for (const [upright, run] of verticalRuns(text2)) {
-      if (upright) {
-        for (const char of run) {
-          const advance = ctx.measureText(char).width;
-          const corner = CORNER_PUNCT.has(char);
-          const x2 = (boxW - advance) / 2 + (corner ? advance * 0.45 : 0);
-          const cy = y - (corner ? em * 0.4 : 0);
-          strokeThenFill(ctx, char, x2, cy, outline, outlineColor);
-          ctx.fillStyle = fill;
-          ctx.fillText(char, x2, cy);
-          y += em;
-        }
-      } else {
-        const advance = ctx.measureText(run).width;
-        ctx.save();
-        ctx.translate(boxW / 2, y);
-        ctx.rotate(90 * DEG);
-        strokeThenFill(ctx, run, 0, -size / 2, outline, outlineColor);
-        ctx.fillStyle = fill;
-        ctx.fillText(run, 0, -size / 2);
-        ctx.restore();
-        y += advance;
-      }
-    }
-  }
-  function drawReflowedParagraph(draw, block, settings) {
-    const geometry = block.geometry;
-    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
-    const { ctx, width, height, fontFamily } = draw;
-    const growth = settings.mangaMode ? Math.max(1, settings.mangaBoxGrowth) : 1;
-    const boxW = geometry.w * width * growth;
-    const boxH = geometry.h * height * Math.min(growth, 1.2);
-    const style = block.lines[0];
-    if (!style) return;
-    const text2 = block.translation.trim();
-    if (!text2) return;
-    ctx.save();
-    ctx.translate(geometry.cx * width, geometry.cy * height);
-    ctx.rotate(geometry.angle * DEG);
-    const { size, lines } = fitTextBlock(
-      (px) => {
-        ctx.font = `${px}px ${fontFamily}`;
-      },
-      (candidate) => ctx.measureText(candidate).width,
-      (px) => px * 1.25,
-      text2,
-      boxW,
-      boxH,
-      wrapsPerCharacter(block)
-    );
-    const fontSize = Math.max(size, draw.minFontPx);
-    ctx.font = `${fontSize}px ${fontFamily}`;
-    const lineHeight = fontSize * 1.25;
-    ctx.textAlign = "left";
-    ctx.textBaseline = "top";
-    const fill = argbToCss(style.textColor);
-    const outline = Math.max(
-      0,
-      Math.round(fontSize * OUTLINE_RATIO * 2 * settings.outlineScale)
-    );
-    const outlineColor = argbToCss(style.bgColor);
-    const justify = justification(block.alignment, isRtl(block), settings.textAlign);
-    let y = -Math.min(boxH, lines.length * lineHeight) / 2;
-    for (const line of lines) {
-      const advance = ctx.measureText(line).width;
-      const x2 = justify === "flex-start" ? -boxW / 2 : justify === "flex-end" ? boxW / 2 - advance : -advance / 2;
-      strokeThenFill(ctx, line, x2, y, outline, outlineColor);
-      ctx.fillStyle = fill;
-      ctx.fillText(line, x2, y);
-      y += lineHeight;
-    }
-    ctx.restore();
-  }
-  function eraseTextArea(draw, block, settings) {
-    const { ctx, width, height } = draw;
-    const points = [];
-    let thinnest = Infinity;
-    for (const line of block.lines) {
-      if (!line.geometry) continue;
-      points.push(...boxCorners(line.geometry, width, height));
-      thinnest = Math.min(thinnest, line.geometry.w * width, line.geometry.h * height);
-    }
-    if (points.length < 3) return;
-    const style = block.lines.find((line) => line.geometry) ?? block.lines[0];
-    if (!style) return;
-    const pad = Number.isFinite(thinnest) ? thinnest * settings.hullPadding : 0;
-    fillHull(ctx, convexHull(points), argbToCss(style.bgColor), pad);
-  }
-  async function drawLine(draw, block, line, nextLine, settings, backgroundOnly = false, skipBackground = false) {
-    const geometry = line.geometry;
-    if (!geometry || geometry.w <= 0 || geometry.h <= 0) return;
-    const { ctx, width, height, fontFamily } = draw;
-    const boxW = geometry.w * width;
-    const boxH = geometry.h * height;
-    const cx = geometry.cx * width;
-    const cy = geometry.cy * height;
-    const patch = settings.drawBackground && !skipBackground ? line.background : null;
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(geometry.angle * DEG);
-    if (patch) {
-      const padW = patch.hPad * boxH;
-      const padH = patch.vPad * boxH;
-      try {
-        const bitmap = await createImageBitmap(new Blob([patch.bytes], { type: "image/webp" }));
-        ctx.drawImage(bitmap, -(boxW + padW) / 2, -(boxH + padH) / 2, boxW + padW, boxH + padH);
-        bitmap.close();
-      } catch {
-        ctx.fillStyle = argbToCss(line.bgColor);
-        ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
-      }
-    } else if (settings.drawBackground && !skipBackground) {
-      ctx.fillStyle = argbToCss(line.bgColor);
-      ctx.fillRect(-boxW / 2, -boxH / 2, boxW, boxH);
-    }
-    const text2 = backgroundOnly ? "" : buildLineText(block.translation, line, nextLine);
-    if (text2.trim()) {
-      const vertical = shouldStayVertical(block, settings.verticalText);
-      const fitted = fitFontSize(text2, vertical ? boxH : boxW, vertical ? boxW : boxH, fontFamily);
-      const size = Math.max(fitted, draw.minFontPx);
-      ctx.font = `${size}px ${fontFamily}`;
-      ctx.direction = isRtl(block) ? "rtl" : "ltr";
-      const fill = argbToCss(line.textColor);
-      const outline = patch ? Math.max(1, Math.round(size * OUTLINE_RATIO * settings.outlineScale)) : 0;
-      const outlineColor = patch ? argbToCss(line.bgColor) : null;
-      const enlarged = size > fitted;
-      const advance = ctx.measureText(text2).width;
-      const drawW = enlarged ? Math.min(Math.max(boxW, advance + size * 0.4), width) : boxW;
-      const drawH = enlarged ? Math.min(Math.max(boxH, size * 1.35), height) : boxH;
-      if (enlarged && settings.drawBackground && !skipBackground) {
-        ctx.fillStyle = argbToCss(line.bgColor);
-        ctx.fillRect(-drawW / 2, -drawH / 2, drawW, drawH);
-      }
-      ctx.translate(-drawW / 2, -drawH / 2);
-      if (vertical) {
-        drawVertical(draw, text2, drawW, drawH, size, fill, outline, outlineColor);
-      } else {
-        const justify = justification(block.alignment, isRtl(block), settings.textAlign);
-        const advance2 = ctx.measureText(text2).width;
-        const x2 = justify === "flex-start" ? 0 : justify === "flex-end" ? drawW - advance2 : (drawW - advance2) / 2;
-        ctx.textAlign = "left";
-        ctx.textBaseline = "middle";
-        strokeThenFill(ctx, text2, x2, drawH / 2, outline, outlineColor);
-        ctx.fillStyle = fill;
-        ctx.fillText(text2, x2, drawH / 2);
-      }
-    }
-    ctx.restore();
-  }
-  async function renderToBlob(source, naturalWidth, naturalHeight, blocks, settings, displayedWidth = naturalWidth) {
-    const scale = Math.min(
-      Math.max(1, Math.round(settings.supersample)),
-      Math.max(1, Math.floor(8e3 / Math.max(naturalWidth, naturalHeight)))
-    );
-    const width = naturalWidth * scale;
-    const height = naturalHeight * scale;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) throw new Error("Could not get a 2d canvas context");
-    ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(source, 0, 0, width, height);
-    const fontFamily = settings.fontFamily || "system-ui, -apple-system, sans-serif";
-    const canvasPerCssPx = width / Math.max(1, displayedWidth);
-    const floorCssPx = settings.mangaMode ? Math.max(settings.minReadablePx, 14) : settings.minReadablePx;
-    const draw = {
-      ctx,
-      width,
-      height,
-      fontFamily,
-      minFontPx: floorCssPx > 0 ? floorCssPx * canvasPerCssPx : 0
-    };
-    for (const block of blocks) {
-      const vertical = block.writingDirection === 2;
-      const stayVertical = !settings.mangaMode && shouldStayVertical(block, settings.verticalText);
-      const hull = settings.drawBackground && (settings.eraseMode === "hull" || settings.mangaMode);
-      if (hull) eraseTextArea(draw, block, settings);
-      const reflow = vertical && !stayVertical && Boolean(block.geometry);
-      for (let i2 = 0; i2 < block.lines.length; i2 += 1) {
-        const line = block.lines[i2];
-        if (!line) continue;
-        if (reflow) {
-          if (!hull) await drawLine(draw, block, line, block.lines[i2 + 1], settings, true);
-        } else await drawLine(draw, block, line, block.lines[i2 + 1], settings, false, hull);
-      }
-      if (reflow) drawReflowedParagraph(draw, block, settings);
-    }
-    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
-    if (!blob) throw new Error("Could not encode the translated image");
-    return blob;
-  }
-  const LENS_DEFAULTS = {
-    targetLang: "ru",
-    sourceLang: "",
-    ocrLang: "",
-    region: "US",
-    timeZone: "America/New_York",
-    // The key Chromium ships with.
-    apiKey: "AIzaSyDr2UxVnv_U85AbhhY8XSHSIavUW0DC-sY",
-    timeoutMs: 6e4,
-    minImageSize: 50,
-    // Chromium's image budget: components/lens/lens_features.cc
-    maxArea: 15e5,
-    maxSide: 1600,
-    jpegQuality: 0.4,
-    showButton: true,
-    hotkey: "none",
-    fontFamily: "",
-    drawBackground: true,
-    verticalText: "auto",
-    renderMode: "canvas",
-    enabled: true,
-    minReadablePx: 12,
-    supersample: 2,
-    cacheBytes: 32 * 1024 * 1024,
-    mangaMode: false,
-    mangaBoxGrowth: 1.45,
-    outlineScale: 1,
-    eraseMode: "patch",
-    hullPadding: 0.45,
-    textAlign: "auto"
-  };
-  function lensSettings() {
-    const settings = state.settings;
-    return {
-      ...LENS_DEFAULTS,
-      // The same target language the text translators use
-      targetLang: resolveLanguage(settings.translationLanguage).code,
-      mangaMode: settings.imageTranslateManga,
-      eraseMode: settings.imageTranslateErase,
-      minReadablePx: Number(settings.imageTranslateMinPx) || 0,
-      supersample: Number(settings.imageTranslateSharpness) || 1
-    };
-  }
-  function loadImage(url) {
-    return new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error("Could not load the image"));
-      image.src = url;
-    });
-  }
-  const MAX_LIVE_URLS = 8;
-  const liveUrls = /* @__PURE__ */ new Map();
-  function keepUrl(key, blob) {
-    const url = URL.createObjectURL(blob);
-    liveUrls.set(key, url);
-    while (liveUrls.size > MAX_LIVE_URLS) {
-      const oldest = liveUrls.keys().next();
-      if (oldest.done) break;
-      URL.revokeObjectURL(liveUrls.get(oldest.value));
-      liveUrls.delete(oldest.value);
-    }
-    return url;
-  }
-  function referenceWidth() {
-    const width = Math.max(320, Math.min(window.innerWidth || 1280, 2560));
-    return Math.round(width / 200) * 200;
-  }
-  async function translateImage(url) {
-    const displayedWidth = referenceWidth();
-    const settings = lensSettings();
-    const key = cacheKey(url, settings);
-    const rendered = renderKey(key, settings, displayedWidth);
-    const live = liveUrls.get(rendered);
-    if (live) return live;
-    const done = getRender(rendered, settings);
-    if (done) return keepUrl(rendered, done);
-    const image = await loadImage(url);
-    const prepared = await acquireSource(image);
-    try {
-      let result = getCached(key, settings);
-      if (!result) {
-        const upload = await encodeForUpload(prepared.source, settings);
-        result = await callLens(upload, settings);
-        putCached(key, result, settings);
-      }
-      if (!result.blocks.length) {
-        throw new Error(
-          result.ocr.some((paragraph) => paragraph.lines.length > 0) ? "Lens read the text but returned no translation (same language?)" : "Lens found no text in this image"
-        );
-      }
-      const blob = await renderToBlob(
-        prepared.source,
-        prepared.width,
-        prepared.height,
-        result.blocks,
-        settings,
-        displayedWidth
-      );
-      putRender(rendered, blob, settings);
-      return keepUrl(rendered, blob);
-    } finally {
-      prepared.release();
-    }
-  }
   async function fetchPostFileData() {
-    var _a2, _b2;
+    var _a2;
     const urlMatch = window.location.pathname.match(/\/(?<service>[^/]+)\/user\/(?<creator_id>[^/]+)\/post\/(?<post_id>[^/]+)/);
     const fileDataMap = /* @__PURE__ */ new Map();
     if (!urlMatch || !urlMatch.groups) return fileDataMap;
@@ -10097,10 +10571,10 @@ Password: ${password} (copied on click)`;
         headers,
         responseType: "json"
       });
-      const postData = response.response;
+      const post = ((_a2 = response.response) == null ? void 0 : _a2.post) ?? response.response;
       const allFiles = [
-        ...((_a2 = postData == null ? void 0 : postData.post) == null ? void 0 : _a2.file) ? [postData.post.file] : [],
-        ...((_b2 = postData == null ? void 0 : postData.post) == null ? void 0 : _b2.attachments) ?? []
+        ...(post == null ? void 0 : post.file) ? [post.file] : [],
+        ...(post == null ? void 0 : post.attachments) ?? []
       ];
       allFiles.forEach((file) => {
         if ((file == null ? void 0 : file.name) && file.path) {
@@ -10829,12 +11303,8 @@ Password: ${password} (copied on click)`;
   const resizeObservers = /* @__PURE__ */ new WeakMap();
   const CARD_CLASSES = ["kui-comment-clipped", "kui-comment-expandable", "kui-comment-expanded"];
   let delegatedListenersBound = false;
-  const readValue = (key, fallback) => typeof GM_getValue === "function" ? GM_getValue(key, fallback) : fallback;
-  const saveValue = (key, value) => {
-    if (typeof GM_setValue === "function") GM_setValue(key, value);
-  };
   function readLayout() {
-    const value = readValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
+    const value = readStored(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, DEFAULT_LAYOUT);
     return LAYOUTS.some(({ id }) => id === value) ? value : DEFAULT_LAYOUT;
   }
   function limitSetting(layout) {
@@ -10842,7 +11312,7 @@ Password: ${password} (copied on click)`;
   }
   function readLimit(layout) {
     const { key, fallback } = limitSetting(layout);
-    const value = Number(readValue(key, fallback));
+    const value = Number(readStored(key, fallback));
     return LIMIT_OPTIONS.includes(value) ? value : fallback;
   }
   function getComments(container) {
@@ -11019,7 +11489,7 @@ Password: ${password} (copied on click)`;
         return;
       }
       if (control.dataset.kuiCommentsLayout) {
-        saveValue(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
+        writeStored(KUI_STORAGE_KEYS.COMMENTS_LAYOUT, control.dataset.kuiCommentsLayout);
         container.scrollLeft = 0;
         container.querySelectorAll(".kui-comment-expanded").forEach((comment) => comment.classList.remove("kui-comment-expanded"));
         revealedCounts.delete(container);
@@ -11034,7 +11504,7 @@ Password: ${password} (copied on click)`;
       const select = (_a2 = event.target) == null ? void 0 : _a2.closest("[data-kui-comments-limit]");
       const parts = select && findCommentsParts(select);
       if (!select || !parts) return;
-      saveValue(limitSetting(readLayout()).key, Number(select.value));
+      writeStored(limitSetting(readLayout()).key, Number(select.value));
       revealedCounts.delete(parts.container);
       applyCommentsView(parts.container, parts.toolbar);
     });
@@ -11159,10 +11629,10 @@ Password: ${password} (copied on click)`;
   const POPUNDER_KEY = "lastPopunder";
   const POPUNDER_BLOCKED_UNTIL_MS = 10 * 365 * 24 * 60 * 60 * 1e3;
   function isAdBlockEnabled() {
-    return typeof GM_getValue === "function" ? Boolean(GM_getValue(KUI_STORAGE_KEYS.HIDE_ADS, true)) : true;
+    return Boolean(readStored(KUI_STORAGE_KEYS.HIDE_ADS, true));
   }
   function setAdBlockEnabled(enabled) {
-    if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.HIDE_ADS, enabled);
+    writeStored(KUI_STORAGE_KEYS.HIDE_ADS, enabled);
     applyAdBlock(enabled);
   }
   function applyAdBlock(enabled = isAdBlockEnabled()) {
@@ -11385,7 +11855,7 @@ Password: ${password} (copied on click)`;
     const slider = document.getElementById("gridSizeSlider");
     const numberInput = document.getElementById("gridSizeInput");
     const getSavedSize = () => {
-      const savedSize = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
+      const savedSize = readStored(KUI_STORAGE_KEYS.GRID_SIZE, "180");
       return Math.max(120, Math.min(400, Number(savedSize) || 180));
     };
     const updateGridSize = (value) => {
@@ -11418,11 +11888,11 @@ Password: ${password} (copied on click)`;
       slider.value = String(saved);
       slider.addEventListener("input", () => {
         updateGridSize(slider.value);
-        if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, slider.value);
+        writeStored(KUI_STORAGE_KEYS.GRID_SIZE, slider.value);
       });
       slider.addEventListener("change", (e) => {
         const target = e.target;
-        if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+        if (target) writeStored(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
       });
     }
     if (numberInput && !numberInput.dataset.kuiListener) {
@@ -11430,18 +11900,18 @@ Password: ${password} (copied on click)`;
       numberInput.value = String(saved);
       numberInput.addEventListener("input", () => {
         updateGridSize(numberInput.value);
-        if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, numberInput.value);
+        writeStored(KUI_STORAGE_KEYS.GRID_SIZE, numberInput.value);
       });
       numberInput.addEventListener("change", (e) => {
         const target = e.target;
-        if (target && typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+        if (target) writeStored(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
       });
     }
   }
   let viewedPostsCache = null;
   function getViewedPosts() {
     if (!viewedPostsCache) {
-      viewedPostsCache = typeof GM_getValue === "function" ? GM_getValue(KUI_STORAGE_KEYS.POSTS, {}) : {};
+      viewedPostsCache = readStored(KUI_STORAGE_KEYS.POSTS, {});
     }
     return viewedPostsCache;
   }
@@ -11467,7 +11937,7 @@ Password: ${password} (copied on click)`;
       if (!card || !postId) return;
       const viewedPosts = getViewedPosts();
       viewedPosts[postId] = true;
-      if (typeof GM_setValue === "function") GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);
+      writeStored(KUI_STORAGE_KEYS.POSTS, viewedPosts);
       card.classList.add("kui-viewed");
     }, true);
   }

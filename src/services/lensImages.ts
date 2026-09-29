@@ -1,10 +1,11 @@
 import { state } from '../state/store';
 import { resolveLanguage } from './translators';
-import { cacheKey, getCached, getRender, putCached, putRender, renderKey } from '../vendor/lens/cache';
-import { acquireSource, encodeForUpload } from '../vendor/lens/image';
+import { cacheKey, clearCache, getCached, getRender, putCached, putRender, renderKey } from '../vendor/lens/cache';
+import { acquireSource, encodeForUpload, fingerprint } from '../vendor/lens/image';
 import { callLens } from '../vendor/lens/lens/client';
 import { renderToBlob } from '../vendor/lens/render/canvas';
-import type { Settings } from '../vendor/lens/types';
+import { clearStored, getStored, putStored, storedStats } from '../vendor/lens/store';
+import type { LensResult, Settings } from '../vendor/lens/types';
 
 // Translates the text inside an image through Google Lens. The core under
 // src/vendor/lens is a copy of https://github.com/bropines/chrome-lens-userscript
@@ -27,6 +28,7 @@ const LENS_DEFAULTS: Settings = {
   maxSide: 1600,
   jpegQuality: 0.4,
   showButton: true,
+  buttonMode: 'auto',
   hotkey: 'none',
   fontFamily: '',
   drawBackground: true,
@@ -36,11 +38,15 @@ const LENS_DEFAULTS: Settings = {
   minReadablePx: 12,
   supersample: 2,
   cacheBytes: 32 * 1024 * 1024,
+  persistCache: true,
   mangaMode: false,
   mangaBoxGrowth: 1.45,
   outlineScale: 1,
   eraseMode: 'patch',
   hullPadding: 0.45,
+  reflowHorizontal: false,
+  fitToBox: true,
+  lineSpacing: 1.25,
   textAlign: 'auto'
 };
 
@@ -53,7 +59,11 @@ export function lensSettings(): Settings {
     mangaMode: settings.imageTranslateManga,
     eraseMode: settings.imageTranslateErase,
     minReadablePx: Number(settings.imageTranslateMinPx) || 0,
-    supersample: Number(settings.imageTranslateSharpness) || 1
+    supersample: Number(settings.imageTranslateSharpness) || 1,
+    reflowHorizontal: settings.imageTranslateReflow,
+    fitToBox: settings.imageTranslateFitToBox,
+    lineSpacing: Number(settings.imageTranslateLineSpacing) || LENS_DEFAULTS.lineSpacing,
+    persistCache: settings.imageTranslatePersist
   };
 }
 
@@ -99,8 +109,8 @@ function referenceWidth(): number {
 
 /** The image at `url` with its text translated, as an object URL. */
 export async function translateImage(url: string): Promise<string> {
-  const displayedWidth = referenceWidth();
   const settings = lensSettings();
+  const displayedWidth = referenceWidth();
   const key = cacheKey(url, settings);
   const rendered = renderKey(key, settings, displayedWidth);
 
@@ -111,14 +121,21 @@ export async function translateImage(url: string): Promise<string> {
   if (done) return keepUrl(rendered, done);
 
   const image = await loadImage(url);
-  const prepared = await acquireSource(image);
+  const prepared = await acquireSource({ element: image, kind: 'img', url, pointable: true });
   try {
-    let result = getCached(key, settings);
+    let result: LensResult | null = getCached(key, settings);
+    // Recognised by its pixels, so a picture answered on an earlier visit costs no upload.
+    // Asked before the encode, which is the expensive half of a miss
+    const hash = result ? '' : fingerprint(prepared.source, prepared.width, prepared.height);
+    if (!result && hash) {
+      result = await getStored(hash, settings);
+      if (result) putCached(key, result, settings);
+    }
     if (!result) {
-      // The upload is encoded only when the answer is not already cached
       const upload = await encodeForUpload(prepared.source, settings);
       result = await callLens(upload, settings);
       putCached(key, result, settings);
+      void putStored(hash, result, settings);
     }
 
     if (!result.blocks.length) {
@@ -142,4 +159,12 @@ export async function translateImage(url: string): Promise<string> {
   } finally {
     prepared.release();
   }
+}
+
+/** Forgets every Lens answer, in memory and across reloads. Returns what the persistent store held. */
+export async function clearImageTranslationCache(): Promise<{ entries: number; bytes: number }> {
+  const stored = await storedStats();
+  clearCache();
+  await clearStored();
+  return stored;
 }

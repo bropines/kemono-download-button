@@ -1,4 +1,5 @@
 import { SELECTORS } from '../../../config/selectors';
+import { readStored, writeStored } from '../../../state/gmStorage';
 import { KUI_STORAGE_KEYS } from '../../../config/storage';
 
 export function setupGridControls(): void {
@@ -6,7 +7,7 @@ export function setupGridControls(): void {
   const numberInput = document.getElementById("gridSizeInput") as HTMLInputElement | null;
 
   const getSavedSize = (): number => {
-    const savedSize = typeof GM_getValue === 'function' ? GM_getValue<string>(KUI_STORAGE_KEYS.GRID_SIZE, "180") : "180";
+    const savedSize = readStored<string>(KUI_STORAGE_KEYS.GRID_SIZE, "180");
     return Math.max(120, Math.min(400, Number(savedSize) || 180));
   };
 
@@ -50,11 +51,11 @@ export function setupGridControls(): void {
     slider.value = String(saved);
     slider.addEventListener("input", () => {
       updateGridSize(slider.value);
-      if (typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, slider.value);
+      writeStored(KUI_STORAGE_KEYS.GRID_SIZE, slider.value);
     });
     slider.addEventListener("change", (e: Event) => {
       const target = e.target as HTMLInputElement;
-      if (target && typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+      if (target) writeStored(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
     });
   }
 
@@ -63,11 +64,11 @@ export function setupGridControls(): void {
     numberInput.value = String(saved);
     numberInput.addEventListener("input", () => {
       updateGridSize(numberInput.value);
-      if (typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, numberInput.value);
+      writeStored(KUI_STORAGE_KEYS.GRID_SIZE, numberInput.value);
     });
     numberInput.addEventListener("change", (e: Event) => {
       const target = e.target as HTMLInputElement;
-      if (target && typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
+      if (target) writeStored(KUI_STORAGE_KEYS.GRID_SIZE, target.value);
     });
   }
 }

@@ -3,6 +3,7 @@ import { icon, IconName } from '../../config/icons';
 import { clearAllCache, clearIncompleteCache, getCacheStats } from '../../services/cacheService';
 import { OPENAI_COMPATIBLE_PRESETS, TRANSLATION_LANGUAGES } from '../../services/translators';
 import { exportSettings, getSettings, importSettings, saveSetting, state } from '../../state/store';
+import { clearImageTranslationCache } from '../../services/lensImages';
 import { DownloaderSettings } from '../../types';
 import { el } from '../../utils/dom';
 import { showMessage } from '../toast';
@@ -410,7 +411,25 @@ export function createSettingsModal(): void {
         { value: '3', text: '3x' }
       ],
       'Draws the translated image at this multiple of its own size, so zooming in keeps the text crisp'
-    )
+    ),
+    checkboxItem(
+      'kdl-setting-imageTranslateReflow',
+      'Re-wrap horizontal text',
+      'Treats a paragraph as one text area instead of repeating the lines Lens found, so line spacing has something to act on'
+    ),
+    checkboxItem('kdl-setting-imageTranslateFitToBox', 'Keep text out of the next bubble', 'Shrinks a paragraph that outgrows the room between its neighbours'),
+    selectItem(
+      'kdl-setting-imageTranslateLineSpacing',
+      'Line spacing',
+      [0.9, 1, 1.1, 1.25, 1.4, 1.6, 1.8, 2].map((value) => ({ value: String(value), text: `${value}x` })),
+      'Acts on re-wrapped text: the switch above, or vertical text in manga mode'
+    ),
+    checkboxItem(
+      'kdl-setting-imageTranslatePersist',
+      'Remember across reloads',
+      'Recognises a picture by its pixels, so reopening a post asks Lens nothing. Kept by this browser, per site'
+    ),
+    el('button', { id: 'kdl-clear-lens-cache-btn', className: 'kdl-btn-warn' }, ['Clear image translation cache'])
   ]);
 
   // 6. Visible Buttons Card
@@ -464,8 +483,9 @@ export function createSettingsModal(): void {
         if (element.type === 'checkbox') {
           value = (element as HTMLInputElement).checked;
         } else if (typeof defaultValue === 'number') {
-          // An emptied field would store NaN, and <select>s (compression level) would store strings
-          const parsed = parseInt(element.value, 10);
+          // An emptied field would store NaN, and <select>s (compression level) would store strings.
+          // parseFloat, since some are fractional (line spacing)
+          const parsed = parseFloat(element.value);
           const { min, max } = element as HTMLInputElement;
           value = Number.isFinite(parsed) ? parsed : defaultValue;
           if (min) value = Math.max(Number(min), value);
@@ -481,6 +501,10 @@ export function createSettingsModal(): void {
   });
 
   settingsModalElement.querySelector('.kdl-close')!.addEventListener('click', () => toggleSettingsModal(false));
+  document.getElementById('kdl-clear-lens-cache-btn')!.addEventListener('click', async () => {
+    const { entries } = await clearImageTranslationCache();
+    showMessage(entries ? `Forgot ${entries} image translation${entries === 1 ? '' : 's'}` : 'Image translation cache cleared', 'info');
+  });
   settingsOverlayElement.addEventListener('click', (e) => {
     if (e.target === settingsOverlayElement) toggleSettingsModal(false);
   });

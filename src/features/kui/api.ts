@@ -21,10 +21,11 @@ export async function fetchPostFileData(): Promise<Map<string, string>> {
       headers,
       responseType: "json"
     });
-    const postData = response.response;
+    // kemono wraps the post as { post: {...} }; pawchive returns the post itself
+    const post = response.response?.post ?? response.response;
     const allFiles = [
-      ...(postData?.post?.file ? [postData.post.file] : []),
-      ...(postData?.post?.attachments ?? [])
+      ...(post?.file ? [post.file] : []),
+      ...(post?.attachments ?? [])
     ];
     allFiles.forEach((file: any) => {
       if (file?.name && file.path) {

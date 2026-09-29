@@ -1,4 +1,5 @@
 import { getCachedFile, setCachedFile } from './cacheService';
+import { saveBlob } from '../utils/saveFile';
 import { ZipBuilder } from './zipBuilder';
 import { progressManager, ProgressTask } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
@@ -8,7 +9,6 @@ import { FileItem, PostDetails } from '../types';
 import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
 import {
   abortError,
-  downloadBlobWithGm,
   downloadFileWithFallback,
   gmXmlhttpRequestWithRetries,
   isAbortError,
@@ -285,7 +285,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
       post_date: details.postDate || 'UnknownDate'
     });
 
-    downloadBlobWithGm(await zip.toBlob(), zipFileName);
+    saveBlob(await zip.toBlob(), zipFileName);
     postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ''}`);
   } catch (error: any) {
     if (isAbortError(error)) {
@@ -357,7 +357,7 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
       post_count: postIds.length
     });
 
-    downloadBlobWithGm(await zip.toBlob(), finalZipName);
+    saveBlob(await zip.toBlob(), finalZipName);
     task.updateStatus('Complete!');
   } catch (error: any) {
     if (isAbortError(error)) {

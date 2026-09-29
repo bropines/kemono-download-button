@@ -23,6 +23,10 @@ export interface DownloaderSettings {
   imageTranslateErase: 'patch' | 'hull';
   imageTranslateMinPx: number;
   imageTranslateSharpness: number;
+  imageTranslateReflow: boolean;
+  imageTranslateFitToBox: boolean;
+  imageTranslateLineSpacing: number;
+  imageTranslatePersist: boolean;
   translationProvider: 'none' | 'gemini' | 'openai' | 'deepl' | 'yandex' | 'google';
   translationLanguage: string;
   geminiApiKey: string;

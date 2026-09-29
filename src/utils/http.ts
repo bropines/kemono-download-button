@@ -1,4 +1,5 @@
 import { state } from '../state/store';
+import { saveBlobViaAnchor } from './saveFile';
 import { debugLog, sanitizeFilename } from './helpers';
 
 // The session cookie belongs to the archive site only (incl. its file/cN subdomains)
@@ -30,6 +31,52 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   });
 }
 
+// A host that ignores responseType (AdGuard) hands bytes back as text. With this charset every
+// byte becomes one code unit instead of going through a lossy UTF-8 decode; a host that honours
+// responseType ignores it, since it only governs how text is decoded
+const BINARY_MIME = 'text/plain; charset=x-user-defined';
+
+// toString rather than instanceof: a sandboxed host can hand back a buffer from another realm
+const isKind = (value: unknown, kind: string): boolean => Object.prototype.toString.call(value) === `[object ${kind}]`;
+
+async function toArrayBuffer(body: unknown, text: unknown): Promise<ArrayBuffer | null> {
+  if (isKind(body, 'ArrayBuffer')) return body as ArrayBuffer;
+  if (ArrayBuffer.isView(body)) return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer;
+  if (body && typeof (body as Blob).arrayBuffer === 'function') return (body as Blob).arrayBuffer();
+  const latin1 = typeof body === 'string' ? body : typeof text === 'string' ? text : null;
+  if (latin1 === null) return null;
+  const bytes = new Uint8Array(latin1.length);
+  for (let i = 0; i < latin1.length; i++) bytes[i] = latin1.charCodeAt(i) & 0xff;
+  return bytes.buffer;
+}
+
+// Callers read response.response in the type they asked for. A host loose about responseType
+// gets its answer converted here, once; a host that honours it gets its own response object back
+async function normalizeResponse(response: any, responseType?: string): Promise<any> {
+  let body: unknown = response.response;
+  let text = '';
+  if (responseType === 'arraybuffer' && !isKind(body, 'ArrayBuffer')) {
+    body = await toArrayBuffer(body, response.responseText);
+  } else if (responseType === 'json' && (body === null || body === undefined || typeof body !== 'object')) {
+    text = typeof body === 'string' ? body : response.responseText;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return response;
+    }
+  } else {
+    return response;
+  }
+  return {
+    status: response.status,
+    statusText: response.statusText,
+    finalUrl: response.finalUrl,
+    responseHeaders: response.responseHeaders,
+    responseText: text,
+    response: body
+  };
+}
+
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
   const retryDelay = state.settings.downloadRetryDelay;
@@ -54,20 +101,31 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           headers['Accept'] = 'text/css';
         }
 
+        const settle = (response: any) => {
+          if (response.status >= 200 && response.status < 300) {
+            normalizeResponse(response, requestDetails.responseType).then(resolve, reject);
+          } else {
+            const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
+            err.status = response.status;
+            reject(err);
+          }
+        };
+
         const request = GM_xmlhttpRequest({
           ...requestDetails,
+          ...(requestDetails.responseType === 'arraybuffer' && !requestDetails.overrideMimeType
+            ? { overrideMimeType: BINARY_MIME }
+            : {}),
           url: currentUrl,
           headers,
-          onload: (response: any) => {
-            if (response.status >= 200 && response.status < 300) {
-              resolve(response);
-            } else {
-              const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
-              err.status = response.status;
-              reject(err);
-            }
-          },
+          onload: settle,
           onerror: (error: any) => {
+            // AdGuard routes every non-2xx through onerror. A status means the request was answered,
+            // so a 404 still fails fast and still moves /data/ over to the file host
+            if (error && typeof error === 'object' && error.status > 0) {
+              settle(error);
+              return;
+            }
             let errStr = '';
             if (typeof error === 'string') {
               errStr = error;
@@ -189,21 +247,4 @@ export async function downloadFileWithFallback(
   saveBlobViaAnchor(new Blob([arrayBuffer]), cleanName);
 }
 
-export function saveBlobViaAnchor(blob: Blob, name: string): void {
-  const blobUrl = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = blobUrl;
-  a.download = name;
-  a.style.display = 'none';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(blobUrl), 30000);
-}
-
-export function downloadBlobWithGm(blob: Blob, name: string): void {
-  const blobUrl = URL.createObjectURL(blob);
-  // Revoke once saved or failed; multi-GB archives otherwise stay pinned in memory for the tab's lifetime
-  const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-  GM_download({ url: blobUrl, name, saveAs: false, onload: revoke, onerror: revoke, ontimeout: revoke });
-}
+export { saveBlobViaAnchor };

@@ -1,4 +1,6 @@
 import { DEFAULT_SETTINGS } from '../config/constants';
+import { readStored, writeStored } from './gmStorage';
+import { saveBlob } from '../utils/saveFile';
 import { AppState, DownloaderSettings } from '../types';
 import { debugLog } from '../utils/helpers';
 
@@ -31,7 +33,7 @@ async function _loadSettingsAsync(): Promise<void> {
   const loadedSettings: Partial<DownloaderSettings> = {};
   const keys = Object.keys(DEFAULT_SETTINGS) as Array<keyof DownloaderSettings>;
   const values = await Promise.all(
-    keys.map((key) => GM_getValue(key, DEFAULT_SETTINGS[key]))
+    keys.map((key) => readStored(key, DEFAULT_SETTINGS[key]))
   );
   for (let i = 0; i < keys.length; i++) {
     const key = keys[i];
@@ -52,7 +54,7 @@ export function getSettings(): Promise<void> {
 }
 
 export async function saveSetting<K extends keyof DownloaderSettings>(key: K, value: DownloaderSettings[K]): Promise<void> {
-  await GM_setValue(key, value);
+  writeStored(key, value);
   state.settings[key] = value;
 }
 
@@ -60,13 +62,7 @@ export async function exportSettings(): Promise<void> {
   await getSettings();
   const settingsJson = JSON.stringify(state.settings, null, 2);
   const blob = new Blob([settingsJson], { type: 'application/json;charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  GM_download({
-    url,
-    name: `kemono-downloader-settings-${new Date().toISOString().split('T')[0]}.json`,
-    saveAs: true,
-    onload: () => URL.revokeObjectURL(url)
-  });
+  saveBlob(blob, `kemono-downloader-settings-${new Date().toISOString().split('T')[0]}.json`, true);
 }
 
 export async function importSettings(jsonString: string): Promise<number> {

@@ -1,4 +1,5 @@
 import { KUI_STORAGE_KEYS } from '../config/storage';
+import { readStored, writeStored } from '../state/gmStorage';
 import { css } from '../utils/cssBuilder';
 
 // Ad slots rendered by the sites themselves: pawchive banners, kemono's TrafficStars units/interstitials.
@@ -12,11 +13,11 @@ const POPUNDER_KEY = 'lastPopunder';
 const POPUNDER_BLOCKED_UNTIL_MS = 10 * 365 * 24 * 60 * 60 * 1000;
 
 export function isAdBlockEnabled(): boolean {
-  return typeof GM_getValue === 'function' ? Boolean(GM_getValue(KUI_STORAGE_KEYS.HIDE_ADS, true)) : true;
+  return Boolean(readStored(KUI_STORAGE_KEYS.HIDE_ADS, true));
 }
 
 export function setAdBlockEnabled(enabled: boolean): void {
-  if (typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.HIDE_ADS, enabled);
+  writeStored(KUI_STORAGE_KEYS.HIDE_ADS, enabled);
   applyAdBlock(enabled);
 }
 

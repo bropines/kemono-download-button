@@ -1,4 +1,5 @@
 import { SELECTORS } from '../../config/selectors';
+import { readStored, writeStored } from '../../state/gmStorage';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 
 // Read once and kept in sync by the click listener; markViewedPosts runs on every re-init
@@ -6,7 +7,7 @@ let viewedPostsCache: Record<string, boolean> | null = null;
 
 function getViewedPosts(): Record<string, boolean> {
   if (!viewedPostsCache) {
-    viewedPostsCache = typeof GM_getValue === 'function' ? GM_getValue<Record<string, boolean>>(KUI_STORAGE_KEYS.POSTS, {}) : {};
+    viewedPostsCache = readStored<Record<string, boolean>>(KUI_STORAGE_KEYS.POSTS, {});
   }
   return viewedPostsCache;
 }
@@ -34,7 +35,7 @@ export function setupGlobalClickListener(): void {
     if (!card || !postId) return;
     const viewedPosts = getViewedPosts();
     viewedPosts[postId] = true;
-    if (typeof GM_setValue === 'function') GM_setValue(KUI_STORAGE_KEYS.POSTS, viewedPosts);
+    writeStored(KUI_STORAGE_KEYS.POSTS, viewedPosts);
     card.classList.add("kui-viewed");
   }, true);
 }
