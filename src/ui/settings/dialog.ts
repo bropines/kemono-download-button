@@ -3,7 +3,7 @@ import { exportSettings, getSettings, importSettings, resetSettings } from '../.
 import { el } from '../../utils/dom';
 import { button, dialog, kitIcon, tabs, type DialogHandle } from '../kit';
 import { showMessage } from '../toast';
-import { setupGridControls } from '../components/kui/gridControls';
+import { setModuleSetting } from '../../core/registry';
 import { getSettingsSections, onSettingsSectionsChange } from './registry';
 import { ensureSettingsStyles } from './styles';
 import './sections';
@@ -59,7 +59,7 @@ function confirmReset(): void {
           confirm.close();
           await resetSettings();
           setAdBlockEnabled(true);
-          setupGridControls();
+          setModuleSetting('gridSize', 'size', 180);
           refreshSettings();
           showMessage('Settings reset to defaults', 'success');
         },

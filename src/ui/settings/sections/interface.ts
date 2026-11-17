@@ -8,7 +8,7 @@ import { kuiState, setEmbedRules, setHideEmptySections, setPreloadImages } from 
 import type { EmbedRules } from '../../../types';
 import { el } from '../../../utils/dom';
 import { badge, button, field, input, kitIcon, select, slider } from '../../kit';
-import { setupGridControls } from '../../components/kui/gridControls';
+import { getModuleSetting, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
@@ -17,7 +17,7 @@ const GRID_MIN = 120;
 const GRID_MAX = 400;
 
 function gridSizeField(): HTMLElement {
-  const saved = Math.max(GRID_MIN, Math.min(GRID_MAX, Number(readStored<string>(KUI_STORAGE_KEYS.GRID_SIZE, '180')) || 180));
+  const saved = Math.max(GRID_MIN, Math.min(GRID_MAX, Number(getModuleSetting<number>('gridSize', 'size')) || 180));
   const control = slider({
     id: 'gridSizeSlider',
     min: GRID_MIN,
@@ -25,11 +25,8 @@ function gridSizeField(): HTMLElement {
     step: 10,
     value: saved,
     showValue: (v) => `${v}px`,
-    // setupGridControls re-reads the stored size and applies it to the page
-    onInput: (value) => {
-      writeStored(KUI_STORAGE_KEYS.GRID_SIZE, String(value));
-      setupGridControls();
-    },
+    // The gridSize module applies the size to the page as soon as its setting changes
+    onInput: (value) => setModuleSetting('gridSize', 'size', value),
     onChange: () => notifySaved(),
   });
   return field({ label: 'Post card size', description: 'Width of post cards in post lists.', control });
