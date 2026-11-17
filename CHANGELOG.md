@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-17
+
+### Changed
+- **No more flash of the old look when a page opens in a new tab.** The script now starts with the document (`@run-at document-start`): the site skin, its colours and width, and the styles of every enabled module are in place before the first paint, and the site menus are translated while the page is still loading. Everything else still starts once the page is ready. (AdGuard may start scripts later, so it can still flash there.)
+
 ## [1.3.9] - 2026-11-17
 
 ### Fixed

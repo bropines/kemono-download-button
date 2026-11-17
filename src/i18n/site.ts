@@ -211,8 +211,15 @@ export const siteTranslationModule: KdlModule = {
       translateSite();
     });
   },
+  // Translates the chrome while the page is still being parsed, so a new tab never shows the English menus
+  early() {
+    if (getLanguage() === 'en' || observer) return;
+    observer = new MutationObserver(translateAdded);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  },
   mount(ctx) {
     mounted = true;
+    observer?.disconnect();
     translateSite();
     observer = new MutationObserver(translateAdded);
     observer.observe(document.body, { childList: true, subtree: true });

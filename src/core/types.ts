@@ -67,6 +67,9 @@ export interface KdlModule {
   unmount?(ctx: ModuleContext): void;
   /** Right before htmx stores a history snapshot: strip nodes that would come back without listeners */
   beforeSnapshot?(): void;
+  /** At document-start, before the page is parsed (only <html> exists): cheap visual setup such as flags and
+   *  CSS variables, so the first paint already looks right. Styles of enabled modules are injected then too. */
+  early?(): void;
 }
 
 export type RegistryEvent =

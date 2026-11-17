@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      1.3.9
+// @version      1.4.0
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -29,6 +29,7 @@
 // @grant        GM_setValue
 // @grant        GM_xmlhttpRequest
 // @grant        unsafeWindow
+// @run-at       document-start
 // ==/UserScript==
 
 // Everything page-related is a module (src/modules, src/core/README.md): the router mounts the ones that
@@ -36,6 +37,7 @@
 import { startRouter } from './core/router';
 import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
+import { bootEarly } from './core/registry';
 import { ensureStylesInjected } from './modules/core';
 import { installLanguageRuntime } from './i18n/live';
 
@@ -44,8 +46,18 @@ export { ensureStylesInjected };
 ensureStylesInjected();
 migrateLegacyKeys();
 registerBuiltinModules();
+// The script starts with the document: styles go in before the first paint, the rest waits for the DOM
+bootEarly();
+
+// Styles injected at document-start sit before the site's own stylesheets; move them after, as they used to be,
+// so equal-specificity rules keep winning (user theme sheets stay last: they are re-appended in the same order)
+function moveOwnStylesLast(): void {
+  const head = document.head || document.documentElement;
+  document.querySelectorAll<HTMLStyleElement>('style[id^="kdl-"], style[id^="kui-"], style[data-kdl-style]').forEach((style) => head.appendChild(style));
+}
 
 function init(): void {
+  moveOwnStylesLast();
   startRouter();
   installLanguageRuntime();
 }

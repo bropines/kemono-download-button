@@ -11,7 +11,10 @@
 //
 // The only DOM change is a data-kdl-active marker on the sidebar link of the current page.
 
-import type { KdlModule, ModuleContext } from '../../core/types';
+import type { KdlModule, SettingValue } from '../../core/types';
+import { getModuleSetting } from '../../core/registry';
+
+type SettingGetter = <T extends SettingValue = SettingValue>(key: string) => T;
 import { onPageChange } from '../../core/router';
 import { keepInHead } from '../../core/page';
 import { scopeCss } from '../restyle/scopeCss';
@@ -45,8 +48,8 @@ const WIDTH_OPTIONS = [
   { value: 'full', label: 'Full width' },
 ];
 const WIDTH_VAR = '--kdl-sk-page-width';
-function syncWidth(ctx: ModuleContext): void {
-  const width = ctx.settings.get<string>('width');
+function syncWidth(get: SettingGetter): void {
+  const width = get<string>('width');
   const root = document.documentElement.style;
   const value = WIDTHS[width] || WIDTHS.wide;
   const text = TEXT_WIDTHS[width] || TEXT_WIDTHS.wide;
@@ -91,17 +94,17 @@ function syncActive(): void {
   if (chosen && !chosen.hasAttribute(ACTIVE)) chosen.setAttribute(ACTIVE, '');
 }
 
-function syncPalette(ctx: ModuleContext): void {
+function syncPalette(get: SettingGetter): void {
   let node = document.getElementById(PALETTE_ID);
   if (!node) {
     node = keepInHead(document.createElement('style'));
     node.id = PALETTE_ID;
   }
   const options = {
-    accent: ctx.settings.get<string>('accent'),
-    accentCustom: ctx.settings.get<string>('accentCustom'),
-    base: ctx.settings.get<string>('base'),
-    surfaces: ctx.settings.get<string>('surfaces'),
+    accent: get<string>('accent'),
+    accentCustom: get<string>('accentCustom'),
+    base: get<string>('base'),
+    surfaces: get<string>('surfaces'),
   };
   const key = JSON.stringify(options);
   if (node.dataset.key !== key) {
@@ -133,10 +136,11 @@ export const shadcnSiteModule: KdlModule = {
   styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss()),
   mount(ctx) {
     setFlag(true);
-    syncPalette(ctx);
-    PALETTE_KEYS.forEach((key) => ctx.settings.onChange(key, () => syncPalette(ctx)));
-    syncWidth(ctx);
-    ctx.settings.onChange('width', () => syncWidth(ctx));
+    const get: SettingGetter = (key) => ctx.settings.get(key);
+    syncPalette(get);
+    PALETTE_KEYS.forEach((key) => ctx.settings.onChange(key, () => syncPalette(get)));
+    syncWidth(get);
+    ctx.settings.onChange('width', () => syncWidth(get));
     ctx.onCleanup(() => {
       document.documentElement.style.removeProperty(WIDTH_VAR);
       document.documentElement.style.removeProperty(TEXT_VAR);
@@ -154,7 +158,14 @@ export const shadcnSiteModule: KdlModule = {
   },
   update(ctx) {
     syncActive();
-    syncPalette(ctx);
+    syncPalette((key) => ctx.settings.get(key));
+  },
+  // A new tab is painted with the skin's flag, palette and width already in place
+  early() {
+    const get: SettingGetter = (key) => getModuleSetting(SHADCN_ID, key);
+    setFlag(true);
+    syncPalette(get);
+    syncWidth(get);
   },
 };
 

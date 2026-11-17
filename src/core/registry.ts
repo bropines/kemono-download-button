@@ -1,6 +1,6 @@
 import { KdlModule, ModuleContext, PageInfo, RegistryEvent, SettingDef, SettingValue } from './types';
 import { modKey, readModuleValue, writeModuleValue } from './storage';
-import { keepInHead } from './page';
+import { detectSite, keepInHead, pageFromUrl, writePageAttributes } from './page';
 
 interface ModuleRecord {
   def: KdlModule;
@@ -287,5 +287,28 @@ export function remountModules(): void {
 export function snapshotMounted(): void {
   [...ordered()].reverse().forEach((r) => {
     if (r.mounted && r.def.beforeSnapshot) safely(r, 'beforeSnapshot', () => r.def.beforeSnapshot!());
+  });
+}
+
+/**
+ * Document-start pass: marks <html> with the page from the URL and injects the styles (and early hooks) of the
+ * modules that will mount here, so a freshly opened tab is painted with them instead of flashing the bare site.
+ * The router does the real mount once the document is parsed.
+ */
+export function bootEarly(): void {
+  const path = window.location.pathname;
+  const page: PageInfo = { type: pageFromUrl(path), site: detectSite(), path };
+  writePageAttributes(page);
+  ordered().forEach((r) => {
+    const { def } = r;
+    if (!isModuleEnabled(def.id) || !(def.requires || []).every(isModuleEnabled)) return;
+    if (page.type !== 'other' && !matchesPage(def, page)) return;
+    if (page.type === 'other' && def.pages !== 'any') return;
+    try {
+      syncStyle(r, true);
+      def.early?.();
+    } catch (error) {
+      console.error(`[KDL] early setup of ${def.id} failed:`, error);
+    }
   });
 }
