@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-11-17
+
 ### Added
 - **Messages as cards** (module, on by default): DM pages show an even grid of cards with the creator's avatar and a preview cut to a few lines (short, medium or long in the module settings). A click on a card, or its Read button, opens the whole message in a side panel (or a dialog) with the creator links, copy text, and previous / next by buttons or the arrow keys.
 
