@@ -17,8 +17,7 @@ Stabilisation before the interface rebuild.
 - The Preload gallery images switch now takes effect.
 - Archive indexes link the names files were actually stored under, including renamed duplicates and failure notes.
 - Two downloads of the same post no longer share one cancel button or remove each other's progress.
-- Titles containing ## [Unreleased]
- or  no longer garble file names.
+- Titles containing `$&` or `$1` no longer garble file names.
 - A failed GM_download falls back to a normal browser download instead of losing the file.
 - Post info tooltips no longer pile up on cards; styles and settings links are injected once.
 - Favourites are fetched once per page load, through the right site's API, and a missing login shows one message instead of many.

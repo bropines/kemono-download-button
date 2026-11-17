@@ -27,9 +27,9 @@
   - Floating UI controls (`#kdl-fixed-controls`, `#kdl-progress-container`) MUST be attached directly to `document.body` (outside `#main`), ensuring they are never wiped during HTMX DOM swaps.
 
 ### 4. UI Kit & Styling
-- New and migrated UI is built from the kit in  (shadcn/ui look: zinc dark default,  tokens,  classes). Read  first.
-- Floating surfaces (dialogs, sheets, panels, toasts, overlays) mount into the shadow root from /, so site CSS cannot reach them. Widgets injected into the site's own layout use kit primitives inside a  element.
-- No hardcoded colours, radii or z-indexes in components: use the kit tokens and . Icons come from .
+- New and migrated UI is built from the kit in `src/ui/kit/` (shadcn/ui look: zinc dark default, `--kdl-*` tokens, `kdl-ui-*` classes). Read `src/ui/kit/README.md` first.
+- Floating surfaces (dialogs, sheets, panels, toasts, overlays) mount into the shadow root from `getKitRoot()`/`portal()`, so site CSS cannot reach them. Widgets injected into the site's own layout use kit primitives inside a `.kdl-scope` element.
+- No hardcoded colours, radii or z-indexes in components: use the kit tokens and `LAYERS`. Icons come from `src/config/icons.ts`.
 - Keep IDs and classes stable once shipped: user themes and the restyle layer select on them.
 
 ### 5. Dependencies & Userscript Hosts
