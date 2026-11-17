@@ -8,8 +8,12 @@ import { el } from '../../utils/dom';
 import { showFilePickerModal } from './filePickerModal';
 
 export async function injectPostCardButtons(postCardNode: HTMLElement, pageAuthorName: string): Promise<void> {
+  // Claim the card before the first await: overlapping inits used to both pass the check and stack tooltips
+  if (postCardNode.dataset.kdlCardButtons) return;
+  postCardNode.dataset.kdlCardButtons = 'true';
   await getSettings();
-  if (postCardNode.querySelector('.post-card-download-controls')) return;
+  // Leftovers from an htmx history snapshot have no listeners: rebuild them
+  postCardNode.querySelectorAll(':scope > .post-card-download-controls, :scope > .kdl-post-info-tooltip').forEach((node) => node.remove());
   const details = getPostCardDetails(postCardNode, pageAuthorName);
   if (details.postID === 'UnknownPostID') return;
 

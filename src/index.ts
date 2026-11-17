@@ -34,9 +34,9 @@ import { CSS_STYLES } from './config/styles';
 import { SELECTORS } from './config/selectors';
 import { getSettings, appState } from './state/store';
 import { kuiState } from './state/kuiState';
-import { fetchUserFavorites } from './api/kemonoApi';
+import { getApiAdapter } from './api';
 import { el } from './utils/dom';
-import { debugLog, waitForElement } from './utils/helpers';
+import { debugLog } from './utils/helpers';
 import { debugModule } from './utils/logger';
 import { sanitizeDuplicates } from './utils/domChecker';
 import { createFixedControls } from './ui/components/fixedControls';
@@ -58,25 +58,50 @@ import { initializeComments } from './features/kui/comments';
 import { hideEmptySections } from './features/kui/embeds';
 import { initializePostTranslation } from './features/kui/translateButtons';
 
+const STYLE_ID = 'kdl-global-styles';
+let stylesInjected = false;
+let styleElement: HTMLStyleElement | null = null;
+
 export function ensureStylesInjected(): void {
-  if (document.getElementById('kdl-global-styles')) return;
+  if (stylesInjected) {
+    // Re-attach our own node if the page dropped it, never inject a second copy
+    if (styleElement && !styleElement.isConnected) (document.head || document.documentElement).appendChild(styleElement);
+    return;
+  }
+  stylesInjected = true;
+
+  const existing = document.getElementById(STYLE_ID);
+  if (existing instanceof HTMLStyleElement) {
+    styleElement = existing;
+    return;
+  }
 
   if (typeof GM_addStyle === 'function') {
-    const styleNode = GM_addStyle(CSS_STYLES);
-    if (styleNode && typeof (styleNode as any).setAttribute === 'function') {
-      (styleNode as any).setAttribute('id', 'kdl-global-styles');
+    try {
+      const result = GM_addStyle(CSS_STYLES) as unknown;
+      // Some hosts return nothing: find the node they added so it still gets the id
+      styleElement =
+        result instanceof HTMLStyleElement
+          ? result
+          : Array.from(document.querySelectorAll('style')).find((node) => node.textContent === CSS_STYLES) || null;
+      if (styleElement) styleElement.id = STYLE_ID;
+      return;
+    } catch (error) {
+      debugLog('GM_addStyle failed, falling back to a <style> element:', error);
     }
-  } else {
-    const styleNode = document.createElement('style');
-    styleNode.id = 'kdl-global-styles';
-    styleNode.textContent = CSS_STYLES;
-    (document.head || document.documentElement).appendChild(styleNode);
   }
+
+  styleElement = document.createElement('style');
+  styleElement.id = STYLE_ID;
+  styleElement.textContent = CSS_STYLES;
+  (document.head || document.documentElement).appendChild(styleElement);
 }
 
 ensureStylesInjected();
 
 let lastUrl = '';
+let lastPathname = '';
+let favoritesLoad: Promise<boolean> | null = null;
 let isInitializing = false;
 let pendingForcedInit = false;
 let scheduledInitTimer: ReturnType<typeof setTimeout> | null = null;
@@ -113,74 +138,160 @@ function runKuiPageLogic(): void {
   }
 }
 
-async function handlePageContent(): Promise<void> {
+type PageType = 'post' | 'user' | 'posts' | 'artists' | 'other';
+
+// Marks site containers/cards we already handled, so re-inits only touch new ones
+const PROCESSED_ATTR = 'data-kdl-processed';
+const UNPROCESSED = `:not([${PROCESSED_ATTR}])`;
+const USER_POST_CARDS = 'article.post-card[data-id]';
+const LIST_POST_CARDS = 'article.post-card[data-id][data-user][data-service]';
+const ARTIST_CARDS = 'a.user-card';
+
+function getPageType(path = window.location.pathname): PageType {
+  if (path.includes('/post/')) return 'post';
+  if (path.includes('/user/')) return 'user';
+  if (path.startsWith('/posts') || path === '/') return 'posts';
+  if (path.startsWith('/artists') || path.startsWith('/creators')) return 'artists';
+  return 'other';
+}
+
+// True only when something this page type should carry is missing; an empty page never asks for a re-run
+function needsInjection(pageType: PageType): boolean {
+  const path = window.location.pathname;
+  switch (pageType) {
+    case 'post': {
+      if (!document.querySelector('.post__header')) return false;
+      const actions = document.querySelector<HTMLElement>('.kdl-actions-container');
+      return !actions || actions.dataset.kdlPath !== path;
+    }
+    case 'user': {
+      const headerActions = document.querySelector('.user-header__actions');
+      return (
+        !!document.querySelector(USER_POST_CARDS + UNPROCESSED) ||
+        (!!document.querySelector('.card-list') && !document.getElementById('kdl-bulk-panel')) ||
+        (!!headerActions && !headerActions.querySelector('#kdl-author-manager-btn'))
+      );
+    }
+    case 'posts':
+      return !!document.querySelector(LIST_POST_CARDS + UNPROCESSED);
+    case 'artists':
+      return !!document.querySelector(ARTIST_CARDS + UNPROCESSED);
+    default:
+      return false;
+  }
+}
+
+// A node is ours when its id or any class carries the kdl-/kui- prefix. For ancestors only a *leading*
+// prefix counts: site elements get marker classes such as `kui-processed` appended after their own
+const OWN_NODE = '[id^="kdl-"], [id^="kui-"], [class^="kdl-"], [class*=" kdl-"], [class^="kui-"], [class*=" kui-"]';
+const OWN_ANCESTOR = '[id^="kdl-"], [id^="kui-"], [class^="kdl-"], [class^="kui-"]';
+
+function isOwnNode(node: Node): boolean {
+  return node instanceof Element ? node.matches(OWN_NODE) : false;
+}
+
+function isOwnMutation(mutation: MutationRecord): boolean {
+  const target = mutation.target instanceof Element ? mutation.target : mutation.target.parentElement;
+  if (target?.closest(OWN_ANCESTOR)) return true;
+  const changed = [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)];
+  return changed.length > 0 && changed.every(isOwnNode);
+}
+
+// One favorites request per page load: a failed (e.g. 401) fetch is not retried and does not re-toast
+function loadFavoritesOnce(): Promise<boolean> {
+  if (!favoritesLoad) favoritesLoad = getApiAdapter().fetchUserFavorites().catch(() => false);
+  return favoritesLoad;
+}
+
+// A new pathname is a different post/creator/list: drop page-scoped state. Query/hash changes keep it
+function resetPageState(): void {
+  appState.cachedPostFiles = null;
+  appState.originalPostContentHTML = null;
+  appState.selectedPostIds.clear();
+  document.getElementById('kdl-bulk-panel')?.remove();
+}
+
+// htmx history snapshots bring our nodes and markers back without their listeners: strip them so they get rebuilt
+function stripRestoredInjections(): void {
+  document
+    .querySelectorAll('.post-card-download-controls, .kdl-post-info-tooltip, .kdl-post-checkbox, .kdl-quick-fav-btn, .kdl-actions-container, #kdl-author-manager-btn')
+    .forEach((node) => node.remove());
+  document
+    .querySelectorAll<HTMLElement>(`[${PROCESSED_ATTR}], [data-kdl-card-buttons], [data-kdl-ctrl-click-bound], [data-kdl-shift-click-bound]`)
+    .forEach((node) => {
+      node.removeAttribute(PROCESSED_ATTR);
+      delete node.dataset.kdlCardButtons;
+      delete node.dataset.kdlCtrlClickBound;
+      delete node.dataset.kdlShiftClickBound;
+    });
+}
+
+function injectUserPostCard(card: HTMLElement, pageAuthorName: string): void {
+  card.setAttribute(PROCESSED_ATTR, 'true');
+  injectPostCardButtons(card, pageAuthorName).catch((error) => debugLog('Post card buttons failed:', error));
+
+  if (!card.querySelector('.kdl-post-checkbox')) {
+    const id = card.dataset.id;
+    const checkbox = el('input', {
+      type: 'checkbox',
+      className: 'kdl-post-checkbox',
+      dataset: { id },
+      onClick: (e: MouseEvent) => e.stopPropagation()
+    }) as HTMLInputElement;
+    // Cards re-rendered by a swap keep their selection
+    checkbox.checked = !!id && appState.selectedPostIds.has(id);
+    card.appendChild(checkbox);
+  }
+
+  if (!card.dataset.kdlCtrlClickBound) {
+    card.dataset.kdlCtrlClickBound = 'true';
+    card.addEventListener('click', (event: MouseEvent) => {
+      if (event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        (card.querySelector('.kdl-post-checkbox') as HTMLElement | null)?.click();
+      }
+    });
+  }
+}
+
+// Idempotent: injects only into containers/cards not handled yet, never deletes and recreates
+async function handlePageContent(pageType: PageType): Promise<void> {
   try {
     await getSettings();
-    await fetchUserFavorites();
-
-    appState.cachedPostFiles = null;
-    appState.originalPostContentHTML = null;
-    appState.selectedPostIds.clear();
-
-    document
-      .querySelectorAll('.kdl-button, .post-card-download-controls, #kdl-bulk-panel, .kdl-post-checkbox, #kdl-author-manager-btn, .kdl-quick-fav-btn')
-      .forEach((el2) => el2.remove());
-
     const path = window.location.pathname;
 
-    if (path.includes('/post/')) {
-      let header = document.querySelector('.post__header');
-      let actionsDiv = document.querySelector('.post__actions');
+    if (pageType === 'post') {
+      const header = document.querySelector('.post__header');
+      if (!header || !needsInjection('post')) return;
+      if (!document.querySelector('.post__actions')) header.appendChild(el('div', { className: 'post__actions' }));
 
-      if (!actionsDiv && header) {
-        actionsDiv = el('div', { className: 'post__actions' });
-        header.appendChild(actionsDiv);
-      }
-
-      if (header) {
-        await createAndInsertPostPageButtons(header as HTMLElement);
-        const { service, userID, postID } = getPostDetailsFromPage();
-        fetchAndCachePostData(service, userID, postID).catch((error) => debugLog('Post data prefetch failed:', error));
-      }
-    } else if (path.includes('/user/')) {
+      await createAndInsertPostPageButtons(header as HTMLElement);
+      const actions = document.querySelector<HTMLElement>('.kdl-actions-container');
+      if (actions) actions.dataset.kdlPath = path;
+      const { service, userID, postID } = getPostDetailsFromPage();
+      fetchAndCachePostData(service, userID, postID).catch((error) => debugLog('Post data prefetch failed:', error));
+    } else if (pageType === 'user') {
       const userHeaderActions = document.querySelector('.user-header__actions');
-      if (userHeaderActions) {
+      if (userHeaderActions && !userHeaderActions.querySelector('#kdl-author-manager-btn')) {
         userHeaderActions.prepend(createAuthorManagerButton());
       }
 
       createBulkDownloadPanel();
       const pageAuthorName = document.querySelector('.user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
-
-      document.querySelectorAll('article.post-card[data-id]').forEach((cardNode) => {
-        const card = cardNode as HTMLElement;
-        injectPostCardButtons(card, pageAuthorName);
-
-        if (!card.querySelector('.kdl-post-checkbox')) {
-          const checkbox = el('input', {
-            type: 'checkbox',
-            className: 'kdl-post-checkbox',
-            dataset: { id: card.dataset.id },
-            onClick: (e: MouseEvent) => e.stopPropagation()
-          });
-          card.appendChild(checkbox);
-        }
-
-        // Cards survive re-inits (only their buttons are rebuilt); a second listener would undo the toggle
-        if (!card.dataset.kdlCtrlClickBound) {
-          card.dataset.kdlCtrlClickBound = 'true';
-          card.addEventListener('click', (event: MouseEvent) => {
-            if (event.ctrlKey) {
-              event.preventDefault();
-              event.stopPropagation();
-              (card.querySelector('.kdl-post-checkbox') as HTMLElement | null)?.click();
-            }
-          });
-        }
+      document.querySelectorAll<HTMLElement>(USER_POST_CARDS + UNPROCESSED).forEach((card) => injectUserPostCard(card, pageAuthorName));
+    } else if (pageType === 'artists') {
+      await loadFavoritesOnce();
+      document.querySelectorAll<HTMLElement>(ARTIST_CARDS + UNPROCESSED).forEach((card) => {
+        card.setAttribute(PROCESSED_ATTR, 'true');
+        injectArtistFavoriteButton(card);
       });
-    } else if (path.startsWith('/artists') || path.startsWith('/creators')) {
-      document.querySelectorAll('a.user-card').forEach((c) => injectArtistFavoriteButton(c as HTMLElement));
-    } else if (path.startsWith('/posts') || path === '/') {
-      document.querySelectorAll('article.post-card[data-id][data-user][data-service]').forEach((c) => injectPostFavoriteButton(c as HTMLElement));
+    } else if (pageType === 'posts') {
+      await loadFavoritesOnce();
+      document.querySelectorAll<HTMLElement>(LIST_POST_CARDS + UNPROCESSED).forEach((card) => {
+        card.setAttribute(PROCESSED_ATTR, 'true');
+        injectPostFavoriteButton(card);
+      });
     }
   } catch (error) {
     console.error('Error during page content handling:', error);
@@ -195,26 +306,28 @@ const runInitializationLogic = async (force = false) => {
   runKuiPageLogic();
 
   if (isInitializing) {
-    // A navigation that lands while a run is in flight must not be dropped
-    if (force) pendingForcedInit = true;
+    // A navigation (or new cards) landing while a run is in flight must not be dropped;
+    // the follow-up run is idempotent, so it settles after one pass
+    pendingForcedInit = true;
     return;
   }
   const currentUrl = window.location.href;
   const path = window.location.pathname;
+  const pageType = getPageType(path);
 
-  const isPostPage = path.includes('/post/');
-  const isUserPage = path.includes('/user/');
-  const isPostsListPage = path.startsWith('/posts') || path === '/';
-  const isArtistsListPage = path.startsWith('/artists') || path.startsWith('/creators');
+  if (path !== lastPathname) {
+    if (lastPathname) resetPageState();
+    lastPathname = path;
+  }
 
-  if (!isPostPage && !isUserPage && !isPostsListPage && !isArtistsListPage) {
+  if (pageType === 'other') {
     lastUrl = currentUrl;
     return;
   }
 
-  const buttonsExist = isPostPage ? document.querySelector('.kdl-button') : document.querySelector('#kdl-bulk-panel');
-  if (!force && buttonsExist && currentUrl === lastUrl) {
-    if (isUserPage) initializeShiftClickLogic();
+  // `force` (htmx/history events) only re-checks; injection itself stays limited to what is missing
+  if (!force && currentUrl === lastUrl && !needsInjection(pageType)) {
+    if (pageType === 'user') initializeShiftClickLogic();
     return;
   }
 
@@ -222,16 +335,13 @@ const runInitializationLogic = async (force = false) => {
   debugLog(`Running initialization for PWA/SPA page: ${currentUrl}`);
 
   try {
-    if (isPostPage) await waitForElement('.post__actions');
-    else if (isUserPage) await waitForElement('.card-list');
-
-    await handlePageContent();
+    await handlePageContent(pageType);
     runKuiPageLogic();
     lastUrl = currentUrl;
 
-    if (isUserPage) initializeShiftClickLogic();
+    if (pageType === 'user') initializeShiftClickLogic();
   } catch (error) {
-    debugLog('Initialization error or timeout:', error);
+    debugLog('Initialization error:', error);
   } finally {
     isInitializing = false;
     if (pendingForcedInit) {
@@ -286,7 +396,10 @@ function init(): void {
   });
   document.addEventListener('htmx:afterSettle', () => scheduleInit(true));
   document.addEventListener('htmx:afterSwap', () => scheduleInit(true));
-  document.addEventListener('htmx:historyRestore', () => scheduleInit(true));
+  document.addEventListener('htmx:historyRestore', () => {
+    stripRestoredInjections();
+    scheduleInit(true);
+  });
   window.addEventListener('popstate', () => {
     postPageModule.cleanup();
     scheduleInit(true);
@@ -311,11 +424,13 @@ function init(): void {
     scheduleInit(true);
   };
 
-  let observerTimeout: any = null;
-  const observer = new MutationObserver(() => {
+  let observerTimeout: ReturnType<typeof setTimeout> | null = null;
+  const observer = new MutationObserver((mutations) => {
+    // Our own injections must never wake the observer, or every init schedules the next one
+    if (mutations.every(isOwnMutation)) return;
     if (observerTimeout) clearTimeout(observerTimeout);
     observerTimeout = setTimeout(() => {
-      if (window.location.href !== lastUrl || !document.querySelector('.kdl-button, #kdl-bulk-panel')) {
+      if (window.location.href !== lastUrl || needsInjection(getPageType())) {
         runInitializationLogic();
       }
       // Comments can render after the post (kemono SPA) or get re-rendered by the site;
