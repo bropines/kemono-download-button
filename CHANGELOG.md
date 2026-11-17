@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.8.1] - 2026-11-17
+
 ### Added
 - Video player: a loop button next to the settings gear. The choice is remembered across videos and pages; the L key toggles it too.
 
