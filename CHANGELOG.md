@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-17
+
+### Changed
+- Site skin on phones: the creator header puts the name beside the avatar and the actions (all posts, upload, favourite) in one compact row; the favourite button shows just its star.
+
 ## [1.4.0] - 2026-11-17
 
 ### Changed

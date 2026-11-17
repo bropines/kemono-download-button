@@ -94,10 +94,24 @@ export const creatorCss = (): string => `
 .user-header__favourite :is(.user-header__fav-icon, .user-header__fav-text) { color: inherit; }
 .user-header__favourite .user-header__fav-icon { color: var(--kdl-warning); }
 .user-header__favourite--unfav { border-color: color-mix(in srgb, var(--kdl-warning) 45%, var(--kdl-input)); }
+/* Phones: the name sits beside the avatar, the actions get their own full-width row of equal buttons
+   (the favourite one shows just its star) instead of a stack of wide buttons */
+@media (max-width: 600px) {
+  .user-header__info { display: contents; }
+  .user-header__name { grid-column: 2; grid-row: 2; align-self: center; min-width: 0; padding: 8px 16px 8px 12px; }
+  .user-header__actions { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: nowrap; gap: 8px; padding: 0 16px 16px; }
+  .user-header__actions > * { flex: 1 1 0; min-width: 0; }
+  .user-header__actions > #kdl-author-manager-btn { display: flex; }
+  .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn { flex: 1 1 auto; width: 100%; height: 2.25rem; }
+  .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
+  .user-header__actions :is(.user-header__upload > span, .kdl-ui-btn > span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-header__actions > .user-header__favourite { flex: 0 0 2.25rem; padding: 0; }
+  .user-header__favourite .user-header__fav-text { display: none; }
+  .user-header__favourite .user-header__fav-icon { font-size: 16px; }
+}
 @media (max-width: 480px) {
   .user-header__background { height: 88px; }
   .user-header__avatar { width: 72px; height: 72px; margin: -36px 0 12px 16px; }
-  .user-header__info { padding: 10px 16px 16px 12px; }
   .user-header__name { font-size: 1.25rem; }
 }
 
