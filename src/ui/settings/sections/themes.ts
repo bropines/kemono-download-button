@@ -24,6 +24,8 @@ import { css } from '../../../utils/cssBuilder';
 import { badge, button, checkbox, emptyState, field, getKitRoot, input, select, switchControl, textarea, toast } from '../../kit';
 import { notifySaved, section, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { peekButton, themePreviewStyles, themeThumbnail } from '../themePreview';
+import './shadcnSwatches';
 
 const STYLE_ID = 'kdl-themes-styles';
 const PREVIEW_DEBOUNCE_MS = 400;
@@ -51,6 +53,9 @@ const styles = css({
     borderRadius: 'calc(var(--kdl-radius) - 2px)',
   },
   '.kdl-themes__row:hover': { background: 'var(--kdl-muted)' },
+  '.kdl-themes__row > .kdl-tp-figure': { alignSelf: 'flex-start' },
+  '.kdl-themes__preview': { display: 'flex', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' },
+  '.kdl-themes__preview-note': { fontSize: '12px', lineHeight: 1.4, color: 'var(--kdl-muted-foreground)', maxWidth: '36ch' },
   '.kdl-themes__info': { flex: '1 1 auto', minWidth: 0, display: 'flex', flexDirection: 'column', gap: '2px' },
   '.kdl-themes__name': { fontSize: '14px', fontWeight: 500, display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' },
   '.kdl-themes__meta': { fontSize: '12px', color: 'var(--kdl-muted-foreground)', lineHeight: 1.4 },
@@ -90,7 +95,11 @@ const styles = css({
   '.kdl-themes__errors': { fontSize: '12px', color: 'var(--kdl-danger)', display: 'flex', flexDirection: 'column', gap: '2px' },
   '@media (max-width: 640px)': {
     '.kdl-themes__transform': { gridTemplateColumns: '1fr 1fr' },
-    '.kdl-themes__row': { flexWrap: 'wrap' },
+    '.kdl-themes__row': { flexWrap: 'wrap', alignItems: 'flex-start' },
+    // Switch + text on the first line, the sketch and the buttons under it
+    '.kdl-themes__info': { flex: '1 1 calc(100% - 60px)' },
+    '.kdl-themes__row > .kdl-tp-figure': { order: 3, marginLeft: '48px' },
+    '.kdl-themes__actions': { order: 4, marginLeft: 'auto', alignSelf: 'flex-end' },
   },
 });
 
@@ -99,7 +108,7 @@ function ensureStyles(): void {
   if (root.getElementById(STYLE_ID)) return;
   const style = document.createElement('style');
   style.id = STYLE_ID;
-  style.textContent = styles;
+  style.textContent = styles + themePreviewStyles;
   root.appendChild(style);
 }
 
@@ -151,7 +160,7 @@ function pickFile(onText: (text: string) => void): void {
 
 function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement {
   const builtin = theme.origin === 'builtin';
-  const actions: HTMLElement[] = [];
+  const actions: HTMLElement[] = [peekButton(theme)];
   if (!builtin) actions.push(button({ icon: 'settings', variant: 'ghost', size: 'icon', ariaLabel: `Edit ${theme.name}`, title: 'Edit', onClick: () => open(theme.id) }));
   actions.push(
     button({
@@ -194,6 +203,7 @@ function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement 
   ];
   return el('div', { className: 'kdl-themes__row', dataset: { theme: theme.id } }, [
     switchControl({ checked: theme.enabled, ariaLabel: `Enable ${theme.name}`, onChange: (on) => setThemeEnabled(theme.id, on) }),
+    themeThumbnail(theme),
     el('div', { className: 'kdl-themes__info' }, [
       el('div', { className: 'kdl-themes__name' }, [theme.name, ...tags]),
       el('div', { className: 'kdl-themes__meta', textContent: theme.description ? `${theme.description} (${scopeLabel(theme)})` : scopeLabel(theme) }),
@@ -413,8 +423,19 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
       status.dataset.error = '';
     }
   };
+  const preview = el('div', { className: 'kdl-themes__preview' });
+  const drawPreview = () =>
+    preview.replaceChildren(
+      themeThumbnail(draft),
+      el('p', {
+        className: 'kdl-themes__preview-note',
+        textContent: 'Sketch of the page with this theme’s colours, radius and card gap. Only pages listed under Pages are drawn as a post or creator page.',
+      })
+    );
+  drawPreview();
   // Live preview: every edit is saved (and applied) after a short pause
   const changed = () => {
+    drawPreview();
     clearTimeout(timer);
     timer = window.setTimeout(save, PREVIEW_DEBOUNCE_MS);
   };
@@ -454,6 +475,7 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
       label: 'Name',
       control: input({ id: 'kdl-theme-name', value: draft.name, onInput: (v) => ((draft.name = v), changed()) }),
     }),
+    preview,
     switchRow({ label: 'Enabled', checked: draft.enabled, onChange: (on) => ((draft.enabled = on), changed()) }),
     field({ label: 'Sites', description: 'None checked: every site.', control: checkGroup<SiteId>(SITE_IDS, draft.sites, (v) => ((draft.sites = v), changed())) }),
     field({ label: 'Pages', description: 'None checked: every page.', control: checkGroup<PageType>(PAGE_TYPES, draft.pages, (v) => ((draft.pages = v), changed())) }),

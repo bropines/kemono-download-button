@@ -1,0 +1,433 @@
+// Tag cloud tools: search, sort, group by first letter with a jump bar, and a script filter, on
+// /posts/tags (page "list") and /<service>/user/<id>/tags (page "creator").
+//
+// The site renders `section#tag-container > article > a > span(name) + span(count)`. We work on those
+// nodes: articles are re-appended in the chosen order and hidden with a marker attribute; letter headings
+// are our own nodes. Unmount (and every htmx snapshot) puts the original order back and drops all of it.
+
+import type { KdlModule, ModuleContext } from '../../core/types';
+import { el } from '../../utils/dom';
+import { button, ensureKit, input, kitIcon, select } from '../../ui/kit';
+
+export const TAGS_TOOLS_ID = 'tags.tools';
+
+const CONTAINER = 'section#tag-container';
+const HIDDEN_ATTR = 'data-kdl-tag-hidden';
+const TOOLBAR_ID = 'kdl-tags-toolbar';
+
+type SortMode = 'count-desc' | 'count-asc' | 'az' | 'za' | 'site';
+type ScriptId = 'all' | 'latin' | 'cyrillic' | 'cjk' | 'other';
+
+interface TagItem {
+  node: HTMLElement;
+  name: string;
+  /** Lowercase, diacritics stripped */
+  norm: string;
+  /** norm without spaces, dashes and underscores, for "fuzzy-ish" matching */
+  compact: string;
+  count: number;
+  script: Exclude<ScriptId, 'all'>;
+  letter: string;
+  index: number;
+}
+
+const SCRIPT_LABELS: Record<ScriptId, string> = {
+  all: 'All scripts',
+  latin: 'Latin',
+  cyrillic: 'Cyrillic',
+  cjk: 'CJK (Han, Kana, Hangul)',
+  other: 'Other',
+};
+
+const SORT_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'site', label: 'Site order' },
+  { value: 'count-desc', label: 'Most posts first' },
+  { value: 'count-asc', label: 'Fewest posts first' },
+  { value: 'az', label: 'A → Z' },
+  { value: 'za', label: 'Z → A' },
+];
+
+const RE_LATIN = /\p{Script=Latin}/u;
+const RE_CYRILLIC = /\p{Script=Cyrillic}/u;
+const RE_CJK = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const RE_LETTER = /\p{L}/u;
+const RE_GROUPABLE = /[\p{Script=Latin}\p{Script=Cyrillic}\p{Script=Greek}]/u;
+
+export function normalize(text: string): string {
+  return text.normalize('NFKD').replace(/\p{M}+/gu, '').toLowerCase();
+}
+
+/** Script of the first letter in the name; names without letters count as Other */
+export function detectScript(name: string): TagItem['script'] {
+  const letter = [...name].find((ch) => RE_LETTER.test(ch));
+  if (!letter) return 'other';
+  if (RE_LATIN.test(letter)) return 'latin';
+  if (RE_CYRILLIC.test(letter)) return 'cyrillic';
+  if (RE_CJK.test(letter)) return 'cjk';
+  return 'other';
+}
+
+/** Group key: the first character uppercased for Latin/Cyrillic/Greek (diacritics dropped), else "#" */
+function letterOf(name: string): string {
+  const first = [...normalize(name.trim())][0] ?? '';
+  return RE_GROUPABLE.test(first) ? first.toUpperCase() : '#';
+}
+
+const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
+
+export function matches(item: Pick<TagItem, 'norm' | 'compact'>, terms: string[]): boolean {
+  return terms.every((term) => item.norm.includes(term) || item.compact.includes(term.replace(/[\s_-]+/g, '')));
+}
+
+// ---- state ----
+
+interface Prefs {
+  query: string;
+  script: ScriptId;
+}
+
+let ctxRef: ModuleContext | null = null;
+let container: HTMLElement | null = null;
+let items: TagItem[] = [];
+let toolbar: HTMLElement | null = null;
+let headings: HTMLElement[] = [];
+let snapshotTimer = 0;
+// Not persisted: they belong to the visit (sort and grouping are module settings)
+const prefs: Prefs = { query: '', script: 'all' };
+
+function readItems(section: HTMLElement): TagItem[] {
+  return Array.from(section.querySelectorAll<HTMLElement>(':scope > article')).map((node, index) => {
+    const spans = node.querySelectorAll('span');
+    const name = (spans[0]?.textContent ?? node.textContent ?? '').trim();
+    const count = Number((spans[1]?.textContent ?? '').replace(/[^\d]/g, '')) || 0;
+    const norm = normalize(name);
+    return { node, name, norm, compact: norm.replace(/[\s_-]+/g, ''), count, script: detectScript(name), letter: letterOf(name), index };
+  });
+}
+
+function sorted(list: TagItem[], mode: SortMode): TagItem[] {
+  const out = list.slice();
+  switch (mode) {
+    case 'count-desc':
+      return out.sort((a, b) => b.count - a.count || collator.compare(a.name, b.name));
+    case 'count-asc':
+      return out.sort((a, b) => a.count - b.count || collator.compare(a.name, b.name));
+    case 'az':
+      return out.sort((a, b) => collator.compare(a.name, b.name));
+    case 'za':
+      return out.sort((a, b) => collator.compare(b.name, a.name));
+    default:
+      return out.sort((a, b) => a.index - b.index);
+  }
+}
+
+/** Letters first (in collation order), "#" last */
+function compareLetters(a: string, b: string): number {
+  if (a === b) return 0;
+  if (a === '#') return 1;
+  if (b === '#') return -1;
+  return collator.compare(a, b);
+}
+
+const headingId = (letter: string) => `kdl-tags-letter-${letter === '#' ? 'other' : encodeURIComponent(letter).replace(/%/g, '')}`;
+
+// ---- render ----
+
+let countLabel: HTMLElement | null = null;
+let jumpBar: HTMLElement | null = null;
+let sortEl: HTMLSelectElement | null = null;
+let groupBtn: HTMLButtonElement | null = null;
+
+function syncControls(ctx: ModuleContext): void {
+  const on = ctx.settings.get<boolean>('group') === true;
+  if (sortEl) sortEl.value = ctx.settings.get<string>('sort');
+  if (groupBtn) {
+    groupBtn.classList.toggle('kdl-ui-btn--secondary', on);
+    groupBtn.classList.toggle('kdl-ui-btn--outline', !on);
+    groupBtn.setAttribute('aria-pressed', String(on));
+  }
+}
+
+function apply(): void {
+  const ctx = ctxRef;
+  if (!ctx || !container) return;
+  const mode = ctx.settings.get<string>('sort') as SortMode;
+  const group = ctx.settings.get<boolean>('group');
+  const terms = normalize(prefs.query).split(/\s+/).filter(Boolean);
+
+  let list = sorted(items, mode);
+  if (group) list = list.slice().sort((a, b) => compareLetters(a.letter, b.letter));
+
+  headings.forEach((node) => node.remove());
+  headings = [];
+  const shownLetters = new Map<string, number>();
+  const frag = document.createDocumentFragment();
+  let lastLetter = '';
+  let shown = 0;
+  for (const item of list) {
+    const visible = (prefs.script === 'all' || item.script === prefs.script) && matches(item, terms);
+    if (visible) item.node.removeAttribute(HIDDEN_ATTR);
+    else item.node.setAttribute(HIDDEN_ATTR, '');
+    if (visible) {
+      shown++;
+      shownLetters.set(item.letter, (shownLetters.get(item.letter) ?? 0) + 1);
+      if (group && item.letter !== lastLetter) {
+        lastLetter = item.letter;
+        const heading = el('h3', { className: 'kdl-tags-letter', id: headingId(item.letter), textContent: item.letter });
+        headings.push(heading);
+        frag.append(heading);
+      }
+    }
+    frag.append(item.node);
+  }
+  container.append(frag);
+
+  if (countLabel) countLabel.textContent = shown === items.length ? `${items.length} tags` : `${shown} of ${items.length} tags`;
+  container.toggleAttribute('data-kdl-tags-grouped', group);
+  container.toggleAttribute('data-kdl-tags-empty', shown === 0);
+  renderJumpBar(group ? shownLetters : null);
+  // Jumped-to headings land below the sticky toolbar
+  if (toolbar) container.style.setProperty('--kdl-tags-toolbar-h', `${toolbar.offsetHeight + 12}px`);
+}
+
+function renderJumpBar(letters: Map<string, number> | null): void {
+  if (!jumpBar) return;
+  jumpBar.hidden = !letters || letters.size < 2;
+  if (!letters) return jumpBar.replaceChildren();
+  const keys = [...letters.keys()].sort(compareLetters);
+  jumpBar.replaceChildren(
+    ...keys.map((letter) =>
+      el('button', {
+        type: 'button',
+        className: 'kdl-tags-jump__key',
+        textContent: letter,
+        title: `${letter}: ${letters.get(letter)} tags`,
+        onClick: () => document.getElementById(headingId(letter))?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+      })
+    )
+  );
+}
+
+function scriptOptions(): { value: string; label: string }[] {
+  const counts = new Map<string, number>();
+  items.forEach((item) => counts.set(item.script, (counts.get(item.script) ?? 0) + 1));
+  return (Object.keys(SCRIPT_LABELS) as ScriptId[])
+    .filter((id) => id === 'all' || counts.has(id) || prefs.script === id)
+    .map((id) => ({ value: id, label: id === 'all' ? SCRIPT_LABELS.all : `${SCRIPT_LABELS[id]} (${counts.get(id) ?? 0})` }));
+}
+
+function buildToolbar(ctx: ModuleContext): HTMLElement {
+  let timer = 0;
+  const search = input({
+    type: 'search',
+    value: prefs.query,
+    placeholder: 'Filter tags…',
+    ariaLabel: 'Filter tags',
+    className: 'kdl-tags-toolbar__search',
+    onInput: (value) => {
+      prefs.query = value;
+      clearTimeout(timer);
+      // Instant on small clouds, a short pause on the 2000-tag global one
+      timer = window.setTimeout(apply, items.length > 500 ? 80 : 0);
+    },
+  });
+  search.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && search.value) {
+      event.preventDefault();
+      search.value = '';
+      prefs.query = '';
+      apply();
+    }
+  });
+  sortEl = select({
+    ariaLabel: 'Sort tags',
+    options: SORT_OPTIONS,
+    value: ctx.settings.get<string>('sort'),
+    onChange: (value) => ctx.settings.set('sort', value),
+  });
+  const script = select({
+    ariaLabel: 'Filter by script',
+    options: scriptOptions(),
+    value: prefs.script,
+    onChange: (value) => {
+      prefs.script = value as ScriptId;
+      apply();
+    },
+  });
+  groupBtn = button({
+    label: 'A–Z groups',
+    icon: 'list',
+    variant: ctx.settings.get<boolean>('group') ? 'secondary' : 'outline',
+    title: 'Group by first letter',
+    size: 'sm',
+    className: 'kdl-tags-toolbar__group',
+    onClick: () => ctx.settings.set('group', !ctx.settings.get<boolean>('group')),
+  });
+  countLabel = el('span', { className: 'kdl-tags-toolbar__count', role: 'status' });
+  jumpBar = el('nav', { className: 'kdl-tags-jump' });
+  jumpBar.setAttribute('aria-label', 'Jump to letter');
+
+  return el('div', { id: TOOLBAR_ID, className: 'kdl-scope kdl-tags-toolbar' }, [
+    el('div', { className: 'kdl-tags-toolbar__row' }, [
+      el('label', { className: 'kdl-tags-toolbar__field' }, [kitIcon('search'), search]),
+      sortEl,
+      script,
+      groupBtn,
+      countLabel,
+    ]),
+    jumpBar,
+  ]);
+}
+
+function build(ctx: ModuleContext, section: HTMLElement): void {
+  ensureKit();
+  container = section;
+  items = readItems(section);
+  if (!items.length) {
+    container = null;
+    return;
+  }
+  // Keep the visit's filter when a snapshot rebuilt us, but drop a script choice that no longer exists
+  if (prefs.script !== 'all' && !items.some((i) => i.script === prefs.script)) prefs.script = 'all';
+  toolbar = buildToolbar(ctx);
+  syncControls(ctx);
+  section.before(toolbar);
+  apply();
+}
+
+/** Original order and visibility back, our nodes gone */
+function restore(): void {
+  clearTimeout(snapshotTimer);
+  headings.forEach((node) => node.remove());
+  headings = [];
+  if (container?.isConnected) {
+    const frag = document.createDocumentFragment();
+    items
+      .slice()
+      .sort((a, b) => a.index - b.index)
+      .forEach((item) => {
+        item.node.removeAttribute(HIDDEN_ATTR);
+        frag.append(item.node);
+      });
+    container.append(frag);
+    container.removeAttribute('data-kdl-tags-grouped');
+    container.removeAttribute('data-kdl-tags-empty');
+    container.style.removeProperty('--kdl-tags-toolbar-h');
+    if (!container.getAttribute('style')) container.removeAttribute('style');
+  }
+  toolbar?.remove();
+  document.getElementById(TOOLBAR_ID)?.remove();
+  toolbar = null;
+  countLabel = null;
+  jumpBar = null;
+  sortEl = null;
+  groupBtn = null;
+  container = null;
+  items = [];
+}
+
+function sync(ctx: ModuleContext): void {
+  const section = document.querySelector<HTMLElement>(CONTAINER);
+  if (section && section === container && toolbar?.isConnected) return;
+  // A swap replaced the cloud (or it rendered late): start over on the new one
+  if (container || toolbar) restore();
+  if (section) build(ctx, section);
+}
+
+const styles = `
+.kdl-tags-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  width: min(80vw, 100%);
+  margin: 1em auto 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--kdl-border);
+  border-radius: var(--kdl-radius);
+  background: color-mix(in srgb, var(--kdl-background) 88%, transparent);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-sizing: border-box;
+}
+.kdl-tags-toolbar__row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.kdl-tags-toolbar__field { position: relative; flex: 1 1 220px; min-width: 0; display: flex; align-items: center; }
+.kdl-tags-toolbar__field > .kdl-ui-icon { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--kdl-muted-foreground); pointer-events: none; }
+.kdl-tags-toolbar .kdl-tags-toolbar__search { padding-left: 32px; width: 100%; }
+.kdl-tags-toolbar .kdl-ui-select { width: auto; flex: 0 1 auto; }
+.kdl-tags-toolbar__count { margin-left: auto; font-size: 13px; color: var(--kdl-muted-foreground); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.kdl-tags-jump { display: flex; flex-wrap: wrap; gap: 2px; }
+.kdl-tags-jump[hidden] { display: none; }
+.kdl-tags-toolbar .kdl-tags-jump__key {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  border-radius: calc(var(--kdl-radius) - 2px);
+  background: transparent;
+  color: var(--kdl-foreground);
+  font: 500 12px/26px var(--kdl-font);
+  cursor: pointer;
+}
+.kdl-tags-toolbar .kdl-tags-jump__key:hover, .kdl-tags-toolbar .kdl-tags-jump__key:focus-visible { background: var(--kdl-accent); color: var(--kdl-accent-foreground); outline: none; }
+section#tag-container > article[${HIDDEN_ATTR}] { display: none !important; }
+section#tag-container > .kdl-tags-letter {
+  flex: 0 0 100%;
+  margin: 0.75em 0 0.25em;
+  padding: 0 0 4px;
+  border-bottom: 1px solid var(--kdl-border, rgba(127, 127, 127, 0.3));
+  font-size: 1.1em;
+  font-weight: 600;
+  text-align: left;
+  scroll-margin-top: var(--kdl-tags-toolbar-h, 120px);
+}
+section#tag-container[data-kdl-tags-grouped] { justify-content: flex-start; }
+section#tag-container[data-kdl-tags-empty]::before { content: 'No tags match'; flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
+@media (max-width: 640px) {
+  .kdl-tags-toolbar { width: auto; margin: 0.5em 8px 0; }
+  .kdl-tags-toolbar__field { flex-basis: 100%; }
+  .kdl-tags-toolbar .kdl-ui-select { flex: 1 1 40%; }
+  .kdl-tags-toolbar__count { margin-left: 0; }
+}
+`;
+
+export const tagsToolsModule: KdlModule = {
+  id: TAGS_TOOLS_ID,
+  name: 'Tag tools',
+  description: 'On tag pages: filter the tag cloud as you type, sort it by post count or name, group it by first letter with a jump bar, and show only Latin, Cyrillic, CJK or other tags.',
+  group: 'Lists',
+  // /posts/tags is a "list" page, /<service>/user/<id>/tags a "creator" page; the tag cloud decides
+  pages: ['list', 'creator'],
+  defaultEnabled: true,
+  settings: [
+    { key: 'sort', label: 'Default sort', type: 'select', default: 'site', options: SORT_OPTIONS },
+    { key: 'group', label: 'Group by first letter', type: 'boolean', default: false },
+  ],
+  styles,
+  mount(ctx) {
+    ctxRef = ctx;
+    const changed = () => {
+      syncControls(ctx);
+      apply();
+    };
+    ctx.settings.onChange('sort', changed);
+    ctx.settings.onChange('group', changed);
+    sync(ctx);
+    ctx.onCleanup(() => {
+      restore();
+      ctxRef = null;
+      prefs.query = '';
+      prefs.script = 'all';
+    });
+  },
+  update(ctx) {
+    sync(ctx);
+  },
+  beforeSnapshot() {
+    // htmx clones the DOM synchronously after this hook; rebuild right after with the same filter
+    restore();
+    snapshotTimer = window.setTimeout(() => ctxRef && sync(ctxRef), 0);
+  },
+};
