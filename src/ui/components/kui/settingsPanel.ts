@@ -210,6 +210,14 @@ export function injectUI(): void {
     });
   }
 
+  const preloadImagesToggle = document.getElementById("preloadImagesToggle") as HTMLInputElement | null;
+  if (preloadImagesToggle) {
+    preloadImagesToggle.checked = kuiState.isPreloadEnabled;
+    preloadImagesToggle.addEventListener("change", () => {
+      setPreloadImages(preloadImagesToggle.checked);
+    });
+  }
+
   const hideEmptySectionsToggle = document.getElementById("hideEmptySectionsToggle") as HTMLInputElement | null;
   if (hideEmptySectionsToggle) {
     hideEmptySectionsToggle.checked = kuiState.isHideEmptySectionsEnabled;

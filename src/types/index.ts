@@ -133,11 +133,6 @@ export interface KuiAppState {
   sessionKey: string;
 }
 
-export interface PostFileData {
-  name: string;
-  path: string;
-}
-
 export interface VideoData {
   title: string;
   src: string;
@@ -148,7 +143,6 @@ export interface GalleryLayoutElement extends HTMLDivElement {
 }
 
 declare global {
-  var JSZip: any;
   function GM_addStyle(css: string): HTMLStyleElement | undefined;
   function GM_download(options: {
     url: string;

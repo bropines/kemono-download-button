@@ -10,7 +10,8 @@ export default defineConfig({
       formats: ['iife'],
       fileName: () => 'bundle.js'
     },
-    minify: false,
+    // The userscript header is prepended afterwards by scripts/postbuild.mjs, so minifying cannot strip it
+    minify: 'esbuild',
     rollupOptions: {
       external: ['plyr'],
       output: {

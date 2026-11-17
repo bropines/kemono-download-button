@@ -3,6 +3,7 @@ import { SELECTORS } from '../../config/selectors';
 import { kuiState } from '../../state/kuiState';
 import { showMessage } from '../../ui/toast';
 import { parseGluedUrl } from '../../utils/urlSanitizer';
+import { copyToClipboard } from '../../utils/clipboard';
 
 export interface ServiceBrand {
   name: string;
@@ -236,15 +237,9 @@ function isOnOwnLine(link: HTMLAnchorElement, trailing: string): boolean {
   return (!before || isLabel) && !after;
 }
 
-function copyPassword(password: string): void {
-  try {
-    if (typeof GM_setClipboard === "function") {
-      GM_setClipboard(password);
-    } else {
-      navigator.clipboard?.writeText(password);
-    }
-    showMessage("Password copied to clipboard", "info");
-  } catch (e) {}
+async function copyPassword(password: string): Promise<void> {
+  if (await copyToClipboard(password)) showMessage("Password copied to clipboard", "info");
+  else showMessage("Could not copy the password", "warning");
 }
 
 export function processEmbeds(): void {

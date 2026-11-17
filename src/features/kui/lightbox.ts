@@ -74,6 +74,8 @@ export const lightboxModule = {
           </div>
       </div>
     `;
+    // A lightbox closed moments ago is still fading out; every lookup below is by id, so it goes now
+    document.querySelectorAll("#kui-lightbox").forEach((old) => old.remove());
     document.body.insertAdjacentHTML("beforeend", lightboxHTML);
     this.canvas = document.getElementById("kui-image-canvas") as HTMLCanvasElement;
     this.ctx = this.canvas.getContext("2d");
