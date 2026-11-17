@@ -82,6 +82,8 @@ Rules:
 | `downloader.post` | post | post action buttons + post data prefetch |
 | `downloader.creator` | creator | card buttons, checkboxes, bulk panel, author manager, shift/ctrl-click selection |
 | `favorites.quick` | list, search, artists | quick favourite stars |
+| `tags.tools` | list, creator | tag pages only (`section#tag-container`): filter, sort, A–Z groups with a jump bar, script filter; settings `sort`, `group` |
+| `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
 | `ui.shadcn` | any | off by default: shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">` |
 | `ui.shadcn.cards` / `.post` / `.creator` | any | parts of the skin, `requires: ["ui.shadcn"]` |
 
