@@ -1,6 +1,7 @@
 import { iconSvg } from '../config/icons';
 import { appState, getSettings, state } from '../state/store';
 import { showMessage } from '../ui/toast';
+import { t } from '../i18n';
 import { debugLog, getApiUrl } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 import { IApiAdapter, UpdateCardStateFn } from './types';
@@ -29,7 +30,7 @@ export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAda
 
     while (true) {
       try {
-        progressTask?.updateStatus(`Fetching page ${offset / limit + 1}... Found ${allPosts.length} posts.`);
+        progressTask?.updateStatus(t('common.api.fetchingPage', { page: offset / limit + 1, count: allPosts.length }));
         const postsOnPage = await getJson(pagePath(service, userID, offset));
         if (!Array.isArray(postsOnPage) || postsOnPage.length === 0) break;
         allPosts = allPosts.concat(postsOnPage);
@@ -40,15 +41,15 @@ export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAda
           debugLog('Reached end of posts (API returned 400). Normal exit condition.');
         } else {
           console.error(`Failed to fetch posts at offset ${offset}:`, error);
-          showMessage('Error fetching full post list.', 'error');
-          progressTask?.updateStatus(`Error fetching posts: ${error.message}`);
+          showMessage(t('common.api.fetchListFailed'), 'error');
+          progressTask?.updateStatus(t('common.api.fetchPostsError', { error: error.message }));
         }
         break;
       }
     }
 
     if (progressTask) {
-      progressTask.updateStatus(`Complete! Found ${allPosts.length} posts.`);
+      progressTask.updateStatus(t('common.api.fetchComplete', { count: allPosts.length }));
       progressTask.finish(3000);
     }
     return allPosts;
@@ -72,7 +73,7 @@ export async function fetchUserFavorites(): Promise<boolean> {
     return true;
   } catch (error: any) {
     if (error.message && error.message.includes('Status 401')) {
-      showMessage('Favorites: Auth failed. Check your session cookie.', 'error');
+      showMessage(t('common.api.favAuthFailed'), 'error');
     }
     return false;
   }
@@ -88,7 +89,7 @@ export async function toggleFavorite(
 ): Promise<void> {
   await getSettings();
   if (!state.settings.sessionCookie) {
-    showMessage('Session cookie is required to manage favorites.', 'error');
+    showMessage(t('common.api.favNeedsSession'), 'error');
     return;
   }
   const artistKey = `${service}-${creatorId}`;
@@ -110,10 +111,10 @@ export async function toggleFavorite(
     if (updateCardStateFn) {
       updateCardStateFn(button.closest('.user-card, .post-card'), !isFavorited, type);
     }
-    showMessage(`Successfully ${isFavorited ? 'removed from' : 'added to'} favorites!`, 'info');
+    showMessage(t(isFavorited ? 'common.api.favRemoved' : 'common.api.favAdded'), 'info');
   } catch (error) {
     console.error('[API] Favorite toggle failed:', error);
-    showMessage('Failed to update favorites.', 'error');
+    showMessage(t('common.api.favFailed'), 'error');
   } finally {
     button.innerHTML = iconSvg('star');
     button.disabled = false;

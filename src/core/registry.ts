@@ -275,6 +275,14 @@ export function updateMounted(): void {
   });
 }
 
+/** Unmounts and remounts the page-scoped modules, then updates the rest (after a language switch) */
+export function remountModules(): void {
+  if (!runtime) return;
+  unmountPageScoped();
+  syncModules();
+  updateMounted();
+}
+
 export function snapshotMounted(): void {
   [...ordered()].reverse().forEach((r) => {
     if (r.mounted && r.def.beforeSnapshot) safely(r, 'beforeSnapshot', () => r.def.beforeSnapshot!());

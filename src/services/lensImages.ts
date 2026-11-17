@@ -1,4 +1,5 @@
 import { state } from '../state/store';
+import { t } from '../i18n';
 import { resolveLanguage } from './translators';
 import { cacheKey, clearCache, getCached, getRender, putCached, putRender, renderKey } from '../vendor/lens/cache';
 import { acquireSource, encodeForUpload, fingerprint } from '../vendor/lens/image';
@@ -98,7 +99,7 @@ function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('Could not load the image'));
+    image.onerror = () => reject(new Error(t('kui.lens.imageLoadFailed')));
     image.src = url;
   });
 }
@@ -158,8 +159,8 @@ async function answer(url: string, settings: Settings, pixels: Pixels): Promise<
   if (!result.blocks.length) {
     throw new NothingToTranslate(
       result.ocr.some((paragraph) => paragraph.lines.length > 0)
-        ? 'Lens read the text but returned no translation (same language?)'
-        : 'Lens found no text in this image'
+        ? t('kui.lens.noTranslation')
+        : t('kui.lens.noText')
     );
   }
   return result;

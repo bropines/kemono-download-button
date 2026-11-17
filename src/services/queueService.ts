@@ -1,5 +1,6 @@
 import { appState, getSettings, state } from '../state/store';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
+import { t } from '../i18n';
 
 // Buttons hold icons, so their original markup (not just the text) is restored when the task ends
 const originalButtonHtml = new WeakMap<HTMLElement, string>();
@@ -17,7 +18,7 @@ export function addTaskToQueue(
   if (buttonElement) {
     if (!originalButtonHtml.has(buttonElement)) originalButtonHtml.set(buttonElement, buttonElement.innerHTML);
     buttonElement.dataset.isQueued = 'true';
-    buttonElement.textContent = 'Queued...';
+    buttonElement.textContent = t('dl.queue.queued');
     (buttonElement as HTMLButtonElement).disabled = true;
   }
   updateQueueIndicator();
@@ -47,7 +48,7 @@ export async function processQueue(): Promise<void> {
     if (task.buttonElement) {
       delete task.buttonElement.dataset.isQueued;
       task.buttonElement.dataset.isDownloading = 'true';
-      task.buttonElement.textContent = 'Processing...';
+      task.buttonElement.textContent = t('dl.queue.processing');
     }
 
     (async () => {

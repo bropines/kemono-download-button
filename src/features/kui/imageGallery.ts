@@ -11,6 +11,7 @@ import { GalleryLayoutElement } from '../../types';
 import { sanitizeDuplicates } from '../../utils/domChecker';
 import { debugModule } from '../../utils/logger';
 import { resolveMediaUrl } from '../../utils/helpers';
+import { t } from '../../i18n';
 
 // Per container: a slow fetch for the previous post must not block the gallery of the next one
 let initializingContainer: Element | null = null;
@@ -62,14 +63,14 @@ export async function initializeImageGallery(): Promise<void> {
       icon: 'panel-left-close',
       variant: 'secondary',
       size: 'icon',
-      ariaLabel: 'Toggle thumbnails',
+      ariaLabel: t('kui.gallery.toggleThumbnails'),
       className: 'kui-gallery-thumb-toggle',
       onClick: () => {
         const collapsed = thumbList.classList.toggle("kui-collapsed");
         thumbToggle.replaceChildren(kitIcon(collapsed ? 'panel-left-open' : 'panel-left-close'));
         thumbToggle.setAttribute('aria-expanded', String(!collapsed));
       },
-    }), { text: 'Toggle thumbnails', side: 'left' });
+    }), { text: t('kui.gallery.toggleThumbnails'), side: 'left' });
     thumbToggle.setAttribute('aria-expanded', 'true');
     previewContainer.appendChild(previewImage);
     previewContainer.appendChild(thumbToggle);
@@ -82,9 +83,9 @@ export async function initializeImageGallery(): Promise<void> {
         icon: 'languages',
         variant: 'secondary',
         size: 'icon',
-        ariaLabel: 'Translate the text in this image',
+        ariaLabel: t('kui.lens.translateImage'),
         className: 'kui-action-btn',
-      }), { text: 'Translate / show original', side: 'right' });
+      }), { text: t('kui.lens.translateToggle'), side: 'right' });
       const previewActions = document.createElement("div");
       previewActions.className = "kui-gallery-preview-actions";
       previewActions.appendChild(translateBtn);
@@ -135,7 +136,7 @@ export async function initializeImageGallery(): Promise<void> {
         translatedByIndex.set(index, translated);
         if (index === currentIndex) setActive(index);
       } catch (error) {
-        showMessage(`Lens: ${(error as Error).message}`, 'error');
+        showMessage(t('kui.lens.error', { message: (error as Error).message }), 'error');
       } finally {
         btn.disabled = false;
         btn.replaceChildren(kitIcon('languages'));
@@ -202,8 +203,8 @@ export async function initializeImageGallery(): Promise<void> {
           actionsContainer.className = "kui-thumb-actions";
           const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
           [
-            { href: fullOriginalPath, icon: 'download' as const, text: "Download original" },
-            { href: lensLink, icon: lensIcon(), text: "Search with Google Lens" },
+            { href: fullOriginalPath, icon: 'download' as const, text: t('kui.media.downloadOriginal') },
+            { href: lensLink, icon: lensIcon(), text: t('kui.media.searchLens') },
           ].forEach(({ href, icon, text }) => {
             const action = tooltip(
               button({ href, target: '_blank', icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),

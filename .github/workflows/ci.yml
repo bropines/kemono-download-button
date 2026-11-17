@@ -30,6 +30,9 @@ jobs:
       - name: Check the compiled script parses
         run: node --check kemono-download-button.user.js
 
+      - name: Verify locale signatures
+        run: npm run verify-locales
+
       - name: Check versions agree
         run: node scripts/check-version.mjs
 

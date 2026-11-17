@@ -9,6 +9,7 @@ import { setupNavigationSettings } from '../ui/components/navigationSettings';
 import { injectUI } from '../ui/components/kui/settingsPanel';
 import { toggleSettingsModal } from '../ui/components/settingsModal';
 import { lightboxModule } from '../features/kui/lightbox';
+import { t } from '../i18n';
 
 const STYLE_ID = 'kdl-global-styles';
 let stylesInjected = false;
@@ -52,8 +53,8 @@ export function ensureStylesInjected(): void {
 // Settings stay reachable from the userscript manager menu even when the page layout hides our buttons
 function registerMenuCommands(): void {
   if (typeof GM_registerMenuCommand !== 'function') return;
-  GM_registerMenuCommand('Download settings', () => toggleSettingsModal(true));
-  GM_registerMenuCommand('UI settings', () => document.getElementById('kui-settings-panel')?.classList.add('kui-panel-active'));
+  GM_registerMenuCommand(t('kui.menu.downloadSettings'), () => toggleSettingsModal(true));
+  GM_registerMenuCommand(t('kui.menu.uiSettings'), () => document.getElementById('kui-settings-panel')?.classList.add('kui-panel-active'));
 }
 
 // A new pathname is a different post/creator/list: drop page-scoped download state

@@ -1,0 +1,10 @@
+{
+  "packs": [
+    {
+      "code": "ru",
+      "name": "Русский",
+      "version": 1,
+      "sha256": "672bf4c58ccf0a188c7949eeb18c68285a2222c1cd23ebab5c6b0d469eb05669"
+    }
+  ]
+}

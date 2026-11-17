@@ -10,6 +10,7 @@ import { generateRandomId, getApiUrl, sanitizeFilename, isFileExtensionIgnored }
 import { abortError, downloadFileWithFallback, gmXmlhttpRequestWithRetries, isAbortError } from '../utils/http';
 import { collectFilesForPost, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
+import { t } from '../i18n';
 
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
 const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
@@ -100,7 +101,7 @@ async function addUrlFilesToZip(
       storedNames[index] = zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
     } finally {
       done++;
-      if (!task.signal.aborted) task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
+      if (!task.signal.aborted) task.updateStatus(t('dl.task.downloadingDone', { prefix: statusPrefix, done, total: urlFiles.length }));
     }
   }, task.signal);
 
@@ -110,8 +111,8 @@ async function addUrlFilesToZip(
 }
 
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
-  const task = progressManager.createTask(`zip-${postDetails.postID}`, `ZIP: ${postDetails.postTitle}`);
-  task.updateStatus('Fetching post metadata...');
+  const task = progressManager.createTask(`zip-${postDetails.postID}`, t('dl.task.zipTitle', { title: postDetails.postTitle }));
+  task.updateStatus(t('dl.task.fetchingMeta'));
   try {
     const isPostPage = window.location.pathname.includes('/post/');
     const { files: rawFiles } = isPostPage && appState.cachedPostFiles
@@ -119,30 +120,30 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
       : await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
 
     const files = filterIgnoredFiles(rawFiles);
-    if (files.length === 0) throw new Error('No content to ZIP (all files filtered or empty).');
+    if (files.length === 0) throw new Error(t('dl.task.noZipContent'));
 
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
     const urlFiles = files.filter((f) => f.source === 'url');
-    task.updateStatus(`Downloading ${urlFiles.length} files...`);
+    task.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failCount } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
     if (urlFiles.length > 0 && failCount === urlFiles.length) {
-      throw new Error('All file downloads failed');
+      throw new Error(t('dl.task.allFailed'));
     }
 
-    task.updateStatus('Zipping...');
+    task.updateStatus(t('dl.task.zipping'));
     const blob = await zip.toBlob();
-    if (blob.size === 0) throw new Error('Generated ZIP is empty.');
+    if (blob.size === 0) throw new Error(t('dl.task.zipEmpty'));
     saveBlob(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
 
-    task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ''}`);
+    task.updateStatus(failCount > 0 ? t('dl.task.completeFails', { count: failCount }) : t('dl.task.complete'));
   } catch (error: any) {
     if (isAbortError(error)) {
-      task.updateStatus('Cancelled');
+      task.updateStatus(t('dl.task.cancelled'));
       return;
     }
-    task.updateStatus(`Error: ${error.message}`);
+    task.updateStatus(t('dl.task.error', { message: error.message }));
     console.error('ZIP process error:', error);
     throw error;
   } finally {
@@ -152,7 +153,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
 export async function executeIndividualDownload(type: 'Images' | 'Attachments', postDetails: PostDetails): Promise<void> {
   await getSettings();
-  const task = progressManager.createTask(`indiv-${type}-${postDetails.postID}`, `${type}: ${postDetails.postTitle}`);
+  const task = progressManager.createTask(`indiv-${type}-${postDetails.postID}`, t(type === 'Images' ? 'dl.task.imagesTitle' : 'dl.task.attachmentsTitle', { title: postDetails.postTitle }));
 
   try {
     const isPostPage = window.location.pathname.includes('/post/');
@@ -172,12 +173,12 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
     }
 
     if (targetFiles.length === 0) {
-      task.updateStatus(`No ${type.toLowerCase()} to download.`);
+      task.updateStatus(t(type === 'Images' ? 'dl.task.noImages' : 'dl.task.noAttachments'));
       task.finish(3000);
       return;
     }
 
-    task.updateStatus(`Starting download of ${targetFiles.length} files...`);
+    task.updateStatus(t('dl.task.starting', { count: targetFiles.length }));
 
     let completedCount = 0;
     await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i) => {
@@ -190,13 +191,13 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
         task.markFileComplete(fileTaskId, false);
       } finally {
         completedCount++;
-        if (!task.signal.aborted) task.updateStatus(`Downloaded ${completedCount}/${targetFiles.length}`);
+        if (!task.signal.aborted) task.updateStatus(t('dl.task.downloadedOf', { done: completedCount, total: targetFiles.length }));
       }
     }, task.signal);
 
-    task.updateStatus(task.signal.aborted ? 'Cancelled' : 'All downloads triggered!');
+    task.updateStatus(task.signal.aborted ? t('dl.task.cancelled') : t('dl.task.allTriggered'));
   } catch (error: any) {
-    task.updateStatus(`Error: ${error.message}`);
+    task.updateStatus(t('dl.task.error', { message: error.message }));
   } finally {
     task.finish();
   }
@@ -216,7 +217,7 @@ export async function downloadFilesToDiskWithProgress(
   await getSettings();
 
   const task = progressManager.createTask(`pick-${generateRandomId(8)}`, taskTitle);
-  task.updateStatus(`Queued ${downloadSpecs.length} files...`);
+  task.updateStatus(t('dl.task.queuedFiles', { count: downloadSpecs.length }));
 
   const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
   let completedCount = 0;
@@ -239,24 +240,26 @@ export async function downloadFilesToDiskWithProgress(
     } finally {
       completedCount++;
       if (!task.signal.aborted) {
-        task.updateStatus(`${completedCount}/${downloadSpecs.length} done${failCount > 0 ? `, ${failCount} failed` : ''}`);
+        task.updateStatus(failCount > 0
+          ? t('dl.task.doneOfFailed', { done: completedCount, total: downloadSpecs.length, failed: failCount })
+          : t('dl.task.doneOf', { done: completedCount, total: downloadSpecs.length }));
       }
     }
   }, task.signal);
 
   if (task.signal.aborted) {
-    task.updateStatus('Cancelled');
+    task.updateStatus(t('dl.task.cancelled'));
   } else {
     task.updateStatus(failCount === 0
-      ? `All ${downloadSpecs.length} files saved`
-      : `Done: ${completedCount - failCount} ok, ${failCount} failed`
+      ? t('dl.task.allSaved', { count: downloadSpecs.length })
+      : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount })
     );
   }
   task.finish(5000);
 }
 
 export async function downloadPostAsZip(details: PostDetails): Promise<void> {
-  const postTask = progressManager.createTask(`zip-multi-${details.postID}`, `ZIP: ${details.postTitle}`);
+  const postTask = progressManager.createTask(`zip-multi-${details.postID}`, t('dl.task.zipTitle', { title: details.postTitle }));
   try {
     const { files: rawFiles } = await collectFilesForPost(details, {
       isBulk: false,
@@ -264,16 +267,16 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     });
 
     const files = filterIgnoredFiles(rawFiles);
-    if (files.length === 0) throw new Error('No content to ZIP.');
+    if (files.length === 0) throw new Error(t('dl.task.noZipContentShort'));
 
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
     const urlFiles = files.filter((f) => f.source === 'url');
-    postTask.updateStatus(`Downloading ${urlFiles.length} files...`);
+    postTask.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failedFileCount } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
 
-    postTask.updateStatus('Zipping...');
+    postTask.updateStatus(t('dl.task.zipping'));
     const zipFileName = formatNameFromTemplate(state.settings.bulkMultipleSystemPathTemplate, {
       author_name: details.authorName,
       post_title: details.postTitle,
@@ -284,14 +287,14 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     });
 
     saveBlob(await zip.toBlob(), zipFileName);
-    postTask.updateStatus(`Complete! ${failedFileCount > 0 ? `(${failedFileCount} fails)` : ''}`);
+    postTask.updateStatus(failedFileCount > 0 ? t('dl.task.completeFails', { count: failedFileCount }) : t('dl.task.complete'));
   } catch (error: any) {
     if (isAbortError(error)) {
-      postTask.updateStatus('Cancelled');
+      postTask.updateStatus(t('dl.task.cancelled'));
       return;
     }
     console.error(`Failed to download post ${details.postID} as ZIP:`, error);
-    postTask.updateStatus(`Error: ${error.message}`);
+    postTask.updateStatus(t('dl.task.error', { message: error.message }));
     throw error;
   } finally {
     postTask.finish();
@@ -320,7 +323,7 @@ export function comparePostsAscending(a: PostDetails, b: PostDetails): number {
 }
 
 export async function executeBulkDownloadSingle(posts: PostDetails[], authorName: string): Promise<void> {
-  const task = progressManager.createTask('bulk-single', `Bulk Archive (${posts.length} Posts)`);
+  const task = progressManager.createTask('bulk-single', t('dl.task.bulkArchive', { count: posts.length }));
   // One counter per archive keeps global_file_index running across its posts without touching other runs
   const mediaCounter = { value: 0 };
 
@@ -335,7 +338,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       if (task.signal.aborted) throw abortError();
       const postDetails = clonePost(posts[i]);
       const postPrefix = `[${i + 1}/${posts.length}] `;
-      task.updateStatus(`${postPrefix}Fetching: ${postDetails.postTitle}`);
+      task.updateStatus(t('dl.task.fetchingPost', { prefix: postPrefix, title: postDetails.postTitle }));
 
       const { files: rawFiles } = await collectFilesForPost(postDetails, {
         isBulk: true,
@@ -369,29 +372,29 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       zip.addFile('_index.html', `${htmlIndex}</div></body></html>`);
     }
 
-    task.updateStatus(`Finalizing ZIP for ${posts.length} posts...`);
+    task.updateStatus(t('dl.task.finalizing', { count: posts.length }));
     const finalZipName = formatNameFromTemplate(state.settings.bulkSingleSystemPathTemplate, {
       author_name: authorName,
       post_count: posts.length
     });
 
     saveBlob(await zip.toBlob(), finalZipName);
-    task.updateStatus('Complete!');
+    task.updateStatus(t('dl.task.complete'));
   } catch (error: any) {
     if (isAbortError(error)) {
-      task.updateStatus('Cancelled');
+      task.updateStatus(t('dl.task.cancelled'));
       return;
     }
     console.error('Bulk download (single) failed:', error);
-    task.updateStatus(`Error: ${error.message}`);
+    task.updateStatus(t('dl.task.error', { message: error.message }));
   } finally {
     task.finish();
   }
 }
 
 export async function executeBulkDownloadMultiple(posts: PostDetails[]): Promise<void> {
-  const task = progressManager.createTask('bulk-multiple', `Bulk Queuing (${posts.length} Posts)`);
-  task.updateStatus('Adding posts to the download queue...');
+  const task = progressManager.createTask('bulk-multiple', t('dl.task.bulkQueuing', { count: posts.length }));
+  task.updateStatus(t('dl.task.addingToQueue'));
 
   for (let i = 0; i < posts.length; i++) {
     if (task.signal.aborted) break;
@@ -403,12 +406,12 @@ export async function executeBulkDownloadMultiple(posts: PostDetails[]): Promise
     }
 
     addTaskToQueue('Bulk-Single-Zip', downloadPostAsZip, postDetails, null);
-    task.updateStatus(`Queued ${i + 1}/${posts.length} posts...`);
+    task.updateStatus(t('dl.task.queuedPosts', { done: i + 1, total: posts.length }));
   }
 
   task.updateStatus(task.signal.aborted
-    ? 'Cancelled: the remaining posts were not queued.'
-    : 'All posts queued! Downloads will start based on concurrency settings.');
+    ? t('dl.task.queueCancelled')
+    : t('dl.task.allQueued'));
   task.finish(3000);
 }
 
@@ -428,7 +431,7 @@ export async function executeBulkDownload(posts: PostDetails[]): Promise<void> {
   });
 
   if (postsToProcess.length === 0) {
-    showMessage('No posts selected.', 'warning');
+    showMessage(t('dl.bulk.noneSelected'), 'warning');
     return;
   }
 
@@ -456,7 +459,7 @@ export async function executeBulkDownload(posts: PostDetails[]): Promise<void> {
     }
   } catch (error) {
     console.error('Bulk download execution failed:', error);
-    showMessage('A critical error occurred during bulk download.', 'error');
+    showMessage(t('dl.bulk.critical'), 'error');
   } finally {
     if (downloadBtn) downloadBtn.disabled = false;
     document.querySelectorAll('.kdl-post-checkbox:checked').forEach((cb: any) => {
@@ -466,7 +469,7 @@ export async function executeBulkDownload(posts: PostDetails[]): Promise<void> {
     const bulkBtnOnPage = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
     if (bulkBtnOnPage) {
       appState.selectedPostIds.clear();
-      bulkBtnOnPage.textContent = `Download Selected (0)`;
+      bulkBtnOnPage.textContent = t('dl.bulk.downloadSelected', { count: 0 });
       bulkBtnOnPage.disabled = true;
     }
     updateQueueIndicator();

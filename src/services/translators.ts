@@ -1,5 +1,6 @@
 import { DownloaderSettings } from '../types';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
+import { t } from '../i18n';
 
 export interface TranslationLanguage {
   value: string;
@@ -96,7 +97,7 @@ export async function translateText(text: string, settings: DownloaderSettings, 
     case 'openai':
       return translateOpenAiCompatible(text, language.name, settings, signal);
     default:
-      throw new Error(`Provider ${settings.translationProvider} is not supported.`);
+      throw new Error(t('kui.translate.error.unsupported', { provider: settings.translationProvider }));
   }
 }
 
@@ -180,7 +181,7 @@ function deeplTargetCode(code: string): string {
 }
 
 async function translateDeepL(text: string, targetCode: string, settings: DownloaderSettings, signal?: AbortSignal): Promise<string> {
-  if (!settings.deeplApiKey) throw new Error('DeepL API key is missing in settings.');
+  if (!settings.deeplApiKey) throw new Error(t('kui.translate.error.deeplKey'));
   const baseUrl = settings.deeplApiTier === 'pro' ? 'https://api.deepl.com' : 'https://api-free.deepl.com';
   const response = await gmXmlhttpRequestWithRetries({
     method: 'POST',
@@ -196,7 +197,7 @@ async function translateDeepL(text: string, targetCode: string, settings: Downlo
 }
 
 async function translateGemini(text: string, languageName: string, settings: DownloaderSettings, signal?: AbortSignal): Promise<string> {
-  if (!settings.geminiApiKey) throw new Error('Gemini API key is missing in settings.');
+  if (!settings.geminiApiKey) throw new Error(t('kui.translate.error.geminiKey'));
   const storedModel = settings.translationModelName?.trim();
   const model = !storedModel || storedModel === LEGACY_GEMINI_MODEL ? DEFAULT_GEMINI_MODEL : storedModel;
   const response = await gmXmlhttpRequestWithRetries({
@@ -217,8 +218,8 @@ async function translateGemini(text: string, languageName: string, settings: Dow
 
 async function translateOpenAiCompatible(text: string, languageName: string, settings: DownloaderSettings, signal?: AbortSignal): Promise<string> {
   const baseUrl = (settings.openaiBaseUrl || '').trim().replace(/\/+$/, '');
-  if (!baseUrl) throw new Error('OpenAI-compatible base URL is missing in settings.');
-  if (!settings.openaiModel) throw new Error('Model name is missing in settings.');
+  if (!baseUrl) throw new Error(t('kui.translate.error.openaiUrl'));
+  if (!settings.openaiModel) throw new Error(t('kui.translate.error.openaiModel'));
 
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
   // Local servers (Ollama, LM Studio) work without a key

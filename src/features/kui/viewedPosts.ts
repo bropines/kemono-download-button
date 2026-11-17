@@ -3,6 +3,7 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 import type { KdlModule } from '../../core/types';
 import { onPageChange } from '../../core/router';
+import { t } from '../../i18n';
 
 // Post ids are only unique per service and creator, so the key carries all three
 const MAX_VIEWED_POSTS = 5000;
@@ -64,7 +65,7 @@ html[${LOOK_ATTR}="dim"] .post-card.kui-viewed { opacity: 0.5; transition: opaci
 html[${LOOK_ATTR}="dim"] .post-card.kui-viewed:hover,
 html[${LOOK_ATTR}="dim"] .post-card.kui-viewed:focus-within { opacity: 1; }
 html[${LOOK_ATTR}="label"] .post-card.kui-viewed .post-card__header::before {
-  content: 'Viewed';
+  content: var(--kdl-viewed-label, 'Viewed');
   display: inline-block;
   margin-right: 4px;
   padding: 0 5px;
@@ -99,10 +100,16 @@ export const viewedPostsModule: KdlModule = {
     }
   ],
   mount(ctx) {
-    const applyLook = (value: unknown) => document.documentElement.setAttribute(LOOK_ATTR, String(value as ViewedLook || 'dim'));
+    const applyLook = (value: unknown) => {
+      document.documentElement.setAttribute(LOOK_ATTR, String(value as ViewedLook || 'dim'));
+      document.documentElement.style.setProperty('--kdl-viewed-label', JSON.stringify(t('kui.viewed.tag')));
+    };
     applyLook(ctx.settings.get('look'));
     ctx.settings.onChange('look', applyLook);
-    ctx.onCleanup(() => document.documentElement.removeAttribute(LOOK_ATTR));
+    ctx.onCleanup(() => {
+      document.documentElement.removeAttribute(LOOK_ATTR);
+      document.documentElement.style.removeProperty('--kdl-viewed-label');
+    });
     // 'any'-page modules stay mounted across navigations, so the post page is caught here
     ctx.onCleanup(onPageChange(() => {
       rememberCurrentPost();

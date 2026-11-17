@@ -1,9 +1,11 @@
 import { SELECTORS } from '../../config/selectors';
+import { originalText } from '../../i18n/site';
 import { kuiState } from '../../state/kuiState';
 import { showMessage } from '../../ui/toast';
 import { parseGluedUrl } from '../../utils/urlSanitizer';
 import { copyToClipboard } from '../../utils/clipboard';
 import { badge, button as kitButton, ensureKit, kitIcon } from '../../ui/kit';
+import { t } from '../../i18n';
 
 export interface ServiceBrand {
   name: string;
@@ -155,7 +157,7 @@ export function restructureLayout(processEmbedsCallback?: () => void): void {
     }
   };
   postBody.querySelectorAll("h2").forEach((h2) => {
-    const title = h2.textContent?.trim().toLowerCase();
+    const title = originalText(h2).trim().toLowerCase();
     const content = findNextProperSibling(h2);
     if (!content) return;
     if (title === "downloads" && content.matches(".post__attachments")) {
@@ -198,10 +200,10 @@ export function formatAttachmentButtons(): void {
     // The site's own link, dressed as a kit button; self-scoped since the list around it is the site's
     link.classList.add("kdl-scope", "kdl-ui-btn", "kdl-ui-btn--outline", "kdl-ui-btn--size-sm");
     const textSpan = document.createElement("span");
-    textSpan.textContent = `Download ${rawFileName}`;
+    textSpan.textContent = t('kui.embeds.downloadFile', { name: rawFileName });
 
     link.replaceChildren(kitIcon("download"), textSpan);
-    link.title = `Download ${rawFileName}`;
+    link.title = t('kui.embeds.downloadFile', { name: rawFileName });
   });
 }
 
@@ -226,8 +228,8 @@ function isOnOwnLine(link: HTMLAnchorElement, trailing: string): boolean {
 }
 
 async function copyPassword(password: string): Promise<void> {
-  if (await copyToClipboard(password)) showMessage("Password copied to clipboard", "info");
-  else showMessage("Could not copy the password", "warning");
+  if (await copyToClipboard(password)) showMessage(t('kui.embeds.passwordCopied'), "info");
+  else showMessage(t('kui.embeds.passwordCopyFailed'), "warning");
 }
 
 export function processEmbeds(): void {
@@ -338,7 +340,7 @@ export function processEmbeds(): void {
         const password = linkPasswords.get(url);
         if (password) {
           button.appendChild(badge({ text: password, icon: "key-round", variant: "secondary", className: "kui-embed-password" }));
-          button.title = `${url}\nPassword: ${password} (copied on click)`;
+          button.title = `${url}\n${t('kui.embeds.passwordTitle', { password })}`;
           button.addEventListener("click", () => copyPassword(password));
         }
         buttonContainer.appendChild(button);
@@ -396,7 +398,7 @@ export function hideEmptySections(): void {
 
   document.querySelectorAll(".kui-post-section").forEach((section) => {
     const h2 = section.querySelector("h2");
-    const title = h2?.textContent?.trim().toLowerCase() || "";
+    const title = originalText(h2).trim().toLowerCase();
 
     let isEmpty = false;
 

@@ -1,6 +1,8 @@
 import { SELECTORS } from '../../config/selectors';
 import { VideoData } from '../../types';
 import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
+import { t } from '../../i18n';
+import { plyrI18n } from '../../i18n/plyr';
 
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
@@ -48,7 +50,7 @@ export function initializeVideoGallery(): void {
 
       if (src) {
         videosData.push({
-          title: summary || src.split("/").pop()?.split("?")[0] || `Video ${index + 1}`,
+          title: summary || src.split("/").pop()?.split("?")[0] || t('kui.video.untitled', { n: index + 1 }),
           src: src
         });
       }
@@ -69,7 +71,7 @@ export function initializeVideoGallery(): void {
       const titleCandidate = parentContainer.querySelector("summary, figcaption, .file-name, a")?.textContent?.trim()
         || video.getAttribute("title")
         || src.split("/").pop()?.split("?")[0]
-        || `Video ${index + 1}`;
+        || t('kui.video.untitled', { n: index + 1 });
 
       videosData.push({
         title: titleCandidate,
@@ -124,13 +126,13 @@ export function initializeVideoGallery(): void {
   const playlistToggle = tooltip(button({
     variant: "secondary",
     size: "icon",
-    ariaLabel: "Toggle playlist",
+    ariaLabel: t('kui.video.togglePlaylist'),
     className: "kdl-scope kui-video-playlist-toggle",
     onClick: () => {
       videoList.classList.toggle("kui-collapsed");
       syncToggle();
     },
-  }), { text: "Toggle playlist", side: "left" });
+  }), { text: t('kui.video.togglePlaylist'), side: "left" });
 
   playerContainer.appendChild(mainPlayerElement);
   playerContainer.appendChild(playlistToggle);
@@ -150,7 +152,8 @@ export function initializeVideoGallery(): void {
   const player = new Plyr(mainPlayerElement, {
     tooltips: { controls: true, seek: true },
     keyboard: { focused: true, global: true },
-    storage: { enabled: true, key: "kui_plyr" }
+    storage: { enabled: true, key: "kui_plyr" },
+    i18n: plyrI18n()
   });
   activePlayer = player;
 

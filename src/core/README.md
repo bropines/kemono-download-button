@@ -84,6 +84,7 @@ Rules:
 | `favorites.quick` | list, search, artists | quick favourite stars |
 | `ui.shadcn` | any | off by default: shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">` |
 | `ui.shadcn.cards` / `.post` / `.creator` | any | parts of the skin, `requires: ["ui.shadcn"]` |
+| `i18n.site` | any | translates the site chrome with the active language's `site` dictionary (`src/i18n/site.ts`); restores originals on disable and before htmx snapshots |
 
 ## Storage migration
 

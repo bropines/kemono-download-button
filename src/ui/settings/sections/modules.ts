@@ -26,15 +26,21 @@ import {
 } from '../../kit';
 import { notifySaved, section, whileConnected } from '../controls';
 import { getSettingsSections, registerSettingsSection, type SettingsSection } from '../registry';
+import { t, tx } from '../../../i18n';
 
-const PAGE_LABELS: Record<PageType, string> = {
-  post: 'Post',
-  creator: 'Creator',
-  list: 'Post lists',
-  artists: 'Artists',
-  search: 'Search',
-  other: 'Other pages',
+const PAGE_LABELS: Record<PageType, () => string> = {
+  post: () => t('settings.modules.page.post'),
+  creator: () => t('settings.modules.page.creator'),
+  list: () => t('settings.modules.page.list'),
+  artists: () => t('settings.modules.page.artists'),
+  search: () => t('settings.modules.page.search'),
+  other: () => t('settings.modules.page.other'),
 };
+
+/** Translated texts of a module definition (convention keys, see src/i18n/README.md). */
+const modName = (mod: KdlModule) => tx(`mod.${mod.id}.name`, mod.name);
+const modDescription = (mod: KdlModule) => (mod.description ? tx(`mod.${mod.id}.description`, mod.description) : undefined);
+const modGroup = (group: string) => tx(`modules.group.${group}`, group);
 // A slider only when the range is small enough to drag through; otherwise a number input
 const MAX_SLIDER_STEPS = 1000;
 
@@ -42,7 +48,7 @@ const settingId = (mod: KdlModule, key: string) => `kdl-mod-${mod.id}-${key}`.re
 
 /** Required modules that are switched off, by name. */
 function missingRequirements(mod: KdlModule): string[] {
-  return (mod.requires ?? []).filter((dep) => !isModuleEnabled(dep)).map((dep) => getModule(dep)?.name ?? dep);
+  return (mod.requires ?? []).filter((dep) => !isModuleEnabled(dep)).map((dep) => { const def = getModule(dep); return def ? modName(def) : dep; });
 }
 
 /** Builds the control for one declared setting; `sync` pushes an outside change into it. */
@@ -54,7 +60,7 @@ function settingControl(mod: KdlModule, def: SettingDef): { node: HTMLElement; s
     notifySaved();
   };
   const labelled = (control: HTMLElement, horizontal = false) =>
-    field({ label: def.label, description: def.hint, control, orientation: horizontal ? 'horizontal' : 'vertical' });
+    field({ label: tx(`mod.${mod.id}.setting.${def.key}`, def.label), description: def.hint ? tx(`mod.${mod.id}.setting.${def.key}.hint`, def.hint) : undefined, control, orientation: horizontal ? 'horizontal' : 'vertical' });
 
   switch (def.type) {
     case 'boolean': {
@@ -81,7 +87,8 @@ function settingControl(mod: KdlModule, def: SettingDef): { node: HTMLElement; s
       return { node: labelled(control), sync: (v) => (control.value = String(v)) };
     }
     case 'select': {
-      const control = select({ id, options: def.options ?? [], value: String(value), onChange: save });
+      const options = (def.options ?? []).map((o) => ({ value: o.value, label: tx(`mod.${mod.id}.setting.${def.key}.option.${o.value}`, o.label) }));
+      const control = select({ id, options, value: String(value), onChange: save });
       return { node: labelled(control), sync: (v) => (control.value = String(v)) };
     }
     case 'textarea': {
@@ -96,11 +103,11 @@ function settingControl(mod: KdlModule, def: SettingDef): { node: HTMLElement; s
 }
 
 function pageBadges(mod: KdlModule): HTMLElement {
-  const pages = mod.pages === 'any' ? ['All pages'] : mod.pages.map((page) => PAGE_LABELS[page] ?? page);
+  const pages = mod.pages === 'any' ? [t('settings.modules.page.any')] : mod.pages.map((page) => PAGE_LABELS[page]?.() ?? page);
   return el('div', { className: 'kdl-settings__module-badges' }, [
     ...pages.map((text) => badge({ text, variant: 'outline' })),
     ...(mod.sites ?? []).map((site) => badge({ text: site, variant: 'secondary' })),
-    mod.locked ? badge({ text: 'Always on', variant: 'secondary', icon: 'lock' }) : null,
+    mod.locked ? badge({ text: t('settings.modules.alwaysOn'), variant: 'secondary', icon: 'lock' }) : null,
   ]);
 }
 
@@ -108,7 +115,7 @@ function pageBadges(mod: KdlModule): HTMLElement {
 function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLElement {
   const toggle = switchControl({
     id: settingId(mod, 'enabled'),
-    ariaLabel: `Enable ${mod.name}`,
+    ariaLabel: t('settings.modules.enable', { name: modName(mod) }),
     checked: isModuleEnabled(mod.id),
     disabled: !!mod.locked,
     onChange: (checked) => {
@@ -121,12 +128,15 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
   const body = el('div', { className: 'kdl-settings__group kdl-settings__module-settings' }, controls.map((c) => c.node));
   if (extra) extra.render(body);
 
-  const node = section(mod.name, [pageBadges(mod), notice, body.childElementCount ? body : null], {
-    description: mod.description ?? extra?.description,
+  const node = section(modName(mod), [pageBadges(mod), notice, body.childElementCount ? body : null], {
+    description: modDescription(mod) ?? extra?.description,
   });
   node.classList.add('kdl-settings__module');
   node.dataset.module = mod.id;
-  node.dataset.search = [mod.id, mod.name, mod.description, mod.group, extra?.title].filter(Boolean).join(' ').toLowerCase();
+  node.dataset.search = [mod.id, mod.name, modName(mod), mod.description, modDescription(mod), mod.group, mod.group && modGroup(mod.group), extra?.title]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
   toggle.classList.add('kdl-settings__module-toggle');
   node.querySelector('.kdl-settings__section-head')!.append(toggle);
 
@@ -138,7 +148,7 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
     toggle.disabled = !!mod.locked || (missing.length > 0 && !enabled);
     notice.hidden = !missing.length;
     notice.querySelector('span')!.textContent = missing.length
-      ? `Needs ${missing.join(', ')} to be on${enabled ? '; inactive until then.' : '.'}`
+      ? t(enabled ? 'settings.modules.needsInactive' : 'settings.modules.needs', { names: missing.join(', ') })
       : '';
     node.dataset.state = enabled && !missing.length ? 'on' : 'off';
   };
@@ -159,7 +169,7 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
 
 function groupBlock(title: string, cards: HTMLElement[]): HTMLElement {
   return el('section', { className: 'kdl-settings__module-group', dataset: { group: title } }, [
-    el('h3', { className: 'kdl-settings__module-group-title', textContent: title }),
+    el('h3', { className: 'kdl-settings__module-group-title', textContent: modGroup(title) }),
     ...cards,
   ]);
 }
@@ -185,20 +195,20 @@ function renderModules(container: HTMLElement): void {
   });
 
   const blocks = [...groups].map(([title, cards]) => groupBlock(title, cards));
-  if (looseCards.length) blocks.push(groupBlock('More settings', looseCards));
+  if (looseCards.length) blocks.push(groupBlock(t('settings.modules.moreSettings'), looseCards));
 
   if (!blocks.length) {
-    container.append(emptyState({ icon: 'package', title: 'No modules registered' }));
+    container.append(emptyState({ icon: 'package', title: t('settings.modules.none') }));
     return;
   }
 
-  const empty = emptyState({ icon: 'search', title: 'No matching modules' });
+  const empty = emptyState({ icon: 'search', title: t('settings.modules.noMatch') });
   empty.hidden = true;
   const search = input({
     id: 'kdl-modules-search',
     type: 'search',
-    placeholder: 'Search modules…',
-    ariaLabel: 'Search modules',
+    placeholder: t('settings.modules.searchPlaceholder'),
+    ariaLabel: t('settings.modules.search'),
     onInput: (raw) => {
       const terms = raw.toLowerCase().split(/\s+/).filter(Boolean);
       let shown = 0;

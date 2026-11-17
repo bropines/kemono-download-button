@@ -6,6 +6,7 @@ import { debugLog } from '../utils/helpers';
 import { KUI_STORAGE_KEYS } from '../config/storage';
 import { kuiState, setDebugMode, setSessionKey, setVerboseDebugMode } from './kuiState';
 import { exportExtraSettings, importExtraSettings } from './settingsTransfer';
+import { t } from '../i18n';
 
 export const state = {
   settings: { ...DEFAULT_SETTINGS } as DownloaderSettings
@@ -73,7 +74,7 @@ export async function exportSettings(): Promise<void> {
 /** Imports a file from exportSettings (older downloader-only files too). Wrong types and unknown keys are skipped. */
 export async function importSettings(jsonString: string): Promise<number> {
   const newSettings = JSON.parse(jsonString);
-  if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) throw new Error('not a settings object');
+  if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) throw new Error(t('settings.import.notSettings'));
   await getSettings();
   let importCount = 0;
   for (const key in DEFAULT_SETTINGS) {

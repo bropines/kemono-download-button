@@ -1,4 +1,5 @@
 import { el } from '../../../utils/dom';
+import { t } from '../../../i18n';
 import type { IconName } from '../../../config/icons';
 import { portal } from '../root';
 import { cx, kitIcon } from '../utils';
@@ -34,7 +35,7 @@ let region: HTMLOListElement | null = null;
 function getRegion(): HTMLOListElement {
   if (region?.isConnected) return region;
   region = el('ol', { className: 'kdl-ui-toaster' });
-  region.setAttribute('aria-label', 'Notifications');
+  region.setAttribute('aria-label', t('common.notifications'));
   region.setAttribute('data-kdl-dismiss-ignore', '');
   return portal(region);
 }
@@ -70,7 +71,7 @@ export function toast(options: ToastOptions): ToastHandle {
     const closeBtn = el('button', { type: 'button', className: 'kdl-ui-toast__close', onClick: dismiss }, [
       kitIcon('x'),
     ]);
-    closeBtn.setAttribute('aria-label', 'Dismiss');
+    closeBtn.setAttribute('aria-label', t('common.dismiss'));
     element.replaceChildren(
       ...[
         iconName ? kitIcon(iconName, cx('kdl-ui-toast__icon', variant === 'loading' && 'kdl-ui-spin')) : null,

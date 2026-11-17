@@ -36,3 +36,6 @@ pnpm-debug.log*
 
 # Claude Code worktrees and local state
 .claude/
+
+# Locale signing key (never commit)
+.keys/

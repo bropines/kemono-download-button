@@ -5,6 +5,7 @@ import { appState, getSettings, state } from '../../state/store';
 import { showMessage } from '../../ui/toast';
 import { el } from '../../utils/dom';
 import { ensureKit, kitIcon, setTooltip } from '../../ui/kit';
+import { t, type UiKey } from '../../i18n';
 
 type TranslateKind = 'title' | 'content' | 'comment';
 type ButtonState = 'idle' | 'loading' | 'translated';
@@ -17,16 +18,17 @@ const TARGETS: Record<TranslateKind, (button: HTMLElement) => HTMLElement | null
 };
 // Children that must survive translation untouched: the service link buttons at the top of the content
 const KEEP_SELECTORS: Partial<Record<TranslateKind, string>> = { content: '.kui-embed-container' };
-const STATE_VIEW: Record<ButtonState, { iconName: IconName; label: string }> = {
-  idle: { iconName: 'languages', label: 'Translate' },
-  loading: { iconName: 'loader-circle', label: 'Translating…' },
-  translated: { iconName: 'undo-2', label: 'Show original' },
+const STATE_VIEW: Record<ButtonState, { iconName: IconName; label: UiKey }> = {
+  idle: { iconName: 'languages', label: 'kui.translate.translate' },
+  loading: { iconName: 'loader-circle', label: 'kui.translate.translating' },
+  translated: { iconName: 'undo-2', label: 'kui.translate.showOriginal' },
 };
 
 let listenerBound = false;
 
 function setButtonState(button: HTMLButtonElement, buttonState: ButtonState): void {
-  const { iconName, label } = STATE_VIEW[buttonState];
+  const { iconName } = STATE_VIEW[buttonState];
+  const label = t(STATE_VIEW[buttonState].label);
   button.dataset.state = buttonState;
   setTooltip(button, label);
   button.setAttribute('aria-label', label);
@@ -84,7 +86,7 @@ async function toggleTranslation(button: HTMLButtonElement): Promise<void> {
     setButtonState(button, 'translated');
   } catch (error: any) {
     setButtonState(button, 'idle');
-    showMessage(`Translation failed: ${error.message}`, 'error');
+    showMessage(t('kui.translate.failed', { message: error.message }), 'error');
   }
 }
 
@@ -113,7 +115,7 @@ export function syncTranslateButton(host: Element | null, kind: TranslateKind, c
   }
   if (button) {
     // One restored from an htmx history snapshot lost its tooltip listeners; setTooltip attaches them again
-    setTooltip(button, STATE_VIEW[(button.dataset.state as ButtonState) || 'idle']?.label ?? STATE_VIEW.idle.label);
+    setTooltip(button, t(STATE_VIEW[(button.dataset.state as ButtonState) || 'idle']?.label ?? STATE_VIEW.idle.label));
     return;
   }
 

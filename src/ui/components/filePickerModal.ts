@@ -6,13 +6,14 @@ import { el } from '../../utils/dom';
 import { addKitStyles, badge, button, checkbox, dialog, emptyState, kitIcon, progress, scrollArea, setProgress, type DialogHandle } from '../kit';
 import { filePickerModalStyles } from '../../styles/components/filePickerModal.styles';
 import { showMessage } from '../toast';
+import { t } from '../../i18n';
 
 const baseName = (name: string): string => name.split('/').pop() || name;
 
 /** Short type label from the extension ("JPG", "ZIP"), or a generic one. */
 function fileType(file: FileItem): string {
   const match = /\.([a-z0-9]{1,5})$/i.exec(baseName(file.name));
-  return match ? match[1].toUpperCase() : file.isMedia ? 'MEDIA' : 'FILE';
+  return match ? match[1].toUpperCase() : file.isMedia ? t('dl.picker.typeMedia') : t('dl.picker.typeFile');
 }
 
 /** Icon, name and type badge shared by both pickers' rows. */
@@ -42,22 +43,22 @@ const statusLine = (text: string, error = false) =>
   el('p', { className: `kdl-ov-picker__status${error ? ' kdl-ov-picker__status--error' : ''}` }, [text]);
 
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
-  const { handle, setTitle } = openPicker('Loading attachments...', 'md', 'kdl-file-picker-modal');
-  handle.body.replaceChildren(progress({ ariaLabel: 'Loading attachments' }));
+  const { handle, setTitle } = openPicker(t('dl.picker.loading'), 'md', 'kdl-file-picker-modal');
+  handle.body.replaceChildren(progress({ ariaLabel: t('dl.picker.loadingLabel') }));
 
   try {
     const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
     const attachments = files.filter((t) => t.source === 'url');
 
     if (attachments.length === 0) {
-      setTitle('No attachments found');
+      setTitle(t('dl.picker.noneFound'));
       handle.body.replaceChildren(
-        emptyState({ icon: 'paperclip', title: 'Nothing to download', description: 'No attachments or downloadable files available for this post.' })
+        emptyState({ icon: 'paperclip', title: t('dl.picker.nothing'), description: t('dl.picker.noneInPost') })
       );
       return;
     }
 
-    setTitle(`Select a file to download (${attachments.length})`);
+    setTitle(t('dl.picker.selectOne', { count: attachments.length }));
     const rows = attachments.map((file) =>
       el('button', {
         type: 'button',
@@ -65,15 +66,15 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
         onClick: async () => {
           const fileName = baseName(file.name);
           handle.close();
-          showMessage(`Starting download for ${fileName}`, 'info');
+          showMessage(t('dl.picker.starting', { name: fileName }), 'info');
           await downloadFilesToDiskWithProgress([{ url: file.data, fileName }], fileName, 1);
         }
       }, fileRowParts(file))
     );
-    handle.body.replaceChildren(scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: 'Attachments', children: rows }));
+    handle.body.replaceChildren(scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: t('dl.picker.attachments'), children: rows }));
     rows[0]?.focus();
   } catch (error: any) {
-    setTitle('Failed to load attachments');
+    setTitle(t('dl.picker.loadFailed'));
     handle.body.replaceChildren(statusLine(error.message, true));
   }
 }
@@ -81,10 +82,10 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
 export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promise<void> {
   if (!posts || posts.length === 0) return;
 
-  const picker = openPicker(`Fetching attachments for ${posts.length} posts...`, 'lg', 'kdl-file-picker-modal');
+  const picker = openPicker(t('dl.picker.fetchingPosts', { count: posts.length }), 'lg', 'kdl-file-picker-modal');
   const { handle, setTitle } = picker;
-  const loadStatus = statusLine(`Fetching metadata (0/${posts.length} posts loaded)...`);
-  const loadBar = progress({ value: 0, max: posts.length, ariaLabel: 'Fetching attachments' });
+  const loadStatus = statusLine(t('dl.picker.fetchingMeta', { loaded: 0, total: posts.length }));
+  const loadBar = progress({ value: 0, max: posts.length, ariaLabel: t('dl.picker.fetchingLabel') });
   handle.body.replaceChildren(el('div', { className: 'kdl-ui-stack' }, [loadStatus, loadBar]));
 
   try {
@@ -97,25 +98,25 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
       const urlFiles = files.filter((f) => f.source === 'url');
       if (urlFiles.length > 0) postFileGroups.push({ post, files: urlFiles });
       loadedCount++;
-      loadStatus.textContent = `Fetching metadata (${loadedCount}/${posts.length} posts loaded)...`;
+      loadStatus.textContent = t('dl.picker.fetchingMeta', { loaded: loadedCount, total: posts.length });
       setProgress(loadBar, loadedCount);
     }
 
     if (postFileGroups.length === 0) {
-      setTitle('No downloadable attachments found');
+      setTitle(t('dl.picker.noneDownloadable'));
       handle.body.replaceChildren(
-        emptyState({ icon: 'paperclip', title: 'Nothing to download', description: 'None of the selected posts contain downloadable attachments.' })
+        emptyState({ icon: 'paperclip', title: t('dl.picker.nothing'), description: t('dl.picker.noneInSelection') })
       );
       return;
     }
 
     const totalFilesCount = postFileGroups.reduce((acc, g) => acc + g.files.length, 0);
-    setTitle(`Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`);
+    setTitle(t('dl.picker.pickTitle', { files: totalFilesCount, posts: postFileGroups.length }));
 
     const fileBoxes: Array<{ box: HTMLInputElement; file: FileItem }> = [];
     const groupBoxes: Array<{ box: HTMLInputElement; files: HTMLInputElement[] }> = [];
     const countBadge = badge({ text: '', variant: 'secondary' });
-    const downloadBtn = button({ label: 'Download selected', icon: 'download', onClick: () => void startDownload() });
+    const downloadBtn = button({ label: t('dl.picker.downloadSelected'), icon: 'download', onClick: () => void startDownload() });
 
     // Tri-state sync: a group (or "all") box is checked, unchecked or indeterminate after its files
     const syncTriState = (box: HTMLInputElement, files: HTMLInputElement[]) => {
@@ -125,7 +126,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
     };
     const refresh = () => {
       const count = fileBoxes.filter((f) => f.box.checked).length;
-      countBadge.textContent = `${count} / ${totalFilesCount} selected`;
+      countBadge.textContent = t('dl.picker.selectedCount', { count, total: totalFilesCount });
       downloadBtn.disabled = count === 0;
       groupBoxes.forEach((g) => syncTriState(g.box, g.files));
       syncTriState(allBox, fileBoxes.map((f) => f.box));
@@ -135,7 +136,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
       refresh();
     };
 
-    const allBox = checkbox({ checked: true, ariaLabel: 'Select all files', onChange: (value) => setAll(fileBoxes.map((f) => f.box), value) });
+    const allBox = checkbox({ checked: true, ariaLabel: t('dl.picker.selectAllFiles'), onChange: (value) => setAll(fileBoxes.map((f) => f.box), value) });
 
     const groups = postFileGroups.map((group) => {
       const rows = group.files.map((file) => {
@@ -144,7 +145,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
         return el('label', { className: 'kdl-ov-picker__row' }, [box, ...fileRowParts(file)]);
       });
       const files = fileBoxes.slice(-rows.length).map((f) => f.box);
-      const groupBox = checkbox({ checked: true, ariaLabel: `Select all files of ${group.post.postTitle}`, onChange: (value) => setAll(files, value) });
+      const groupBox = checkbox({ checked: true, ariaLabel: t('dl.picker.selectAllOf', { title: group.post.postTitle }), onChange: (value) => setAll(files, value) });
       groupBoxes.push({ box: groupBox, files });
       return el('div', { className: 'kdl-ov-picker__group' }, [
         el('label', { className: 'kdl-ov-picker__group-header' }, [
@@ -160,27 +161,27 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
     const startDownload = async () => {
       const specs: DownloadFileSpec[] = fileBoxes.filter((f) => f.box.checked).map((f) => ({ url: f.file.data, fileName: f.file.name }));
       if (specs.length === 0) {
-        showMessage('Please select at least one file to download.', 'warning');
+        showMessage(t('dl.picker.selectAtLeastOne'), 'warning');
         return;
       }
       handle.close();
-      showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, 'info');
-      await downloadFilesToDiskWithProgress(specs, `Bulk Pick (${specs.length} files)`);
+      showMessage(t('dl.picker.startingMany', { count: specs.length }), 'info');
+      await downloadFilesToDiskWithProgress(specs, t('dl.picker.bulkTitle', { count: specs.length }));
     };
 
     handle.body.replaceChildren(
       el('div', { className: 'kdl-ov-picker__toolbar' }, [
-        el('label', { className: 'kdl-ui-row' }, [allBox, 'Select all']),
+        el('label', { className: 'kdl-ui-row' }, [allBox, t('dl.common.selectAll')]),
         countBadge
       ]),
-      scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: 'Attachments by post', children: groups })
+      scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: t('dl.picker.byPost'), children: groups })
     );
-    handle.footer.replaceChildren(button({ label: 'Cancel', variant: 'outline', onClick: handle.close }), downloadBtn);
+    handle.footer.replaceChildren(button({ label: t('dl.common.cancel'), variant: 'outline', onClick: handle.close }), downloadBtn);
     handle.footer.hidden = false;
     refresh();
     downloadBtn.focus();
   } catch (error: any) {
-    setTitle('Failed to fetch attachments');
+    setTitle(t('dl.picker.fetchFailed'));
     handle.body.replaceChildren(statusLine(error.message, true));
   }
 }

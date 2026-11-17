@@ -3,15 +3,17 @@ import { notifyLensDisplayChanged, notifyLensDisplayPreview } from '../../../ser
 import { saveSetting, state } from '../../../state/store';
 import type { DownloaderSettings } from '../../../types';
 import { el } from '../../../utils/dom';
+import { t, tx, type UiKey } from '../../../i18n';
 import { button, field, input, label, select, separator, setSliderValue, setSwitch, slider, switchControl, tooltip, uid } from '../../kit';
 
 type Key = keyof DownloaderSettings;
 
 interface Control {
   key: Key;
-  label: string;
-  hint?: string;
+  label: UiKey;
+  hint?: UiKey;
   type: 'checkbox' | 'select' | 'range' | 'text';
+  // [value, text key]; a literal like '1x' is shown as is
   options?: Array<[string, string]>;
   min?: number;
   max?: number;
@@ -30,54 +32,54 @@ const erasing = (settings: DownloaderSettings) => settings.imageTranslateDrawBac
 // Horizontal text is drawn line by line in the boxes Lens found unless it is re-wrapped, and only a
 // re-wrapped paragraph has a spacing, an alignment or a room to fit: those controls switch re-wrapping on.
 // Vertical text is re-wrapped anyway, unless it is kept vertical.
-const GROUPS: Array<{ title: string; controls: Control[] }> = [
+const GROUPS: Array<{ title: UiKey; controls: Control[] }> = [
   {
-    title: 'Paragraphs',
+    title: 'kui.lensPanel.group.paragraphs',
     controls: [
-      { key: 'imageTranslateReflow', label: 'Re-wrap horizontal text', type: 'checkbox', hint: 'Lay each paragraph out as one text area instead of repeating the lines Lens found. The settings below need it for horizontal text' },
-      { key: 'imageTranslateAlign', label: 'Alignment', type: 'select', reflows: true, options: [['auto', 'Follow the source'], ['left', 'Left'], ['center', 'Center'], ['right', 'Right']] },
-      { key: 'imageTranslateLineSpacing', label: 'Line spacing', type: 'range', min: 0.8, max: 2, step: 0.05, unit: 'x', reflows: true },
-      { key: 'imageTranslateFitToBox', label: 'Keep text out of the next bubble', type: 'checkbox', reflows: true, hint: 'Shrink a paragraph that outgrows the room between its neighbours, down to the minimum size' }
+      { key: 'imageTranslateReflow', label: 'kui.lensPanel.reflow', type: 'checkbox', hint: 'kui.lensPanel.reflow.hint' },
+      { key: 'imageTranslateAlign', label: 'kui.lensPanel.align', type: 'select', reflows: true, options: [['auto', 'kui.lensPanel.align.option.auto'], ['left', 'kui.lensPanel.align.option.left'], ['center', 'kui.lensPanel.align.option.center'], ['right', 'kui.lensPanel.align.option.right']] },
+      { key: 'imageTranslateLineSpacing', label: 'kui.lensPanel.lineSpacing', type: 'range', min: 0.8, max: 2, step: 0.05, unit: 'x', reflows: true },
+      { key: 'imageTranslateFitToBox', label: 'kui.lensPanel.fitToBox', type: 'checkbox', reflows: true, hint: 'kui.lensPanel.fitToBox.hint' }
     ]
   },
   {
-    title: 'Manga & vertical text',
+    title: 'kui.lensPanel.group.manga',
     controls: [
-      { key: 'imageTranslateManga', label: 'Manga mode', type: 'checkbox', hint: 'Always re-wrap vertical text, cover it instead of patching, widen its room, raise the minimum size' },
-      { key: 'imageTranslateMangaGrowth', label: 'Bubble fill', type: 'range', min: 1, max: 2.5, step: 0.05, unit: 'x', hint: 'How far past the detected text a re-wrapped paragraph may spread', activeWhen: manga },
+      { key: 'imageTranslateManga', label: 'kui.lensPanel.manga', type: 'checkbox', hint: 'kui.lensPanel.manga.hint' },
+      { key: 'imageTranslateMangaGrowth', label: 'kui.lensPanel.mangaGrowth', type: 'range', min: 1, max: 2.5, step: 0.05, unit: 'x', hint: 'kui.lensPanel.mangaGrowth.hint', activeWhen: manga },
       {
-        key: 'imageTranslateVertical', label: 'Vertical CJK text', type: 'select',
-        options: [['auto', 'Vertical for CJK targets only'], ['keep', 'Always vertical'], ['horizontal', 'Always horizontal']],
-        hint: 'Manga mode always re-wraps', activeWhen: (settings) => !settings.imageTranslateManga
+        key: 'imageTranslateVertical', label: 'kui.lensPanel.vertical', type: 'select',
+        options: [['auto', 'kui.lensPanel.vertical.option.auto'], ['keep', 'kui.lensPanel.vertical.option.keep'], ['horizontal', 'kui.lensPanel.vertical.option.horizontal']],
+        hint: 'kui.lensPanel.vertical.hint', activeWhen: (settings) => !settings.imageTranslateManga
       }
     ]
   },
   {
-    title: 'Erasing the original',
+    title: 'kui.lensPanel.group.erasing',
     controls: [
-      { key: 'imageTranslateDrawBackground', label: 'Erase the original text', type: 'checkbox' },
+      { key: 'imageTranslateDrawBackground', label: 'kui.lensPanel.drawBackground', type: 'checkbox' },
       {
-        key: 'imageTranslateErase', label: 'How', type: 'select', activeWhen: erasing, hint: 'Manga mode always covers',
-        options: [['patch', "Lens's patches, like Chrome"], ['hull', 'Cover the text area with its background']]
+        key: 'imageTranslateErase', label: 'kui.lensPanel.erase', type: 'select', activeWhen: erasing, hint: 'kui.lensPanel.erase.hint',
+        options: [['patch', 'kui.lensPanel.erase.option.patch'], ['hull', 'kui.lensPanel.erase.option.hull']]
       },
       {
-        key: 'imageTranslateHullPadding', label: 'Cover margin', type: 'range', min: 0, max: 2, step: 0.05,
-        hint: 'How far past the text the cover reaches, in line heights',
+        key: 'imageTranslateHullPadding', label: 'kui.lensPanel.hullPadding', type: 'range', min: 0, max: 2, step: 0.05,
+        hint: 'kui.lensPanel.hullPadding.hint',
         activeWhen: (settings) => erasing(settings) && (settings.imageTranslateErase === 'hull' || settings.imageTranslateManga)
       }
     ]
   },
   {
-    title: 'Text',
+    title: 'kui.lensPanel.group.text',
     controls: [
-      { key: 'imageTranslateFont', label: 'Font', type: 'text', hint: 'A CSS font family; blank uses the system font' },
+      { key: 'imageTranslateFont', label: 'kui.lensPanel.font', type: 'text', hint: 'kui.lensPanel.font.hint' },
       {
-        key: 'imageTranslateOutline', label: 'Outline', type: 'range', min: 0, max: 8, step: 0.1, unit: 'x',
-        hint: 'Thickens the outline in the background colour behind the text; 0 removes it. Lines drawn without erasing have none',
+        key: 'imageTranslateOutline', label: 'kui.lensPanel.outline', type: 'range', min: 0, max: 8, step: 0.1, unit: 'x',
+        hint: 'kui.lensPanel.outline.hint',
         activeWhen: (settings) => erasing(settings) || settings.imageTranslateReflow || settings.imageTranslateManga
       },
-      { key: 'imageTranslateMinPx', label: 'Minimum size', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'The smallest the text may be on screen when the viewer fits the picture; 0 turns it off. Text kept at this size may spill past its bubble' },
-      { key: 'imageTranslateSharpness', label: 'Sharpness', type: 'select', options: [['1', '1x'], ['2', '2x'], ['3', '3x']], hint: 'Renders at this multiple of the image size, so zooming in stays crisp' }
+      { key: 'imageTranslateMinPx', label: 'kui.lensPanel.minPx', type: 'range', min: 0, max: 32, step: 1, unit: 'px', hint: 'kui.lensPanel.minPx.hint' },
+      { key: 'imageTranslateSharpness', label: 'kui.lensPanel.sharpness', type: 'select', options: [['1', '1x'], ['2', '2x'], ['3', '3x']], hint: 'kui.lensPanel.sharpness.hint' }
     ]
   }
 ];
@@ -130,7 +132,7 @@ export function createLensPanel(onClose: () => void): HTMLElement {
   };
 
   const withHint = (row: HTMLElement, control: Control): HTMLElement => {
-    if (control.hint) tooltip(row, { text: control.hint, side: 'left' });
+    if (control.hint) tooltip(row, { text: t(control.hint), side: 'left' });
     return row;
   };
 
@@ -140,7 +142,7 @@ export function createLensPanel(onClose: () => void): HTMLElement {
 
     if (control.type === 'checkbox') {
       const toggle = switchControl({ onChange: (checked) => set(control.key, checked) });
-      const row = field({ label: control.label, control: toggle, orientation: 'horizontal', className: 'kui-lens-row kui-lens-row--check' });
+      const row = field({ label: t(control.label), control: toggle, orientation: 'horizontal', className: 'kui-lens-row kui-lens-row--check' });
       rows.push({ control, row, sync: () => setSwitch(toggle, Boolean(readSetting(control.key))) });
       return withHint(row, control);
     }
@@ -155,18 +157,18 @@ export function createLensPanel(onClose: () => void): HTMLElement {
         showValue: (value) => formatValue(control, value),
         onInput: (value) => set(control.key, parse(String(value))),
       });
-      const row = el('div', { className: 'kui-lens-row kui-lens-row--range' }, [label({ text: control.label, htmlFor: id }), range]);
+      const row = el('div', { className: 'kui-lens-row kui-lens-row--range' }, [label({ text: t(control.label), htmlFor: id }), range]);
       rows.push({ control, row, sync: () => setSliderValue(range, Number(readSetting(control.key))) });
       return withHint(row, control);
     }
 
     const box = control.type === 'select'
       ? select({
-          options: (control.options ?? []).map(([value, text]) => ({ value, label: text })),
+          options: (control.options ?? []).map(([value, text]) => ({ value, label: tx(text, text) })),
           onChange: (value) => set(control.key, parse(value)),
         })
       : input({ placeholder: 'system-ui', onInput: (value) => set(control.key, value) });
-    const row = field({ label: control.label, control: box, className: 'kui-lens-row' });
+    const row = field({ label: t(control.label), control: box, className: 'kui-lens-row' });
     rows.push({ control, row, sync: () => { box.value = String(readSetting(control.key)); } });
     return withHint(row, control);
   };
@@ -181,21 +183,21 @@ export function createLensPanel(onClose: () => void): HTMLElement {
 
   const panel = el('div', { className: 'kui-lens-panel' }, [
     el('div', { className: 'kui-lens-panel-header' }, [
-      el('strong', {}, ['Translation display']),
-      iconButton('rotate-ccw', 'Back to defaults', () => {
+      el('strong', {}, [t('kui.lensPanel.title')]),
+      iconButton('rotate-ccw', t('kui.lensPanel.reset'), () => {
         CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key], false));
         syncAll();
       }),
-      iconButton('x', 'Close', onClose),
+      iconButton('x', t('kui.lensPanel.close'), onClose),
     ]),
     ...GROUPS.map((group, index) => el('section', { className: 'kui-lens-group' }, [
       index ? separator() : null,
-      el('h4', {}, [group.title]),
+      el('h4', {}, [t(group.title)]),
       ...group.controls.map(buildRow),
     ])),
   ]);
   panel.setAttribute('role', 'region');
-  panel.setAttribute('aria-label', 'Translation display');
+  panel.setAttribute('aria-label', t('kui.lensPanel.title'));
   syncAll();
   return panel;
 }

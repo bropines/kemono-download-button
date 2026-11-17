@@ -21,6 +21,7 @@ import { addKitStyles,
   type DialogHandle
 } from '../kit';
 import { authorManagerModalStyles } from '../../styles/components/authorManagerModal.styles';
+import { onLanguageChange, t } from '../../i18n';
 
 const CACHE_PREFIX = 'kemono_posts_cache_';
 /** Most recently used cache keys first; only these authors keep a cached post list */
@@ -106,16 +107,23 @@ interface ManagerView {
   download: HTMLButtonElement;
 }
 let view: ManagerView | null = null;
+// Built once and reused: a language switch drops a closed sheet so the next launch is built in the new language
+onLanguageChange(() => {
+  if (view && !view.sheet.isOpen()) {
+    view.sheet.element.remove();
+    view = null;
+  }
+});
 // Bumped by every launch, so a slow fetch never overwrites the rows of a newer one
 let loadToken = 0;
 
-const SORT_OPTIONS = [
-  { value: 'date-desc', label: 'Newest first' },
-  { value: 'date-asc', label: 'Oldest first' },
-  { value: 'files-desc', label: 'Most files' },
-  { value: 'files-asc', label: 'Fewest files' },
-  { value: 'title-asc', label: 'Title (A-Z)' },
-  { value: 'title-desc', label: 'Title (Z-A)' }
+const sortOptions = () => [
+  { value: 'date-desc', label: t('dl.bulk.order.newest') },
+  { value: 'date-asc', label: t('dl.bulk.order.oldest') },
+  { value: 'files-desc', label: t('dl.manager.sort.filesDesc') },
+  { value: 'files-asc', label: t('dl.manager.sort.filesAsc') },
+  { value: 'title-asc', label: t('dl.manager.sort.titleAsc') },
+  { value: 'title-desc', label: t('dl.manager.sort.titleDesc') }
 ];
 
 const getItems = (list: HTMLElement) => Array.from(list.querySelectorAll<HTMLElement>('.kdl-ov-manager__item'));
@@ -161,7 +169,7 @@ function setVisibleChecked(checked: boolean): void {
 function refreshManagerCounter(): void {
   if (!view) return;
   const count = view.list.querySelectorAll('input[type="checkbox"]:checked').length;
-  view.counter.textContent = `Selected: ${count}`;
+  view.counter.textContent = t('dl.manager.selectedCount', { count });
   view.download.disabled = count === 0;
 }
 
@@ -214,29 +222,29 @@ function getView(): ManagerView {
   const search = input({
     type: 'search',
     id: 'kdl-manager-search',
-    placeholder: 'Search by title...',
-    ariaLabel: 'Search posts by title',
+    placeholder: t('dl.manager.search'),
+    ariaLabel: t('dl.manager.searchLabel'),
     className: 'kdl-ov-manager__search',
     onInput: applyFiltersAndSort
   });
-  const sort = select({ id: 'kdl-manager-sort', ariaLabel: 'Sort posts', options: SORT_OPTIONS, onChange: applyFiltersAndSort });
-  const list = scrollArea({ className: 'kdl-ov-manager__list', ariaLabel: 'Posts' });
+  const sort = select({ id: 'kdl-manager-sort', ariaLabel: t('dl.manager.sortLabel'), options: sortOptions(), onChange: applyFiltersAndSort });
+  const list = scrollArea({ className: 'kdl-ov-manager__list', ariaLabel: t('dl.manager.posts') });
   list.id = 'kdl-manager-post-list';
   bindRangeSelection(list);
 
   const loadingText = el('p', { className: 'kdl-ov-manager__status' });
   loadingText.setAttribute('aria-live', 'polite');
-  const loading = el('div', { className: 'kdl-ov-manager__loading' }, [progress({ ariaLabel: 'Loading posts' }), loadingText]);
+  const loading = el('div', { className: 'kdl-ov-manager__loading' }, [progress({ ariaLabel: t('dl.manager.loadingPosts') }), loadingText]);
   loading.hidden = true;
 
-  const counter = badge({ text: 'Selected: 0', variant: 'secondary', className: 'kdl-ov-manager__count' });
+  const counter = badge({ text: t('dl.manager.selectedCount', { count: 0 }), variant: 'secondary', className: 'kdl-ov-manager__count' });
   counter.id = 'kdl-manager-counter';
   counter.setAttribute('aria-live', 'polite');
-  const download = button({ id: 'kdl-manager-download', label: 'Download selected', icon: 'download', disabled: true, onClick: downloadSelected });
+  const download = button({ id: 'kdl-manager-download', label: t('dl.picker.downloadSelected'), icon: 'download', disabled: true, onClick: downloadSelected });
 
   const managerSheet = sheet({
-    title: 'Manage posts',
-    description: 'Search, sort and tick posts, then download them. Shift-click selects a range.',
+    title: t('dl.manager.title'),
+    description: t('dl.manager.description'),
     side: 'right',
     className: 'kdl-ov-manager',
     initialFocus: search,
@@ -244,14 +252,14 @@ function getView(): ManagerView {
       el('div', { id: 'kdl-manager-controls', className: 'kdl-ov-manager__toolbar' }, [
         search,
         sort,
-        button({ id: 'kdl-manager-refresh', icon: 'refresh-cw', variant: 'outline', size: 'icon', ariaLabel: 'Force refresh', title: 'Force Refresh', onClick: () => void launchAuthorManager(true) }),
-        button({ id: 'kdl-manager-select-all', label: 'Select visible', variant: 'secondary', onClick: () => setVisibleChecked(true) }),
-        button({ id: 'kdl-manager-deselect-all', label: 'Deselect all', variant: 'ghost', onClick: () => setVisibleChecked(false) })
+        button({ id: 'kdl-manager-refresh', icon: 'refresh-cw', variant: 'outline', size: 'icon', ariaLabel: t('dl.manager.refreshLabel'), title: t('dl.manager.refresh'), onClick: () => void launchAuthorManager(true) }),
+        button({ id: 'kdl-manager-select-all', label: t('dl.manager.selectVisible'), variant: 'secondary', onClick: () => setVisibleChecked(true) }),
+        button({ id: 'kdl-manager-deselect-all', label: t('dl.bulk.deselectAll'), variant: 'ghost', onClick: () => setVisibleChecked(false) })
       ]),
       loading,
       list
     ],
-    footer: [counter, button({ id: 'kdl-manager-close', label: 'Close', variant: 'outline', onClick: () => view?.sheet.close() }), download]
+    footer: [counter, button({ id: 'kdl-manager-close', label: t('dl.common.close'), variant: 'outline', onClick: () => view?.sheet.close() }), download]
   });
   managerSheet.element.id = 'kdl-author-manager-modal';
   const title = managerSheet.element.querySelector<HTMLElement>('.kdl-ui-dialog__title')!;
@@ -284,16 +292,16 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
   if (!forceRefresh) {
     const cachedPosts = readAuthorCache(cacheKey);
     if (cachedPosts) {
-      title.textContent = `Manage ${cachedPosts.length} posts by ${authorName}`;
+      title.textContent = t('dl.manager.titleLoaded', { count: cachedPosts.length, author: authorName });
       setLoading(null);
       showPosts(cachedPosts, authorName);
       return;
     }
   }
 
-  title.textContent = `Loading posts for: ${authorName}`;
+  title.textContent = t('dl.manager.titleLoading', { author: authorName });
   showPosts([], authorName);
-  setLoading('Fetching all post data from API...');
+  setLoading(t('dl.manager.fetching'));
   // The fetcher reports per-page status through a progress-task-like object
   const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID, {
     updateStatus: (text: string) => token === loadToken && setLoading(text),
@@ -308,11 +316,11 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
     } else {
       pruneAuthorCache();
     }
-    title.textContent = `Manage ${allPosts.length} posts by ${authorName}`;
+    title.textContent = t('dl.manager.titleLoaded', { count: allPosts.length, author: authorName });
     showPosts(allPosts, authorName);
   } else {
-    title.textContent = `Failed to load posts for ${authorName}`;
-    list.replaceChildren(emptyState({ icon: 'triangle-alert', title: 'Could not retrieve post list.' }));
+    title.textContent = t('dl.manager.titleFailed', { author: authorName });
+    list.replaceChildren(emptyState({ icon: 'triangle-alert', title: t('dl.manager.listFailed') }));
   }
 }
 
@@ -329,7 +337,7 @@ export function populateManagerList(posts: any[]): void {
   const fragment = document.createDocumentFragment();
 
   posts.forEach((post) => {
-    const postDate = isoDay(post.published) || 'No Date';
+    const postDate = isoDay(post.published) || t('dl.manager.noDate');
     const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
     const postTitle = sanitizeFilename(post.title || 'UntitledPost');
 
@@ -347,8 +355,8 @@ export function populateManagerList(posts: any[]): void {
       icon: 'external-link',
       variant: 'ghost',
       size: 'icon',
-      title: 'Open post in new tab',
-      ariaLabel: `Open ${postTitle} in a new tab`,
+      title: t('dl.manager.openPost'),
+      ariaLabel: t('dl.manager.openPostLabel', { title: postTitle }),
       className: 'kdl-ov-manager__open'
     });
 
@@ -369,7 +377,7 @@ export function populateManagerList(posts: any[]): void {
           preview,
           el('div', { className: 'kdl-ov-manager__text' }, [
             el('span', { className: 'kdl-ov-manager__title', title: postTitle }, [postTitle]),
-            el('span', { className: 'kdl-ov-manager__meta' }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
+            el('span', { className: 'kdl-ov-manager__meta' }, [t('dl.manager.meta', { date: postDate, files: fileCount, id: post.id })])
           ]),
           openLink
         ]
@@ -388,11 +396,11 @@ export function createAuthorManagerButton(): HTMLElement {
   const scope = kitScope(
     [
       button({
-        label: 'Manage All Posts',
+        label: t('dl.manager.button'),
         icon: 'folders',
         variant: 'secondary',
         size: 'sm',
-        title: 'Load all posts from this author into a powerful manager with search and bulk selection.',
+        title: t('dl.manager.buttonHint'),
         onClick: () => void launchAuthorManager()
       })
     ],

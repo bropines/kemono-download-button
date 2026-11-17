@@ -8,6 +8,7 @@ import { button, kitIcon, portal, toast, tooltip } from '../../ui/kit';
 import { lensPanelStyles } from '../../styles/components/lensPanel.styles';
 import { lightboxStyles } from '../../styles/components/kuiMain.styles';
 import { el } from '../../utils/dom';
+import { t } from '../../i18n';
 
 type RenderKind = 'draft' | 'final';
 type IconButtonName = Parameters<typeof kitIcon>[0];
@@ -86,16 +87,16 @@ export const lightboxModule = {
   build() {
     const translating = state.settings.showImageTranslateButton;
     this.downloadBtn = tooltip(
-      button({ id: 'kui-lightbox-download-btn', href: '#', target: '_blank', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: 'Download original', className: 'kui-action-btn' }),
-      { text: 'Download original', side: 'bottom' }
+      button({ id: 'kui-lightbox-download-btn', href: '#', target: '_blank', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: t('kui.media.downloadOriginal'), className: 'kui-action-btn' }),
+      { text: t('kui.media.downloadOriginal'), side: 'bottom' }
     );
     this.lensBtn = tooltip(
-      button({ id: 'kui-lightbox-lens-btn', href: '#', target: '_blank', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: 'Search with Google Lens', className: 'kui-action-btn' }),
-      { text: 'Search with Google Lens', side: 'bottom' }
+      button({ id: 'kui-lightbox-lens-btn', href: '#', target: '_blank', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: t('kui.media.searchLens'), className: 'kui-action-btn' }),
+      { text: t('kui.media.searchLens'), side: 'bottom' }
     );
-    this.copyBtn = iconButton('kui-lightbox-copy-btn', 'link', 'Copy link to original', () => this.handleCopyLink());
-    this.translateBtn = translating ? iconButton('kui-lightbox-translate-btn', 'languages', 'Translate / show original', () => this.handleTranslate()) : null;
-    this.panelBtn = translating ? iconButton('kui-lightbox-lens-settings-btn', 'sliders-horizontal', 'Translation display settings', () => this.setPanelOpen(!!this.panel?.hidden)) : null;
+    this.copyBtn = iconButton('kui-lightbox-copy-btn', 'link', t('kui.lightbox.copyLink'), () => this.handleCopyLink());
+    this.translateBtn = translating ? iconButton('kui-lightbox-translate-btn', 'languages', t('kui.lens.translateToggle'), () => this.handleTranslate()) : null;
+    this.panelBtn = translating ? iconButton('kui-lightbox-lens-settings-btn', 'sliders-horizontal', t('kui.lightbox.displaySettings'), () => this.setPanelOpen(!!this.panel?.hidden)) : null;
     this.panel = translating ? createLensPanel(() => this.setPanelOpen(false)) : null;
     this.canvas = el('canvas', { id: 'kui-image-canvas' });
     this.container = el('div', { id: 'kui-lightbox-img-container' }, [this.canvas]);
@@ -105,11 +106,11 @@ export const lightboxModule = {
           icon: direction < 0 ? 'chevron-left' : 'chevron-right',
           variant: 'secondary',
           size: 'icon',
-          ariaLabel: direction < 0 ? 'Previous image' : 'Next image',
+          ariaLabel: direction < 0 ? t('kui.lightbox.previousImage') : t('kui.lightbox.nextImage'),
           className: `kui-lightbox-nav ${direction < 0 ? 'prev' : 'next'}`,
           onClick: () => this.navigate(direction),
         }),
-        { text: direction < 0 ? 'Previous (\u2190)' : 'Next (\u2192)', side: direction < 0 ? 'right' : 'left' }
+        { text: direction < 0 ? t('kui.lightbox.previousHint') : t('kui.lightbox.nextHint'), side: direction < 0 ? 'right' : 'left' }
       );
 
     this.root = el('div', { id: 'kui-lightbox', className: 'kui-lightbox kui-active' }, [
@@ -120,7 +121,7 @@ export const lightboxModule = {
         this.lensBtn,
         this.translateBtn,
         this.panelBtn,
-        iconButton('kui-lightbox-close-btn', 'x', 'Close (Esc)', () => this.close()),
+        iconButton('kui-lightbox-close-btn', 'x', t('kui.lightbox.close'), () => this.close()),
       ]),
       navButton(-1),
       navButton(1),
@@ -129,7 +130,7 @@ export const lightboxModule = {
     ]);
     this.root.setAttribute('role', 'dialog');
     this.root.setAttribute('aria-modal', 'true');
-    this.root.setAttribute('aria-label', 'Image viewer');
+    this.root.setAttribute('aria-label', t('kui.lightbox.label'));
     portal(this.root);
     this.ctx = this.canvas.getContext("2d");
     this.image = new Image();
@@ -180,7 +181,7 @@ export const lightboxModule = {
         return;
       }
       if (this.canvas) this.canvas.style.opacity = "1";
-      notify("Could not load this image", "error");
+      notify(t('kui.lightbox.loadFailed'), "error");
     };
     this.image.src = originalPath;
   },
@@ -248,7 +249,7 @@ export const lightboxModule = {
     btn.setAttribute('aria-busy', String(busy));
     btn.dataset.state = this.translateMode ? 'on' : 'off';
     btn.setAttribute('aria-pressed', String(this.translateMode));
-    btn.setAttribute('aria-label', this.translateMode ? "Show the original" : "Translate the text in this image");
+    btn.setAttribute('aria-label', this.translateMode ? t('kui.lens.showOriginal') : t('kui.lens.translateImage'));
   },
   handleTranslate() {
     if (this.translateMode) {
@@ -299,11 +300,11 @@ export const lightboxModule = {
           this.isTranslated = false;
           if (e instanceof NothingToTranslate) {
             // A page with no text (a splash page) leaves translation on for the pages after it
-            if (this.askedHere) notify(`Lens: ${e.message}`, 'info');
+            if (this.askedHere) notify(t('kui.lens.error', { message: e.message }), 'info');
             continue;
           }
           this.translateMode = false;
-          notify(`Lens: ${(e as Error).message}`, 'error');
+          notify(t('kui.lens.error', { message: (e as Error).message }), 'error');
         }
       }
     } finally {

@@ -7,6 +7,7 @@ import { setModuleSetting } from '../../core/registry';
 import { getSettingsSections, onSettingsSectionsChange } from './registry';
 import { ensureSettingsStyles } from './styles';
 import './sections';
+import { t, tx } from '../../i18n';
 
 export type SettingsTab = 'general' | 'downloads' | 'translation' | 'images' | 'interface' | 'modules' | (string & {});
 
@@ -17,12 +18,12 @@ function buildTabs(): HTMLElement {
   const sections = getSettingsSections('tab');
   if (!sections.some((s) => s.id === currentTab)) currentTab = sections[0]?.id ?? 'general';
   const node = tabs({
-    ariaLabel: 'Settings sections',
+    ariaLabel: t('settings.dialog.sectionsAria'),
     value: currentTab,
     onChange: (value) => (currentTab = value),
     items: sections.map((s) => ({
       value: s.id,
-      label: s.title,
+      label: tx(`settings.tab.${s.id}`, s.title),
       content: () => {
         const panel = el('div', { className: 'kdl-settings__panel', dataset: { section: s.id } });
         s.render(panel);
@@ -46,14 +47,13 @@ export function refreshSettings(): void {
 
 function confirmReset(): void {
   const confirm: DialogHandle = dialog({
-    title: 'Reset settings?',
-    description:
-      'Every downloader and interface setting goes back to its default, saved templates included. Your session cookie and embed rules are kept.',
+    title: t('settings.reset.title'),
+    description: t('settings.reset.description'),
     size: 'sm',
     footer: [
-      button({ label: 'Cancel', variant: 'outline', onClick: () => confirm.close() }),
+      button({ label: t('settings.common.cancel'), variant: 'outline', onClick: () => confirm.close() }),
       button({
-        label: 'Reset',
+        label: t('settings.reset.confirm'),
         variant: 'destructive',
         onClick: async () => {
           confirm.close();
@@ -61,7 +61,7 @@ function confirmReset(): void {
           setAdBlockEnabled(true);
           setModuleSetting('gridSize', 'size', 180);
           refreshSettings();
-          showMessage('Settings reset to defaults', 'success');
+          showMessage(t('settings.reset.done'), 'success');
         },
       }),
     ],
@@ -78,18 +78,18 @@ function buildFooter(): HTMLElement[] {
     try {
       const count = await importSettings(await chosen.text());
       refreshSettings();
-      showMessage(`Imported ${count} settings`, 'success');
+      showMessage(t('settings.import.done', { count }), 'success');
     } catch (e) {
-      showMessage(`Import failed: ${(e as Error).message}`, 'error');
+      showMessage(t('settings.import.failed', { error: (e as Error).message }), 'error');
     }
   });
   return [
-    button({ id: 'kdl-export-btn', label: 'Export', icon: 'download', variant: 'outline', onClick: () => exportSettings() }),
-    button({ id: 'kdl-import-btn', label: 'Import', icon: 'folder-open', variant: 'outline', onClick: () => file.click() }),
-    button({ id: 'kdl-reset-btn', label: 'Reset', icon: 'rotate-ccw', variant: 'ghost', onClick: confirmReset }),
+    button({ id: 'kdl-export-btn', label: t('settings.footer.export'), icon: 'download', variant: 'outline', onClick: () => exportSettings() }),
+    button({ id: 'kdl-import-btn', label: t('settings.footer.import'), icon: 'folder-open', variant: 'outline', onClick: () => file.click() }),
+    button({ id: 'kdl-reset-btn', label: t('settings.footer.reset'), icon: 'rotate-ccw', variant: 'ghost', onClick: confirmReset }),
     file,
     el('span', { className: 'kdl-settings__footer-spacer' }),
-    button({ label: 'Done', onClick: () => closeSettings() }),
+    button({ label: t('settings.footer.done'), onClick: () => closeSettings() }),
   ];
 }
 
@@ -112,8 +112,8 @@ export async function openSettings(tab?: SettingsTab): Promise<void> {
   if (handle?.isOpen()) return;
   ensureSettingsStyles();
   handle = dialog({
-    title: 'Settings',
-    description: 'Changes are saved as you make them.',
+    title: t('settings.dialog.title'),
+    description: t('settings.dialog.description'),
     size: 'lg',
     className: 'kdl-settings',
     content: () => [buildTabs()],

@@ -9,6 +9,7 @@ import { kuiPostModule } from '../features/kui/postPageModule';
 import { gridSizeModule } from '../ui/components/kui/gridControls';
 import { restyleModule } from './restyle';
 import { shadcnSiteModule, shadcnSiteParts } from './shadcnSite';
+import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
 export const BUILTIN_MODULES: KdlModule[] = [
@@ -21,6 +22,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   downloaderPostModule,
   downloaderCreatorModule,
   favoritesQuickModule,
+  siteTranslationModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,
   ...shadcnSiteParts,

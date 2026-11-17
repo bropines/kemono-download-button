@@ -7,6 +7,7 @@ import { appState, getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitScope, popover, tooltip, type ButtonVariant } from '../kit';
 import { showFilePickerModal } from './filePickerModal';
+import { t } from '../../i18n';
 
 // Post info, fetched once per card and kept on it
 async function loadPostInfo(postCardNode: HTMLElement, details: ReturnType<typeof getPostCardDetails>): Promise<string> {
@@ -17,7 +18,7 @@ async function loadPostInfo(postCardNode: HTMLElement, details: ReturnType<typeo
   const fileCount = post.file ? 1 : 0;
   const attachmentCount = post.attachments ? post.attachments.length : 0;
   const totalFiles = fileCount + attachmentCount;
-  const infoText = `Title: ${post.title}\nPublished: ${new Date(post.published).toLocaleDateString()}\nTotal Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main file)`;
+  const infoText = t('dl.card.info', { title: post.title, date: new Date(post.published).toLocaleDateString(), total: totalFiles, attachments: attachmentCount, main: fileCount });
   postCardNode.dataset.postInfo = infoText;
   return infoText;
 }
@@ -53,31 +54,31 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
     return btn;
   };
 
-  if (state.settings.showZipButton) createMiniBtn('package', 'Download ZIP', 'post-card-dl-zip', 'default', (btn) => addTaskToQueue('ZIP', executeZipDownload, details, btn, 'ZIP'));
-  if (state.settings.showImagesButton) createMiniBtn('images', 'Download Images', 'post-card-dl-img', 'secondary', (btn) => addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), details, btn, 'Imgs'));
+  if (state.settings.showZipButton) createMiniBtn('package', t('dl.card.downloadZip'), 'post-card-dl-zip', 'default', (btn) => addTaskToQueue('ZIP', executeZipDownload, details, btn, 'ZIP'));
+  if (state.settings.showImagesButton) createMiniBtn('images', t('dl.post.downloadImages'), 'post-card-dl-img', 'secondary', (btn) => addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), details, btn, 'Imgs'));
   if (state.settings.showFilesButton) {
-    createMiniBtn('paperclip', 'Download Attachments', 'post-card-dl-att', 'secondary', (btn) => addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), details, btn, 'Attach.'));
-    createMiniBtn('folder-open', 'Pick & Download Attachment', 'post-card-dl-pick', 'secondary', () => showFilePickerModal(details));
+    createMiniBtn('paperclip', t('dl.post.downloadAttachments'), 'post-card-dl-att', 'secondary', (btn) => addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), details, btn, 'Attach.'));
+    createMiniBtn('folder-open', t('dl.card.pickAttachment'), 'post-card-dl-pick', 'secondary', () => showFilePickerModal(details));
   }
 
   if (controlsContainer.hasChildNodes()) {
     // Rendered in the kit's shadow root, where page styles don't reach: the one rule it needs is inline
     const infoBody = el('div', { className: 'kdl-post-info-tooltip', style: { whiteSpace: 'pre-line', fontSize: '13px' } });
-    const infoBtn = createMiniBtn('info', 'Show post info', 'post-card-dl-info', 'ghost');
+    const infoBtn = createMiniBtn('info', t('dl.card.showInfo'), 'post-card-dl-info', 'ghost');
     // Toggles on click; filled when it opens, from the card's cache after the first time
     popover({
       trigger: infoBtn,
       content: infoBody,
-      ariaLabel: 'Post info',
+      ariaLabel: t('dl.card.infoLabel'),
       side: 'left',
       align: 'start',
       onOpenChange: async (open) => {
         if (!open) return;
-        if (!postCardNode.dataset.postInfo) infoBody.replaceChildren(el('em', {}, ['Loading...']));
+        if (!postCardNode.dataset.postInfo) infoBody.replaceChildren(el('em', {}, [t('dl.common.loading')]));
         try {
           infoBody.textContent = await loadPostInfo(postCardNode, details);
         } catch (err) {
-          infoBody.replaceChildren(el('em', {}, ['Failed to load info.']));
+          infoBody.replaceChildren(el('em', {}, [t('dl.card.infoFailed')]));
         }
       },
     });
@@ -89,8 +90,8 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
 function favoriteButton(): HTMLButtonElement {
   ensureKit();
   return tooltip(
-    button({ icon: 'star', variant: 'secondary', size: 'icon', ariaLabel: 'Toggle Favorite', className: 'kdl-scope kdl-quick-fav-btn' }),
-    { text: 'Toggle Favorite', side: 'left' }
+    button({ icon: 'star', variant: 'secondary', size: 'icon', ariaLabel: t('dl.card.toggleFavorite'), className: 'kdl-scope kdl-quick-fav-btn' }),
+    { text: t('dl.card.toggleFavorite'), side: 'left' }
   );
 }
 
