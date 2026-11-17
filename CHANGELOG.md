@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- Site skin: the creator header's upload button is just the upload icon (desktop and phones).
+
 ## [1.4.2] - 2026-11-17
 
 ### Changed
