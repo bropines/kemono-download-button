@@ -4,6 +4,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.6] - 2026-11-17
+
+### Fixed
+- Site skin: long creator names end with an ellipsis; on phones they no longer widen the creator list past the screen.
+- Site skin on phones: the home page art keeps one fixed height, so it no longer jumps while the address bar slides in and out.
+
 ## [1.3.5] - 2026-11-17
 
 ### Added

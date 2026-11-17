@@ -265,7 +265,7 @@ export const pagesCss = (): string => `
   left: 0;
   right: 0;
   height: 100vh;
-  height: 100lvh;
+  height: var(--kdl-home-art-h, 100lvh);
   z-index: -1;
   width: auto;
   height: auto;

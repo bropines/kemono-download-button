@@ -96,7 +96,7 @@ export const cardsCss = (): string => `
   grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr));
   gap: 12px;
 }
-.card-list__items:has(> .user-card) > * { max-width: none; }
+.card-list__items:has(> .user-card) > * { max-width: none; min-width: 0; }
 /* The site caps creator list pages at 768px (two columns): the card grid gets the full width,
    the search form, filters and pagination stay a centred column */
 .site-section:has(.card-list__items > .user-card) { max-width: min(100%, 1800px); }
@@ -124,7 +124,9 @@ export const cardsCss = (): string => `
   display: block; position: static; width: 100%; height: 100%; margin: 0; padding: 0; transform: none; border-radius: 0;
 }
 .user-card__icon .fancy-image__image { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
-.user-card__info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; }
+.user-card__info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; padding: 0; overflow: hidden; }
+/* Long creator names end with an ellipsis: unbroken, they widened the grid past the screen on phones */
+.user-card__name { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .user-card__service {
   padding: 0.125rem 0.5rem;
   border-radius: 9999px;

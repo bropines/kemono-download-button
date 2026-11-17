@@ -19,6 +19,7 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 
 /** Puts every node we wrapped back where it was */
 function undo(): void {
+  unpinHomeArt();
   undoFilterMove();
   undoFooter();
   undoApiFrame();
@@ -303,6 +304,28 @@ function undoFilterMove(): void {
   });
 }
 
+// The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
+// phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,
+// and only a width change (rotation) recomputes it.
+let artWidth = 0;
+let artListening = false;
+function pinHomeArt(): void {
+  if (!document.querySelector('.site-section--home .jumbo-welcome-background')) return;
+  if (!artListening) {
+    artListening = true;
+    // Address-bar resizes keep the width, so only a rotation gets through
+    window.addEventListener('resize', () => artWidth && pinHomeArt());
+  }
+  if (artWidth === window.innerWidth) return;
+  artWidth = window.innerWidth;
+  const tallest = Math.max(window.innerHeight, document.documentElement.clientHeight, window.screen?.height || 0);
+  document.documentElement.style.setProperty('--kdl-home-art-h', `${tallest}px`);
+}
+function unpinHomeArt(): void {
+  artWidth = 0;
+  document.documentElement.style.removeProperty('--kdl-home-art-h');
+}
+
 export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
   mount() {
     wrapPanels();
@@ -311,6 +334,7 @@ export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount
     footerButtons();
     fitApiFrame();
     moveFilterIntoSearch();
+    pinHomeArt();
   },
   update() {
     wrapPanels();
@@ -319,6 +343,7 @@ export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount
     footerButtons();
     fitApiFrame();
     moveFilterIntoSearch();
+    pinHomeArt();
   },
   unmount: undo,
   beforeSnapshot: undo,
