@@ -212,6 +212,13 @@ ${PRIMARY} {
   .paginator menu > li:is(.pagination-button-optional, .pagination-desktop),
   .paginator menu > a:is(.pagination-button-optional, .pagination-desktop) { display: none; }
 }
+/* Wide screens: the "Showing x–y of z" line and the pages share one row, so the bar stays low */
+@media (min-width: 601px) {
+  .paginator:has(> small):not(:has(.card-list)) { flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 16px; }
+  .paginator:has(> small):not(:has(.card-list)) > small { text-align: left; white-space: nowrap; }
+  .paginator:has(> small):not(:has(.card-list)) > :is(form, menu) { width: auto; margin-left: auto; }
+  .paginator:not(:has(.card-list)) menu > :is(li, a) { min-width: 2rem; height: 2rem; font-size: 13px; }
+}
 @media (min-width: 601px) {
   .paginator menu > li.pagination-mobile:not(:last-child), .paginator menu > a.pagination-mobile:not(:last-child) { display: none; }
 }

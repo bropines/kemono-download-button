@@ -297,6 +297,49 @@ body:has(.site-section--home) .global-sidebar {
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
+/* File hash search: a card with a drop zone for the file, an "or" divider and the hash field */
+.site-section--file-hash-search { max-width: 560px; margin-inline: auto; }
+#file-search {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--kdl-panel-border, var(--kdl-border));
+  border-radius: calc(var(--kdl-radius) + 4px);
+  background: var(--kdl-panel-bg, var(--kdl-card));
+  text-align: left;
+}
+#file-search > label { color: var(--kdl-foreground); font-size: 14px; font-weight: 600; }
+#file-search input[type="file"] {
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 2.25rem 1rem 1rem;
+  border: 1.5px dashed var(--kdl-border);
+  border-radius: var(--kdl-radius);
+  background: var(--kdl-muted) url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M17 8l-5-5-5 5'/%3E%3Cpath d='M12 3v12'/%3E%3C/svg%3E") center 0.75rem / 1.5rem no-repeat;
+  color: var(--kdl-muted-foreground);
+  font-size: 13px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+#file-search input[type="file"]:hover, #file-search input[type="file"]:focus-visible { border-color: var(--kdl-ring); background-color: var(--kdl-accent); outline: none; }
+#file-search input[type="file"]::file-selector-button {
+  display: block;
+  margin: 0 auto 6px;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) - 2px);
+  background: var(--kdl-background);
+  color: var(--kdl-foreground);
+  font: 500 13px var(--kdl-font, inherit);
+  cursor: pointer;
+}
+#file-search > span { display: flex; align-items: center; gap: 12px; color: var(--kdl-muted-foreground); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+#file-search > span > br { display: none; }
+#file-search > span::before, #file-search > span::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--kdl-border); }
+#file-search input[type="text"] { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#file-search input[type="submit"] { width: 100%; margin-top: 6px; }
 @media (max-width: 600px) {
   .kdl-sk-panel, .site-section--home .jumbo-welcome-description { padding: 16px; }
   .site-section--home .jumbo-welcome { min-height: calc(100vh - 9rem); }

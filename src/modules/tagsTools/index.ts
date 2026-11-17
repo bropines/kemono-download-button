@@ -138,9 +138,16 @@ let countLabel: HTMLElement | null = null;
 let jumpBar: HTMLElement | null = null;
 let sortEl: HTMLSelectElement | null = null;
 let groupBtn: HTMLButtonElement | null = null;
+let layoutBtn: HTMLButtonElement | null = null;
 
 function syncControls(ctx: ModuleContext): void {
   const on = ctx.settings.get<boolean>('group') === true;
+  if (layoutBtn) {
+    const grid = ctx.settings.get<string>('layout') !== 'cloud';
+    layoutBtn.setAttribute('aria-pressed', String(grid));
+    layoutBtn.classList.toggle('kdl-ui-btn--secondary', grid);
+    layoutBtn.classList.toggle('kdl-ui-btn--outline', !grid);
+  }
   if (sortEl) sortEl.value = ctx.settings.get<string>('sort');
   if (groupBtn) {
     groupBtn.classList.toggle('kdl-ui-btn--secondary', on);
@@ -185,6 +192,7 @@ function apply(): void {
 
   if (countLabel) countLabel.textContent = shown === items.length ? t('tags.count', { count: items.length }) : t('tags.countFiltered', { shown, count: items.length });
   container.toggleAttribute('data-kdl-tags-grouped', group);
+  container.setAttribute('data-kdl-tags-layout', ctx.settings.get<string>('layout') === 'cloud' ? 'cloud' : 'grid');
   // The value is the message the CSS shows
   if (shown === 0) container.setAttribute('data-kdl-tags-empty', t('tags.empty'));
   else container.removeAttribute('data-kdl-tags-empty');
@@ -267,6 +275,15 @@ function buildToolbar(ctx: ModuleContext): HTMLElement {
     className: 'kdl-tags-toolbar__group',
     onClick: () => ctx.settings.set('group', !ctx.settings.get<boolean>('group')),
   });
+  layoutBtn = button({
+    icon: 'layout-grid',
+    variant: 'outline',
+    size: 'icon',
+    title: t('tags.layout.title'),
+    ariaLabel: t('tags.layout.title'),
+    className: 'kdl-tags-toolbar__layout',
+    onClick: () => ctx.settings.set('layout', ctx.settings.get<string>('layout') === 'cloud' ? 'grid' : 'cloud'),
+  });
   countLabel = el('span', { className: 'kdl-tags-toolbar__count', role: 'status' });
   jumpBar = el('nav', { className: 'kdl-tags-jump' });
   jumpBar.setAttribute('aria-label', t('tags.jump.label'));
@@ -277,6 +294,7 @@ function buildToolbar(ctx: ModuleContext): HTMLElement {
       sortEl,
       script,
       groupBtn,
+      layoutBtn,
       countLabel,
     ]),
     jumpBar,
@@ -293,6 +311,10 @@ function build(ctx: ModuleContext, section: HTMLElement): void {
   }
   // Keep the visit's filter when a snapshot rebuilt us, but drop a script choice that no longer exists
   if (prefs.script !== 'all' && !items.some((i) => i.script === prefs.script)) prefs.script = 'all';
+  // Popularity bar of the list layout, on a square-root scale: linear leaves all but the top few tags empty,
+  // a log scale fills nearly every bar
+  const top = Math.sqrt(Math.max(...items.map((item) => item.count), 1));
+  items.forEach((item) => item.node.style.setProperty('--kdl-tag-p', `${((Math.sqrt(item.count) / top) * 100).toFixed(1)}%`));
   toolbar = buildToolbar(ctx);
   syncControls(ctx);
   section.before(toolbar);
@@ -311,11 +333,14 @@ function restore(): void {
       .sort((a, b) => a.index - b.index)
       .forEach((item) => {
         item.node.removeAttribute(HIDDEN_ATTR);
+        item.node.style.removeProperty('--kdl-tag-p');
+        if (!item.node.getAttribute('style')) item.node.removeAttribute('style');
         frag.append(item.node);
       });
     container.append(frag);
     container.removeAttribute('data-kdl-tags-grouped');
     container.removeAttribute('data-kdl-tags-empty');
+    container.removeAttribute('data-kdl-tags-layout');
     container.style.removeProperty('--kdl-tags-toolbar-h');
     if (!container.getAttribute('style')) container.removeAttribute('style');
   }
@@ -326,6 +351,7 @@ function restore(): void {
   jumpBar = null;
   sortEl = null;
   groupBtn = null;
+  layoutBtn = null;
   container = null;
   items = [];
 }
@@ -388,6 +414,60 @@ section#tag-container > .kdl-tags-letter {
   scroll-margin-top: var(--kdl-tags-toolbar-h, 120px);
 }
 section#tag-container[data-kdl-tags-grouped] { justify-content: flex-start; }
+/* List layout: columns of rows, name left, post count right, a bar for popularity */
+section#tag-container[data-kdl-tags-layout="grid"] {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 2px 12px !important;
+  width: min(80vw, 100%);
+  margin-inline: auto;
+  padding: 12px 0;
+  box-sizing: border-box;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article {
+  display: block !important;
+  width: auto !important;
+  min-width: 0;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: calc(var(--kdl-radius, 8px) - 2px) !important;
+  background: none !important;
+  overflow: hidden;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article > a {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px !important;
+  border-radius: inherit !important;
+  background: linear-gradient(to right, color-mix(in srgb, var(--kdl-primary, #888) 10%, transparent) var(--kdl-tag-p, 0%), transparent 0) !important;
+  color: var(--kdl-foreground, inherit) !important;
+  text-decoration: none;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article > a:is(:hover, :focus-visible) {
+  background-color: var(--kdl-accent, rgba(127, 127, 127, 0.2)) !important;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article > a > span {
+  padding: 0 !important;
+  font-size: 13px !important;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:nth-child(2) {
+  flex: 0 0 auto;
+  color: var(--kdl-muted-foreground, inherit) !important;
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+section#tag-container[data-kdl-tags-layout="grid"] > .kdl-tags-letter,
+section#tag-container[data-kdl-tags-layout="grid"][data-kdl-tags-empty]::before { grid-column: 1 / -1; }
 section#tag-container[data-kdl-tags-empty]::before { content: attr(data-kdl-tags-empty); flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
 @media (max-width: 640px) {
   .kdl-tags-toolbar { width: auto; margin: 0.5em 8px 0; }
@@ -408,6 +488,10 @@ export const tagsToolsModule: KdlModule = {
   settings: [
     { key: 'sort', label: 'Default sort', type: 'select', default: 'site', options: SORT_OPTIONS },
     { key: 'group', label: 'Group by first letter', type: 'boolean', default: false },
+    {
+      key: 'layout', label: 'Layout', type: 'select', default: 'grid',
+      options: [{ value: 'grid', label: 'List in columns' }, { value: 'cloud', label: 'Cloud (as on the site)' }],
+    },
   ],
   styles,
   mount(ctx) {
@@ -418,6 +502,7 @@ export const tagsToolsModule: KdlModule = {
     };
     ctx.settings.onChange('sort', changed);
     ctx.settings.onChange('group', changed);
+    ctx.settings.onChange('layout', changed);
     sync(ctx);
     ctx.onCleanup(() => {
       restore();

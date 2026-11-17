@@ -49,7 +49,7 @@ export const cardsCss = (): string => `
   order: -1;
   flex: 0 1 auto;
   min-height: 0;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: var(--kdl-sk-thumb, 1 / 1);
   background: var(--kdl-muted);
   overflow: hidden;
 }
@@ -60,7 +60,7 @@ export const cardsCss = (): string => `
   content: '';
   order: -1;
   flex: 0 0 auto;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: var(--kdl-sk-thumb, 1 / 1);
   background: var(--kdl-muted) url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-opacity='0.55' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E") center / 28% no-repeat;
 }
 .post-card:hover .post-card__image { transform: scale(1.03); }

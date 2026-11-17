@@ -50,6 +50,9 @@ export const SITE_SCOPES = [
   '.site-section--account',
   '.site-section--login',
   '.site-section--register',
+  // Plain text pages without a section class (the importer's session key tutorial)
+  'div#page.page',
+  '#file-search',
 ];
 
 /** Never translated, even inside a scope: user content and our own interface. */
@@ -121,8 +124,12 @@ function translateText(node: Text): void {
   node.data = applied;
 }
 
+// Submit and button inputs show their value attribute as the label
+const LABEL_INPUT = 'input[type="submit"], input[type="button"], input[type="reset"]';
+
 function translateAttributes(element: Element): void {
-  ATTRIBUTES.forEach((name) => {
+  const names: readonly string[] = element.matches(LABEL_INPUT) ? [...ATTRIBUTES, 'value'] : ATTRIBUTES;
+  names.forEach((name) => {
     const value = element.getAttribute(name);
     if (!value) return;
     const changes = attrChanges.get(element);

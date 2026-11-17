@@ -4,6 +4,20 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- **Downloads panel**: every download is a card with a type icon, an overall progress bar with percent, a file counter and a coloured state (done, partly failed, failed, cancelled). The file list folds away and opens by itself when a file fails, failed files come first. The panel folds into a small button with a progress ring a few seconds after the last download ends; finished downloads stay listed until "Clear finished". Settings → Downloads → Downloads panel: position (any corner or bottom centre), open on start, remove finished automatically.
+- **Smooth thumbnails** (module, on by default): card previews are shrunk with high-quality resampling, so line art no longer looks jagged.
+- Site skin settings: card thumbnail shape (square, 3:4, 2:3, 4:3, 16:9); pinned top bar; icons on the top bar links, with "icons only" and "text only" modes; centred top bar; sidebar that opens over the page instead of pushing it (starts closed, closes on a click outside or Esc).
+- Tag pages: a list layout in columns with the post count on the right and a popularity bar (default), switchable back to the cloud from the toolbar.
+- File hash search page as a card: a drop zone for the file, an "or" divider and the hash field.
+
+### Changed
+- Pagination bars are one row on wide screens (the "Showing" line beside the pages), so they take less height.
+- Settings: the tab row is full width on an opaque backing, so cards scrolling under it no longer show around it.
+
+### Fixed
+- Russian translation of the importer page (options, notes, auto-import), the session key tutorial and the hash search page.
+
 ## [1.5.0] - 2026-11-17
 
 ### Added

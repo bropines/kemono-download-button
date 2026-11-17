@@ -126,6 +126,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
     const urlFiles = files.filter((f) => f.source === 'url');
+    task.setTotal(urlFiles.length);
     task.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failCount } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
     if (urlFiles.length > 0 && failCount === urlFiles.length) {
@@ -143,7 +144,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
       task.updateStatus(t('dl.task.cancelled'));
       return;
     }
-    task.updateStatus(t('dl.task.error', { message: error.message }));
+    task.fail(t('dl.task.error', { message: error.message }));
     console.error('ZIP process error:', error);
     throw error;
   } finally {
@@ -178,6 +179,7 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       return;
     }
 
+    task.setTotal(targetFiles.length);
     task.updateStatus(t('dl.task.starting', { count: targetFiles.length }));
 
     let completedCount = 0;
@@ -197,7 +199,7 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
 
     task.updateStatus(task.signal.aborted ? t('dl.task.cancelled') : t('dl.task.allTriggered'));
   } catch (error: any) {
-    task.updateStatus(t('dl.task.error', { message: error.message }));
+    task.fail(t('dl.task.error', { message: error.message }));
   } finally {
     task.finish();
   }
@@ -217,6 +219,7 @@ export async function downloadFilesToDiskWithProgress(
   await getSettings();
 
   const task = progressManager.createTask(`pick-${generateRandomId(8)}`, taskTitle);
+  task.setTotal(downloadSpecs.length);
   task.updateStatus(t('dl.task.queuedFiles', { count: downloadSpecs.length }));
 
   const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
@@ -273,6 +276,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
 
     const urlFiles = files.filter((f) => f.source === 'url');
+    postTask.setTotal(urlFiles.length);
     postTask.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failedFileCount } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
 
@@ -294,7 +298,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
       return;
     }
     console.error(`Failed to download post ${details.postID} as ZIP:`, error);
-    postTask.updateStatus(t('dl.task.error', { message: error.message }));
+    postTask.fail(t('dl.task.error', { message: error.message }));
     throw error;
   } finally {
     postTask.finish();
@@ -386,7 +390,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       return;
     }
     console.error('Bulk download (single) failed:', error);
-    task.updateStatus(t('dl.task.error', { message: error.message }));
+    task.fail(t('dl.task.error', { message: error.message }));
   } finally {
     task.finish();
   }

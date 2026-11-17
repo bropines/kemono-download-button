@@ -48,6 +48,89 @@ const WIDTH_OPTIONS = [
   { value: 'full', label: 'Full width' },
 ];
 const WIDTH_VAR = '--kdl-sk-page-width';
+
+// Thumbnail shape of post cards: an aspect ratio read by the cards part
+const THUMB_VAR = '--kdl-sk-thumb';
+const THUMBS: Record<string, string> = { square: '1 / 1', portrait: '3 / 4', tall: '2 / 3', landscape: '4 / 3', wide: '16 / 9' };
+// The same as height per width, for calc() (the touch download row sits on the thumbnail's bottom edge)
+const THUMB_H_VAR = '--kdl-sk-thumb-h';
+const THUMB_HEIGHTS: Record<string, string> = { square: '1', portrait: '1.3333', tall: '1.5', landscape: '0.75', wide: '0.5625' };
+const THUMB_OPTIONS = [
+  { value: 'square', label: 'Square (1:1)' },
+  { value: 'portrait', label: 'Portrait (3:4)' },
+  { value: 'tall', label: 'Tall (2:3)' },
+  { value: 'landscape', label: 'Landscape (4:3)' },
+  { value: 'wide', label: 'Wide (16:9)' },
+];
+
+// Header and sidebar layout: attributes on <html> the layout sheet selects on
+const LAYOUT_ATTRS: Record<string, string> = {
+  headerPinned: 'data-kdl-sk-pin',
+  headerLabels: 'data-kdl-sk-hlabels',
+  headerAlign: 'data-kdl-sk-halign',
+  sidebar: 'data-kdl-sk-sidebar',
+};
+function syncLayout(get: SettingGetter): void {
+  const html = document.documentElement;
+  for (const [key, attr] of Object.entries(LAYOUT_ATTRS)) {
+    const value = String(get(key));
+    if (html.getAttribute(attr) !== value) html.setAttribute(attr, value);
+  }
+  const ratio = THUMBS[get<string>('thumb')] || THUMBS.square;
+  if (html.style.getPropertyValue(THUMB_VAR) !== ratio) html.style.setProperty(THUMB_VAR, ratio);
+  const height = THUMB_HEIGHTS[get<string>('thumb')] || THUMB_HEIGHTS.square;
+  if (html.style.getPropertyValue(THUMB_H_VAR) !== height) html.style.setProperty(THUMB_H_VAR, height);
+}
+function clearLayout(): void {
+  const html = document.documentElement;
+  Object.values(LAYOUT_ATTRS).forEach((attr) => html.removeAttribute(attr));
+  html.style.removeProperty(THUMB_VAR);
+  html.style.removeProperty(THUMB_H_VAR);
+}
+
+// Overlay sidebar (wide screens): the site keeps it open by default and shifts the page; here it opens over
+// the page, starts closed and closes on a click outside it or on one of its links
+const DESKTOP = '(min-width: 1021px)';
+const sidebarOpen = (): HTMLElement | null => {
+  const bar = document.querySelector<HTMLElement>('.global-sidebar');
+  return bar && !bar.classList.contains('retracted') && window.matchMedia(DESKTOP).matches ? bar : null;
+};
+const closeSidebar = (): void => document.querySelector<HTMLElement>('.global-sidebar .close-sidebar')?.click();
+function overlaySidebar(get: SettingGetter): () => void {
+  const active = (): boolean => get<string>('sidebar') === 'overlay';
+  const retract = (): void => {
+    if (!active()) return;
+    // The site restores this state on every load, so later pages open with the sidebar closed
+    try { localStorage.setItem('sidebar_state', 'true'); } catch { /* storage blocked */ }
+    if (sidebarOpen()) closeSidebar();
+  };
+  const onClick = (event: MouseEvent): void => {
+    if (!active()) return;
+    const bar = sidebarOpen();
+    if (!bar) return;
+    const target = event.target as Element | null;
+    if (!target || target.closest('#burgor, .close-sidebar')) return;
+    if (bar.contains(target)) {
+      if (target.closest('a[href]')) setTimeout(closeSidebar, 0);
+      return;
+    }
+    // A click on the dimmed page only closes the sidebar
+    event.preventDefault();
+    event.stopPropagation();
+    closeSidebar();
+  };
+  const onKey = (event: KeyboardEvent): void => {
+    if (event.key === 'Escape' && active() && sidebarOpen()) closeSidebar();
+  };
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('keydown', onKey);
+  retract();
+  return () => {
+    document.removeEventListener('click', onClick, true);
+    document.removeEventListener('keydown', onKey);
+  };
+}
+
 function syncWidth(get: SettingGetter): void {
   const width = get<string>('width');
   const root = document.documentElement.style;
@@ -94,6 +177,14 @@ function syncActive(): void {
   if (chosen && !chosen.hasAttribute(ACTIVE)) chosen.setAttribute(ACTIVE, '');
 }
 
+// Icon-only top bar links keep their name as a tooltip
+function labelHeaderLinks(): void {
+  document.querySelectorAll<HTMLAnchorElement>('.content-wrapper .header > a.header-link').forEach((link) => {
+    const text = link.textContent?.trim();
+    if (text && link.title !== text) link.title = text;
+  });
+}
+
 function syncPalette(get: SettingGetter): void {
   let node = document.getElementById(PALETTE_ID);
   if (!node) {
@@ -132,6 +223,21 @@ export const shadcnSiteModule: KdlModule = {
     { key: 'base', label: 'Base tone', type: 'select', default: 'zinc', options: BASE_OPTIONS },
     { key: 'surfaces', label: 'Surface contrast', type: 'select', default: 'subtle', options: SURFACE_OPTIONS, hint: 'How far the sidebar, cards and page sections stand out from the background.' },
     { key: 'width', label: 'Page width', type: 'select', default: 'wide', options: WIDTH_OPTIONS, hint: 'How wide the post page and its text get on big screens.' },
+    { key: 'thumb', label: 'Card thumbnail shape', type: 'select', default: 'square', options: THUMB_OPTIONS, hint: 'Aspect ratio of post card thumbnails; the image is cropped to fill it.' },
+    { key: 'headerPinned', label: 'Pin the top bar', type: 'boolean', default: true, hint: 'The top bar with the menu button stays visible while you scroll.' },
+    {
+      key: 'headerLabels', label: 'Top bar links', type: 'select', default: 'both',
+      options: [{ value: 'both', label: 'Icon and text' }, { value: 'icons', label: 'Icons only' }, { value: 'text', label: 'Text only' }],
+    },
+    {
+      key: 'headerAlign', label: 'Top bar alignment', type: 'select', default: 'left',
+      options: [{ value: 'left', label: 'Left' }, { value: 'center', label: 'Centre' }],
+    },
+    {
+      key: 'sidebar', label: 'Sidebar on wide screens', type: 'select', default: 'push',
+      options: [{ value: 'push', label: 'Pushes the page aside' }, { value: 'overlay', label: 'Opens over the page' }],
+      hint: 'Over the page: the sidebar starts closed, opens from the menu button and closes on a click outside it.',
+    },
   ],
   styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss()),
   mount(ctx) {
@@ -141,6 +247,17 @@ export const shadcnSiteModule: KdlModule = {
     PALETTE_KEYS.forEach((key) => ctx.settings.onChange(key, () => syncPalette(get)));
     syncWidth(get);
     ctx.settings.onChange('width', () => syncWidth(get));
+    syncLayout(get);
+    Object.keys(LAYOUT_ATTRS).concat('thumb').forEach((key) => ctx.settings.onChange(key, () => syncLayout(get)));
+    ctx.onCleanup(overlaySidebar(get));
+    ctx.settings.onChange('sidebar', (value) => {
+      if (value === 'overlay') {
+        try { localStorage.setItem('sidebar_state', 'true'); } catch { /* storage blocked */ }
+        if (sidebarOpen()) closeSidebar();
+      }
+    });
+    labelHeaderLinks();
+    ctx.onCleanup(clearLayout);
     ctx.onCleanup(() => {
       document.documentElement.style.removeProperty(WIDTH_VAR);
       document.documentElement.style.removeProperty(TEXT_VAR);
@@ -158,6 +275,7 @@ export const shadcnSiteModule: KdlModule = {
   },
   update(ctx) {
     syncActive();
+    labelHeaderLinks();
     syncPalette((key) => ctx.settings.get(key));
   },
   // A new tab is painted with the skin's flag, palette and width already in place
@@ -166,6 +284,7 @@ export const shadcnSiteModule: KdlModule = {
     setFlag(true);
     syncPalette(get);
     syncWidth(get);
+    syncLayout(get);
   },
 };
 

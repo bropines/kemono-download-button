@@ -14,6 +14,7 @@ import {
   showWhen,
 } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { progressManager } from '../../progressManager';
 import { t } from '../../../i18n';
 
 const TEMPLATE_TAGS = () =>
@@ -237,6 +238,17 @@ registerSettingsSection({
   order: 20,
   render(container) {
     container.append(
+      section(t('settings.downloads.panelSection'), [
+        settingSelect('downloadPanelPosition', t('settings.downloads.panelPosition'), t('settings.downloads.panelPositionDescription'), [
+          { value: 'bottom-right', label: t('settings.downloads.panelPosition.bottomRight') },
+          { value: 'bottom-left', label: t('settings.downloads.panelPosition.bottomLeft') },
+          { value: 'top-right', label: t('settings.downloads.panelPosition.topRight') },
+          { value: 'top-left', label: t('settings.downloads.panelPosition.topLeft') },
+          { value: 'bottom-center', label: t('settings.downloads.panelPosition.bottomCenter') },
+        ], () => progressManager.place()),
+        settingSwitch('downloadPanelAutoOpen', t('settings.downloads.panelAutoOpen'), t('settings.downloads.panelAutoOpenDescription')),
+        settingSwitch('downloadPanelAutoClear', t('settings.downloads.panelAutoClear'), t('settings.downloads.panelAutoClearDescription')),
+      ], { icon: 'download' }),
       section(t('settings.downloads.namingSection'), templateControls(), { icon: 'folder' }),
       section(t('settings.downloads.bulkSection'), bulkControls(), { icon: 'folders' }),
       section(t('settings.downloads.performanceSection'), [

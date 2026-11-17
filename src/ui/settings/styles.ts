@@ -9,7 +9,19 @@ export const settingsStyles = css({
   '.kdl-settings [hidden]': { display: 'none !important' },
   '.kdl-settings .kdl-ui-dialog__body': { display: 'flex', flexDirection: 'column' },
   '.kdl-settings .kdl-ui-tabs': { flex: '1 1 auto', minHeight: 0, gap: '12px' },
-  '.kdl-settings .kdl-ui-tabs__list': { flexShrink: 0, position: 'sticky', top: 0, zIndex: LAYERS.base, overflowY: 'hidden', scrollbarWidth: 'none' },
+  // Full width with an opaque backing (the dialog colour spreads around it), so cards scrolling under the
+  // sticky row do not show beside or above it
+  '.kdl-settings .kdl-ui-tabs__list': {
+    flexShrink: 0,
+    position: 'sticky',
+    top: 0,
+    zIndex: LAYERS.base,
+    alignSelf: 'stretch',
+    width: '100%',
+    overflowY: 'hidden',
+    scrollbarWidth: 'none',
+    boxShadow: '0 0 0 6px var(--kdl-background), 0 -12px 0 6px var(--kdl-background)',
+  },
   // Triggers keep their width and the list scrolls sideways: shrunk triggers spilled their labels over each
   // other and onto the panel on phones
   '.kdl-settings .kdl-ui-tabs__trigger': { gap: '6px', flexShrink: 0 },
@@ -18,7 +30,7 @@ export const settingsStyles = css({
   // phones keep the icons and scroll the row sideways
   '@media (min-width: 641px)': {
     '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { display: 'none' },
-    '.kdl-settings .kdl-ui-tabs__trigger': { paddingInline: '10px' },
+    '.kdl-settings .kdl-ui-tabs__trigger': { flex: '1 0 auto', paddingInline: '10px' },
   },
   '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { width: '14px', height: '14px' },
   '.kdl-settings .kdl-ui-tabs__panel': { paddingBottom: '4px' },

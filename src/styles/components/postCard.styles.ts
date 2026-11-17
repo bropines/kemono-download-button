@@ -89,12 +89,13 @@ export const postCardStyles = css({
       opacity: 0.92,
       pointerEvents: 'auto',
     },
-    // One row along the bottom edge of the thumbnail (square, so 100cqw tall), clear of the checkbox and star
+    // One row along the bottom edge of the thumbnail (100cqw tall when square; the skin's shape setting
+    // gives its height per width), clear of the checkbox and star
     '.post-card .kdl-scope.post-card-download-controls': {
       display: 'flex',
       flexDirection: 'row',
       flexWrap: 'nowrap',
-      top: 'calc(100cqw - 40px)',
+      top: 'calc(100cqw * var(--kdl-sk-thumb-h, 1) - 40px)',
       right: '6px',
       gap: '3px',
       padding: '3px',

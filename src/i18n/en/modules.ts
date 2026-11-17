@@ -13,6 +13,7 @@ export default {
   'tags.script.other': 'Other',
   'tags.group.button': 'A–Z groups',
   'tags.group.title': 'Group by first letter',
+  'tags.layout.title': 'List in columns or cloud',
   'tags.jump.label': 'Jump to letter',
   'tags.jump.key': '{letter}: {count, plural, one{# tag} other{# tags}}',
   'tags.count': '{count, plural, one{# tag} other{# tags}}',

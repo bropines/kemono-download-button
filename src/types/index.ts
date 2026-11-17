@@ -44,6 +44,9 @@ export interface DownloaderSettings {
   deeplApiKey: string;
   deeplApiTier: 'free' | 'pro';
   maxConcurrentIndividualDownloads: number;
+  downloadPanelPosition: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left' | 'bottom-center';
+  downloadPanelAutoOpen: boolean;
+  downloadPanelAutoClear: boolean;
   enableDownloadRetries: boolean;
   downloadRetryCount: number;
   downloadRetryDelay: number;

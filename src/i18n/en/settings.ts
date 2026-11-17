@@ -45,6 +45,18 @@ export default {
   'settings.general.debug.verboseDescription': 'Also logs every API request and response in the F12 console.',
 
   // Downloads
+  'settings.downloads.panelSection': 'Downloads panel',
+  'settings.downloads.panelPosition': 'Position',
+  'settings.downloads.panelPositionDescription': 'Where the downloads panel and its button sit. On phones the bottom positions join the bar above the selection toolbar.',
+  'settings.downloads.panelPosition.bottomRight': 'Bottom right',
+  'settings.downloads.panelPosition.bottomLeft': 'Bottom left',
+  'settings.downloads.panelPosition.topRight': 'Top right',
+  'settings.downloads.panelPosition.topLeft': 'Top left',
+  'settings.downloads.panelPosition.bottomCenter': 'Bottom centre (above the selection bar)',
+  'settings.downloads.panelAutoOpen': 'Open when a download starts',
+  'settings.downloads.panelAutoOpenDescription': 'Otherwise only the button shows the progress; click it to open the list.',
+  'settings.downloads.panelAutoClear': 'Remove finished downloads',
+  'settings.downloads.panelAutoClearDescription': 'Completed and cancelled downloads leave the list after a few seconds. Failed ones stay until you clear them.',
   'settings.downloads.namingSection': 'File naming',
   'settings.downloads.templateTags': 'Tags: {tags}',
   'settings.downloads.template': 'Template for individual downloads',
