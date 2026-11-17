@@ -4,6 +4,15 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-11-17
+
+A shadcn-style skin for the whole site.
+
+### Added
+- **Site skin (Modules → Interface → shadcn site skin, off by default).** Restyles the site itself in the shadcn/ui look: grouped sidebar with an active-page marker, blurred header, kit-style buttons, inputs, tabs and pagination, card-style post cards with badges, a profile card for creators, a post page with a header card and separate panels for files, content and comments, plus the artists, popular, tags and DM pages. Phone width is supported. Parts for cards, the post page and the creator page can be switched off one by one, and turning the skin off restores the site instantly.
+- **Accent colour** (zinc, blue, violet, rose, orange, green, amber or your own hex), **base tone** (Zinc, Black OLED, Neutral grey, Slate, Stone, Dim) and **surface contrast** (flat, subtle, strong) for the skin. They recolour our own panels, dialogs and buttons too. Your themes still override them.
+- `tests/smoke-test.js`: paste into DevTools and run `await kdlSmoke({ modules: true, bulk: true, download: 'zip' })` to check pages, module switches, the bulk bar and downloads.
+
 ### Changed
 - **Viewed posts** are marked when the post page actually opens (also from a new tab), not on any click on the card: ticking a checkbox or pressing a card button no longer dims it. New setting in Modules → Mark viewed posts: dimmed, a "Viewed" tag, or no change.
 - The script has its own `@namespace`, so under AdGuard it no longer shares a sandbox with other scripts. Tampermonkey/Violentmonkey may install it as a separate script: export your settings first, then import them into the new copy and remove the old one.
