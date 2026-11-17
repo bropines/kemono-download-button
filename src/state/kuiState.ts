@@ -1,13 +1,15 @@
 import { KUI_STORAGE_KEYS } from '../config/storage';
 import { readStored, writeStored } from './gmStorage';
+import { readModuleValue, writeModuleValue } from '../core/storage';
 import { KuiAppState, EmbedRules } from '../types';
 
 
 export const kuiState: KuiAppState = {
   isDebugModeEnabled: readStored(KUI_STORAGE_KEYS.DEBUG_MODE, false),
   isVerboseDebugEnabled: readStored(KUI_STORAGE_KEYS.VERBOSE_DEBUG, false),
-  isPreloadEnabled: readStored(KUI_STORAGE_KEYS.PRELOAD_IMAGES, false),
-  isHideEmptySectionsEnabled: readStored(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, true),
+  // Owned by the kui.post module (migrated from kui_preload_images / kui_hide_empty_sections)
+  isPreloadEnabled: readModuleValue('kui.post', 'preloadImages', false),
+  isHideEmptySectionsEnabled: readModuleValue('kui.post', 'hideEmptySections', true),
   isPostPageModuleActive: false,
   embedRules: readStored<EmbedRules>(KUI_STORAGE_KEYS.EMBED_RULES, {}),
   sessionKey: readStored(KUI_STORAGE_KEYS.SESSION_KEY, "")
@@ -25,12 +27,12 @@ export function setVerboseDebugMode(enabled: boolean): void {
 
 export function setPreloadImages(enabled: boolean): void {
   kuiState.isPreloadEnabled = enabled;
-  writeStored(KUI_STORAGE_KEYS.PRELOAD_IMAGES, enabled);
+  writeModuleValue('kui.post', 'preloadImages', enabled);
 }
 
 export function setHideEmptySections(enabled: boolean): void {
   kuiState.isHideEmptySectionsEnabled = enabled;
-  writeStored(KUI_STORAGE_KEYS.HIDE_EMPTY_SECTIONS, enabled);
+  writeModuleValue('kui.post', 'hideEmptySections', enabled);
 }
 
 export function setEmbedRules(rules: EmbedRules): void {
