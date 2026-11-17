@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-17
+
 ### Added
 - **Import status page** (module "Import status page", on by default): the status is a coloured badge (done, failed, in progress with a pulse, waiting); a summary shows creators, posts added, unchanged, flagged and errors; log lines are typed with icons and colours, indented under their creator, with links to each post and creator; a toolbar filters by kind (all, posts, creators, problems), searches the log, follows new lines and copies the whole log. The card and buttons of the page are translated.
 
