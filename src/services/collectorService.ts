@@ -2,7 +2,7 @@ import { getApiAdapter } from '../api';
 import { getCachedPost, setCachedPost } from './cacheService';
 import { getSettings, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
-import { debugLog, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename, isMediaFile } from '../utils/helpers';
+import { debugLog, formatPostCommentsText, formatPostTagsText, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename, isMediaFile } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 
 export function getPostDetailsFromPage(): PostDetails {
@@ -114,6 +114,21 @@ export async function fetchAndCachePostData(service: string, userID: string, pos
   return rawApiData;
 }
 
+// Comments come from their own endpoint (kemono and pawchive alike); a failure only loses comments.txt
+async function fetchPostComments(postDetails: PostDetails): Promise<unknown> {
+  try {
+    const response = await gmXmlhttpRequestWithRetries({
+      method: 'GET',
+      url: getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`),
+      responseType: 'json'
+    });
+    return response.response;
+  } catch (error) {
+    debugLog('Comments fetch failed:', error);
+    return null;
+  }
+}
+
 export async function collectFilesForPost(postDetails: PostDetails, options: Record<string, any> = {}): Promise<{ files: FileItem[]; postDate: string }> {
   await getSettings();
   const files: FileItem[] = [];
@@ -209,6 +224,20 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
       if (formattedContent) {
         const textFileName = generateFilePath(templateToUse, { file_index: '000', file_name: 'content.txt' }, postDetails);
         files.push({ name: textFileName, data: formattedContent, source: 'text' });
+      }
+    }
+
+    // The post's own tags; the /user/{id}/tags endpoint returns the creator's, not the post's
+    if (state.settings.savePostTags) {
+      const tagsText = formatPostTagsText(post.tags);
+      if (tagsText) {
+        files.push({ name: generateFilePath(templateToUse, { file_index: '000', file_name: 'tags.txt' }, postDetails), data: tagsText, source: 'text' });
+      }
+    }
+    if (state.settings.savePostComments) {
+      const commentsText = formatPostCommentsText(await fetchPostComments(postDetails));
+      if (commentsText) {
+        files.push({ name: generateFilePath(templateToUse, { file_index: '000', file_name: 'comments.txt' }, postDetails), data: commentsText, source: 'text' });
       }
     }
   } else if (isPostPage) {
