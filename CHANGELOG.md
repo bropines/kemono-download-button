@@ -4,6 +4,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-11-17
+
+### Fixed
+- Site skin on phones: the creators search row (service, sort, direction, filters) wraps instead of making the whole page wider than the screen.
+- Site skin on phones: the pagination fits one row.
+
 ## [1.3.3] - 2026-11-17
 
 ### Changed

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      1.3.3
+// @version      1.3.4
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -564,6 +564,10 @@ ${Po} {
   box-shadow: var(--kdl-shadow-sm);
 }
 @media (max-width: 600px) {
+  /* Nine buttons fit one 360px row */
+  .paginator menu { gap: 2px; }
+  .paginator menu > li, .paginator menu > a { min-width: 2rem; height: 2rem; font-size: 13px; }
+  .paginator menu > li > b, .paginator menu > a > b { padding: 0 0.35rem; }
   .paginator menu > li:is(.pagination-button-optional, .pagination-desktop),
   .paginator menu > a:is(.pagination-button-optional, .pagination-desktop) { display: none; }
 }
@@ -1464,6 +1468,9 @@ ${No} {
 #paginator-dates > .paginator { flex: 1 0 100%; }
 
 @media (max-width: 600px) {
+  /* The control row (service, sort, direction, filters) wraps instead of pushing the page wider than the phone */
+  .search-form__controls { flex-wrap: wrap; min-width: 0; }
+  .search-form__controls select${D} { flex: 1 1 8rem; min-width: 0; }
   .form--bigger, .site-section--account .form:not(#revoke-service-keys), .site-section--new-linked-account .form { padding: 16px; }
   .form__section--checkbox { padding: 10px 12px; }
 }

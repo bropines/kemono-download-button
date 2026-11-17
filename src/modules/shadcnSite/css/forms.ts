@@ -178,6 +178,9 @@ ${FILTER_BARS} {
 #paginator-dates > .paginator { flex: 1 0 100%; }
 
 @media (max-width: 600px) {
+  /* The control row (service, sort, direction, filters) wraps instead of pushing the page wider than the phone */
+  .search-form__controls { flex-wrap: wrap; min-width: 0; }
+  .search-form__controls select${NK} { flex: 1 1 8rem; min-width: 0; }
   .form--bigger, .site-section--account .form:not(#revoke-service-keys), .site-section--new-linked-account .form { padding: 16px; }
   .form__section--checkbox { padding: 10px 12px; }
 }

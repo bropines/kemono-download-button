@@ -204,6 +204,10 @@ ${PRIMARY} {
   box-shadow: var(--kdl-shadow-sm);
 }
 @media (max-width: 600px) {
+  /* Nine buttons fit one 360px row */
+  .paginator menu { gap: 2px; }
+  .paginator menu > li, .paginator menu > a { min-width: 2rem; height: 2rem; font-size: 13px; }
+  .paginator menu > li > b, .paginator menu > a > b { padding: 0 0.35rem; }
   .paginator menu > li:is(.pagination-button-optional, .pagination-desktop),
   .paginator menu > a:is(.pagination-button-optional, .pagination-desktop) { display: none; }
 }
