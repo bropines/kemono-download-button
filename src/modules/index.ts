@@ -1,7 +1,7 @@
 import type { KdlModule } from '../core/types';
 import { registerModule } from '../core/registry';
 import { coreModule } from './core';
-import { downloaderPostModule, downloaderCreatorModule, favoritesQuickModule } from './downloader';
+import { downloaderPostModule, downloaderCreatorModule, downloaderListModule, favoritesQuickModule } from './downloader';
 import { adblockModule } from '../features/adblock';
 import { viewedPostsModule } from '../features/kui/viewedPosts';
 import { copyUsernameModule } from '../features/kui/userPageModule';
@@ -20,6 +20,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   kuiPostModule,
   downloaderPostModule,
   downloaderCreatorModule,
+  downloaderListModule,
   favoritesQuickModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,

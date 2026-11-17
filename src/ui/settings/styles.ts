@@ -9,8 +9,11 @@ export const settingsStyles = css({
   '.kdl-settings [hidden]': { display: 'none !important' },
   '.kdl-settings .kdl-ui-dialog__body': { display: 'flex', flexDirection: 'column' },
   '.kdl-settings .kdl-ui-tabs': { flex: '1 1 auto', minHeight: 0, gap: '12px' },
-  '.kdl-settings .kdl-ui-tabs__list': { flexShrink: 0, position: 'sticky', top: 0, zIndex: LAYERS.base },
-  '.kdl-settings .kdl-ui-tabs__trigger': { gap: '6px' },
+  '.kdl-settings .kdl-ui-tabs__list': { flexShrink: 0, position: 'sticky', top: 0, zIndex: LAYERS.base, overflowY: 'hidden', scrollbarWidth: 'none' },
+  // Triggers keep their width and the list scrolls sideways: shrunk triggers spilled their labels over each
+  // other and onto the panel on phones
+  '.kdl-settings .kdl-ui-tabs__trigger': { gap: '6px', flexShrink: 0 },
+  '.kdl-settings .kdl-ui-tabs__list::-webkit-scrollbar': { display: 'none' },
   '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { width: '14px', height: '14px' },
   '.kdl-settings .kdl-ui-tabs__panel': { paddingBottom: '4px' },
   '.kdl-settings__panel': { display: 'flex', flexDirection: 'column', gap: '12px' },
@@ -97,6 +100,10 @@ export const settingsStyles = css({
   '@media (max-width: 640px)': {
     '.kdl-settings': { height: 'calc(100vh - 32px)', padding: '16px' },
     '.kdl-settings__footer-spacer': { display: 'none' },
+    // Export / Import / Reset share one row under a full-width Done instead of four stacked rows
+    '.kdl-settings .kdl-ui-dialog__footer': { flexDirection: 'row', flexWrap: 'wrap', gap: '8px' },
+    '.kdl-settings .kdl-ui-dialog__footer > .kdl-ui-btn': { flex: '1 1 0', minWidth: 0, padding: '0 8px' },
+    '.kdl-settings .kdl-ui-dialog__footer > .kdl-ui-btn--default': { flex: '1 0 100%', order: -1 },
   },
 });
 

@@ -1,5 +1,6 @@
 import type { KdlModule } from '../core/types';
 import { onPageChange } from '../core/router';
+import { keepInHead } from '../core/page';
 import { CSS_STYLES } from '../config/styles';
 import { appState } from '../state/store';
 import { debugLog } from '../utils/helpers';
@@ -36,14 +37,14 @@ export function ensureStylesInjected(): void {
         result instanceof HTMLStyleElement
           ? result
           : Array.from(document.querySelectorAll('style')).find((node) => node.textContent === CSS_STYLES) || null;
-      if (styleElement) styleElement.id = STYLE_ID;
+      if (styleElement) keepInHead(styleElement).id = STYLE_ID;
       return;
     } catch (error) {
       debugLog('GM_addStyle failed, falling back to a <style> element:', error);
     }
   }
 
-  styleElement = document.createElement('style');
+  styleElement = keepInHead(document.createElement('style'));
   styleElement.id = STYLE_ID;
   styleElement.textContent = CSS_STYLES;
   (document.head || document.documentElement).appendChild(styleElement);

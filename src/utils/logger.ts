@@ -1,3 +1,4 @@
+import { keepInHead } from '../core/page';
 import { kuiState } from '../state/kuiState';
 
 export const debugModule = {
@@ -11,13 +12,15 @@ export const debugModule = {
       `;
     let styled = false;
     try {
-      styled = typeof GM_addStyle === 'function' && !!GM_addStyle(css);
+      const added = typeof GM_addStyle === "function" ? (GM_addStyle(css) as unknown) : null;
+      if (added instanceof HTMLStyleElement) keepInHead(added);
+      styled = !!added;
     } catch (e) {
       styled = false;
     }
     // Hosts without GM_addStyle (or where it returns nothing) get a plain <style>
     if (!styled) {
-      const style = document.createElement("style");
+      const style = keepInHead(document.createElement("style"));
       style.textContent = css;
       (document.head || document.documentElement).appendChild(style);
     }

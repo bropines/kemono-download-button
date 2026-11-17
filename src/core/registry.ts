@@ -1,5 +1,6 @@
 import { KdlModule, ModuleContext, PageInfo, RegistryEvent, SettingDef, SettingValue } from './types';
 import { modKey, readModuleValue, writeModuleValue } from './storage';
+import { keepInHead } from './page';
 
 interface ModuleRecord {
   def: KdlModule;
@@ -209,7 +210,7 @@ function syncStyle(record: ModuleRecord, on: boolean): void {
     if (!node.isConnected) (document.head || document.documentElement).appendChild(node);
     return;
   }
-  node = document.createElement('style');
+  node = keepInHead(document.createElement('style'));
   node.id = styleId;
   node.textContent = typeof def.styles === 'function' ? def.styles() : def.styles;
   (document.head || document.documentElement).appendChild(node);

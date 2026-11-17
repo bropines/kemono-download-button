@@ -8,6 +8,7 @@ export const tokensCss = (): string => `
 html {
   --kdl-radius: 0.5rem;
   --kdl-font: ${KIT_FONT};
+  --kdl-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
   --kdl-shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--kdl-background) 60%, transparent);
   --kdl-hover-ring: color-mix(in srgb, var(--kdl-ring) 45%, var(--kdl-border));
   --kdl-focus-ring: 0 0 0 3px color-mix(in srgb, var(--kdl-ring) 35%, transparent);

@@ -1,5 +1,5 @@
 import { PageInfo } from './types';
-import { detectPage, pageFromDom, resolveRoot, writePageAttributes } from './page';
+import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, resolveRoot, writePageAttributes } from './page';
 import { attachRuntime, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
 
 let current: PageInfo;
@@ -97,12 +97,29 @@ function swapReplacesPage(event: Event): boolean {
   return !target || target === root || target.contains(root);
 }
 
+// The new #main is in the DOM but not painted yet: point <html data-kdl-page> at it now, so page-scoped
+// rules (restyle themes) match on the first frame instead of after the coalesced reconcile
+function writeEarlyPageAttributes(event: Event): void {
+  const target = (event as CustomEvent).detail?.target as Element | undefined;
+  // An outerHTML swap leaves the event on the old, now detached #main
+  const replacedMain = !!target && !target.isConnected && target.matches('#main, main');
+  if (!replacedMain && !swapReplacesPage(event)) return;
+  const path = htmxNextPath(event) || window.location.pathname;
+  const fromUrl = pageFromUrl(path);
+  writePageAttributes({ type: fromUrl === 'other' ? pageFromDom() : fromUrl, site: detectSite(), path });
+}
+
 function installNavigationHooks(): void {
   document.addEventListener('htmx:beforeHistorySave', () => snapshotMounted());
+  // Capture on window runs before the site's own beforeSwap listener on document (see keepOwnHeadNodes)
+  window.addEventListener('htmx:beforeSwap', keepOwnHeadNodes, true);
   document.addEventListener('htmx:beforeSwap', (event) => {
     if (swapReplacesPage(event)) leaveIfPathChanges(htmxNextPath(event));
   });
-  document.addEventListener('htmx:afterSwap', () => scheduleReconcile());
+  document.addEventListener('htmx:afterSwap', (event) => {
+    writeEarlyPageAttributes(event);
+    scheduleReconcile();
+  });
   document.addEventListener('htmx:afterSettle', () => scheduleReconcile());
   document.addEventListener('htmx:historyRestore', () => scheduleReconcile());
   window.addEventListener('popstate', () => {

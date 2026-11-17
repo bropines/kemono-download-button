@@ -19,6 +19,24 @@ export async function fetchPostDataFromAPI(service: string, userID: string, post
   return getJson(path);
 }
 
+const creatorNames = new Map<string, Promise<string | null>>();
+
+/** A creator's display name from the profile endpoint, once per page session; null when it cannot be read */
+export function fetchCreatorName(service: string, userID: string): Promise<string | null> {
+  const key = `${service}/${userID}`;
+  if (!creatorNames.has(key)) {
+    const request = getJson(`/api/v1/${service}/user/${userID}/profile`, 15000)
+      .then((profile) => (typeof profile?.name === 'string' && profile.name.trim()) || null)
+      .catch((error) => {
+        debugLog(`[API] Creator name for ${key} failed:`, error);
+        creatorNames.delete(key);
+        return null;
+      });
+    creatorNames.set(key, request);
+  }
+  return creatorNames.get(key)!;
+}
+
 type AuthorPostsPagePath = (service: string, userID: string, offset: number) => string;
 
 export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAdapter['fetchAllAuthorPosts'] {
