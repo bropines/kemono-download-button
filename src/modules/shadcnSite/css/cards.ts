@@ -109,7 +109,7 @@ export const cardsCss = (): string => `
 /* The site caps creator list pages at 768px (two columns): the card grid gets the full width,
    the search form, filters and pagination stay a centred column */
 .site-section:has(.card-list__items > .user-card) { max-width: min(100%, 1800px); }
-.site-section:has(.card-list__items > .user-card) > :not(.card-list) { max-width: 768px; margin-inline: auto; }
+.site-section:has(.card-list__items > .user-card) > :not(.card-list, .user-header, .kdl-sk-tabs-row) { max-width: 768px; margin-inline: auto; }
 .site-section:has(.card-list__items > .user-card) .card-list > :not(.card-list__layout, .card-list__items) { max-width: 768px; margin-inline: auto; }
 .user-card {
   gap: 16px;

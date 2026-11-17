@@ -98,6 +98,38 @@ select${NK} {
   background-size: 1rem;
 }
 select${NK} option { color: var(--kdl-popover-foreground); background-color: var(--kdl-popover); }
+/* Customizable select (Chrome 135+): the open list as a popover menu; other engines keep their own */
+@supports (appearance: base-select) {
+  select${NK}:not([multiple], [size]), select${NK}:not([multiple], [size])::picker(select) { appearance: base-select; }
+  select${NK}:not([multiple], [size]) { display: inline-flex; align-items: center; }
+  select${NK}::picker-icon { display: none; }
+  select${NK}::picker(select) {
+    margin-block: 4px;
+    padding: 4px;
+    border: 1px solid var(--kdl-border);
+    border-radius: var(--kdl-radius);
+    background: var(--kdl-popover);
+    color: var(--kdl-popover-foreground);
+    box-shadow: var(--kdl-shadow);
+    max-height: min(320px, 60vh);
+    overflow-y: auto;
+    scrollbar-width: thin;
+  }
+  select${NK}:not([multiple], [size]) option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 2rem;
+    padding: 6px 8px;
+    border-radius: calc(var(--kdl-radius) - 2px);
+    background: transparent;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  select${NK}:not([multiple], [size]) option:is(:hover, :focus-visible) { background: var(--kdl-accent); color: var(--kdl-accent-foreground); outline: none; }
+  select${NK}:not([multiple], [size]) option:checked { font-weight: 500; }
+  select${NK}:not([multiple], [size]) option::checkmark { order: 1; margin-left: auto; color: var(--kdl-primary); }
+}
 input.search-input${NK} {
   height: 2.25rem;
   max-width: 28rem;

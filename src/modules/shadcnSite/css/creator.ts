@@ -2,12 +2,20 @@
 // beside the avatar. Grid instead of the site's flex row; the markup is untouched.
 
 export const creatorCss = (): string => `
+/* Creator tabs on their own row under the header (moved out of the paginator, see pages.ts) */
+.kdl-sk-tabs-row { display: flex; justify-content: center; margin: 12px 0 4px; }
+.kdl-sk-tabs-row > .tabs { margin: 0; }
+.paginator:not(:has(> *)) { display: none; }
 .user-header {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   /* auto: a theme that hides the banner collapses its row */
   grid-template-rows: auto auto;
+  /* The same box on every tab of the creator (posts, links, similar creators...) */
+  box-sizing: border-box;
+  width: 100%;
   max-width: 960px;
+  margin-inline: auto;
   border: 1px solid var(--kdl-border);
   border-radius: calc(var(--kdl-radius) + 4px);
   background-color: var(--kdl-card);

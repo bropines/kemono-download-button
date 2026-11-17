@@ -26,7 +26,7 @@ import { postCss } from './css/post';
 import { creatorCss } from './css/creator';
 import { formsCss } from './css/forms';
 import { pagesCss } from './css/pages';
-import { shadcnPagesTransform } from './pages';
+import { shadcnCreatorTransform, shadcnPagesTransform } from './pages';
 import { ACCENT_OPTIONS, BASE_OPTIONS, SURFACE_OPTIONS, paletteCss } from './palette';
 
 export const SHADCN_ID = 'ui.shadcn';
@@ -302,7 +302,10 @@ const part = (id: string, name: string, description: string, build: () => string
 export const shadcnSiteParts: KdlModule[] = [
   part('cards', 'shadcn skin: cards', 'Post cards with the thumbnail on top and a meta line below; creator, DM and other cards; tag clouds.', cardsCss),
   part('post', 'shadcn skin: post page', 'Post header card, tags as badges, content typography and comments.', postCss),
-  part('creator', 'shadcn skin: creator page', 'Creator header as a profile card: banner, avatar, name and actions.', creatorCss),
+  {
+    ...part('creator', 'shadcn skin: creator page', 'Creator header as a profile card: banner, avatar, name and actions; the tabs on their own row under it.', creatorCss),
+    ...shadcnCreatorTransform,
+  },
   {
     ...part('pages', 'shadcn skin: pages', 'Importer notes, FAQ, contact and account pages as card panels; the FAQ as an accordion with a filter; key cards with status badges; the home page over its blurred background art.', pagesCss),
     ...shadcnPagesTransform,

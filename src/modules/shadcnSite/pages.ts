@@ -360,6 +360,41 @@ function undoDropZone(): void {
   });
 }
 
+// Creator tabs: the site puts them inside the paginator, which is a full bar with pages and search on the posts
+// tab but only the tabs elsewhere, so the layout changed from tab to tab. They get a row of their own above it.
+const TABS = '.site-section--user > .paginator > .tabs';
+const tabSpots = new WeakMap<Element, Comment>();
+function liftCreatorTabs(): void {
+  document.querySelectorAll(TABS).forEach((tabs) => {
+    if (tabSpots.has(tabs)) return;
+    const paginator = tabs.parentElement!;
+    const spot = document.createComment('kdl-tabs-spot');
+    tabs.before(spot);
+    tabSpots.set(tabs, spot);
+    const row = el('div', { className: 'kdl-sk-tabs-row' });
+    row.setAttribute(MARK, 'tabs');
+    paginator.before(row);
+    row.append(tabs);
+  });
+}
+function undoCreatorTabs(): void {
+  document.querySelectorAll(`[${MARK}="tabs"]`).forEach((row) => {
+    const tabs = row.querySelector('.tabs');
+    const spot = tabs && tabSpots.get(tabs);
+    if (tabs && spot?.isConnected) spot.replaceWith(tabs);
+    if (tabs) tabSpots.delete(tabs);
+    row.remove();
+  });
+}
+
+/** The creator part's DOM change (its CSS is in css/creator.ts) */
+export const shadcnCreatorTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
+  mount: liftCreatorTabs,
+  update: liftCreatorTabs,
+  unmount: undoCreatorTabs,
+  beforeSnapshot: undoCreatorTabs,
+};
+
 // The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
 // phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,
 // and only a width change (rotation) recomputes it.

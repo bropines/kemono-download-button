@@ -58,7 +58,8 @@ ${RADIO}:checked {
 ${TOGGLES}:disabled { cursor: not-allowed; opacity: 0.5; }
 
 /* Site forms (importer, login, account settings) */
-.form--bigger, .site-section--account .form:not(#revoke-service-keys), .site-section--new-linked-account .form {
+.form--bigger, .site-section--account .form:not(#revoke-service-keys), .site-section--new-linked-account .form,
+.site-section--login .form, .site-section--register .form {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -73,6 +74,12 @@ ${TOGGLES}:disabled { cursor: not-allowed; opacity: 0.5; }
   box-shadow: var(--kdl-shadow-sm);
   box-sizing: border-box;
 }
+/* Login and register: a narrow card under a centred call to action */
+:is(.site-section--login, .site-section--register) .form { max-width: 26rem; }
+:is(.site-section--login, .site-section--register) .site-section__heading { text-align: center; }
+.site-section__register-cta { max-width: 26rem; margin: 8px auto 0; color: var(--kdl-muted-foreground); font-size: 14px; text-align: center; }
+.site-section__register-cta a { color: var(--kdl-primary); font-weight: 500; }
+.form__hint { color: var(--kdl-muted-foreground); font-size: 12px; line-height: 1.4; }
 .form__section { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
 .form__section--hidden { display: none; }
 .form__label { color: var(--kdl-foreground); font-size: 14px; font-weight: 500; line-height: 1.4; opacity: 1; }

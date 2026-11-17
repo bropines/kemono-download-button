@@ -3,12 +3,12 @@ export type CSSRules = Record<string, CSSProperties | Record<string, CSSProperti
 
 /**
  * Converts a structured TypeScript object of CSS rules into a CSS string.
- * Supports camelCase property names, pseudo-classes, @keyframes, and @media queries.
+ * Supports camelCase property names, pseudo-classes, @keyframes, @media and @supports blocks.
  */
 export function css(rules: CSSRules): string {
   let cssString = "";
   for (const [selector, properties] of Object.entries(rules)) {
-    if (selector.startsWith("@media")) {
+    if (selector.startsWith("@media") || selector.startsWith("@supports")) {
       cssString += `${selector} {\n`;
       for (const [subSelector, subProps] of Object.entries(properties as Record<string, CSSProperties>)) {
         cssString += `  ${subSelector} {\n`;
