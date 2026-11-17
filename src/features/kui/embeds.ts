@@ -3,8 +3,7 @@ import { kuiState } from '../../state/kuiState';
 import { showMessage } from '../../ui/toast';
 import { parseGluedUrl } from '../../utils/urlSanitizer';
 import { copyToClipboard } from '../../utils/clipboard';
-import { badge, ensureKit, kitIcon } from '../../ui/kit';
-import { linkButton } from '../../ui/components/kui/linkButton';
+import { badge, button as kitButton, ensureKit, kitIcon } from '../../ui/kit';
 
 export interface ServiceBrand {
   name: string;
@@ -314,7 +313,7 @@ export function processEmbeds(): void {
         const urlObject = new URL(url);
         const brand = getServiceBrand(urlObject.hostname);
 
-        const button = linkButton({ href: url, variant: "outline", size: "sm", className: "kui-embed-button" });
+        const button = kitButton({ href: url, target: "_blank", variant: "outline", size: "sm", className: "kui-embed-button" });
         button.title = url;
 
         // The host shows as its favicon; without one, as a dot in its brand colour

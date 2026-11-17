@@ -1,7 +1,6 @@
 import { appState } from '../../state/store';
 import { el } from '../../utils/dom';
-import { badge } from '../kit';
-import { mountOverlayStyles } from '../overlayStyles';
+import { addKitStyles, badge } from '../kit';
 import { dockStyles } from '../../styles/components/fixedControls.styles';
 
 export type DockSlot = 'progress' | 'queue' | 'bulk';
@@ -12,7 +11,7 @@ const SLOTS: DockSlot[] = ['progress', 'queue', 'bulk'];
  * It stacks progress tasks, the queue badge and the bulk bar top to bottom, so they never overlap.
  */
 export function getDockSlot(slot: DockSlot): HTMLElement {
-  const root = mountOverlayStyles('kdl-dock-styles', dockStyles);
+  const root = addKitStyles('kdl-dock-styles', dockStyles);
   let dock = root.getElementById('kdl-fixed-controls');
   if (!dock) {
     dock = el(
@@ -30,9 +29,8 @@ export function getDockSlot(slot: DockSlot): HTMLElement {
 export function createFixedControls(): void {
   const slot = getDockSlot('queue');
   if (!appState.queueIndicatorElement) {
-    const indicator = badge({ text: '', variant: 'secondary', icon: 'loader-circle' });
+    const indicator = badge({ text: '', variant: 'secondary', icon: 'loader-circle', iconClassName: 'kdl-ui-spin' });
     indicator.id = 'kdl-queue-indicator';
-    indicator.querySelector('svg')?.classList.add('kdl-ui-spin');
     indicator.setAttribute('role', 'status');
     indicator.hidden = true;
     appState.queueIndicatorElement = indicator;

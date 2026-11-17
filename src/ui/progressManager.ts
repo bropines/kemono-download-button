@@ -1,6 +1,5 @@
 import { el } from '../utils/dom';
-import { button, progress, scrollArea, setProgress } from './kit';
-import { mountOverlayStyles } from './overlayStyles';
+import { addKitStyles, button, progress, scrollArea, setProgress } from './kit';
 import { getDockSlot } from './components/fixedControls';
 import { progressBarStyles } from '../styles/components/progressBar.styles';
 
@@ -28,7 +27,7 @@ class ProgressManager {
 
   /** Task stack inside the bottom dock of the kit root (recreated if the root was rebuilt). */
   private getContainer(): HTMLElement {
-    mountOverlayStyles('kdl-progress-styles', progressBarStyles);
+    addKitStyles('kdl-progress-styles', progressBarStyles);
     const slot = getDockSlot('progress');
     let container = slot.querySelector<HTMLElement>('#kdl-progress-container');
     if (!container) {

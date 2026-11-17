@@ -1,12 +1,12 @@
 import { el } from '../../utils/dom';
 import { getKitRoot } from './root';
-import { kitStyles } from './styles';
+import { lightDomKitStyles } from './styles';
 import type { KitTheme } from './tokens';
 import { cx, type Child } from './utils';
 
-export { kitStyles } from './styles';
+export { kitStyles, lightDomKitStyles } from './styles';
 export { tokenStyles, type KitTheme } from './tokens';
-export { getKitRoot, portal, setKitTheme, KIT_ROOT_ID } from './root';
+export { getKitRoot, addKitStyles, portal, setKitTheme, KIT_ROOT_ID } from './root';
 export { LAYERS, HOST_Z_INDEX } from './layers';
 export { cx, uid, kitIcon, type Child, type Content } from './utils';
 
@@ -41,14 +41,15 @@ const LIGHT_STYLE_ID = 'kdl-kit-styles';
 
 /**
  * Creates the #kdl-root shadow host and injects the kit CSS into document.head once,
- * so inline widgets wrapped in kitScope() render in the page's light DOM too.
+ * so inline widgets wrapped in kitScope() render in the page's light DOM too. The sheet goes
+ * first in <head>: call-site overrides in later sheets win ties with it (see lightDomKitStyles).
  */
 export function ensureKit(): ShadowRoot {
   if (!document.getElementById(LIGHT_STYLE_ID)) {
     const style = document.createElement('style');
     style.id = LIGHT_STYLE_ID;
-    style.textContent = kitStyles;
-    (document.head ?? document.documentElement).appendChild(style);
+    style.textContent = lightDomKitStyles;
+    (document.head ?? document.documentElement).prepend(style);
   }
   return getKitRoot();
 }

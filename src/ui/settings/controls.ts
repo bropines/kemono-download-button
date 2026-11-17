@@ -1,6 +1,7 @@
 import type { IconName } from '../../config/icons';
 import { saveSetting, state } from '../../state/store';
 import type { DownloaderSettings } from '../../types';
+import { onRegistryChange, type RegistryEvent } from '../../core';
 import { el } from '../../utils/dom';
 import {
   card,
@@ -163,4 +164,15 @@ export function settingSelect(
 /** A row of controls laid out in a responsive grid. */
 export function grid(children: Child[]): HTMLDivElement {
   return el('div', { className: 'kdl-settings__grid' }, children);
+}
+
+/**
+ * Registry events for a control of the open dialog. Sections render synchronously into a panel that is
+ * attached right away, so the first event after the node left the page (dialog closed, tabs rebuilt) unsubscribes.
+ */
+export function whileConnected(node: HTMLElement, fn: (event: RegistryEvent) => void): void {
+  const off = onRegistryChange((event) => {
+    if (!node.isConnected) return void off();
+    fn(event);
+  });
 }

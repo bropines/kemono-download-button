@@ -2,6 +2,7 @@ import type { KdlModule } from '../core/types';
 import { getSettings, appState } from '../state/store';
 import { getApiAdapter } from '../api';
 import { el } from '../utils/dom';
+import { checkbox, ensureKit, kitScope } from '../ui/kit';
 import { debugLog } from '../utils/helpers';
 import { createAndInsertPostPageButtons } from '../ui/components/postPageButtons';
 import { injectPostCardButtons, injectArtistFavoriteButton, injectPostFavoriteButton } from '../ui/components/postCardButtons';
@@ -17,7 +18,7 @@ const LIST_POST_CARDS = 'article.post-card[data-id][data-user][data-service]';
 const ARTIST_CARDS = 'a.user-card';
 
 const POST_NODES = '.kdl-actions-container, .kdl-button';
-const CREATOR_NODES = '.post-card-download-controls, .kdl-post-info-tooltip, .kdl-post-checkbox, #kdl-author-manager-btn';
+const CREATOR_NODES = '.post-card-download-controls, .kdl-post-info-tooltip, .kdl-post-checkbox-scope, .kdl-post-checkbox, #kdl-author-manager-btn';
 const FAVORITE_NODES = '.kdl-quick-fav-btn';
 
 // One run at a time; a request landing mid-run triggers exactly one follow-up (the run is idempotent).
@@ -136,15 +137,19 @@ function injectUserPostCard(card: HTMLElement, pageAuthorName: string): void {
 
   if (!card.querySelector('.kdl-post-checkbox')) {
     const id = card.dataset.id;
-    const checkbox = el('input', {
-      type: 'checkbox',
-      className: 'kdl-post-checkbox',
-      dataset: { id },
-      onClick: (e: MouseEvent) => e.stopPropagation()
-    }) as HTMLInputElement;
+    ensureKit();
     // Cards re-rendered by a swap keep their selection
-    checkbox.checked = !!id && appState.selectedPostIds.has(id);
-    card.appendChild(checkbox);
+    const box = checkbox({ className: 'kdl-post-checkbox', ariaLabel: 'Select post', checked: !!id && appState.selectedPostIds.has(id) });
+    if (id) box.dataset.id = id;
+    box.addEventListener('click', (e) => e.stopPropagation());
+    // Kit checkbox in its own .kdl-scope: the card around it is the site's
+    const scope = kitScope([box], { tag: 'span', className: 'kdl-post-checkbox-scope' });
+    // The padding around the box counts as the box
+    scope.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (e.target === scope) box.click();
+    });
+    card.appendChild(scope);
   }
 
   if (!ctrlClickHandlers.has(card)) {

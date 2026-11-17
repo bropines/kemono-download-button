@@ -8,6 +8,8 @@ export interface BadgeOptions {
   text: string;
   variant?: BadgeVariant;
   icon?: IconName;
+  /** Extra classes for the icon, e.g. "kdl-ui-spin". */
+  iconClassName?: string;
   title?: string;
   className?: string;
 }
@@ -15,7 +17,7 @@ export interface BadgeOptions {
 export function badge(options: BadgeOptions): HTMLSpanElement {
   const node = el('span', {
     className: cx('kdl-ui-badge', `kdl-ui-badge--${options.variant ?? 'default'}`, options.className),
-  }, [options.icon ? kitIcon(options.icon) : null, options.text]);
+  }, [options.icon ? kitIcon(options.icon, options.iconClassName) : null, options.text]);
   if (options.title) node.title = options.title;
   return node;
 }

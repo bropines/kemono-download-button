@@ -77,13 +77,16 @@ const light = {
 
 export type KitTheme = 'dark' | 'light';
 
-/** Theme variables: dark on :host / .kdl-scope; light with data-theme="light" or .kdl-theme-light. */
+/**
+ * Theme variables: dark on :host / .kdl-scope / .kdl-tokens; light with data-theme="light" or .kdl-theme-light.
+ * `.kdl-tokens` carries only these variables (no reset), for third-party markup such as Plyr.
+ */
 export const tokenStyles = css({
-  ':host, .kdl-scope': {
+  ':host, .kdl-scope, .kdl-tokens': {
     ...dark,
     '--kdl-radius': '0.5rem',
     '--kdl-font': FONT,
   },
-  ':host([data-theme="light"]), .kdl-scope[data-theme="light"], .kdl-scope.kdl-theme-light': light,
-  '.kdl-scope[data-theme="dark"], .kdl-scope.kdl-theme-dark': dark,
+  ':host([data-theme="light"]), :is(.kdl-scope, .kdl-tokens):is([data-theme="light"], .kdl-theme-light)': light,
+  ':is(.kdl-scope, .kdl-tokens):is([data-theme="dark"], .kdl-theme-dark)': dark,
 });

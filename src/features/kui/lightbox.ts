@@ -3,7 +3,7 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, LENS_DISPLAY_PREVIEW, NothingToTranslate, renderTranslation } from '../../services/lensImages';
 import { createLensPanel } from '../../ui/components/kui/lensPanel';
-import { lensIcon, linkButton } from '../../ui/components/kui/linkButton';
+import { lensIcon } from '../../ui/components/kui/lensIcon';
 import { button, kitIcon, portal, toast, tooltip } from '../../ui/kit';
 import { lensPanelStyles } from '../../styles/components/lensPanel.styles';
 import { lightboxStyles } from '../../styles/components/kuiMain.styles';
@@ -86,11 +86,11 @@ export const lightboxModule = {
   build() {
     const translating = state.settings.showImageTranslateButton;
     this.downloadBtn = tooltip(
-      linkButton({ id: 'kui-lightbox-download-btn', href: '#', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: 'Download original', className: 'kui-action-btn' }),
+      button({ id: 'kui-lightbox-download-btn', href: '#', target: '_blank', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: 'Download original', className: 'kui-action-btn' }),
       { text: 'Download original', side: 'bottom' }
     );
     this.lensBtn = tooltip(
-      linkButton({ id: 'kui-lightbox-lens-btn', href: '#', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: 'Search with Google Lens', className: 'kui-action-btn' }),
+      button({ id: 'kui-lightbox-lens-btn', href: '#', target: '_blank', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: 'Search with Google Lens', className: 'kui-action-btn' }),
       { text: 'Search with Google Lens', side: 'bottom' }
     );
     this.copyBtn = iconButton('kui-lightbox-copy-btn', 'link', 'Copy link to original', () => this.handleCopyLink());

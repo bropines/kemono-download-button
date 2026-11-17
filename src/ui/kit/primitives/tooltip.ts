@@ -10,17 +10,26 @@ export interface TooltipOptions extends PositionOptions {
   className?: string;
 }
 
+const tips = new WeakMap<HTMLElement, HTMLElement>();
+
 /**
  * Attaches a tooltip to a target (page or kit root) and returns the target.
  * Shown on hover / keyboard focus, hidden on leave, blur, Escape or click.
+ * Change the text later with setTooltip().
  */
 export function tooltip<T extends HTMLElement>(target: T, options: TooltipOptions): T {
+  const existing = tips.get(target);
+  if (existing) {
+    existing.textContent = options.text;
+    return target;
+  }
   const tip = el('div', {
     id: uid('kdl-ui-tooltip'),
     className: cx('kdl-ui-tooltip', options.className),
     textContent: options.text,
   });
   tip.setAttribute('role', 'tooltip');
+  tips.set(target, tip);
   let timer = 0;
 
   const hide = () => {
@@ -34,7 +43,7 @@ export function tooltip<T extends HTMLElement>(target: T, options: TooltipOption
     if (event.key === 'Escape') hide();
   };
   const show = () => {
-    if (tip.isConnected || !target.isConnected) return;
+    if (tip.isConnected || !target.isConnected || !tip.textContent) return;
     portal(tip);
     const { x, y, side } = computePosition(target, tip, { side: 'top', offset: 6, ...options });
     Object.assign(tip.style, { left: `${x}px`, top: `${y}px` });
@@ -52,5 +61,16 @@ export function tooltip<T extends HTMLElement>(target: T, options: TooltipOption
   target.addEventListener('focusin', () => target.matches(':focus-visible') && show());
   target.addEventListener('focusout', hide);
   target.addEventListener('pointerdown', hide);
+  return target;
+}
+
+/**
+ * Sets the text of a target's tooltip, attaching one if it has none yet (for instance a node that
+ * came back from an htmx history snapshot without its listeners). An open tooltip updates in place.
+ */
+export function setTooltip<T extends HTMLElement>(target: T, text: string, options: Omit<TooltipOptions, 'text'> = {}): T {
+  const tip = tips.get(target);
+  if (tip) tip.textContent = text;
+  else tooltip(target, { ...options, text });
   return target;
 }

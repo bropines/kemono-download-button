@@ -8,7 +8,8 @@ import type { IconName } from '../../config/icons';
  *
  *   registerSettingsSection({
  *     id: 'my-module', title: 'My module', icon: 'package', order: 10,
- *     placement: 'modules',            // a card inside the "Modules" tab (default: its own tab)
+ *     placement: 'modules',            // in the "Modules" tab (default: its own tab): inside the card
+ *                                      // of the module whose id matches, else a card at the end
  *     render(container) { container.append(settingSwitch(...)); },
  *   });
  *
@@ -22,7 +23,7 @@ export interface SettingsSection {
   icon?: IconName;
   /** Ascending; built-in tabs use 10..60, the Modules tab 100. */
   order?: number;
-  /** 'tab' (default): its own tab. 'modules': a card inside the Modules tab. */
+  /** 'tab' (default): its own tab. 'modules': in the card of the module with this id, or a card at the end of the Modules tab. */
   placement?: 'tab' | 'modules';
   /** Shown under the title of a module card. */
   description?: string;

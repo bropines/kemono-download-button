@@ -34,17 +34,22 @@ export const postCardStyles = css({
     padding: '0 8px',
     fontSize: '12px',
   },
-  '.kdl-post-checkbox': {
+  // Kit checkbox in a .kdl-scope; the scope gives it a backdrop so it reads on any thumbnail
+  '.post-card .kdl-scope.kdl-post-checkbox-scope': {
     position: 'absolute',
     top: '6px',
     left: '6px',
     zIndex: 11,
+    display: 'flex',
+    padding: '4px',
+    borderRadius: 'calc(var(--kdl-radius) - 2px)',
+    background: 'color-mix(in srgb, var(--kdl-background) 70%, transparent)',
+    lineHeight: 0,
+  },
+  '.kdl-post-checkbox-scope .kdl-ui-checkbox.kdl-post-checkbox': {
     width: 'clamp(16px, 10cqw, 22px)',
     height: 'clamp(16px, 10cqw, 22px)',
-    cursor: 'pointer',
-    padding: '4px',
-    margin: 0,
-    backgroundClip: 'content-box',
+    backgroundSize: '75%',
   },
   // Self-scoped kit icon button (.kdl-scope.kdl-ui-btn)
   '.kdl-scope.kdl-quick-fav-btn': {

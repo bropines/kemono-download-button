@@ -3,7 +3,7 @@ import { notifyLensDisplayChanged, notifyLensDisplayPreview } from '../../../ser
 import { saveSetting, state } from '../../../state/store';
 import type { DownloaderSettings } from '../../../types';
 import { el } from '../../../utils/dom';
-import { button, field, input, label, select, separator, setSwitch, slider, switchControl, tooltip, uid } from '../../kit';
+import { button, field, input, label, select, separator, setSliderValue, setSwitch, slider, switchControl, tooltip, uid } from '../../kit';
 
 type Key = keyof DownloaderSettings;
 
@@ -94,18 +94,6 @@ function formatValue(control: Control, value: unknown): string {
   return `${number.toFixed(digits)}${control.unit ?? ''}`;
 }
 
-// The kit slider only follows user input: a reset has to move its fill and readout too
-function setSliderValue(wrapper: HTMLElement, control: Control, value: unknown): void {
-  const range = wrapper.querySelector<HTMLInputElement>('.kdl-ui-slider__input');
-  const output = wrapper.querySelector('.kdl-ui-slider__value');
-  if (!range) return;
-  range.value = String(value);
-  const min = control.min ?? 0;
-  const max = control.max ?? 100;
-  range.style.setProperty('--kdl-ui-fill', `${((Number(range.value) - min) / (max - min || 1)) * 100}%`);
-  if (output) output.textContent = formatValue(control, range.value);
-}
-
 /** The translation display settings, for the image viewer. Every change redraws the translation on screen. */
 export function createLensPanel(onClose: () => void): HTMLElement {
   const dirty = new Set<Key>();
@@ -168,7 +156,7 @@ export function createLensPanel(onClose: () => void): HTMLElement {
         onInput: (value) => set(control.key, parse(String(value))),
       });
       const row = el('div', { className: 'kui-lens-row kui-lens-row--range' }, [label({ text: control.label, htmlFor: id }), range]);
-      rows.push({ control, row, sync: () => setSliderValue(range, control, readSetting(control.key)) });
+      rows.push({ control, row, sync: () => setSliderValue(range, Number(readSetting(control.key))) });
       return withHint(row, control);
     }
 

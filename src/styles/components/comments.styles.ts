@@ -1,6 +1,8 @@
 import { css } from '../../utils/cssBuilder';
-import { THEME } from '../theme';
 
+const mix = (token: string, pct: number) => `color-mix(in srgb, var(${token}) ${pct}%, transparent)`;
+
+// Card layouts: the comment list gets .kdl-tokens (kit variables, no reset) while one is active
 export const commentsStyles = css({
   /* Toolbar: kit controls in a .kdl-scope */
   '.kdl-scope.kui-comments-toolbar': {
@@ -71,16 +73,16 @@ export const commentsStyles = css({
     scrollSnapType: 'x mandatory',
     paddingBottom: '8px',
     scrollbarWidth: 'thin',
-    scrollbarColor: `${THEME.scrollbars.thumbBg} transparent`,
+    scrollbarColor: `${mix('--kdl-muted-foreground', 40)} transparent`,
   },
   '.kui-comments--grid > .comment, .kui-comments--carousel > .comment': {
     boxSizing: 'border-box',
     minWidth: 0,
     margin: '0 !important',
     padding: '10px 12px',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.lg,
-    background: THEME.colors.cardBg,
+    border: '1px solid var(--kdl-border)',
+    borderRadius: 'var(--kdl-radius)',
+    background: mix('--kdl-muted', 35),
     overflowWrap: 'anywhere',
   },
   '.kui-comment-replies': {
@@ -89,13 +91,13 @@ export const commentsStyles = css({
     gap: '6px',
     marginTop: '8px',
     paddingLeft: '10px',
-    borderLeft: `2px solid ${THEME.colors.primary}`,
+    borderLeft: '2px solid var(--kdl-ring)',
   },
   '.kui-comment-replies > .comment': {
     margin: '0 !important',
     padding: '6px 10px',
-    borderRadius: THEME.borderRadius.md,
-    background: 'rgba(56, 189, 248, 0.06)',
+    borderRadius: 'calc(var(--kdl-radius) - 2px)',
+    background: mix('--kdl-primary', 6),
   },
   // The ">>id" back-reference is redundant once a reply sits under its parent
   '.kui-comment-replies .comment__reply': {
@@ -103,7 +105,7 @@ export const commentsStyles = css({
   },
   // Author comments that aren't replies stay top-level cards with an accent
   '.kui-comments--grid > .comment--user, .kui-comments--carousel > .comment--user': {
-    borderColor: THEME.colors.primary,
+    borderColor: 'var(--kdl-ring)',
   },
   '.kui-comments--carousel > .comment': {
     flex: '0 0 auto',
@@ -172,15 +174,15 @@ export const commentsStyles = css({
     alignSelf: 'start',
     minHeight: '100%',
     zIndex: 5,
-    borderColor: THEME.colors.primary,
+    borderColor: 'var(--kdl-ring)',
     // Opaque, since the card lies over the ones below
-    background: `linear-gradient(${THEME.colors.cardBg}, ${THEME.colors.cardBg}), ${THEME.colors.panelBg}`,
-    boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
+    background: `linear-gradient(${mix('--kdl-muted', 35)}, ${mix('--kdl-muted', 35)}), var(--kdl-card)`,
+    boxShadow: 'var(--kdl-shadow)',
   },
   // A carousel card grows in place, its neighbours keep their height
   '.kui-comments--carousel > .kui-comment-expanded': {
     height: 'auto',
-    borderColor: THEME.colors.primary,
+    borderColor: 'var(--kdl-ring)',
   },
   '.kui-comments--grid > .kui-comment-expanded > .comment__body, .kui-comments--carousel > .kui-comment-expanded > .comment__body': {
     flex: 'none',

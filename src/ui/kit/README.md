@@ -18,6 +18,8 @@ toast({ title: 'Saved', variant: 'success' });
 ```
 
 For a custom floating panel, use `portal(node)` (or `getKitRoot()`) and a z-index from `LAYERS`.
+A screen with its own CSS adds it with `addKitStyles(id, css)` (idempotent, returns the root). If the
+page removes `#kdl-root`, the next `getKitRoot()` puts it back with those styles and the theme.
 
 **Inline widgets in the page** (buttons on post cards, panels inside `#main`) stay in the light DOM.
 Call `ensureKit()` once at startup: it injects `<style id="kdl-kit-styles">` into `<head>` and creates
@@ -28,7 +30,15 @@ ensureKit();
 container.append(kitScope([button({ label: 'Download', icon: 'download' })]));
 ```
 
-Without a `.kdl-scope` ancestor, kit classes in the light DOM render without colours.
+A widget can also be its own scope (`className: 'kdl-scope ...'`). Kit classes outside any scope are not styled.
+
+In the light DOM the kit sheet is a rewritten copy (`lightDomKitStyles`): every `.kdl-ui-*` rule also
+requires `:is(.kdl-scope, .kdl-scope *)`, which makes it two classes strong. That beats the site's
+`button {}` / `.post-card button {}` rules without `!important`. The sheet is first in `<head>`, so a
+call-site override needs two classes too (`.post-card-download-controls .kdl-ui-btn--size-icon`).
+
+`.kdl-tokens` carries only the variables (no reset), for markup the kit must not reset: Plyr's player
+(`kuiPlyr.styles` maps `--plyr-*` to kit tokens) and the site's comment cards.
 
 ## Theme
 
@@ -42,7 +52,8 @@ Dark applies on `:host` and `.kdl-scope`. Light: `setKitTheme('light')` for the 
   `kdl-*` classes belong to the legacy UI; do not reuse them for kit markup.
 - Every primitive takes `className`, which is appended to its own classes.
 - Stateful controls return the native element and come with a setter instead of a wrapper object:
-  `setButtonLoading`, `setSwitch` / `isSwitchOn`, `setProgress`, `setFieldError`.
+  `setButtonLoading`, `setSwitch` / `isSwitchOn`, `setSliderValue`, `setProgress`, `setFieldError`, `setTooltip`.
+- `button({ href, target, download })` renders an `<a>` with the button look; `icon` also takes a ready SVG.
 - Overlays return a handle: `{ open, close, isOpen, element }` (+ `body`, `footer` for dialog/sheet,
   `toggle` for popover, `update`/`dismiss` for toast).
 - `Content` can be a factory (`() => nodes`); tabs, dialogs and popovers call it lazily on first show.

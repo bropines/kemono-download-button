@@ -48,3 +48,39 @@ export const kitStyles = [
   kbdStyles,
   emptyStateStyles,
 ].join('\n');
+
+/** Splits a selector list on top-level commas (not the ones inside :is()/:where()). */
+function splitSelectors(list: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < list.length; i++) {
+    const ch = list[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth--;
+    else if (ch === ',' && depth === 0) {
+      parts.push(list.slice(start, i).trim());
+      start = i + 1;
+    }
+  }
+  parts.push(list.slice(start).trim());
+  return parts;
+}
+
+// Kit markup inside a .kdl-scope, or a self-scoped widget that is one
+const IN_SCOPE = ':is(.kdl-scope, .kdl-scope *)';
+
+/**
+ * The kit CSS for the page's light DOM. Each component rule (`.kdl-ui-*`) gets IN_SCOPE on its first
+ * compound, which lifts it from one class to two: enough to beat the site's element and class+element
+ * rules (`button`, `.post-card button`), while two-class overrides written for a call site
+ * (`.post-card-download-controls .kdl-ui-btn--size-icon`) still win because ensureKit() puts this
+ * sheet first in <head>. The shadow root keeps the plain `kitStyles`.
+ */
+export const lightDomKitStyles = kitStyles.replace(/^(\s*)([^@\s{}][^{}]*?) \{$/gm, (line, indent: string, list: string) => {
+  if (!list.includes('.kdl-ui-')) return line;
+  const boosted = splitSelectors(list).map((sel) =>
+    sel.startsWith('.kdl-ui-') ? sel.replace(/^\.[\w-]+/, (cls) => cls + IN_SCOPE) : sel
+  );
+  return `${indent}${boosted.join(', ')} {`;
+});
