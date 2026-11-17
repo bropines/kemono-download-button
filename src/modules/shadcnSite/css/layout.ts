@@ -173,4 +173,24 @@ ${ITEM_HOVER} {
   --local-colour1-secondary: var(--kdl-muted-foreground);
 }
 .global-footer .footer li a:hover { color: var(--kdl-foreground); }
+/* Footer links as small outline buttons (label without the brackets, see pages.ts) */
+.global-footer .footer li { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; font-size: 0; }
+.global-footer .footer a[data-kdl-label] {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.875rem;
+  border: 1px solid var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) - 2px);
+  background: color-mix(in srgb, var(--kdl-card) 80%, transparent);
+  color: var(--kdl-foreground);
+  font-size: 0;
+  text-decoration: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.global-footer .footer a[data-kdl-label]::after { content: attr(data-kdl-label); font-size: 13px; font-weight: 500; }
+.global-footer .footer a[data-kdl-label]:hover { background: var(--kdl-accent); border-color: var(--kdl-ring); }
+.global-footer .footer a[data-kdl-label]:focus-visible { outline: 2px solid var(--kdl-ring); outline-offset: 2px; }
+/* The API page: Swagger's frame sized to its content (pages.ts) */
+iframe[data-kdl-sk="api"] { display: block; width: 100%; border: 1px solid var(--kdl-border) !important; border-radius: var(--kdl-radius); background: var(--kdl-card) !important; }
 `;

@@ -4,6 +4,16 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-11-17
+
+### Changed
+- Site skin: footer links are small buttons without the brackets, on every page.
+- Site skin: the API page sizes its Swagger frame to the content, so the page has a single scrollbar (it grows and shrinks as sections open and close).
+- Site skin: the Filters button sits in the search row on creator lists; the "Showing 1–50 of N" line is a bit smaller.
+
+### Fixed
+- The site translation is applied before the page is drawn, so switching pages no longer shows English text for a moment.
+
 ## [1.3.2] - 2026-11-17
 
 ### Changed

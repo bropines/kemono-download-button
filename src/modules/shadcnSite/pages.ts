@@ -10,7 +10,7 @@
 import type { KdlModule } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitScope } from '../../ui/kit';
-import { t } from '../../i18n';
+import { t, translateSiteText } from '../../i18n';
 
 const MARK = 'data-kdl-sk';
 const HEADINGS = 'h1, h2, h3, h4';
@@ -19,6 +19,9 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 
 /** Puts every node we wrapped back where it was */
 function undo(): void {
+  undoFilterMove();
+  undoFooter();
+  undoApiFrame();
   document.querySelectorAll(`[${MARK}="tools"], [${MARK}="seg"]`).forEach((node) => node.remove());
   document.querySelectorAll('.kdl-sk-seg-source').forEach((node) => node.classList.remove('kdl-sk-seg-source'));
   document.querySelectorAll<HTMLElement>(`[${MARK}="acc"]`).forEach((details) => {
@@ -194,16 +197,128 @@ function segmentFilters(): void {
   });
 }
 
+// Footer links ("[Contact] [API]") as small buttons: the label is the link text without the brackets, shown
+// through ::after so the site's own text node (and its translation) stays untouched
+const FOOTER_LINKS = '.global-footer .footer a';
+function footerButtons(): void {
+  document.querySelectorAll<HTMLElement>(FOOTER_LINKS).forEach((link) => {
+    const raw = (link.textContent || '').trim();
+    const label = (translateSiteText(raw) ?? raw).replace(/^\[\s*|\s*\]$/g, '');
+    if (label && link.dataset.kdlLabel !== label) link.dataset.kdlLabel = label;
+  });
+}
+function undoFooter(): void {
+  document.querySelectorAll<HTMLElement>(`${FOOTER_LINKS}[data-kdl-label]`).forEach((link) => delete link.dataset.kdlLabel);
+}
+
+// The API page embeds Swagger in an 850px iframe with its own scrollbar inside the page's: size the frame
+// to its content so the page has one scroll
+const API_FRAME = 'iframe[src*="swagger"]';
+const frameObservers = new WeakMap<HTMLIFrameElement, { disconnect(): void }>();
+function fitApiFrame(): void {
+  document.querySelectorAll<HTMLIFrameElement>(API_FRAME).forEach((frame) => {
+    if (frameObservers.has(frame)) return;
+    let resize: ResizeObserver | null = null;
+    let mutations: MutationObserver | null = null;
+    // Height of the content itself: scrollHeight never drops below the frame's current height
+    const fit = () => {
+      const doc = frame.contentDocument;
+      if (!doc?.documentElement || !doc.body) return;
+      doc.documentElement.style.overflow = 'hidden';
+      let bottom = 0;
+      Array.from(doc.body.children).forEach((child) => {
+        bottom = Math.max(bottom, child.getBoundingClientRect().bottom);
+      });
+      const height = Math.ceil(bottom + parseFloat(doc.defaultView?.getComputedStyle(doc.body).marginBottom || '0'));
+      if (height > 0 && frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
+    };
+    const attach = () => {
+      try {
+        const doc = frame.contentDocument;
+        if (!doc?.body) return;
+        resize?.disconnect();
+        mutations?.disconnect();
+        resize = new ResizeObserver(fit);
+        resize.observe(doc.body);
+        // Swagger renders late and opens sections in place: any change inside re-measures
+        mutations = new MutationObserver(fit);
+        mutations.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+        fit();
+      } catch {
+        // Cross-origin frame: leave it as the site made it
+      }
+    };
+    frameObservers.set(frame, {
+      disconnect: () => {
+        resize?.disconnect();
+        mutations?.disconnect();
+        frame.removeEventListener('load', attach);
+      },
+    });
+    frame.setAttribute(MARK, 'api');
+    frame.addEventListener('load', attach);
+    attach();
+  });
+}
+function undoApiFrame(): void {
+  document.querySelectorAll<HTMLIFrameElement>(`${API_FRAME}[${MARK}="api"]`).forEach((frame) => {
+    frameObservers.get(frame)?.disconnect();
+    frameObservers.delete(frame);
+    frame.removeAttribute(MARK);
+    frame.style.height = '';
+    try {
+      frame.contentDocument?.documentElement.style.removeProperty('overflow');
+    } catch {
+      // ignore
+    }
+  });
+}
+
+// The site puts "Filters" on its own line under the search form: move it into the form's control row.
+// A comment marks the original spot so undo can put it back.
+const FILTER_ANCHOR = '.hide-tags-filter__anchor';
+const filterSpots = new WeakMap<Element, Comment>();
+function moveFilterIntoSearch(): void {
+  document.querySelectorAll(FILTER_ANCHOR).forEach((anchor) => {
+    if (filterSpots.has(anchor)) return;
+    const form = anchor.previousElementSibling as HTMLElement | null;
+    // Some list pages keep the form hidden (/artists/updated): Filters must stay where they can be seen
+    const visible = !!form && form.matches('form') && !form.matches('[class*="hidden"]') && getComputedStyle(form).display !== 'none';
+    const controls = visible ? form!.querySelector('.search-form__controls') || form : null;
+    if (!controls) return;
+    const spot = document.createComment('kdl-filter-spot');
+    anchor.before(spot);
+    filterSpots.set(anchor, spot);
+    anchor.setAttribute(MARK, 'moved');
+    controls.appendChild(anchor);
+  });
+}
+function undoFilterMove(): void {
+  document.querySelectorAll(`${FILTER_ANCHOR}[${MARK}="moved"]`).forEach((anchor) => {
+    const spot = filterSpots.get(anchor);
+    if (spot?.isConnected) spot.replaceWith(anchor);
+    else spot?.remove();
+    filterSpots.delete(anchor);
+    anchor.removeAttribute(MARK);
+  });
+}
+
 export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
   mount() {
     wrapPanels();
     buildAccordion();
     segmentFilters();
+    footerButtons();
+    fitApiFrame();
+    moveFilterIntoSearch();
   },
   update() {
     wrapPanels();
     buildAccordion();
     segmentFilters();
+    footerButtons();
+    fitApiFrame();
+    moveFilterIntoSearch();
   },
   unmount: undo,
   beforeSnapshot: undo,

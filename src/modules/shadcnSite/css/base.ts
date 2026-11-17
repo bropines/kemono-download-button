@@ -170,7 +170,7 @@ ${PRIMARY} {
 /* Pagination */
 /* stretch, not center: the popular page nests the card list inside a paginator */
 .paginator { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 12px 0; }
-.paginator > small { color: var(--kdl-muted-foreground); font-size: 13px; text-align: center; }
+.paginator > small { color: var(--kdl-muted-foreground); font-size: 12px; text-align: center; }
 .paginator > form { display: flex; justify-content: center; width: 100%; }
 .paginator menu { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: 0; padding: 0; }
 .paginator menu > li, .paginator menu > a {
@@ -279,6 +279,11 @@ ${PRIMARY} {
 .hide-tags-filter__row, .search-syntax__row { border-radius: calc(var(--kdl-radius) - 2px); padding: 0.375rem 0.5rem; }
 .hide-tags-filter__row:hover { background: var(--kdl-accent); }
 .hide-tags-filter__panel { min-width: 0; padding: 6px; }
+/* Filters moved into the search form's control row (pages.ts): same height as the selects, popover opens to the left */
+.hide-tags-filter__anchor[data-kdl-sk="moved"] { margin: 0; display: flex; align-items: stretch; }
+.hide-tags-filter__anchor[data-kdl-sk="moved"] .hide-tags-filter { display: flex; }
+.hide-tags-filter__anchor[data-kdl-sk="moved"] .hide-tags-filter__summary { height: auto; min-height: 2.25rem; border-style: solid; border-color: var(--kdl-input); }
+.hide-tags-filter__anchor[data-kdl-sk="moved"] .hide-tags-filter__panel { top: 100%; left: auto; right: 0; transform: none; }
 .hide-tags-filter__row:has(.kdl-sk-seg) { gap: 12px; cursor: default; }
 .hide-tags-filter__row:has(.kdl-sk-seg):hover { background: transparent; }
 .kdl-sk-seg-source { display: none !important; }

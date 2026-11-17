@@ -172,6 +172,28 @@ export function restoreSite(): void {
 }
 
 let mounted = false;
+const SCOPE_SELECTOR = () => SITE_SCOPES.join(', ');
+
+/** Translates the site chrome inside freshly added nodes: the scope around them, or scopes inside them. */
+function translateAdded(mutations: MutationRecord[]): void {
+  if (getLanguage() === 'en') return;
+  const scopes = new Set<Element>();
+  const selector = SCOPE_SELECTOR();
+  for (const mutation of mutations) {
+    mutation.addedNodes.forEach((node) => {
+      const element = node instanceof Element ? node : node.parentElement;
+      if (!element || !element.isConnected) return;
+      const around = element.closest(selector);
+      if (around) scopes.add(around);
+      else element.querySelectorAll(selector).forEach((scope) => scopes.add(scope));
+    });
+  }
+  scopes.forEach(translateScope);
+}
+
+// Runs in the same task as the change (htmx swaps, history restores, the site's own renders), so new text is
+// translated before the browser paints it, instead of flashing in English until the router's next update
+let observer: MutationObserver | null = null;
 
 export const siteTranslationModule: KdlModule = {
   id: 'i18n.site',
@@ -189,14 +211,25 @@ export const siteTranslationModule: KdlModule = {
       translateSite();
     });
   },
-  mount() {
+  mount(ctx) {
     mounted = true;
     translateSite();
+    observer = new MutationObserver(translateAdded);
+    observer.observe(document.body, { childList: true, subtree: true });
+    ctx.onCleanup(() => {
+      observer?.disconnect();
+      observer = null;
+    });
   },
   update: translateSite,
   unmount() {
     mounted = false;
     restoreSite();
   },
-  beforeSnapshot: restoreSite,
+  // The snapshot is cloned synchronously right after this hook: put the translation back in a microtask, before
+  // the next paint, so the sidebar (which the swap keeps) never shows English
+  beforeSnapshot() {
+    restoreSite();
+    queueMicrotask(() => mounted && translateSite());
+  },
 };
