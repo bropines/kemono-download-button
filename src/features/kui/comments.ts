@@ -1,8 +1,9 @@
-import { icon, IconName } from '../../config/icons';
+import type { IconName } from '../../config/icons';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { SELECTORS } from '../../config/selectors';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 import { el } from '../../utils/dom';
+import { button, ensureKit, kitIcon, kitScope, label, select } from '../../ui/kit';
 import { syncTranslateButton } from './translateButtons';
 
 type CommentsLayout = 'list' | 'grid' | 'carousel';
@@ -104,8 +105,8 @@ function renderExpandButton(button: HTMLElement, expanded: boolean, replyCount: 
   button.title = expanded ? 'Collapse' : replyCount ? `Expand (${replies})` : 'Expand';
   button.setAttribute('aria-expanded', String(expanded));
   button.replaceChildren(...(replyCount && !expanded
-    ? [icon('message-square'), String(replyCount)]
-    : [icon(expanded ? 'chevron-up' : 'chevron-down')]));
+    ? [kitIcon('message-square'), el('span', { textContent: String(replyCount) })]
+    : [kitIcon(expanded ? 'chevron-up' : 'chevron-down')]));
 }
 
 function setExpanded(comment: HTMLElement, expanded: boolean): void {
@@ -133,30 +134,47 @@ function syncExpanders(container: HTMLElement, layout: CommentsLayout): void {
       comment.classList.toggle('kui-comment-expandable', clipped || replyCount > 0);
     }
     if (!button) {
-      button = el('button', { type: 'button', className: 'kui-comment-expand-btn', dataset: { kuiCommentExpand: 'true' } });
+      // Self-scoped kit button: it sits in the site's comment footer, with no .kdl-scope around it
+      button = el('button', {
+        type: 'button',
+        className: 'kdl-scope kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-sm kui-comment-expand-btn',
+        dataset: { kuiCommentExpand: 'true' },
+      });
       footer.appendChild(button);
     }
     renderExpandButton(button, comment.classList.contains('kui-comment-expanded'), replyCount);
   });
 }
 
+// Kit controls; their handlers are delegated to document (see bindDelegatedListeners), so a toolbar
+// restored from a history snapshot keeps working. Hence data attributes rather than onClick options.
 function buildToolbar(): HTMLElement {
-  return el('div', { className: 'kui-comments-toolbar' }, [
+  ensureKit();
+  const iconButton = (iconName: IconName, title: string, data: Record<string, string>) => {
+    const btn = button({ icon: iconName, variant: 'ghost', size: 'icon', ariaLabel: title, title, className: 'kui-comments-btn' });
+    Object.assign(btn.dataset, data);
+    return btn;
+  };
+  const limit = select({
+    options: LIMIT_OPTIONS.map((value) => ({ value: String(value), label: value === 0 ? 'All' : String(value) })),
+    className: 'kui-comments-limit-select',
+  });
+  limit.dataset.kuiCommentsLimit = 'true';
+  if (!limit.id) limit.id = 'kui-comments-limit';
+  const layouts = el('div', { className: 'kui-comments-layouts' }, LAYOUTS.map(({ id, iconName, title }) =>
+    iconButton(iconName, title, { kuiCommentsLayout: id })
+  ));
+  layouts.setAttribute('role', 'group');
+  layouts.setAttribute('aria-label', 'Layout');
+  return kitScope([
     el('span', { className: 'kui-comments-count' }),
-    el('div', { className: 'kui-comments-layouts' }, LAYOUTS.map(({ id, iconName, title }) =>
-      el('button', { type: 'button', className: 'kui-comments-btn', title, dataset: { kuiCommentsLayout: id } }, [icon(iconName)])
-    )),
-    el('label', { className: 'kui-comments-limit' }, [
-      'Show',
-      el('select', { dataset: { kuiCommentsLimit: 'true' } }, LIMIT_OPTIONS.map((limit) =>
-        el('option', { value: String(limit) }, [limit === 0 ? 'All' : String(limit)])
-      )),
-    ]),
+    layouts,
+    el('div', { className: 'kui-comments-limit' }, [label({ text: 'Show', htmlFor: limit.id }), limit]),
     el('div', { className: 'kui-comments-nav' }, [
-      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Previous', dataset: { kuiCommentsScroll: '-1' } }, [icon('chevron-left')]),
-      el('button', { type: 'button', className: 'kui-comments-btn', title: 'Next', dataset: { kuiCommentsScroll: '1' } }, [icon('chevron-right')]),
+      iconButton('chevron-left', 'Previous', { kuiCommentsScroll: '-1' }),
+      iconButton('chevron-right', 'Next', { kuiCommentsScroll: '1' }),
     ]),
-  ]);
+  ], { className: 'kui-comments-toolbar' });
 }
 
 // Idempotent: safe to run on every re-init, after site re-renders and on restored history snapshots
@@ -185,6 +203,7 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   }
   toolbar.querySelectorAll<HTMLElement>('[data-kui-comments-layout]').forEach((button) => {
     button.classList.toggle('kui-active', button.dataset.kuiCommentsLayout === layout);
+    button.setAttribute('aria-pressed', String(button.dataset.kuiCommentsLayout === layout));
   });
   const limitSelect = toolbar.querySelector<HTMLSelectElement>('[data-kui-comments-limit]');
   if (limitSelect) limitSelect.value = String(limit);
@@ -195,7 +214,11 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   const remaining = comments.length - visibleCount;
   if (remaining > 0) {
     if (!moreButton) {
-      moreButton = el('button', { type: 'button', className: 'kui-comments-more', dataset: { kuiCommentsMore: 'true' } });
+      moreButton = el('button', {
+        type: 'button',
+        className: 'kdl-scope kdl-ui-btn kdl-ui-btn--outline kdl-ui-btn--size-sm kui-comments-more',
+        dataset: { kuiCommentsMore: 'true' },
+      });
       container.after(moreButton);
     }
     moreButton.textContent = `Show ${Math.min(limit, remaining)} more (${remaining} left)`;

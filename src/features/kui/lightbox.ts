@@ -1,12 +1,25 @@
-import { ICONS, iconSvg } from '../../config/icons';
 import { KUI_STORAGE_KEYS } from '../../config/storage';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, LENS_DISPLAY_PREVIEW, NothingToTranslate, renderTranslation } from '../../services/lensImages';
 import { createLensPanel } from '../../ui/components/kui/lensPanel';
-import { showMessage } from '../../ui/toast';
+import { lensIcon, linkButton } from '../../ui/components/kui/linkButton';
+import { button, kitIcon, portal, toast, tooltip } from '../../ui/kit';
+import { lensPanelStyles } from '../../styles/components/lensPanel.styles';
+import { lightboxStyles } from '../../styles/components/kuiMain.styles';
+import { el } from '../../utils/dom';
 
 type RenderKind = 'draft' | 'final';
+type IconButtonName = Parameters<typeof kitIcon>[0];
+
+// The lightbox lives in the kit's shadow root, above every page layer, where the page's toasts can't reach:
+// its messages go through the kit's toaster instead
+function notify(message: string, type: 'info' | 'error' = 'info'): void {
+  toast({ title: message, variant: type === 'error' ? 'destructive' : 'default' });
+}
+
+const iconButton = (id: string, iconName: IconButtonName, text: string, onClick: () => void) =>
+  tooltip(button({ id, icon: iconName, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn', onClick }), { text, side: 'bottom' });
 
 export const lightboxModule = {
   isActive: false,
@@ -26,6 +39,15 @@ export const lightboxModule = {
   askedHere: false,
   boundDisplayPreview: null as (() => void) | null,
   boundDisplayChanged: null as (() => void) | null,
+  // The overlay and the controls updateContent and the render loop touch; rebuilt on every open
+  root: null as HTMLElement | null,
+  container: null as HTMLElement | null,
+  downloadBtn: null as HTMLAnchorElement | null,
+  lensBtn: null as HTMLAnchorElement | null,
+  copyBtn: null as HTMLButtonElement | null,
+  translateBtn: null as HTMLButtonElement | null,
+  panelBtn: null as HTMLButtonElement | null,
+  panel: null as HTMLElement | null,
   imageLinks: [] as HTMLAnchorElement[],
   currentIndex: 0,
   zoom: 1,
@@ -52,45 +74,69 @@ export const lightboxModule = {
     this.translateMode = translated && state.settings.showImageTranslateButton;
     this.imageLinks = links;
     this.currentIndex = index;
-    const translateButton = state.settings.showImageTranslateButton
-      ? `<button id="kui-lightbox-translate-btn" class="kui-action-btn" title="Translate the text in this image">${iconSvg('languages')}</button>
-         <button id="kui-lightbox-lens-settings-btn" class="kui-action-btn" title="Translation display settings">${iconSvg('sliders-horizontal')}</button>`
-      : '';
-    const lightboxHTML = `
-      <div id="kui-lightbox" class="kui-active">
-          <div class="kui-lightbox-top-actions">
-              <a id="kui-lightbox-download-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" download title="Download Original">${ICONS.DOWNLOAD}</a>
-              <button id="kui-lightbox-copy-btn" class="kui-action-btn" title="Copy Link to Original">${ICONS.LINK}</button>
-              <a id="kui-lightbox-lens-btn" class="kui-action-btn" href="#" target="_blank" rel="noopener noreferrer" title="Search with Google Lens">
-                  ${ICONS.LENS}
-              </a>
-              ${translateButton}
-              <button id="kui-lightbox-close-btn" class="kui-action-btn" title="Close (Esc)">${ICONS.CLOSE}</button>
-          </div>
-          <button class="kui-lightbox-nav prev" title="Previous (←)">${iconSvg('chevron-left')}</button>
-          <button class="kui-lightbox-nav next" title="Next (→)">${iconSvg('chevron-right')}</button>
-          <div id="kui-lightbox-img-container">
-              <canvas id="kui-image-canvas"></canvas>
-          </div>
-      </div>
-    `;
-    // A lightbox closed moments ago is still fading out; every lookup below is by id, so it goes now
-    document.querySelectorAll("#kui-lightbox").forEach((old) => old.remove());
-    document.body.insertAdjacentHTML("beforeend", lightboxHTML);
-    this.canvas = document.getElementById("kui-image-canvas") as HTMLCanvasElement;
-    this.ctx = this.canvas.getContext("2d");
-    this.image = new Image();
-    if (state.settings.showImageTranslateButton) {
-      document.getElementById("kui-lightbox")?.appendChild(createLensPanel(() => this.setPanelOpen(false)));
-      this.setPanelOpen(readStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, false));
-    }
+    // A lightbox closed moments ago is still fading out
+    this.root?.remove();
+    this.build();
+    if (this.panel) this.setPanelOpen(readStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, false));
     this.updateContent();
     this.addEventListeners();
     document.body.style.overflow = "hidden";
   },
+  // Builds the overlay in the kit root, outside #main, so HTMX swaps never take it and site CSS never reaches it
+  build() {
+    const translating = state.settings.showImageTranslateButton;
+    this.downloadBtn = tooltip(
+      linkButton({ id: 'kui-lightbox-download-btn', href: '#', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: 'Download original', className: 'kui-action-btn' }),
+      { text: 'Download original', side: 'bottom' }
+    );
+    this.lensBtn = tooltip(
+      linkButton({ id: 'kui-lightbox-lens-btn', href: '#', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: 'Search with Google Lens', className: 'kui-action-btn' }),
+      { text: 'Search with Google Lens', side: 'bottom' }
+    );
+    this.copyBtn = iconButton('kui-lightbox-copy-btn', 'link', 'Copy link to original', () => this.handleCopyLink());
+    this.translateBtn = translating ? iconButton('kui-lightbox-translate-btn', 'languages', 'Translate / show original', () => this.handleTranslate()) : null;
+    this.panelBtn = translating ? iconButton('kui-lightbox-lens-settings-btn', 'sliders-horizontal', 'Translation display settings', () => this.setPanelOpen(!!this.panel?.hidden)) : null;
+    this.panel = translating ? createLensPanel(() => this.setPanelOpen(false)) : null;
+    this.canvas = el('canvas', { id: 'kui-image-canvas' });
+    this.container = el('div', { id: 'kui-lightbox-img-container' }, [this.canvas]);
+    const navButton = (direction: -1 | 1) =>
+      tooltip(
+        button({
+          icon: direction < 0 ? 'chevron-left' : 'chevron-right',
+          variant: 'secondary',
+          size: 'icon',
+          ariaLabel: direction < 0 ? 'Previous image' : 'Next image',
+          className: `kui-lightbox-nav ${direction < 0 ? 'prev' : 'next'}`,
+          onClick: () => this.navigate(direction),
+        }),
+        { text: direction < 0 ? 'Previous (\u2190)' : 'Next (\u2192)', side: direction < 0 ? 'right' : 'left' }
+      );
+
+    this.root = el('div', { id: 'kui-lightbox', className: 'kui-lightbox kui-active' }, [
+      el('style', { textContent: lightboxStyles + lensPanelStyles }),
+      el('div', { className: 'kui-lightbox-top-actions' }, [
+        this.downloadBtn,
+        this.copyBtn,
+        this.lensBtn,
+        this.translateBtn,
+        this.panelBtn,
+        iconButton('kui-lightbox-close-btn', 'x', 'Close (Esc)', () => this.close()),
+      ]),
+      navButton(-1),
+      navButton(1),
+      this.container,
+      this.panel,
+    ]);
+    this.root.setAttribute('role', 'dialog');
+    this.root.setAttribute('aria-modal', 'true');
+    this.root.setAttribute('aria-label', 'Image viewer');
+    portal(this.root);
+    this.ctx = this.canvas.getContext("2d");
+    this.image = new Image();
+  },
   close() {
     if (!this.isActive) return;
-    const lightboxEl = document.getElementById("kui-lightbox");
+    const lightboxEl = this.root;
     if (lightboxEl) {
       lightboxEl.classList.remove("kui-active");
       setTimeout(() => lightboxEl.remove(), 200);
@@ -106,10 +152,8 @@ export const lightboxModule = {
     if (!currentLinkData || !this.canvas) return;
     const originalPath = currentLinkData.dataset.originalPath || currentLinkData.href;
     const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(originalPath)}`;
-    const downloadBtn = document.getElementById("kui-lightbox-download-btn") as HTMLAnchorElement | null;
-    const lensBtn = document.getElementById("kui-lightbox-lens-btn") as HTMLAnchorElement | null;
-    if (downloadBtn) downloadBtn.href = originalPath;
-    if (lensBtn) lensBtn.href = lensLink;
+    if (this.downloadBtn) this.downloadBtn.href = originalPath;
+    if (this.lensBtn) this.lensBtn.href = lensLink;
     // Another picture: its translation is still to come, and a render running for the last one is stale
     this.isTranslated = false;
     this.translation = null;
@@ -136,7 +180,7 @@ export const lightboxModule = {
         return;
       }
       if (this.canvas) this.canvas.style.opacity = "1";
-      showMessage("Could not load this image", "error");
+      notify("Could not load this image", "error");
     };
     this.image.src = originalPath;
   },
@@ -145,16 +189,15 @@ export const lightboxModule = {
     this.updateContent();
   },
   handleCopyLink() {
-    const btn = document.getElementById("kui-lightbox-copy-btn") as HTMLButtonElement | null;
+    const btn = this.copyBtn;
     if (!btn || btn.disabled) return;
     const currentLink = this.imageLinks[this.currentIndex];
     const urlToCopy = currentLink.dataset.originalPath || currentLink.href;
     navigator.clipboard.writeText(urlToCopy).then(() => {
-      const originalIcon = btn.innerHTML;
-      btn.innerHTML = ICONS.SUCCESS;
+      btn.replaceChildren(kitIcon('check'));
       btn.disabled = true;
       setTimeout(() => {
-        btn.innerHTML = originalIcon;
+        btn.replaceChildren(kitIcon('link'));
         btn.disabled = false;
       }, 1500);
     });
@@ -162,7 +205,7 @@ export const lightboxModule = {
   addEventListeners() {
     this.boundHandleKeydown = this.handleKeydown.bind(this);
     document.addEventListener("keydown", this.boundHandleKeydown, true);
-    const container = document.getElementById("kui-lightbox-img-container");
+    const container = this.container;
     if (container) {
       container.addEventListener("wheel", this.handleWheel.bind(this), { passive: false });
       container.addEventListener("mousedown", this.handleMouseDown.bind(this));
@@ -175,14 +218,6 @@ export const lightboxModule = {
     }
     this.boundResize = this.resizeCanvas.bind(this);
     window.addEventListener("resize", this.boundResize);
-    document.getElementById("kui-lightbox-close-btn")?.addEventListener("click", this.close.bind(this));
-    document.querySelector(".kui-lightbox-nav.prev")?.addEventListener("click", () => this.navigate(-1));
-    document.querySelector(".kui-lightbox-nav.next")?.addEventListener("click", () => this.navigate(1));
-    document.getElementById("kui-lightbox-copy-btn")?.addEventListener("click", this.handleCopyLink.bind(this));
-    document.getElementById("kui-lightbox-translate-btn")?.addEventListener("click", this.handleTranslate.bind(this));
-    document.getElementById("kui-lightbox-lens-settings-btn")?.addEventListener("click", () => {
-      this.setPanelOpen(!document.getElementById("kui-lightbox")?.classList.contains("kui-lens-panel-open"));
-    });
     // A slider moving asks for quick drafts; letting go asks for the full-quality picture.
     // A translation that is off screen is simply dropped: turning it back on renders it afresh.
     this.boundDisplayPreview = () => this.onDisplaySettings('draft');
@@ -195,20 +230,25 @@ export const lightboxModule = {
     else this.translation = null;
   },
   setPanelOpen(open: boolean) {
-    const lightbox = document.getElementById("kui-lightbox");
-    const panel = lightbox?.querySelector<HTMLElement>(".kui-lens-panel");
-    if (!lightbox || !panel) return;
+    const { root, panel } = this;
+    if (!root || !panel) return;
     panel.hidden = !open;
-    lightbox.classList.toggle("kui-lens-panel-open", open);
-    document.getElementById("kui-lightbox-lens-settings-btn")?.classList.toggle("kui-active", open);
+    root.classList.toggle("kui-lens-panel-open", open);
+    if (this.panelBtn) {
+      this.panelBtn.dataset.state = open ? 'on' : 'off';
+      this.panelBtn.setAttribute('aria-pressed', String(open));
+    }
     writeStored(KUI_STORAGE_KEYS.LENS_PANEL_OPEN, open);
   },
   setTranslateButton(busy: boolean) {
-    const btn = document.getElementById("kui-lightbox-translate-btn") as HTMLButtonElement | null;
+    const btn = this.translateBtn;
     if (!btn) return;
-    btn.innerHTML = busy ? iconSvg('loader-circle', 'kdl-icon kdl-spin') : iconSvg('languages');
-    btn.classList.toggle("kui-active", this.translateMode);
-    btn.title = this.translateMode ? "Show the original" : "Translate the text in this image";
+    // Not setButtonLoading: that disables the button, and translation must stay switchable off mid-render
+    btn.replaceChildren(kitIcon(busy ? 'loader-circle' : 'languages', busy ? 'kdl-ui-spin' : undefined));
+    btn.setAttribute('aria-busy', String(busy));
+    btn.dataset.state = this.translateMode ? 'on' : 'off';
+    btn.setAttribute('aria-pressed', String(this.translateMode));
+    btn.setAttribute('aria-label', this.translateMode ? "Show the original" : "Translate the text in this image");
   },
   handleTranslate() {
     if (this.translateMode) {
@@ -259,11 +299,11 @@ export const lightboxModule = {
           this.isTranslated = false;
           if (e instanceof NothingToTranslate) {
             // A page with no text (a splash page) leaves translation on for the pages after it
-            if (this.askedHere) showMessage(`Lens: ${e.message}`, 'info');
+            if (this.askedHere) notify(`Lens: ${e.message}`, 'info');
             continue;
           }
           this.translateMode = false;
-          showMessage(`Lens: ${(e as Error).message}`, 'error');
+          notify(`Lens: ${(e as Error).message}`, 'error');
         }
       }
     } finally {
@@ -292,7 +332,8 @@ export const lightboxModule = {
     if (!this.isActive) return;
     // In the display panel arrows move sliders and carets. Keep keys from the lightbox and from the site,
     // which opens the next post on ArrowRight, but leave the default action so the control still moves
-    if (e.key !== "Escape" && (e.target as HTMLElement | null)?.closest?.(".kui-lens-panel")) {
+    // The panel is in a shadow root: at document level the target is the kit host, so look along the path
+    if (e.key !== "Escape" && this.panel && e.composedPath().includes(this.panel)) {
       e.stopPropagation();
       e.stopImmediatePropagation();
       return;
@@ -307,7 +348,7 @@ export const lightboxModule = {
     if (e.key === "ArrowRight") this.navigate(1);
   },
   resizeCanvas() {
-    const container = document.getElementById("kui-lightbox-img-container");
+    const container = this.container;
     if (!this.canvas) return;
     const width = container?.clientWidth || window.innerWidth;
     const height = container?.clientHeight || window.innerHeight;

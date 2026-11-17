@@ -2,61 +2,52 @@ import { css } from '../../utils/cssBuilder';
 import { THEME } from '../theme';
 
 export const commentsStyles = css({
-  '.kui-comments-toolbar': {
+  /* Toolbar: kit controls in a .kdl-scope */
+  '.kdl-scope.kui-comments-toolbar': {
     display: 'flex',
     flexWrap: 'wrap',
     alignItems: 'center',
     gap: '8px 12px',
     margin: '8px 0 12px',
   },
-  '.kui-comments-count': {
+  '.kui-comments-toolbar .kui-comments-count': {
     marginRight: 'auto',
-    color: THEME.colors.textMuted,
-    fontSize: '0.9em',
+    color: 'var(--kdl-muted-foreground)',
+    fontSize: '13px',
   },
-  '.kui-comments-layouts, .kui-comments-nav': {
+  '.kui-comments-toolbar .kui-comments-layouts, .kui-comments-toolbar.kui-comments-toolbar--carousel .kui-comments-nav': {
     display: 'inline-flex',
-    gap: '4px',
+    gap: '2px',
+    padding: '2px',
+    borderRadius: 'var(--kdl-radius)',
+    background: 'var(--kdl-muted)',
   },
-  '.kui-comments-nav': {
+  '.kui-comments-toolbar .kui-comments-nav': {
     display: 'none',
   },
-  '.kui-comments-toolbar--carousel .kui-comments-nav': {
-    display: 'inline-flex',
-  },
-  '.kui-comments-btn': {
-    minWidth: '32px',
+  '.kui-comments-toolbar .kui-comments-btn': {
+    width: '30px',
     height: '30px',
-    padding: '0 8px',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.md,
-    background: THEME.colors.cardBg,
-    color: THEME.colors.textMain,
-    fontSize: '15px',
-    lineHeight: 1,
-    cursor: 'pointer',
-    transition: 'background-color 0.2s, border-color 0.2s, color 0.2s',
   },
-  '.kui-comments-btn:hover': {
-    background: THEME.colors.cardHoverBg,
+  '.kui-comments-toolbar .kui-comments-btn.kui-active': {
+    background: 'var(--kdl-background)',
+    color: 'var(--kdl-foreground)',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
   },
-  '.kui-comments-btn.kui-active': {
-    borderColor: THEME.colors.primary,
-    color: THEME.colors.primary,
-  },
-  '.kui-comments-limit': {
+  '.kui-comments-toolbar .kui-comments-limit': {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '6px',
-    color: THEME.colors.textMuted,
-    fontSize: '0.9em',
+    gap: '8px',
   },
-  '.kui-comments-limit select': {
-    padding: '3px 6px',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.sm,
-    background: THEME.colors.inputBg,
-    color: THEME.colors.textMain,
+  '.kui-comments-toolbar .kui-comments-limit .kdl-ui-label': {
+    color: 'var(--kdl-muted-foreground)',
+    fontSize: '13px',
+    fontWeight: 400,
+  },
+  '.kui-comments-toolbar .kui-comments-limit-select': {
+    width: 'auto',
+    height: '32px',
+    fontSize: '13px',
   },
   '.kui-comment-hidden': {
     display: 'none !important',
@@ -135,7 +126,7 @@ export const commentsStyles = css({
     alignItems: 'center',
     gap: '4px 10px',
   },
-  '.kui-comments--grid .kui-translate-btn, .kui-comments--carousel .kui-translate-btn': {
+  '.kui-comments--grid .kdl-scope.kui-translate-btn, .kui-comments--carousel .kdl-scope.kui-translate-btn': {
     marginLeft: 0,
     flexShrink: 0,
   },
@@ -194,45 +185,47 @@ export const commentsStyles = css({
   '.kui-comments--grid > .kui-comment-expanded > .comment__body, .kui-comments--carousel > .kui-comment-expanded > .comment__body': {
     flex: 'none',
   },
-  '.kui-comment-expand-btn': {
+  /* Expand toggle: a self-scoped kit ghost button, shown only on cards that need it */
+  '.comment__footer > .kui-comment-expand-btn': {
     display: 'none',
     order: 10,
     flex: 'none',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '4px',
-    minWidth: '26px',
     height: '26px',
-    padding: '0 7px',
+    minWidth: '26px',
+    padding: '0 8px',
+    gap: '4px',
     marginLeft: 'auto',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.pill,
-    background: 'transparent',
-    color: THEME.colors.textMuted,
+    color: 'var(--kdl-muted-foreground)',
     fontSize: '12px',
-    lineHeight: 1,
-    cursor: 'pointer',
-    transition: 'color 0.2s, border-color 0.2s',
   },
   '.kui-comment-expandable > .comment__footer > .kui-comment-expand-btn': {
     display: 'inline-flex',
   },
-  '.kui-comment-expand-btn:hover, .kui-comment-expanded > .comment__footer > .kui-comment-expand-btn': {
-    borderColor: THEME.colors.primary,
-    color: THEME.colors.primary,
+  '.kui-comment-expanded > .comment__footer > .kui-comment-expand-btn': {
+    color: 'var(--kdl-foreground)',
+    background: 'var(--kdl-accent)',
   },
-  '.kui-comments-more': {
-    display: 'block',
+  '.kdl-scope.kui-comments-more': {
+    display: 'flex',
+    width: 'fit-content',
     margin: '12px auto 0',
-    padding: '7px 16px',
-    border: `1px solid ${THEME.colors.borderSubtle}`,
-    borderRadius: THEME.borderRadius.pill,
-    background: THEME.colors.cardBg,
-    color: THEME.colors.textMain,
-    cursor: 'pointer',
-    transition: 'background-color 0.2s',
   },
-  '.kui-comments-more:hover': {
-    background: THEME.colors.cardHoverBg,
+
+  /* Translate buttons (post title, Content heading, comment footers): self-scoped kit ghost icon buttons */
+  '.kdl-scope.kui-translate-btn': {
+    width: '28px',
+    height: '28px',
+    marginLeft: '8px',
+    verticalAlign: 'middle',
+    color: 'var(--kdl-muted-foreground)',
+  },
+  '.kdl-scope.kui-translate-btn[data-state="translated"]': {
+    background: 'var(--kdl-accent)',
+    color: 'var(--kdl-accent-foreground)',
+  },
+  // Loading disables it: keep it visible and say it's busy rather than fading it out
+  '.kdl-scope.kui-translate-btn:disabled': {
+    opacity: 1,
+    cursor: 'wait',
   },
 });

@@ -1,11 +1,26 @@
 import { getApiAdapter } from '../../api';
-import { icon } from '../../config/icons';
+import type { IconName } from '../../config/icons';
 import { getPostCardDetails } from '../../services/collectorService';
 import { executeIndividualDownload, executeZipDownload } from '../../services/downloadService';
 import { addTaskToQueue } from '../../services/queueService';
 import { appState, getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
+import { button, ensureKit, kitScope, popover, tooltip, type ButtonVariant } from '../kit';
 import { showFilePickerModal } from './filePickerModal';
+
+// Post info, fetched once per card and kept on it
+async function loadPostInfo(postCardNode: HTMLElement, details: ReturnType<typeof getPostCardDetails>): Promise<string> {
+  if (postCardNode.dataset.postInfo) return postCardNode.dataset.postInfo;
+  const apiResponse = await getApiAdapter().fetchPostData(details.service, details.userID, details.postID);
+  const post = apiResponse?.post || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
+  if (!post) throw new Error('No post data');
+  const fileCount = post.file ? 1 : 0;
+  const attachmentCount = post.attachments ? post.attachments.length : 0;
+  const totalFiles = fileCount + attachmentCount;
+  const infoText = `Title: ${post.title}\nPublished: ${new Date(post.published).toLocaleDateString()}\nTotal Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main file)`;
+  postCardNode.dataset.postInfo = infoText;
+  return infoText;
+}
 
 export async function injectPostCardButtons(postCardNode: HTMLElement, pageAuthorName: string): Promise<void> {
   // Claim the card before the first await: overlapping inits used to both pass the check and stack tooltips
@@ -16,74 +31,67 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
   postCardNode.querySelectorAll(':scope > .post-card-download-controls, :scope > .kdl-post-info-tooltip').forEach((node) => node.remove());
   const details = getPostCardDetails(postCardNode, pageAuthorName);
   if (details.postID === 'UnknownPostID') return;
+  ensureKit();
 
-  const controlsContainer = el('div', { className: 'post-card-download-controls' });
+  const controlsContainer = kitScope([], { className: 'post-card-download-controls' });
 
-  const createMiniBtn = (text: string | Node, title: string, cls: string, onClick: (btn: HTMLElement) => void) => {
-    controlsContainer.appendChild(
-      el(
-        'button',
-        {
-          className: cls,
-          title,
-          onClick: (e: MouseEvent) => {
-            e.preventDefault();
-            e.stopPropagation();
-            // currentTarget: with icon buttons the event target can be an inner <svg>/<path>
-            onClick(e.currentTarget as HTMLElement);
-          }
-        },
-        [text]
-      )
-    );
+  const createMiniBtn = (iconName: IconName, title: string, cls: string, variant: ButtonVariant, onClick?: (btn: HTMLElement) => void) => {
+    const btn = button({
+      icon: iconName,
+      variant,
+      size: 'icon',
+      ariaLabel: title,
+      className: cls,
+      onClick: (e: MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        // currentTarget: with icon buttons the event target can be an inner <svg>/<path>
+        onClick?.(e.currentTarget as HTMLElement);
+      },
+    });
+    controlsContainer.appendChild(tooltip(btn, { text: title, side: 'left' }));
+    return btn;
   };
 
-  if (state.settings.showZipButton) createMiniBtn('ZIP', 'Download ZIP', 'post-card-dl-zip', (btn) => addTaskToQueue('ZIP', executeZipDownload, details, btn, 'ZIP'));
-  if (state.settings.showImagesButton) createMiniBtn('Imgs', 'Download Images', 'post-card-dl-img', (btn) => addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), details, btn, 'Imgs'));
+  if (state.settings.showZipButton) createMiniBtn('package', 'Download ZIP', 'post-card-dl-zip', 'default', (btn) => addTaskToQueue('ZIP', executeZipDownload, details, btn, 'ZIP'));
+  if (state.settings.showImagesButton) createMiniBtn('images', 'Download Images', 'post-card-dl-img', 'secondary', (btn) => addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), details, btn, 'Imgs'));
   if (state.settings.showFilesButton) {
-    createMiniBtn('Attach.', 'Download Attachments', 'post-card-dl-att', (btn) => addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), details, btn, 'Attach.'));
-    createMiniBtn(icon('paperclip'), 'Pick & Download Attachment', 'post-card-dl-pick', () => showFilePickerModal(details));
+    createMiniBtn('paperclip', 'Download Attachments', 'post-card-dl-att', 'secondary', (btn) => addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), details, btn, 'Attach.'));
+    createMiniBtn('folder-open', 'Pick & Download Attachment', 'post-card-dl-pick', 'secondary', () => showFilePickerModal(details));
   }
 
   if (controlsContainer.hasChildNodes()) {
-    const tooltip = el('div', { className: 'kdl-post-info-tooltip' });
-    postCardNode.appendChild(tooltip);
-    let isFetching = false;
-    const infoBtn = el('button', { className: 'post-card-dl-info', title: 'Show post info' }, [icon('info')]);
-
-  infoBtn.addEventListener('mouseover', async () => {
-    tooltip.style.display = 'block';
-    if (postCardNode.dataset.postInfo) {
-      tooltip.textContent = postCardNode.dataset.postInfo;
-      return;
-    }
-    if (isFetching) return;
-    isFetching = true;
-    tooltip.replaceChildren(el('em', {}, ['Loading...']));
-    try {
-      const apiResponse = await getApiAdapter().fetchPostData(details.service, details.userID, details.postID);
-      const post = apiResponse?.post || (Array.isArray(apiResponse) ? apiResponse[0] : apiResponse);
-      if (!post) throw new Error('No post data');
-      const fileCount = post.file ? 1 : 0;
-      const attachmentCount = post.attachments ? post.attachments.length : 0;
-      const totalFiles = fileCount + attachmentCount;
-      const infoText = `Title: ${post.title}\nPublished: ${new Date(post.published).toLocaleDateString()}\nTotal Files: ${totalFiles} (${attachmentCount} attachments, ${fileCount} main file)`;
-      tooltip.textContent = infoText;
-      postCardNode.dataset.postInfo = infoText;
-    } catch (err) {
-      tooltip.replaceChildren(el('em', {}, ['Failed to load info.']));
-    } finally {
-      isFetching = false;
-    }
-  });
-
-  infoBtn.addEventListener('mouseout', () => {
-    tooltip.style.display = 'none';
-  });
-
-  controlsContainer.appendChild(infoBtn);
-  postCardNode.appendChild(controlsContainer);
+    // Rendered in the kit's shadow root, where page styles don't reach: the one rule it needs is inline
+    const infoBody = el('div', { className: 'kdl-post-info-tooltip', style: { whiteSpace: 'pre-line', fontSize: '13px' } });
+    const infoBtn = createMiniBtn('info', 'Show post info', 'post-card-dl-info', 'ghost');
+    // Toggles on click; filled when it opens, from the card's cache after the first time
+    popover({
+      trigger: infoBtn,
+      content: infoBody,
+      ariaLabel: 'Post info',
+      side: 'left',
+      align: 'start',
+      onOpenChange: async (open) => {
+        if (!open) return;
+        if (!postCardNode.dataset.postInfo) infoBody.replaceChildren(el('em', {}, ['Loading...']));
+        try {
+          infoBody.textContent = await loadPostInfo(postCardNode, details);
+        } catch (err) {
+          infoBody.replaceChildren(el('em', {}, ['Failed to load info.']));
+        }
+      },
+    });
+    postCardNode.appendChild(controlsContainer);
   }
+}
+
+// Self-scoped kit icon button: it sits straight in the site's card, with no .kdl-scope around it
+function favoriteButton(): HTMLButtonElement {
+  ensureKit();
+  return tooltip(
+    button({ icon: 'star', variant: 'secondary', size: 'icon', ariaLabel: 'Toggle Favorite', className: 'kdl-scope kdl-quick-fav-btn' }),
+    { text: 'Toggle Favorite', side: 'left' }
+  );
 }
 
 export function updateCardFavoriteState(card: HTMLElement | null, isFavorited: boolean, type: string): void {
@@ -115,7 +123,7 @@ export function injectArtistFavoriteButton(cardNode: HTMLElement): void {
   if (!service || !creatorId) return;
 
   const isFavorited = appState.favoritedArtists.has(`${service}-${creatorId}`);
-  const favBtn = el('button', { className: 'kdl-quick-fav-btn', title: 'Toggle Favorite' }, [icon('star')]);
+  const favBtn = favoriteButton();
   cardNode.appendChild(favBtn);
 
   updateCardFavoriteState(cardNode, isFavorited, 'creator');
@@ -135,7 +143,7 @@ export function injectPostFavoriteButton(cardNode: HTMLElement): void {
   if (!service || !creatorId || !postId) return;
 
   const isFavorited = appState.favoritedPosts.has(postId);
-  const favBtn = el('button', { className: 'kdl-quick-fav-btn', title: 'Toggle Favorite' }, [icon('star')]);
+  const favBtn = favoriteButton();
   cardNode.appendChild(favBtn);
 
   updateCardFavoriteState(cardNode, isFavorited, 'post');
