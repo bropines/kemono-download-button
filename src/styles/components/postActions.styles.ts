@@ -71,7 +71,7 @@ export const postActionsStyles = css({
   '.post__fav:hover, .post__fav:hover span, .post__fav:hover .post__fav-icon': {
     color: '#111827 !important',
   },
-  '.user-header__manage, #kdl-author-manager-btn': {
+  '.user-header__manage': {
     display: 'inline-flex !important',
     alignItems: 'center !important',
     justifyContent: 'center !important',
@@ -93,7 +93,7 @@ export const postActionsStyles = css({
     borderRadius: '0 !important',
     height: 'auto !important',
   },
-  '.user-header__manage:hover, #kdl-author-manager-btn:hover': {
+  '.user-header__manage:hover': {
     color: '#c084fc !important',
     textShadow: '0 0 10px rgba(192, 132, 252, 0.8), 0 1px 4px rgba(0, 0, 0, 0.9) !important',
     transform: 'translateY(-1px) !important',
@@ -102,7 +102,7 @@ export const postActionsStyles = css({
     boxShadow: 'none !important',
     outline: 'none !important',
   },
-  '.user-header__manage span, #kdl-author-manager-btn span': {
+  '.user-header__manage span': {
     fontFamily: 'Helvetica, sans-serif !important',
     fontSize: 'inherit !important',
     fontWeight: '700 !important',
@@ -166,7 +166,7 @@ export const postActionsStyles = css({
     transition: 'opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important',
   },
   // outline is suppressed above; keep a visible ring for keyboard users
-  '.kdl-button:focus-visible, .post__flag:focus-visible, .post__fav:focus-visible, #kdl-author-manager-btn:focus-visible': {
+  '.kdl-button:focus-visible, .post__flag:focus-visible, .post__fav:focus-visible': {
     boxShadow: '0 0 0 3px rgba(56, 189, 248, 0.5) !important',
   },
   '.kdl-button:hover': {

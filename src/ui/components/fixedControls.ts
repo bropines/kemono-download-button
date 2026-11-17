@@ -1,30 +1,56 @@
 import { appState } from '../../state/store';
-import { el, getOrCreateContainer } from '../../utils/dom';
+import { el } from '../../utils/dom';
+import { badge } from '../kit';
+import { mountOverlayStyles } from '../overlayStyles';
+import { dockStyles } from '../../styles/components/fixedControls.styles';
+
+export type DockSlot = 'progress' | 'queue' | 'bulk';
+const SLOTS: DockSlot[] = ['progress', 'queue', 'bulk'];
+
+/**
+ * The bottom dock in the kit shadow root (a child of body, outside #main, so HTMX swaps keep it).
+ * It stacks progress tasks, the queue badge and the bulk bar top to bottom, so they never overlap.
+ */
+export function getDockSlot(slot: DockSlot): HTMLElement {
+  const root = mountOverlayStyles('kdl-dock-styles', dockStyles);
+  let dock = root.getElementById('kdl-fixed-controls');
+  if (!dock) {
+    dock = el(
+      'div',
+      { id: 'kdl-fixed-controls' },
+      SLOTS.map((name) => el('div', { className: 'kdl-ov-dock__slot', dataset: { slot: name } }))
+    );
+    // Clicks here must not dismiss an open dialog or sheet
+    dock.setAttribute('data-kdl-dismiss-ignore', '');
+    root.appendChild(dock);
+  }
+  return dock.querySelector<HTMLElement>(`[data-slot="${slot}"]`)!;
+}
 
 export function createFixedControls(): void {
-  const container = getOrCreateContainer('kdl-fixed-controls');
-  if (!document.body.contains(container)) {
-    document.body.appendChild(container);
-  }
-
+  const slot = getDockSlot('queue');
   if (!appState.queueIndicatorElement) {
-    appState.queueIndicatorElement = (container.querySelector('#kdl-queue-indicator') as HTMLElement) || el('div', { id: 'kdl-queue-indicator', style: 'display: none;' });
+    const indicator = badge({ text: '', variant: 'secondary', icon: 'loader-circle' });
+    indicator.id = 'kdl-queue-indicator';
+    indicator.querySelector('svg')?.classList.add('kdl-ui-spin');
+    indicator.setAttribute('role', 'status');
+    indicator.hidden = true;
+    appState.queueIndicatorElement = indicator;
   }
-
-  if (!container.contains(appState.queueIndicatorElement)) {
-    container.appendChild(appState.queueIndicatorElement);
-  }
-
+  if (!slot.contains(appState.queueIndicatorElement)) slot.appendChild(appState.queueIndicatorElement);
   updateQueueIndicator();
 }
 
 export function updateQueueIndicator(): void {
-  if (!appState.queueIndicatorElement) return;
-  const total = appState.downloadQueue.length;
-  if (total === 0 && appState.activeOperations === 0) {
-    appState.queueIndicatorElement.style.display = 'none';
-  } else {
-    appState.queueIndicatorElement.style.display = 'block';
-    appState.queueIndicatorElement.textContent = `Queue: ${appState.activeOperations} active, ${total} waiting`;
-  }
+  const indicator = appState.queueIndicatorElement;
+  if (!indicator) return;
+  const waiting = appState.downloadQueue.length;
+  const idle = waiting === 0 && appState.activeOperations === 0;
+  indicator.hidden = idle;
+  if (idle) return;
+  // Keep the badge's icon, replace only its text
+  const text = `Queue: ${appState.activeOperations} active, ${waiting} waiting`;
+  const last = indicator.lastChild;
+  if (last?.nodeType === Node.TEXT_NODE) last.textContent = text;
+  else indicator.append(text);
 }

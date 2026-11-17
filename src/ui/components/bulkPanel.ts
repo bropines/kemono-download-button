@@ -1,10 +1,28 @@
-import { executeBulkDownload } from '../../services/downloadService';
+import { comparePostsAscending, executeBulkDownload } from '../../services/downloadService';
 import { getPostCardDetails } from '../../services/collectorService';
 import { appState } from '../../state/store';
 import { PostDetails } from '../../types';
 import { el } from '../../utils/dom';
-import { icon } from '../../config/icons';
+import { badge, button, select, setButtonLoading } from '../kit';
+import { mountOverlayStyles } from '../overlayStyles';
+import { bulkPanelStyles } from '../../styles/components/bulkPanel.styles';
+import { getDockSlot } from './fixedControls';
 import { showMultiPostFilePickerModal } from './filePickerModal';
+
+/**
+ * Light-DOM marker for the router: it looks for #kdl-bulk-panel to know the panel was injected and removes it
+ * on a creator change. The visible bar lives in the kit shadow root and only shows while the marker exists.
+ */
+const MARKER_ID = 'kdl-bulk-panel';
+
+interface BulkBar {
+  root: HTMLElement;
+  count: HTMLElement;
+  pick: HTMLButtonElement;
+  download: HTMLButtonElement;
+  sort: HTMLSelectElement;
+}
+let bar: BulkBar | null = null;
 
 let lastCheckedIndex: number | null = null;
 let selectionPageUrl = '';
@@ -41,28 +59,89 @@ export function getSelectedPostsDetails(): PostDetails[] {
 export function updateSelectionState(): void {
   syncSelectionFromPage();
 
+  if (!bar) return;
   const selectedCount = appState.selectedPostIds.size;
-  const downloadBtn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
-  const pickAttachmentsBtn = document.getElementById('kdl-bulk-pick-attachments-btn') as HTMLButtonElement | null;
-  const panel = document.getElementById('kdl-bulk-panel');
+  const visible = selectedCount > 0 && !!document.getElementById(MARKER_ID);
+  bar.count.textContent = `${selectedCount} selected`;
+  if (!bar.download.hasAttribute('data-loading')) bar.download.disabled = selectedCount === 0;
+  bar.pick.disabled = selectedCount === 0;
+  bar.root.dataset.state = visible ? 'open' : 'closed';
+}
 
-  if (downloadBtn) {
-    downloadBtn.textContent = `Download Selected (${selectedCount})`;
-    downloadBtn.disabled = selectedCount === 0;
-  }
+const clickCheckboxes = (selector: string) =>
+  document.querySelectorAll<HTMLInputElement>(`article.post-card[data-id] .kdl-post-checkbox${selector}`).forEach((cb) => cb.click());
 
-  if (pickAttachmentsBtn) {
-    pickAttachmentsBtn.replaceChildren(icon('paperclip'), ` Pick Attachments (${selectedCount})`);
-    pickAttachmentsBtn.disabled = selectedCount === 0;
-  }
+function sortPosts(posts: PostDetails[], order: string): PostDetails[] {
+  if (order === 'oldest') return [...posts].sort(comparePostsAscending);
+  if (order === 'newest') return [...posts].sort((a, b) => comparePostsAscending(b, a));
+  return posts;
+}
 
-  if (panel) {
-    if (selectedCount > 0) {
-      panel.classList.add('kdl-visible');
-    } else {
-      panel.classList.remove('kdl-visible');
+/** Downloads the selection in the chosen order, then drops the downloaded posts from it. */
+async function downloadSelection(): Promise<void> {
+  if (!bar) return;
+  const { download, sort } = bar;
+  const posts = sortPosts(getSelectedPostsDetails(), sort.value);
+  setButtonLoading(download, true);
+  try {
+    await executeBulkDownload(posts);
+  } finally {
+    setButtonLoading(download, false);
+    for (const post of posts) {
+      appState.selectedPostIds.delete(String(post.postID));
+      selectedDetails.delete(String(post.postID));
     }
+    updateSelectionState();
   }
+}
+
+function buildBulkBar(): BulkBar {
+  const count = badge({ text: '0 selected' });
+  count.setAttribute('aria-live', 'polite');
+  const sort = select({
+    id: 'kdl-bulk-sort-order',
+    ariaLabel: 'Download order',
+    options: [
+      { value: 'selection', label: 'By selection' },
+      { value: 'oldest', label: 'Oldest first' },
+      { value: 'newest', label: 'Newest first' },
+    ],
+  });
+  const pick = button({
+    id: 'kdl-bulk-pick-attachments-btn',
+    label: 'Pick attachments',
+    icon: 'paperclip',
+    variant: 'secondary',
+    size: 'sm',
+    disabled: true,
+    onClick: () => showMultiPostFilePickerModal(getSelectedPostsDetails()),
+  });
+  const download = button({
+    id: 'kdl-bulk-download-btn',
+    label: 'Download',
+    icon: 'download',
+    size: 'sm',
+    disabled: true,
+    onClick: () => void downloadSelection(),
+  });
+  const root = el('div', { className: 'kdl-ov-bulkbar', dataset: { state: 'closed' } }, [
+    count,
+    button({ id: 'kdl-bulk-select-all', label: 'Select all', variant: 'outline', size: 'sm', onClick: () => clickCheckboxes(':not(:checked)') }),
+    button({ id: 'kdl-bulk-deselect-all', label: 'Deselect all', variant: 'ghost', size: 'sm', onClick: () => clickCheckboxes(':checked') }),
+    el('span', { className: 'kdl-ov-bulkbar__sep' }),
+    sort,
+    pick,
+    download,
+  ]);
+  root.setAttribute('role', 'toolbar');
+  root.setAttribute('aria-label', 'Selected posts');
+  // Escape inside the bar clears the selection (the bar then hides)
+  root.addEventListener('keydown', (event: KeyboardEvent) => {
+    if (event.key !== 'Escape' || (event.target as HTMLElement).tagName === 'SELECT') return;
+    event.stopPropagation();
+    clickCheckboxes(':checked');
+  });
+  return { root, count, pick, download, sort };
 }
 
 const getPostCards = () => Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
@@ -130,52 +209,12 @@ export function initializeShiftClickLogic(): void {
 }
 
 export function createBulkDownloadPanel(): void {
-  if (document.getElementById('kdl-bulk-panel')) return;
-  const cardList = document.querySelector('.card-list');
-  if (!cardList) return;
-
-  const panel = el('div', { id: 'kdl-bulk-panel' }, [
-    el(
-      'button',
-      {
-        id: 'kdl-bulk-select-all',
-        onClick: () =>
-          document.querySelectorAll('article.post-card[data-id] .kdl-post-checkbox:not(:checked)').forEach((cb: any) => cb.click())
-      },
-      ['Select All']
-    ),
-    el(
-      'button',
-      {
-        id: 'kdl-bulk-deselect-all',
-        onClick: () =>
-          document.querySelectorAll('article.post-card[data-id] .kdl-post-checkbox:checked').forEach((cb: any) => cb.click())
-      },
-      ['Deselect All']
-    ),
-    el('label', { style: { color: '#fff', fontSize: '0.9em' } }, ['Order: ']),
-    el(
-      'select',
-      {
-        id: 'kdl-bulk-sort-order',
-        style: { backgroundColor: '#444', color: '#fff', border: '1px solid #555', borderRadius: '4px', padding: '4px' }
-      },
-      [
-        el('option', { value: 'selection' }, ['By Selection']),
-        el('option', { value: 'oldest' }, ['Oldest First']),
-        el('option', { value: 'newest' }, ['Newest First'])
-      ]
-    ),
-    el('button', {
-      id: 'kdl-bulk-pick-attachments-btn',
-      disabled: true,
-      onClick: () => {
-        const selectedPosts = getSelectedPostsDetails();
-        showMultiPostFilePickerModal(selectedPosts);
-      }
-    }, [icon('paperclip'), ' Pick Attachments (0)']),
-    el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload(getSelectedPostsDetails()) }, ['Download Selected (0)'])
-  ]);
-
-  document.body.appendChild(panel);
+  if (!document.querySelector('.card-list')) return;
+  if (!document.getElementById(MARKER_ID)) document.body.appendChild(el('div', { id: MARKER_ID, hidden: true }));
+  if (!bar?.root.isConnected) {
+    mountOverlayStyles('kdl-bulk-styles', bulkPanelStyles);
+    bar = buildBulkBar();
+    getDockSlot('bulk').appendChild(bar.root);
+  }
+  updateSelectionState();
 }

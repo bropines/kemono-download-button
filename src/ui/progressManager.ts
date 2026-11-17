@@ -1,11 +1,15 @@
-import { icon } from '../config/icons';
-import { el, getOrCreateContainer } from '../utils/dom';
+import { el } from '../utils/dom';
+import { button, progress, scrollArea, setProgress } from './kit';
+import { mountOverlayStyles } from './overlayStyles';
+import { getDockSlot } from './components/fixedControls';
+import { progressBarStyles } from '../styles/components/progressBar.styles';
 
 export interface ProgressTask {
   id: string;
   element: HTMLElement;
   statusElement: HTMLElement;
   filesContainer: HTMLElement;
+  /** barInner is the kit progress bar of the file */
   files: Map<string, { wrapper: HTMLElement; barInner: HTMLElement; label: HTMLElement }>;
   updateStatus: (text: string) => void;
   addFile: (fileId: string, fileName: string) => void;
@@ -18,16 +22,23 @@ export interface ProgressTask {
 }
 
 class ProgressManager {
-  private container: HTMLElement | null = null;
   private tasks: Map<string, ProgressTask> = new Map();
   private removalTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private runCounter = 0;
 
+  /** Task stack inside the bottom dock of the kit root (recreated if the root was rebuilt). */
   private getContainer(): HTMLElement {
-    if (!this.container || !document.body.contains(this.container)) {
-      this.container = getOrCreateContainer('kdl-progress-container');
+    mountOverlayStyles('kdl-progress-styles', progressBarStyles);
+    const slot = getDockSlot('progress');
+    let container = slot.querySelector<HTMLElement>('#kdl-progress-container');
+    if (!container) {
+      container = scrollArea();
+      container.id = 'kdl-progress-container';
+      container.setAttribute('aria-label', 'Downloads');
+      container.setAttribute('role', 'region');
+      slot.appendChild(container);
     }
-    return this.container;
+    return container;
   }
 
   /**
@@ -38,12 +49,26 @@ class ProgressManager {
     const container = this.getContainer();
     const id = `${baseId}-r${++this.runCounter}`;
     const controller = new AbortController();
-    const title = el('div', { className: 'kdl-task-title' }, [titleText]);
-    const status = el('div', { className: 'kdl-task-status' }, ['Initializing...']);
-    const cancelButton = el('button', { className: 'kdl-task-cancel', title: 'Cancel', onClick: () => task.cancel() }, [icon('x')]) as HTMLButtonElement;
-    const header = el('div', { className: 'kdl-task-header' }, [title, status, cancelButton]);
-    const filesContainer = el('div', { className: 'kdl-task-files' });
-    const taskElement = el('div', { className: 'kdl-progress-task', id: `task-${id}` }, [header, filesContainer]);
+    const status = el('div', { className: 'kdl-ov-task__status' }, ['Initializing...']);
+    status.setAttribute('aria-live', 'polite');
+    const cancelButton = button({
+      icon: 'x',
+      variant: 'ghost',
+      size: 'icon',
+      ariaLabel: `Cancel ${titleText}`,
+      title: 'Cancel',
+      className: 'kdl-ov-task__cancel',
+      onClick: () => task.cancel(),
+    });
+    const header = el('div', { className: 'kdl-ov-task__header' }, [
+      el('div', { className: 'kdl-ov-task__text' }, [
+        el('div', { className: 'kdl-ov-task__title', title: titleText }, [titleText]),
+        status,
+      ]),
+      cancelButton,
+    ]);
+    const filesContainer = scrollArea({ className: 'kdl-ov-task__files' });
+    const taskElement = el('div', { className: 'kdl-ov-task', id: `task-${id}` }, [header, filesContainer]);
 
     container.appendChild(taskElement);
 
@@ -60,28 +85,24 @@ class ProgressManager {
 
       addFile: (fileId: string, fileName: string) => {
         if (task.files.has(fileId)) return;
-        const label = el('div', { className: 'kdl-progress-bar-label' }, [fileName]);
-        const barInner = el('div', { className: 'kdl-progress-bar-inner' });
-        const bar = el('div', { className: 'kdl-progress-bar' }, [barInner]);
-        const wrapper = el('div', { className: 'kdl-progress-bar-wrapper' }, [label, bar]);
+        const label = el('div', { className: 'kdl-ov-file__label', title: fileName }, [fileName]);
+        const bar = progress({ value: 0, ariaLabel: fileName });
+        const wrapper = el('div', { className: 'kdl-ov-file' }, [label, bar]);
         filesContainer.appendChild(wrapper);
         filesContainer.scrollTop = filesContainer.scrollHeight;
-        task.files.set(fileId, { wrapper, barInner, label });
+        task.files.set(fileId, { wrapper, barInner: bar, label });
       },
 
       updateFileProgress: (fileId: string, percent: number) => {
         const file = task.files.get(fileId);
-        if (file) {
-          file.barInner.style.width = `${Math.min(100, Math.max(0, percent))}%`;
-        }
+        if (file) setProgress(file.barInner, percent);
       },
 
       markFileComplete: (fileId: string, success: boolean) => {
         const file = task.files.get(fileId);
         if (file) {
-          file.barInner.style.width = '100%';
-          file.barInner.classList.add(success ? 'kdl-success' : 'kdl-error');
-          file.label.classList.add(success ? 'kdl-success' : 'kdl-error');
+          setProgress(file.barInner, 100);
+          file.wrapper.dataset.result = success ? 'success' : 'error';
         }
       },
 
@@ -97,7 +118,7 @@ class ProgressManager {
       },
 
       finish: (autoRemoveDelay = 5000) => {
-        cancelButton.style.display = 'none';
+        cancelButton.hidden = true;
         clearTimeout(this.removalTimers.get(id));
         this.removalTimers.set(id, setTimeout(() => {
           taskElement.remove();
