@@ -15,14 +15,13 @@ export interface ProgressTask {
   /** Aborted when the user cancels the task; pass it to every request of the run */
   readonly signal: AbortSignal;
   cancel: () => void;
-  /** Prepares the task for another run with the same id */
-  reset: () => void;
 }
 
 class ProgressManager {
   private container: HTMLElement | null = null;
   private tasks: Map<string, ProgressTask> = new Map();
   private removalTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
+  private runCounter = 0;
 
   private getContainer(): HTMLElement {
     if (!this.container || !document.body.contains(this.container)) {
@@ -31,19 +30,14 @@ class ProgressManager {
     return this.container;
   }
 
-  public createTask(id: string, titleText: string): ProgressTask {
+  /**
+   * Every call is its own run with its own element, AbortController and removal timer: the given id
+   * repeats per post, so sharing a task would let one run cancel or remove another run's UI.
+   */
+  public createTask(baseId: string, titleText: string): ProgressTask {
     const container = this.getContainer();
-    if (this.tasks.has(id)) {
-      const existing = this.tasks.get(id)!;
-      // Task ids repeat per post: the previous run's pending removal would delete this run's element
-      clearTimeout(this.removalTimers.get(id));
-      this.removalTimers.delete(id);
-      existing.reset();
-      existing.updateStatus('Restarting task...');
-      return existing;
-    }
-
-    let controller = new AbortController();
+    const id = `${baseId}-r${++this.runCounter}`;
+    const controller = new AbortController();
     const title = el('div', { className: 'kdl-task-title' }, [titleText]);
     const status = el('div', { className: 'kdl-task-status' }, ['Initializing...']);
     const cancelButton = el('button', { className: 'kdl-task-cancel', title: 'Cancel', onClick: () => task.cancel() }, [icon('x')]) as HTMLButtonElement;
@@ -100,14 +94,6 @@ class ProgressManager {
         controller.abort();
         status.textContent = 'Cancelling...';
         cancelButton.disabled = true;
-      },
-
-      reset: () => {
-        controller = new AbortController();
-        cancelButton.style.display = '';
-        cancelButton.disabled = false;
-        task.files.clear();
-        filesContainer.replaceChildren();
       },
 
       finish: (autoRemoveDelay = 5000) => {

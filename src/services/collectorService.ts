@@ -1,6 +1,6 @@
 import { getApiAdapter } from '../api';
 import { getCachedPost, setCachedPost } from './cacheService';
-import { appState, getSettings, resetMediaCounter, state } from '../state/store';
+import { getSettings, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
 import { debugLog, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename, isMediaFile } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
@@ -66,7 +66,8 @@ export function formatNameFromTemplate(template: string, data: Record<string, an
   let result = template;
   for (const [key, value] of Object.entries(data)) {
     const sanitizedVal = sanitizeFilename(String(value ?? ''));
-    result = result.replace(new RegExp(`{${key}}`, 'g'), sanitizedVal);
+    // A replacer function, so `$&` / `$1` in titles are inserted literally
+    result = result.replace(new RegExp(`{${key}}`, 'g'), () => sanitizedVal);
   }
   return result.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/');
 }
@@ -121,9 +122,9 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
   const isPostPage = window.location.pathname.includes('/post/');
   const templateToUse = (options.template && options.template.trim()) || (state.settings.fileNameTemplate && state.settings.fileNameTemplate.trim()) || '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}';
 
-  if (!options.isBulk && !options.noFiles) {
-    resetMediaCounter();
-  }
+  // global_file_index runs across a bulk archive through the caller's counter; a single post counts on its own,
+  // so concurrent queue runs never share (or reset) each other's numbering
+  const mediaCounter: { value: number } = options.mediaCounter || { value: 0 };
 
   if (state.settings.enableAPIFetch && postDetails.service !== 'unknown' && postDetails.userID !== 'unknown' && postDetails.postID !== 'unknown') {
     try {
@@ -132,14 +133,13 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
       if (windowPost) {
         rawApiData = windowPost;
-        console.log(`[Kemono DL] Post metadata loaded directly from window.page_data: ${postDetails.postID}`);
+        debugLog(`Post metadata loaded from window.page_data: ${postDetails.postID}`);
       } else {
         const cached = await getCachedPost(cacheKey);
         if (cached) {
           rawApiData = cached;
-          console.log(`[Kemono DL] Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+          debugLog(`Post metadata loaded from IndexedDB cache: ${cacheKey}`);
         } else {
-          console.log(`[Kemono DL] Fetching post metadata from API: ${postDetails.service}/${postDetails.userID}/${postDetails.postID}...`);
           rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
           if (rawApiData) await setCachedPost(cacheKey, rawApiData);
         }
@@ -183,12 +183,12 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
     let localMediaCounter = 0;
     allMediaFiles.forEach((fileObj) => {
-      appState.globalMediaCounter++;
+      mediaCounter.value++;
       localMediaCounter++;
       const fileExt = fileObj.name.includes('.') ? fileObj.name.split('.').pop()! : '';
       const baseName = fileObj.name.substring(0, fileObj.name.length - (fileExt ? fileExt.length + 1 : 0));
       const fileIndex = String(localMediaCounter).padStart(3, '0');
-      const globalFileIndex = String(appState.globalMediaCounter).padStart(3, '0');
+      const globalFileIndex = String(mediaCounter.value).padStart(3, '0');
 
       const pathData = {
         file_index: fileIndex,
@@ -218,7 +218,7 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
     mediaNodes.forEach((node) => {
       const href = node.getAttribute('href');
       if (!href) return;
-      appState.globalMediaCounter++;
+      mediaCounter.value++;
       localMediaCounter++;
 
       const isAttNode = node.classList.contains('post__attachment-link') || !!node.closest('.post__attachments');
@@ -228,7 +228,7 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
       const pathData = {
         file_index: String(localMediaCounter).padStart(3, '0'),
-        global_file_index: String(appState.globalMediaCounter).padStart(3, '0'),
+        global_file_index: String(mediaCounter.value).padStart(3, '0'),
         file_name: sanitizeFilename(baseName) + (fileExt ? '.' + fileExt : ''),
         original_file_name: sanitizeFilename(originalName),
         file_ext: fileExt

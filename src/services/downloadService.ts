@@ -4,17 +4,11 @@ import { ZipBuilder } from './zipBuilder';
 import { progressManager, ProgressTask } from '../ui/progressManager';
 import { showMessage } from '../ui/toast';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
-import { appState, getSettings, resetMediaCounter, state } from '../state/store';
+import { appState, getSettings, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
-import { generateRandomId, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
-import {
-  abortError,
-  downloadFileWithFallback,
-  gmXmlhttpRequestWithRetries,
-  isAbortError,
-  saveBlobViaAnchor
-} from '../utils/http';
-import { collectFilesForPost, getPostCardDetails, formatNameFromTemplate } from './collectorService';
+import { generateRandomId, getApiUrl, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
+import { abortError, downloadFileWithFallback, gmXmlhttpRequestWithRetries, isAbortError } from '../utils/http';
+import { collectFilesForPost, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
 
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
@@ -74,7 +68,10 @@ async function fetchFileBytes(
   return data;
 }
 
-/** Downloads URL files straight into the ZIP; failures become failed_*.txt notes. Returns the failure count. */
+/**
+ * Downloads URL files straight into the ZIP; failures become failed_*.txt notes.
+ * Returns the failure count and, per input file, the name the ZIP actually stored it under.
+ */
 async function addUrlFilesToZip(
   zip: ZipBuilder,
   urlFiles: FileItem[],
@@ -82,16 +79,17 @@ async function addUrlFilesToZip(
   taskPrefix: string,
   useCache: boolean,
   statusPrefix = ''
-): Promise<number> {
+): Promise<{ failed: number; storedNames: string[] }> {
   let done = 0;
   let failed = 0;
+  const storedNames: string[] = [];
 
   await runWithConcurrency(urlFiles, state.settings.maxConcurrentFileDownloadsInZip || 3, async (file, index) => {
     const fileTaskId = `${taskPrefix}-${index}`;
     task.addFile(fileTaskId, file.name);
     try {
       const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache, task.signal);
-      zip.addFile(file.name || `file_${index + 1}.bin`, data);
+      storedNames[index] = zip.addFile(file.name || `file_${index + 1}.bin`, data);
       task.markFileComplete(fileTaskId, true);
     } catch (error: any) {
       task.markFileComplete(fileTaskId, false);
@@ -99,7 +97,7 @@ async function addUrlFilesToZip(
       failed++;
       console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
       const baseName = sanitizeFilename(file.name.split('/').pop() || 'file');
-      zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
+      storedNames[index] = zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
     } finally {
       done++;
       if (!task.signal.aborted) task.updateStatus(`${statusPrefix}Downloading... ${done}/${urlFiles.length} done`);
@@ -108,7 +106,7 @@ async function addUrlFilesToZip(
 
   // Never hand a half-downloaded archive to the caller
   if (task.signal.aborted) throw abortError();
-  return failed;
+  return { failed, storedNames };
 }
 
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
@@ -128,7 +126,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
 
     const urlFiles = files.filter((f) => f.source === 'url');
     task.updateStatus(`Downloading ${urlFiles.length} files...`);
-    const failCount = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
+    const { failed: failCount } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
     if (urlFiles.length > 0 && failCount === urlFiles.length) {
       throw new Error('All file downloads failed');
     }
@@ -136,7 +134,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     task.updateStatus('Zipping...');
     const blob = await zip.toBlob();
     if (blob.size === 0) throw new Error('Generated ZIP is empty.');
-    saveBlobViaAnchor(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
+    saveBlob(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
 
     task.updateStatus(`Complete! ${failCount > 0 ? `(${failCount} fails)` : ''}`);
   } catch (error: any) {
@@ -231,7 +229,7 @@ export async function downloadFilesToDiskWithProgress(
 
     try {
       const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true, task.signal);
-      saveBlobViaAnchor(new Blob([data]), cleanName);
+      saveBlob(new Blob([data]), cleanName);
       task.markFileComplete(fileTaskId, true);
     } catch (err: any) {
       task.markFileComplete(fileTaskId, false);
@@ -273,7 +271,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
 
     const urlFiles = files.filter((f) => f.source === 'url');
     postTask.updateStatus(`Downloading ${urlFiles.length} files...`);
-    const failedFileCount = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
+    const { failed: failedFileCount } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
 
     postTask.updateStatus('Zipping...');
     const zipFileName = formatNameFromTemplate(state.settings.bulkMultipleSystemPathTemplate, {
@@ -300,50 +298,70 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
   }
 }
 
-export async function executeBulkDownloadSingle(postIds: string[], authorName: string): Promise<void> {
-  const task = progressManager.createTask(`bulk-single-${Date.now()}`, `Bulk Archive (${postIds.length} Posts)`);
-  resetMediaCounter();
+/** Copies a descriptor so per-run fields (rawApiData, title/date from the API) never leak between runs. */
+const clonePost = (post: PostDetails): PostDetails => ({ ...post, rawApiData: undefined });
+
+const postPageUrl = (post: PostDetails): string => getApiUrl(`/${post.service}/user/${post.userID}/post/${post.postID}`);
+
+/** Oldest-first order that does not assume numeric ids: digit ids compare as numbers, otherwise by date, then text. */
+export function comparePostsAscending(a: PostDetails, b: PostDetails): number {
+  const idA = String(a.postID);
+  const idB = String(b.postID);
+  if (/^\d+$/.test(idA) && /^\d+$/.test(idB)) {
+    // Compared as digit strings, so ids beyond Number.MAX_SAFE_INTEGER still order correctly
+    const trimmedA = idA.replace(/^0+(?=\d)/, '');
+    const trimmedB = idB.replace(/^0+(?=\d)/, '');
+    return trimmedA.length - trimmedB.length || (trimmedA < trimmedB ? -1 : trimmedA > trimmedB ? 1 : 0);
+  }
+  const dateA = a.postDate && a.postDate !== 'UnknownDate' ? a.postDate : '';
+  const dateB = b.postDate && b.postDate !== 'UnknownDate' ? b.postDate : '';
+  if (dateA && dateB && dateA !== dateB) return dateA < dateB ? -1 : 1;
+  return idA.localeCompare(idB, undefined, { numeric: true });
+}
+
+export async function executeBulkDownloadSingle(posts: PostDetails[], authorName: string): Promise<void> {
+  const task = progressManager.createTask('bulk-single', `Bulk Archive (${posts.length} Posts)`);
+  // One counter per archive keeps global_file_index running across its posts without touching other runs
+  const mediaCounter = { value: 0 };
 
   try {
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
     const addHtmlIndex = state.settings.addHtmlIndexInZip;
     let htmlIndex = addHtmlIndex
-      ? `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${escapeHtml(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${escapeHtml(authorName)}</h3><p>Total posts: ${postIds.length}</p><hr>`
+      ? `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Archive: ${escapeHtml(authorName)}</title><style>body{font-family:sans-serif;background-color:#2b2b2b;color:#f0f0f0;padding:20px}.container{max-width:900px;margin:auto;background-color:#333;padding:20px 40px;border-radius:8px}h1{color:#00aeff}h2{color:#e0e0e0}a{color:#87ceeb}</style></head><body><div class="container"><h1>Archive Index</h1><h3>Author: ${escapeHtml(authorName)}</h3><p>Total posts: ${posts.length}</p><hr>`
       : '';
 
-    for (let i = 0; i < postIds.length; i++) {
+    for (let i = 0; i < posts.length; i++) {
       if (task.signal.aborted) throw abortError();
-      const postCard = document.querySelector(`article.post-card[data-id="${postIds[i]}"]`) as HTMLElement | null;
-      if (!postCard) continue;
-
-      const postDetails = getPostCardDetails(postCard, authorName);
-      const postPrefix = `[${i + 1}/${postIds.length}] `;
+      const postDetails = clonePost(posts[i]);
+      const postPrefix = `[${i + 1}/${posts.length}] `;
       task.updateStatus(`${postPrefix}Fetching: ${postDetails.postTitle}`);
 
       const { files: rawFiles } = await collectFilesForPost(postDetails, {
         isBulk: true,
         bulk_post_index: i + 1,
+        mediaCounter,
         template: state.settings.bulkSingleInternalPathTemplate
       });
       const files = filterIgnoredFiles(rawFiles);
 
-      if (addHtmlIndex) {
-        const postLink = (postCard.querySelector('a') as HTMLAnchorElement | null)?.href || '#';
-        const entries = files.length > 0
-          ? files.map((file) => {
-              const relativePath = file.name.split('/').map((part) => encodeURIComponent(part)).join('/');
-              return `<li><a href="./${relativePath}">${escapeHtml(file.name.split('/').pop() || file.name)}</a></li>`;
-            }).join('')
-          : '<li>No files found.</li>';
-        htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postLink)}" target="_blank">[${escapeHtml(postDetails.postDate || 'N/A')}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries}</ul></div>`;
-      }
-
-      if (files.length === 0) continue;
-      files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
-
+      // The index links to what the ZIP really holds: deduplicated names (_2) and failed_*.txt notes
+      const storedNames: string[] = [];
+      files.filter((f) => f.source === 'text').forEach((file) => storedNames.push(zip.addFile(file.name, textContentOf(file.data))));
       const urlFiles = files.filter((f) => f.source === 'url');
       if (urlFiles.length > 0) {
-        await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i}`, false, postPrefix);
+        const result = await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i}`, false, postPrefix);
+        storedNames.push(...result.storedNames.filter(Boolean));
+      }
+
+      if (addHtmlIndex) {
+        const entries = storedNames.length > 0
+          ? storedNames.map((name) => {
+              const relativePath = name.split('/').map((part) => encodeURIComponent(part)).join('/');
+              return `<li><a href="./${relativePath}">${escapeHtml(name.split('/').pop() || name)}</a></li>`;
+            }).join('')
+          : '<li>No files found.</li>';
+        htmlIndex += `<div class="post-entry"><h2><a href="${escapeHtml(postPageUrl(postDetails))}" target="_blank">[${escapeHtml(postDetails.postDate || 'N/A')}] ${escapeHtml(postDetails.postTitle)}</a></h2><ul>${entries}</ul></div>`;
       }
     }
 
@@ -351,10 +369,10 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
       zip.addFile('_index.html', `${htmlIndex}</div></body></html>`);
     }
 
-    task.updateStatus(`Finalizing ZIP for ${postIds.length} posts...`);
+    task.updateStatus(`Finalizing ZIP for ${posts.length} posts...`);
     const finalZipName = formatNameFromTemplate(state.settings.bulkSingleSystemPathTemplate, {
       author_name: authorName,
-      post_count: postIds.length
+      post_count: posts.length
     });
 
     saveBlob(await zip.toBlob(), finalZipName);
@@ -371,22 +389,21 @@ export async function executeBulkDownloadSingle(postIds: string[], authorName: s
   }
 }
 
-export async function executeBulkDownloadMultiple(postIds: string[], authorName: string): Promise<void> {
-  const task = progressManager.createTask(`bulk-multiple-${Date.now()}`, `Bulk Queuing (${postIds.length} Posts)`);
+export async function executeBulkDownloadMultiple(posts: PostDetails[]): Promise<void> {
+  const task = progressManager.createTask('bulk-multiple', `Bulk Queuing (${posts.length} Posts)`);
   task.updateStatus('Adding posts to the download queue...');
 
-  for (let i = 0; i < postIds.length; i++) {
+  for (let i = 0; i < posts.length; i++) {
     if (task.signal.aborted) break;
-    const postId = postIds[i];
-    const postCard = document.querySelector(`article.post-card[data-id="${postId}"]`) as HTMLElement | null;
-    if (!postCard) continue;
-
-    const postDetails = getPostCardDetails(postCard, authorName);
-    const { postDate } = await collectFilesForPost(postDetails, { isBulk: true, noFiles: true });
-    postDetails.postDate = postDate;
+    const postDetails = clonePost(posts[i]);
+    if (!postDetails.postDate || postDetails.postDate === 'UnknownDate') {
+      const { postDate } = await collectFilesForPost(postDetails, { isBulk: true, noFiles: true });
+      postDetails.postDate = postDate;
+      postDetails.rawApiData = undefined;
+    }
 
     addTaskToQueue('Bulk-Single-Zip', downloadPostAsZip, postDetails, null);
-    task.updateStatus(`Queued ${i + 1}/${postIds.length} posts...`);
+    task.updateStatus(`Queued ${i + 1}/${posts.length} posts...`);
   }
 
   task.updateStatus(task.signal.aborted
@@ -395,17 +412,22 @@ export async function executeBulkDownloadMultiple(postIds: string[], authorName:
   task.finish(3000);
 }
 
-export async function executeBulkDownload(postIdsOrEvent: Set<string> | any = null): Promise<void> {
+/**
+ * Downloads the given posts. Works from descriptors only (service/user/id/title/date), never from post cards
+ * on the live page, so author-manager selections and selections made before an HTMX swap still download.
+ */
+export async function executeBulkDownload(posts: PostDetails[]): Promise<void> {
   const downloadBtn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
-  let postIdsToProcess: Set<string>;
 
-  if (postIdsOrEvent instanceof Set && postIdsOrEvent.size > 0) {
-    postIdsToProcess = postIdsOrEvent;
-  } else {
-    postIdsToProcess = appState.selectedPostIds;
-  }
+  const seen = new Set<string>();
+  const postsToProcess = posts.filter((post) => {
+    const key = `${post.service}/${post.userID}/${post.postID}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
-  if (postIdsToProcess.size === 0) {
+  if (postsToProcess.length === 0) {
     showMessage('No posts selected.', 'warning');
     return;
   }
@@ -414,22 +436,23 @@ export async function executeBulkDownload(postIdsOrEvent: Set<string> | any = nu
   updateQueueIndicator();
 
   const sortOrder = (document.getElementById('kdl-bulk-sort-order') as HTMLSelectElement)?.value || 'selection';
-  let postIdsArray = Array.from(postIdsToProcess);
-
   if (sortOrder === 'oldest') {
-    postIdsArray.sort((a, b) => parseInt(a, 10) - parseInt(b, 10));
+    postsToProcess.sort(comparePostsAscending);
   } else if (sortOrder === 'newest') {
-    postIdsArray.sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
+    postsToProcess.sort((a, b) => comparePostsAscending(b, a));
   }
 
-  const authorName = document.querySelector('.user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
+  const authorName = postsToProcess[0].authorName
+    || document.querySelector('.user-header__name span[itemprop="name"]')?.textContent?.trim()
+    || 'UnknownAuthor';
+  const processedIds = new Set(postsToProcess.map((post) => String(post.postID)));
   await getSettings();
 
   try {
     if (state.settings.bulkDownloadMode === 'multiple') {
-      await executeBulkDownloadMultiple(postIdsArray, authorName);
+      await executeBulkDownloadMultiple(postsToProcess);
     } else {
-      await executeBulkDownloadSingle(postIdsArray, authorName);
+      await executeBulkDownloadSingle(postsToProcess, authorName);
     }
   } catch (error) {
     console.error('Bulk download execution failed:', error);
@@ -437,7 +460,7 @@ export async function executeBulkDownload(postIdsOrEvent: Set<string> | any = nu
   } finally {
     if (downloadBtn) downloadBtn.disabled = false;
     document.querySelectorAll('.kdl-post-checkbox:checked').forEach((cb: any) => {
-      if (postIdsToProcess.has(cb.dataset.id)) cb.checked = false;
+      if (processedIds.has(cb.dataset.id)) cb.checked = false;
     });
 
     const bulkBtnOnPage = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
