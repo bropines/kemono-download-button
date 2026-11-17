@@ -24,14 +24,22 @@ export function addTaskToQueue(
   processQueue();
 }
 
+/** The setting can arrive as a string from an input or an import, or be missing/0: that would stall the queue */
+function getMaxConcurrentOperations(): number {
+  const value = Math.floor(Number(state.settings.maxConcurrentOperations));
+  return Number.isFinite(value) && value >= 1 ? value : 1;
+}
+
 export async function processQueue(): Promise<void> {
   await getSettings();
+  // Everything below runs synchronously, so no other processQueue call can interleave with the slot accounting
   if (appState.isQueueProcessing || appState.downloadQueue.length === 0) return;
-  if (appState.activeOperations >= state.settings.maxConcurrentOperations) return;
+  const maxConcurrent = getMaxConcurrentOperations();
+  if (appState.activeOperations >= maxConcurrent) return;
 
   appState.isQueueProcessing = true;
 
-  while (appState.downloadQueue.length > 0 && appState.activeOperations < state.settings.maxConcurrentOperations) {
+  while (appState.downloadQueue.length > 0 && appState.activeOperations < maxConcurrent) {
     const task = appState.downloadQueue.shift()!;
     appState.activeOperations++;
     updateQueueIndicator();
@@ -59,7 +67,7 @@ export async function processQueue(): Promise<void> {
           }
           (task.buttonElement as HTMLButtonElement).disabled = false;
         }
-        appState.activeOperations--;
+        appState.activeOperations = Math.max(0, appState.activeOperations - 1);
         updateQueueIndicator();
         processQueue();
       }

@@ -167,7 +167,7 @@ export function createBulkDownloadPanel(): void {
         showMultiPostFilePickerModal(selectedPosts);
       }
     }, [icon('paperclip'), ' Pick Attachments (0)']),
-    el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload() }, ['Download Selected (0)'])
+    el('button', { id: 'kdl-bulk-download-btn', disabled: true, onClick: () => executeBulkDownload(getSelectedPostsDetails()) }, ['Download Selected (0)'])
   ]);
 
   document.body.appendChild(panel);
