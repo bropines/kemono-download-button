@@ -182,9 +182,51 @@ function syncControls(ctx: ModuleContext): void {
   }
 }
 
-function apply(): void {
+// Lazy rendering: only the first LAZY_STEP matching tags are shown, the next batch when the end comes near.
+// 2000 tags in one grid made every width change (opening the sidebar) re-lay them all out on each frame.
+const LAZY_STEP = 300;
+const LAZY_ATTR = 'data-kdl-tag-lazy';
+let limit = LAZY_STEP;
+let lazyMore = false;
+let sentinel: HTMLElement | null = null;
+let lazyObserver: IntersectionObserver | null = null;
+
+function ensureSentinel(): void {
+  if (!container) return;
+  if (!sentinel) sentinel = el('div', { className: 'kdl-tags-sentinel', ariaHidden: 'true' });
+  if (sentinel.previousElementSibling !== container) container.after(sentinel);
+  if (!lazyObserver && typeof IntersectionObserver === 'function') {
+    lazyObserver = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting) && lazyMore) {
+        limit += LAZY_STEP;
+        apply(false);
+        // Still in range after the batch (a fast scroll, a tall screen): observing anew reports it again
+        if (sentinel && lazyObserver) {
+          lazyObserver.unobserve(sentinel);
+          lazyObserver.observe(sentinel);
+        }
+      }
+    }, { rootMargin: '1200px 0px' });
+    lazyObserver.observe(sentinel);
+  }
+  // No observer (old engine): everything at once
+  if (!lazyObserver) limit = Infinity;
+}
+
+function dropSentinel(): void {
+  lazyObserver?.disconnect();
+  lazyObserver = null;
+  sentinel?.remove();
+  sentinel = null;
+  limit = LAZY_STEP;
+}
+
+/** Reorders and filters the cloud. A new filter, sort or layout starts lazy rendering over (reset). */
+function apply(reset = true): void {
   const ctx = ctxRef;
   if (!ctx || !container) return;
+  if (reset) limit = LAZY_STEP;
+  ensureSentinel();
   const mode = ctx.settings.get<string>('sort') as SortMode;
   const group = ctx.settings.get<boolean>('group');
   const terms = normalize(prefs.query).split(/\s+/).filter(Boolean);
@@ -205,7 +247,10 @@ function apply(): void {
     if (visible) {
       shown++;
       shownLetters.set(item.letter, (shownLetters.get(item.letter) ?? 0) + 1);
-      if (group && item.letter !== lastLetter) {
+      const rendered = shown <= limit;
+      if (rendered) item.node.removeAttribute(LAZY_ATTR);
+      else item.node.setAttribute(LAZY_ATTR, '');
+      if (rendered && group && item.letter !== lastLetter) {
         lastLetter = item.letter;
         const heading = el('h3', { className: 'kdl-tags-letter', id: headingId(item.letter), textContent: item.letter });
         headings.push(heading);
@@ -215,6 +260,7 @@ function apply(): void {
     frag.append(item.node);
   }
   container.append(frag);
+  lazyMore = shown > limit;
 
   if (countLabel) countLabel.textContent = shown === items.length ? t('tags.count', { count: items.length }) : t('tags.countFiltered', { shown, count: items.length });
   container.toggleAttribute('data-kdl-tags-grouped', group);
@@ -242,7 +288,14 @@ function renderJumpBar(letters: Map<string, number> | null): void {
         className: 'kdl-tags-jump__key',
         textContent: letter,
         title: t('tags.jump.key', { letter, count: letters.get(letter) ?? 0 }),
-        onClick: () => document.getElementById(headingId(letter))?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
+        onClick: () => {
+          // A letter further down may not be rendered yet: render the rest first
+          if (!document.getElementById(headingId(letter)) && lazyMore) {
+            limit = Infinity;
+            apply(false);
+          }
+          document.getElementById(headingId(letter))?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        },
       })
     )
   );
@@ -362,6 +415,7 @@ function restore(): void {
       .sort((a, b) => a.index - b.index)
       .forEach((item) => {
         item.node.removeAttribute(HIDDEN_ATTR);
+        item.node.removeAttribute(LAZY_ATTR);
         item.node.style.removeProperty('--kdl-tag-p');
         if (!item.node.getAttribute('style')) item.node.removeAttribute('style');
         frag.append(item.node);
@@ -372,6 +426,7 @@ function restore(): void {
     container.style.removeProperty('--kdl-tags-toolbar-h');
     if (!container.getAttribute('style')) container.removeAttribute('style');
   }
+  dropSentinel();
   toolbar?.remove();
   document.getElementById(TOOLBAR_ID)?.remove();
   toolbar = null;
@@ -430,7 +485,12 @@ const styles = `
   cursor: pointer;
 }
 .kdl-tags-toolbar .kdl-tags-jump__key:hover, .kdl-tags-toolbar .kdl-tags-jump__key:focus-visible { background: var(--kdl-accent); color: var(--kdl-accent-foreground); outline: none; }
-section#tag-container > article[${HIDDEN_ATTR}] { display: none !important; }
+/* html[...] lifts these over the list layout's display: block !important */
+section#tag-container > article[${HIDDEN_ATTR}], section#tag-container > article[${LAZY_ATTR}],
+html[data-kdl-tags-layout] section#tag-container > article:is([${HIDDEN_ATTR}], [${LAZY_ATTR}]) { display: none !important; }
+.kdl-tags-sentinel { height: 1px; }
+/* Before the toolbar is built (the site's markup, first paint): only the first batch is drawn */
+html[data-kdl-tags-layout] section#tag-container:not(.kdl-tags-toolbar + section#tag-container) > article:nth-child(n+${LAZY_STEP + 1}) { display: none !important; }
 section#tag-container > .kdl-tags-letter {
   flex: 0 0 100%;
   margin: 0.75em 0 0.25em;
@@ -458,6 +518,9 @@ html[data-kdl-tags-layout="grid"] section#tag-container {
 }
 html[data-kdl-tags-layout="grid"] section#tag-container > article {
   display: block !important;
+  /* Rows off screen skip rendering */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 30px;
   width: auto !important;
   min-width: 0;
   margin: 0 !important;
