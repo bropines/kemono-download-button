@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-11-17
+
+### Fixed
+- **AdGuard: the script no longer breaks other userscripts, or gets broken by them.** AdGuard joins every enabled userscript into one script. Ours now starts with its own statement boundary, keeps its names off the shared global scope, stops its own start-up errors from aborting the scripts after it, and runs once per page even if injected twice.
+
 ## [0.9.0] - 2026-11-17
 
 Stabilisation before the interface rebuild.
