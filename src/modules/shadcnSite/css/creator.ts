@@ -90,6 +90,16 @@ export const creatorCss = (): string => `
   box-shadow: var(--kdl-shadow-sm);
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
+/* Upload: the site's link has no icon; a lucide "upload" drawn in the text colour */
+.user-header__upload::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' x2='12' y1='3' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' x2='12' y1='3' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 .user-header__upload:is(:hover, :focus), .user-header__favourite:hover { background: var(--kdl-accent); color: var(--kdl-accent-foreground); }
 .user-header__favourite :is(.user-header__fav-icon, .user-header__fav-text) { color: inherit; }
 .user-header__favourite .user-header__fav-icon { color: var(--kdl-warning); }
