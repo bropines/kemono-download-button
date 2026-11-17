@@ -75,3 +75,14 @@ export const viewedPostsModule: KdlModule = {
     document.querySelectorAll(".kui-viewed").forEach((card) => card.classList.remove("kui-viewed"));
   }
 };
+
+export function getViewedPostsCount(): number {
+  return Object.keys(getViewedPosts()).length;
+}
+
+/** Forgets every viewed post and unmarks the cards on the page. */
+export function clearViewedPosts(): void {
+  viewedPostsCache = {};
+  writeStored(KUI_STORAGE_KEYS.POSTS, viewedPostsCache);
+  document.querySelectorAll('.kui-viewed').forEach((card) => card.classList.remove('kui-viewed'));
+}

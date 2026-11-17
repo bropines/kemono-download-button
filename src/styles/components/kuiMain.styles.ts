@@ -7,114 +7,11 @@ import { THEME } from '../theme';
  * Reuses central design tokens from THEME.
  */
 export const kuiMainStyles = css({
-  '#kui-settings-btn-sidebar': {
-    cursor: 'pointer',
-  },
   '.post__content > ._content_59c5c91': {
     marginTop: '0 !important',
     paddingTop: '0 !important',
   },
 
-  /* Settings Panel */
-  '#kui-settings-panel': {
-    position: 'fixed',
-    top: 0,
-    right: 0,
-    width: '300px',
-    height: '100%',
-    backgroundColor: THEME.colors.panelBg,
-    borderLeft: `1px solid ${THEME.colors.borderDark}`,
-    boxShadow: '-5px 0 15px #0000004d',
-    zIndex: THEME.zIndex.panel,
-    transform: 'translate(100%)',
-    transition: THEME.transitions.panel,
-    padding: '20px',
-    boxSizing: 'border-box',
-    color: THEME.colors.textMain,
-    fontFamily: 'sans-serif',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  '#kui-settings-panel.kui-panel-active': {
-    transform: 'translate(0)',
-  },
-  '.kui-settings-content': {
-    flexGrow: 1,
-    overflowY: 'auto',
-    paddingRight: '5px',
-  },
-  '.kui-setting': {
-    marginTop: '20px',
-  },
-  '.kui-setting label': {
-    display: 'block',
-    marginBottom: '8px',
-  },
-  '.kui-setting input[type="text"]': {
-    width: '100%',
-    boxSizing: 'border-box',
-    backgroundColor: THEME.colors.inputBg,
-    border: `1px solid ${THEME.colors.borderLight}`,
-    color: '#fff',
-    padding: '8px',
-    borderRadius: THEME.borderRadius.sm,
-  },
-  '.kui-setting small': {
-    color: THEME.colors.textMuted,
-    marginTop: '5px',
-    display: 'block',
-  },
-
-  /* Grid & Toggle Switches */
-  '.kui-grid-size-control': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-  },
-  '.kui-toggle-switch': {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  '.kui-switch': {
-    position: 'relative',
-    display: 'inline-block',
-    width: '50px',
-    height: '26px',
-  },
-  '.kui-switch input': {
-    opacity: 0,
-    width: 0,
-    height: 0,
-  },
-  '.kui-slider': {
-    position: 'absolute',
-    cursor: 'pointer',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#555',
-    transition: '0.4s',
-    borderRadius: THEME.borderRadius.pill,
-  },
-  '.kui-slider:before': {
-    position: 'absolute',
-    content: '""',
-    height: '20px',
-    width: '20px',
-    left: '3px',
-    bottom: '3px',
-    backgroundColor: '#fff',
-    transition: '0.4s',
-    borderRadius: THEME.borderRadius.full,
-  },
-  'input:checked + .kui-slider': {
-    backgroundColor: THEME.colors.accentBlue,
-  },
-  'input:checked + .kui-slider:before': {
-    transform: 'translate(24px)',
-  },
   '.kui-viewed': {
     opacity: 0.5,
   },
@@ -482,85 +379,6 @@ export const kuiMainStyles = css({
     whiteSpace: 'nowrap',
   },
 
-  /* Embed Rules UI */
-  '.kui-rule-input-group': {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    marginTop: '8px',
-  },
-  '.kui-rule-input-group input, .kui-rule-input-group select, .kui-rule-input-group button': {
-    width: '100%',
-    boxSizing: 'border-box',
-    backgroundColor: THEME.colors.inputBg,
-    border: `1px solid ${THEME.colors.borderLight}`,
-    color: '#fff',
-    padding: '8px',
-    borderRadius: THEME.borderRadius.sm,
-  },
-  '.kui-rule-input-group button': {
-    backgroundColor: THEME.colors.accentBlue,
-    borderColor: THEME.colors.accentBlue,
-    cursor: 'pointer',
-    fontSize: '18px',
-    lineHeight: 1,
-  },
-  '#kui-rules-container': {
-    marginTop: '15px',
-    display: 'flex',
-    flexWrap: 'wrap',
-    gap: '8px',
-  },
-  '.kui-rule-tag': {
-    display: 'inline-flex',
-    alignItems: 'center',
-    backgroundColor: THEME.colors.tagBg,
-    padding: '5px 10px',
-    borderRadius: THEME.borderRadius.sm,
-    fontSize: '13px',
-  },
-  '.kui-rule-tag-action': {
-    fontStyle: 'italic',
-    color: '#ccc',
-    marginRight: '8px',
-    cursor: 'pointer',
-    userSelect: 'none',
-  },
-  '.kui-rule-tag-delete': {
-    marginLeft: '8px',
-    color: THEME.colors.danger,
-    fontWeight: 'bold',
-    cursor: 'pointer',
-    userSelect: 'none',
-  },
-  '#kui-save-rules-btn': {
-    width: '100%',
-    padding: '10px',
-    marginTop: '20px',
-    backgroundColor: THEME.colors.success,
-    border: 'none',
-    color: '#fff',
-    borderRadius: THEME.borderRadius.sm,
-    cursor: 'pointer',
-    fontSize: '16px',
-  },
-  '#kui-save-toast': {
-    position: 'fixed',
-    bottom: '20px',
-    right: '20px',
-    backgroundColor: THEME.colors.success,
-    color: '#fff',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    zIndex: THEME.zIndex.toast,
-    opacity: 0,
-    transition: 'opacity 0.3s',
-    pointerEvents: 'none',
-  },
-  '#kui-save-toast.show': {
-    opacity: 1,
-  },
-
   /* Lightbox Modal */
   '#kui-lightbox': {
     position: 'fixed',
@@ -647,19 +465,19 @@ export const kuiMainStyles = css({
   },
 
   /* Custom Scrollbars */
-  '.kui-gallery-thumbnails::-webkit-scrollbar, .kui-video-list::-webkit-scrollbar, .kui-settings-content::-webkit-scrollbar': {
+  '.kui-gallery-thumbnails::-webkit-scrollbar, .kui-video-list::-webkit-scrollbar': {
     width: THEME.scrollbars.width,
     height: THEME.scrollbars.width,
   },
-  '.kui-gallery-thumbnails::-webkit-scrollbar-track, .kui-video-list::-webkit-scrollbar-track, .kui-settings-content::-webkit-scrollbar-track': {
+  '.kui-gallery-thumbnails::-webkit-scrollbar-track, .kui-video-list::-webkit-scrollbar-track': {
     background: THEME.scrollbars.trackBg,
     borderRadius: '10px',
   },
-  '.kui-gallery-thumbnails::-webkit-scrollbar-thumb, .kui-video-list::-webkit-scrollbar-thumb, .kui-settings-content::-webkit-scrollbar-thumb': {
+  '.kui-gallery-thumbnails::-webkit-scrollbar-thumb, .kui-video-list::-webkit-scrollbar-thumb': {
     background: THEME.scrollbars.thumbBg,
     borderRadius: '10px',
   },
-  '.kui-gallery-thumbnails::-webkit-scrollbar-thumb:hover, .kui-video-list::-webkit-scrollbar-thumb:hover, .kui-settings-content::-webkit-scrollbar-thumb:hover': {
+  '.kui-gallery-thumbnails::-webkit-scrollbar-thumb:hover, .kui-video-list::-webkit-scrollbar-thumb:hover': {
     background: THEME.scrollbars.thumbHoverBg,
   },
 

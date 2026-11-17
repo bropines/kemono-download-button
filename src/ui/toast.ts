@@ -1,24 +1,23 @@
-import { getOrCreateContainer } from '../utils/dom';
-import { THEME } from '../styles/theme';
+import { toast, type ToastHandle, type ToastVariant } from './kit';
 
-let messageBoxTimeout: any = null;
+export type MessageType = 'info' | 'error' | 'warning' | 'success';
 
-export function showMessage(message: string, type: 'info' | 'error' | 'warning' = 'info'): void {
-  const box = getOrCreateContainer('kemono-download-message-box');
+const VARIANTS: Record<MessageType, ToastVariant> = {
+  info: 'default',
+  error: 'destructive',
+  warning: 'warning',
+  success: 'success',
+};
 
-  if (type === 'error') box.style.backgroundColor = THEME.colors.toastErrorBg;
-  else if (type === 'warning') box.style.backgroundColor = THEME.colors.toastWarningBg;
-  else box.style.backgroundColor = THEME.colors.toastInfoBg;
-  box.style.color = type === 'warning' ? THEME.colors.toastWarningText : THEME.colors.toastText;
+let last: { message: string; handle: ToastHandle } | null = null;
 
-  box.textContent = message;
-  box.style.opacity = '1';
-  box.style.transform = 'translate(0)';
-
-  if (messageBoxTimeout) clearTimeout(messageBoxTimeout);
-
-  messageBoxTimeout = setTimeout(() => {
-    box.style.opacity = '0';
-    box.style.transform = 'translate(110%)';
-  }, 4000);
+/** The one notification entry point; a thin wrapper over the kit toast. Repeating a visible message refreshes it. */
+export function showMessage(message: string, type: MessageType = 'info'): ToastHandle {
+  const variant = VARIANTS[type];
+  if (last && last.message === message && last.handle.element.isConnected && last.handle.element.dataset.state !== 'closed') {
+    last.handle.update({ variant });
+    return last.handle;
+  }
+  last = { message, handle: toast({ title: message, variant }) };
+  return last.handle;
 }
