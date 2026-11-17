@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-17
+
 ### Added
 - **Downloads panel**: every download is a card with a type icon, an overall progress bar with percent, a file counter and a coloured state (done, partly failed, failed, cancelled). The file list folds away and opens by itself when a file fails, failed files come first. The panel folds into a small button with a progress ring a few seconds after the last download ends; finished downloads stay listed until "Clear finished". Settings → Downloads → Downloads panel: position (any corner or bottom centre), open on start, remove finished automatically.
 - **Smooth thumbnails** (module, on by default): card previews are shrunk with high-quality resampling, so line art no longer looks jagged.
