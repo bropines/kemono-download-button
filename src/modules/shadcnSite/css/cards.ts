@@ -54,6 +54,15 @@ export const cardsCss = (): string => `
   overflow: hidden;
 }
 .post-card__image { transition: transform 0.3s ease; }
+/* Text-only posts get a placeholder the size of a thumbnail: the grid stays even and the selection checkbox
+   sits on it instead of over the title */
+.post-card > a:not(:has(.post-card__image-container))::before {
+  content: '';
+  order: -1;
+  flex: 0 0 auto;
+  aspect-ratio: 1 / 1;
+  background: var(--kdl-muted) url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-opacity='0.55' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z'/%3E%3Cpath d='M14 2v4a2 2 0 0 0 2 2h4'/%3E%3Cpath d='M10 9H8'/%3E%3Cpath d='M16 13H8'/%3E%3Cpath d='M16 17H8'/%3E%3C/svg%3E") center / 28% no-repeat;
+}
 .post-card:hover .post-card__image { transform: scale(1.03); }
 .post-card__header {
   display: -webkit-box;

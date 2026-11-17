@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-11-17
+
+### Fixed
+- Site skin: posts without a picture get a thumbnail-sized placeholder, so the selection checkbox no longer covers their title and the card grid stays even.
+
 ## [1.3.6] - 2026-11-17
 
 ### Fixed
