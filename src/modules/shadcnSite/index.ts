@@ -34,6 +34,26 @@ const ACTIVE = 'data-kdl-active';
 const PALETTE_ID = 'kdl-mod-ui-shadcn-palette';
 const PALETTE_KEYS = ['accent', 'accentCustom', 'base', 'surfaces'];
 
+// Content column width: a CSS variable on <html>, read by the post page rules
+const WIDTHS: Record<string, string> = { normal: '1100px', wide: '1600px', full: 'none' };
+// The post text follows: a reading column on Normal, wider lines on Wide, no limit on Full
+const TEXT_WIDTHS: Record<string, string> = { normal: '80ch', wide: '120ch', full: 'none' };
+const TEXT_VAR = '--kdl-sk-text-width';
+const WIDTH_OPTIONS = [
+  { value: 'normal', label: 'Normal (1100px)' },
+  { value: 'wide', label: 'Wide (1600px)' },
+  { value: 'full', label: 'Full width' },
+];
+const WIDTH_VAR = '--kdl-sk-page-width';
+function syncWidth(ctx: ModuleContext): void {
+  const width = ctx.settings.get<string>('width');
+  const root = document.documentElement.style;
+  const value = WIDTHS[width] || WIDTHS.wide;
+  const text = TEXT_WIDTHS[width] || TEXT_WIDTHS.wide;
+  if (root.getPropertyValue(WIDTH_VAR) !== value) root.setProperty(WIDTH_VAR, value);
+  if (root.getPropertyValue(TEXT_VAR) !== text) root.setProperty(TEXT_VAR, text);
+}
+
 /** Compiled once per page session; the registry re-reads it when the module is enabled again */
 function scoped(build: () => string): () => string {
   let cache: string | null = null;
@@ -108,12 +128,19 @@ export const shadcnSiteModule: KdlModule = {
     { key: 'accentCustom', label: 'Custom accent (hex)', type: 'text', default: '#6366f1', hint: 'Used when the accent is Custom, e.g. #6366f1.' },
     { key: 'base', label: 'Base tone', type: 'select', default: 'zinc', options: BASE_OPTIONS },
     { key: 'surfaces', label: 'Surface contrast', type: 'select', default: 'subtle', options: SURFACE_OPTIONS, hint: 'How far the sidebar, cards and page sections stand out from the background.' },
+    { key: 'width', label: 'Page width', type: 'select', default: 'wide', options: WIDTH_OPTIONS, hint: 'How wide the post page and its text get on big screens.' },
   ],
   styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss()),
   mount(ctx) {
     setFlag(true);
     syncPalette(ctx);
     PALETTE_KEYS.forEach((key) => ctx.settings.onChange(key, () => syncPalette(ctx)));
+    syncWidth(ctx);
+    ctx.settings.onChange('width', () => syncWidth(ctx));
+    ctx.onCleanup(() => {
+      document.documentElement.style.removeProperty(WIDTH_VAR);
+      document.documentElement.style.removeProperty(TEXT_VAR);
+    });
     syncActive();
     ctx.onCleanup(onPageChange(() => syncActive()));
     // The URL is already the new one on afterSettle: move the marker before the coalesced page change

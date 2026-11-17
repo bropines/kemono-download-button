@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 2,
+  "version": 3,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -672,6 +672,11 @@
     "mod.ui.shadcn.setting.base.option.stone": "Камень",
     "mod.ui.shadcn.setting.base.option.zinc": "Цинк (как в shadcn)",
     "mod.ui.shadcn.setting.surfaces": "Контраст поверхностей",
+    "mod.ui.shadcn.setting.width": "Ширина страницы",
+    "mod.ui.shadcn.setting.width.hint": "Ширина страницы поста и её текста на больших экранах.",
+    "mod.ui.shadcn.setting.width.option.normal": "Обычная (1100 px)",
+    "mod.ui.shadcn.setting.width.option.wide": "Широкая (1600 px)",
+    "mod.ui.shadcn.setting.width.option.full": "Во всю ширину",
     "mod.ui.shadcn.setting.surfaces.hint": "Насколько боковая панель, карточки и разделы страницы выделяются на фоне.",
     "mod.ui.shadcn.setting.surfaces.option.flat": "Плоский (только рамки)",
     "mod.ui.shadcn.setting.surfaces.option.strong": "Сильный",

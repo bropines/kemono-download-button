@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-11-17
+
+### Added
+- Site skin: **Page width** setting (Normal 1100px, Wide 1600px, Full width), Wide by default. The post page and its text follow it: the text column grows from 80 to 120 characters on Wide and has no limit on Full.
+
 ## [1.3.7] - 2026-11-17
 
 ### Fixed

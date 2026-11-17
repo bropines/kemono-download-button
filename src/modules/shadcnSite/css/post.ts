@@ -18,7 +18,7 @@ const OUTLINE_BTN = `
 `;
 
 export const postCss = (): string => `
-.site-section--post { max-width: 1100px; margin-inline: auto; }
+.site-section--post { max-width: var(--kdl-sk-page-width, 1600px); margin-inline: auto; }
 
 .post__nav-list { height: auto; margin: 0 0 12px; }
 .post__nav-link {
@@ -113,7 +113,7 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
   font-weight: 600;
   letter-spacing: -0.02em;
 }
-.post__content { max-width: 80ch; color: color-mix(in srgb, var(--kdl-foreground) 92%, transparent); font-size: 15px; line-height: 1.7; }
+.post__content { max-width: var(--kdl-sk-text-width, 120ch); color: color-mix(in srgb, var(--kdl-foreground) 92%, transparent); font-size: 15px; line-height: 1.7; }
 .post__content p { margin: 0 0 1em; padding: 0; }
 .post__content a {
   color: var(--kdl-foreground);
