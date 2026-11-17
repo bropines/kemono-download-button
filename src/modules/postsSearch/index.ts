@@ -11,6 +11,7 @@ import { el } from '../../utils/dom';
 import { getApiUrl, getThumbnailUrl } from '../../utils/helpers';
 import { gmXmlhttpRequestWithRetries, isAbortError } from '../../utils/http';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
+import { t } from '../../i18n';
 
 export const POSTS_SEARCH_ID = 'posts.search';
 
@@ -104,7 +105,7 @@ export function buildCard(post: ApiPost): HTMLElement {
   const icon = el('img', { src: `/static/small_icons/${encodeURIComponent(service)}.png`, alt: service });
   const card = el('article', { className: `post-card${thumb ? ' post-card--preview' : ''}` }, [
     el('a', { href }, [
-      el('header', { className: 'post-card__header', textContent: title || 'Untitled' }),
+      el('header', { className: 'post-card__header', textContent: title || t('search.untitled') }),
       thumb
         ? el('div', { className: 'post-card__image-container' }, [
             el('img', { className: 'post-card__image', src: thumb, alt: title, loading: 'lazy' }),
@@ -196,12 +197,12 @@ function setStatus(text: string, busy: boolean, error = false): void {
 }
 
 function resultLabel(): string {
-  if (!shown) return `No results for “${query}”`;
-  if (total !== null) return `${total} result${total === 1 ? '' : 's'}`;
-  return `${shown}${hasMore ? '+' : ''} result${shown === 1 && !hasMore ? '' : 's'}`;
+  if (!shown) return t('search.noResults', { query });
+  if (total !== null) return t('search.results', { count: total });
+  return hasMore ? t('search.resultsMore', { count: shown }) : t('search.results', { count: shown });
 }
 
-function ensureUi(t: Target): void {
+function ensureUi(tg: Target): void {
   ensureKit();
   if (!statusBox?.isConnected) {
     statusSpinner = kitIcon('loader-circle', 'kdl-ui-spin');
@@ -211,28 +212,28 @@ function ensureUi(t: Target): void {
       [
         statusSpinner,
         statusText,
-        el('span', { className: 'kdl-live-search__hint', textContent: 'Enter: full search · Esc: clear' }),
-        button({ label: 'Clear', icon: 'x', variant: 'ghost', size: 'sm', onClick: () => clearSearch(true) }),
+        el('span', { className: 'kdl-live-search__hint', textContent: t('search.hint') }),
+        button({ label: t('search.clear'), icon: 'x', variant: 'ghost', size: 'sm', onClick: () => clearSearch(true) }),
       ],
       { className: 'kdl-live-search' }
     );
     statusBox.id = STATUS_ID;
     statusBox.hidden = true;
-    t.form.after(statusBox);
+    tg.form.after(statusBox);
   }
   if (!moreBox?.isConnected) {
-    moreBtn = button({ label: 'Load more', icon: 'chevron-down', variant: 'outline', onClick: () => void loadMore() });
+    moreBtn = button({ label: t('search.loadMore'), icon: 'chevron-down', variant: 'outline', onClick: () => void loadMore() });
     moreBox = kitScope([moreBtn], { className: 'kdl-live-search-more' });
     moreBox.id = MORE_ID;
     moreBox.hidden = true;
-    (t.list.closest('.card-list') ?? t.list).after(moreBox);
+    (tg.list.closest('.card-list') ?? tg.list).after(moreBox);
   }
 }
 
 /** Detach the server-rendered cards and hide the site's pagination (the search box stays) */
-function enterLive(t: Target): void {
+function enterLive(tg: Target): void {
   if (isLive()) return;
-  stash = Array.from(t.list.childNodes);
+  stash = Array.from(tg.list.childNodes);
   stash.forEach((node) => node.parentNode?.removeChild(node));
   hidden = Array.from(document.querySelectorAll<HTMLElement>('.paginator > menu, .paginator > small, #paginator-bottom'));
   hidden.forEach((node) => node.setAttribute(HIDE_ATTR, ''));
@@ -240,10 +241,10 @@ function enterLive(t: Target): void {
 
 function exitLive(): void {
   if (!isLive()) return;
-  const t = target;
-  if (t?.list.isConnected) {
-    t.list.querySelectorAll(`[${LIVE_ATTR}]`).forEach((node) => node.remove());
-    t.list.append(...stash!);
+  const tg = target;
+  if (tg?.list.isConnected) {
+    tg.list.querySelectorAll(`[${LIVE_ATTR}]`).forEach((node) => node.remove());
+    tg.list.append(...stash!);
   }
   stash = null;
   hidden.forEach((node) => node.removeAttribute(HIDE_ATTR));
@@ -271,8 +272,8 @@ function clearSearch(resetInput: boolean): void {
 }
 
 async function runSearch(text: string, append: boolean): Promise<void> {
-  const t = target;
-  if (!t) return;
+  const tg = target;
+  if (!tg) return;
   abort();
   const mySeq = seq;
   controller = new AbortController();
@@ -281,20 +282,20 @@ async function runSearch(text: string, append: boolean): Promise<void> {
     offset = 0;
     total = null;
   }
-  ensureUi(t);
-  setStatus(append ? `${resultLabel()} · loading more…` : 'Searching…', true);
+  ensureUi(tg);
+  setStatus(append ? t('search.loadingMore', { results: resultLabel() }) : t('search.searching'), true);
   if (moreBtn) moreBtn.disabled = true;
   try {
-    const page = await fetchPage(t, query, offset, controller.signal);
-    if (mySeq !== seq || target !== t) return;
-    enterLive(t);
+    const page = await fetchPage(tg, query, offset, controller.signal);
+    if (mySeq !== seq || target !== tg) return;
+    enterLive(tg);
     if (!append) {
-      t.list.querySelectorAll(`[${LIVE_ATTR}]`).forEach((node) => node.remove());
+      tg.list.querySelectorAll(`[${LIVE_ATTR}]`).forEach((node) => node.remove());
       shown = 0;
     }
-    const seen = new Set(Array.from(t.list.querySelectorAll<HTMLElement>(`[${LIVE_ATTR}]`)).map((n) => `${n.dataset.service}:${n.dataset.id}`));
+    const seen = new Set(Array.from(tg.list.querySelectorAll<HTMLElement>(`[${LIVE_ATTR}]`)).map((n) => `${n.dataset.service}:${n.dataset.id}`));
     const fresh = page.posts.filter((p) => p && p.id != null && !seen.has(`${p.service}:${p.id}`));
-    t.list.append(...fresh.map(buildCard));
+    tg.list.append(...fresh.map(buildCard));
     shown += fresh.length;
     total = page.total ?? total;
     hasMore = page.posts.length >= PAGE_SIZE && (total === null || offset + page.posts.length < total);
@@ -311,7 +312,7 @@ async function runSearch(text: string, append: boolean): Promise<void> {
       if (moreBox) moreBox.hidden = true;
       return;
     }
-    setStatus(`Search failed: ${(error as Error).message || 'network error'}. Press Enter for the site search.`, false, true);
+    setStatus(t('search.failed', { error: (error as Error).message || t('search.networkError') }), false, true);
   } finally {
     if (mySeq === seq) {
       controller = null;
@@ -325,10 +326,10 @@ function loadMore(): Promise<void> {
 }
 
 function onInput(): void {
-  const t = target;
-  if (!t) return;
+  const tg = target;
+  if (!tg) return;
   clearTimeout(debounceTimer);
-  const text = t.input.value.trim();
+  const text = tg.input.value.trim();
   // Too short, or back to what the server already shows: the page's own cards
   if (text.length < MIN_QUERY || text === originalValue.trim()) {
     clearSearch(false);
@@ -349,16 +350,16 @@ function onKeydown(event: KeyboardEvent): void {
   }
 }
 
-function attach(t: Target): void {
-  target = t;
-  originalValue = t.input.value;
-  t.input.addEventListener('input', onInput);
-  t.input.addEventListener('keydown', onKeydown);
-  t.input.setAttribute('data-kdl-live-search', '');
+function attach(tg: Target): void {
+  target = tg;
+  originalValue = tg.input.value;
+  tg.input.addEventListener('input', onInput);
+  tg.input.addEventListener('keydown', onKeydown);
+  tg.input.setAttribute('data-kdl-live-search', '');
   cleanupInput = () => {
-    t.input.removeEventListener('input', onInput);
-    t.input.removeEventListener('keydown', onKeydown);
-    t.input.removeAttribute('data-kdl-live-search');
+    tg.input.removeEventListener('input', onInput);
+    tg.input.removeEventListener('keydown', onKeydown);
+    tg.input.removeAttribute('data-kdl-live-search');
   };
 }
 

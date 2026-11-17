@@ -16,11 +16,9 @@ export interface LocaleIndexEntry {
   code: string;
   name: string;
   version: number;
-  /** Hex SHA-256 of the exact bytes of locales/<code>.json */
-  sha256: string;
 }
 
-/** locales/index.json */
+/** locales/index.json, as the script keeps it (the file itself is a plain list of entries) */
 export interface LocaleIndex {
   packs: LocaleIndexEntry[];
 }

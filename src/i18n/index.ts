@@ -1,6 +1,6 @@
 // Localization: t() for our interface, a site dictionary for the site's own chrome (./site.ts).
 //
-// Sources, best first: a verified pack downloaded from the repo and cached in storage (./packs.ts),
+// Sources, best first: a validated pack downloaded from the repo and cached in storage (./packs.ts),
 // a pack bundled into the script (Russian), the English baseline in ./en. English is never downloaded.
 import { readStored, writeStored } from '../state/gmStorage';
 import ruPack from '../../locales/ru.json';
@@ -43,7 +43,7 @@ const isPack = (value: unknown): value is LocalePack => {
   return !!pack && typeof pack.code === 'string' && typeof pack.version === 'number' && typeof pack.ui === 'object' && typeof pack.site === 'object';
 };
 
-/** The cached (verified) download for a language, if any. */
+/** The cached (validated) download for a language, if any. */
 export function readCachedPack(code: string): LocalePack | null {
   const raw = readStored<string>(PACK_KEY_PREFIX + code, '');
   if (!raw) return null;
@@ -79,7 +79,7 @@ export function getLanguageSetting(): string {
   return readStored<string>(LANG_SETTING_KEY, 'auto') || 'auto';
 }
 
-/** Languages to offer: English, the bundled ones and whatever the last verified index listed. */
+/** Languages to offer: English, the bundled ones and whatever the last downloaded index listed. */
 export function availableLanguages(): { code: string; name: string }[] {
   const list = [...BASE_LANGUAGES];
   readCachedIndex()?.packs.forEach((entry) => {

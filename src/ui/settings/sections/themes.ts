@@ -24,22 +24,23 @@ import { css } from '../../../utils/cssBuilder';
 import { badge, button, checkbox, emptyState, field, getKitRoot, input, select, switchControl, textarea, toast } from '../../kit';
 import { notifySaved, section, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
-import { peekButton, themePreviewStyles, themeThumbnail } from '../themePreview';
+import { peekButton, themeDescription, themeName, themePreviewStyles, themeThumbnail } from '../themePreview';
+import { t, tx, type UiKey } from '../../../i18n';
 import './shadcnSwatches';
 
 const STYLE_ID = 'kdl-themes-styles';
 const PREVIEW_DEBOUNCE_MS = 400;
 
-const ACTION_HINTS: Record<TransformAction, string> = {
-  hide: 'no argument (CSS display:none)',
-  remove: 'no argument',
-  addClass: 'class names',
-  setAttr: 'name=value',
-  moveBefore: 'target selector',
-  moveInto: 'target selector',
-  wrap: 'wrapper class names',
-  setText: 'text',
-  sticky: 'top offset, e.g. 0 or 3rem',
+const ACTION_HINTS: Record<TransformAction, UiKey> = {
+  hide: 'themes.transform.hint.hide',
+  remove: 'themes.transform.hint.remove',
+  addClass: 'themes.transform.hint.addClass',
+  setAttr: 'themes.transform.hint.setAttr',
+  moveBefore: 'themes.transform.hint.target',
+  moveInto: 'themes.transform.hint.target',
+  wrap: 'themes.transform.hint.wrap',
+  setText: 'themes.transform.hint.setText',
+  sticky: 'themes.transform.hint.sticky',
 };
 
 const styles = css({
@@ -118,15 +119,18 @@ function download(json: string, name: string): void {
   saveBlob(new Blob([json], { type: 'application/json' }), name);
 }
 
+/** Page types read as in the Modules tab ("Post lists", "Creator"...) */
+const pageLabel = (page: string): string => tx(`settings.modules.page.${page}`, page);
+
 function scopeLabel(theme: Theme): string {
-  const sites = theme.sites === 'any' ? 'all sites' : theme.sites.join(', ');
-  const pages = theme.pages === 'any' ? 'all pages' : theme.pages.join(', ');
+  const sites = theme.sites === 'any' ? t('themes.scope.allSites') : theme.sites.join(', ');
+  const pages = theme.pages === 'any' ? t('themes.scope.allPages') : theme.pages.map(pageLabel).join(', ');
   return `${sites} · ${pages}`;
 }
 
 function showError(error: unknown): void {
   const message = error instanceof Error ? error.message : String(error);
-  toast({ title: 'Theme error', description: message, variant: 'destructive' });
+  toast({ title: t('themes.error'), description: message, variant: 'destructive' });
   if (!(error instanceof ThemeError)) console.error('[KDL:restyle]', error);
 }
 
@@ -160,15 +164,17 @@ function pickFile(onText: (text: string) => void): void {
 
 function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement {
   const builtin = theme.origin === 'builtin';
+  const name = themeName(theme);
+  const description = themeDescription(theme);
   const actions: HTMLElement[] = [peekButton(theme)];
-  if (!builtin) actions.push(button({ icon: 'settings', variant: 'ghost', size: 'icon', ariaLabel: `Edit ${theme.name}`, title: 'Edit', onClick: () => open(theme.id) }));
+  if (!builtin) actions.push(button({ icon: 'settings', variant: 'ghost', size: 'icon', ariaLabel: t('themes.action.editNamed', { name }), title: t('themes.action.edit'), onClick: () => open(theme.id) }));
   actions.push(
     button({
       icon: 'copy',
       variant: 'ghost',
       size: 'icon',
-      ariaLabel: `Duplicate ${theme.name}`,
-      title: builtin ? 'Duplicate to edit' : 'Duplicate',
+      ariaLabel: t('themes.action.duplicateNamed', { name }),
+      title: builtin ? t('themes.action.duplicateToEdit') : t('themes.action.duplicate'),
       onClick: () => {
         try {
           const copy = duplicateTheme(theme.id);
@@ -178,7 +184,7 @@ function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement 
         }
       },
     }),
-    button({ icon: 'download', variant: 'ghost', size: 'icon', ariaLabel: `Export ${theme.name}`, title: 'Export', onClick: () => download(exportThemeJson(theme), fileName(theme.name)) })
+    button({ icon: 'download', variant: 'ghost', size: 'icon', ariaLabel: t('themes.action.exportNamed', { name }), title: t('themes.action.export'), onClick: () => download(exportThemeJson(theme), fileName(theme.name)) })
   );
   if (!builtin) {
     actions.push(
@@ -186,10 +192,10 @@ function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement 
         icon: 'x',
         variant: 'ghost',
         size: 'icon',
-        ariaLabel: `Delete ${theme.name}`,
-        title: 'Delete',
+        ariaLabel: t('themes.action.deleteNamed', { name }),
+        title: t('themes.action.delete'),
         onClick: () => {
-          if (!confirm(`Delete the theme "${theme.name}"? This cannot be undone.`)) return;
+          if (!confirm(t('themes.delete.confirm', { name }))) return;
           deleteTheme(theme.id);
           open(null);
         },
@@ -197,16 +203,16 @@ function themeRow(theme: Theme, open: (id: string | null) => void): HTMLElement 
     );
   }
   const tags = [
-    builtin ? badge({ text: 'Preset', variant: 'secondary' }) : null,
-    theme.origin === 'import' ? badge({ text: 'Imported', variant: 'outline' }) : null,
-    theme.script ? badge({ text: 'Script', variant: 'warning' }) : null,
+    builtin ? badge({ text: t('themes.badge.preset'), variant: 'secondary' }) : null,
+    theme.origin === 'import' ? badge({ text: t('themes.badge.imported'), variant: 'outline' }) : null,
+    theme.script ? badge({ text: t('themes.badge.script'), variant: 'warning' }) : null,
   ];
   return el('div', { className: 'kdl-themes__row', dataset: { theme: theme.id } }, [
-    switchControl({ checked: theme.enabled, ariaLabel: `Enable ${theme.name}`, onChange: (on) => setThemeEnabled(theme.id, on) }),
+    switchControl({ checked: theme.enabled, ariaLabel: t('themes.action.enableNamed', { name }), onChange: (on) => setThemeEnabled(theme.id, on) }),
     themeThumbnail(theme),
     el('div', { className: 'kdl-themes__info' }, [
-      el('div', { className: 'kdl-themes__name' }, [theme.name, ...tags]),
-      el('div', { className: 'kdl-themes__meta', textContent: theme.description ? `${theme.description} (${scopeLabel(theme)})` : scopeLabel(theme) }),
+      el('div', { className: 'kdl-themes__name' }, [name, ...tags]),
+      el('div', { className: 'kdl-themes__meta', textContent: description ? `${description} (${scopeLabel(theme)})` : scopeLabel(theme) }),
     ]),
     el('div', { className: 'kdl-themes__actions' }, actions),
   ]);
@@ -218,16 +224,16 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
   const own = themes.filter((t) => t.origin !== 'builtin');
 
   const toolbar = el('div', { className: 'kdl-themes__toolbar' }, [
-    button({ id: 'kdl-themes-new', label: 'New theme', icon: 'file', onClick: () => open(createTheme().id) }),
+    button({ id: 'kdl-themes-new', label: t('themes.new'), icon: 'file', onClick: () => open(createTheme().id) }),
     button({
-      label: 'Import',
+      label: t('themes.import'),
       icon: 'folder-open',
       variant: 'secondary',
       onClick: () =>
         pickFile((text) => {
           try {
             const imported = importThemesJson(text);
-            toast({ title: `Imported ${imported.length} theme${imported.length === 1 ? '' : 's'}`, description: 'Imported themes start disabled.', variant: 'success' });
+            toast({ title: t('themes.import.done', { count: imported.length }), description: t('themes.import.disabled'), variant: 'success' });
             open(null);
           } catch (error) {
             showError(error);
@@ -235,7 +241,7 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
         }),
     }),
     button({
-      label: 'Export all',
+      label: t('themes.exportAll'),
       icon: 'download',
       variant: 'secondary',
       disabled: !own.length,
@@ -245,22 +251,22 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
 
   const ownList = own.length
     ? el('div', { className: 'kdl-themes__list' }, own.map((t) => themeRow(t, open)))
-    : emptyState({ icon: 'sliders-horizontal', title: 'No themes yet', description: 'Create one, import a file, or duplicate a preset.' });
+    : emptyState({ icon: 'sliders-horizontal', title: t('themes.empty.title'), description: t('themes.empty.description') });
 
   return [
-    section('Your themes', [toolbar, ownList], {
+    section(t('themes.own.title'), [toolbar, ownList], {
       icon: 'sliders-horizontal',
-      description: 'CSS, colours and layout transforms applied on top of the site. Later themes win over earlier ones.',
+      description: t('themes.own.description'),
     }),
-    section('Presets', [el('div', { className: 'kdl-themes__list' }, presets.map((t) => themeRow(t, open)))], {
+    section(t('themes.presets.title'), [el('div', { className: 'kdl-themes__list' }, presets.map((p) => themeRow(p, open)))], {
       icon: 'layout-grid',
-      description: 'Built-in looks. Turn on as many as you like, or duplicate one to change it.',
+      description: t('themes.presets.description'),
     }),
-    section('Scripts', [
+    section(t('themes.scripts.title'), [
       switchRow({
         id: 'kdl-themes-allow-scripts',
-        label: 'Allow theme scripts',
-        description: 'Runs the Script field of themes created in this browser. Imported themes never carry scripts.',
+        label: tx('mod.restyle.setting.allowScripts', 'Allow theme scripts'),
+        description: tx('mod.restyle.setting.allowScripts.hint', 'Runs the Script field of themes created in this browser. Imported themes never carry scripts.'),
         checked: getModuleSetting<boolean>('restyle', 'allowScripts') === true,
         onChange: (on) => {
           setModuleSetting('restyle', 'allowScripts', on);
@@ -269,7 +275,7 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
       }),
       el('p', {
         className: 'kdl-themes__warning',
-        textContent: 'Scripts run with full access to the page. They may not run at all where the site’s CSP forbids eval, or under AdGuard.',
+        textContent: t('themes.scripts.warning'),
       }),
     ], { icon: 'triangle-alert' }),
   ];
@@ -277,7 +283,7 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
 
 // --- Editor ---------------------------------------------------------------------------------
 
-function checkGroup<T extends string>(all: readonly T[], selected: T[] | 'any', onChange: (value: T[] | 'any') => void): HTMLElement {
+function checkGroup<T extends string>(all: readonly T[], selected: T[] | 'any', onChange: (value: T[] | 'any') => void, label: (value: T) => string = (v) => v): HTMLElement {
   const chosen = new Set(selected === 'any' ? [] : selected);
   return el(
     'div',
@@ -292,7 +298,7 @@ function checkGroup<T extends string>(all: readonly T[], selected: T[] | 'any', 
             onChange(chosen.size ? all.filter((v) => chosen.has(v)) : 'any');
           },
         }),
-        value,
+        label(value),
       ])
     )
   );
@@ -317,8 +323,8 @@ function varsEditor(draft: Theme, changed: () => void): HTMLElement {
     THEME_VARS.map((def) => {
       const text = input({
         value: draft.vars[def.name] ?? '',
-        placeholder: def.kind === 'color' ? 'unset' : def.placeholder ?? 'unset',
-        ariaLabel: def.label,
+        placeholder: def.kind === 'color' ? t('themes.var.unset') : def.placeholder ?? t('themes.var.unset'),
+        ariaLabel: t(def.label),
         onInput: (v) => {
           if (picker) picker.value = toHex(v.trim());
           setVar(def.name, v);
@@ -327,13 +333,13 @@ function varsEditor(draft: Theme, changed: () => void): HTMLElement {
       let picker: HTMLInputElement | null = null;
       if (def.kind === 'color') {
         picker = el('input', { type: 'color', className: 'kdl-themes__color', value: toHex(draft.vars[def.name] ?? '') });
-        picker.setAttribute('aria-label', `${def.label} colour`);
+        picker.setAttribute('aria-label', t('themes.var.colourOf', { name: t(def.label) }));
         picker.addEventListener('input', () => {
           text.value = picker!.value;
           setVar(def.name, picker!.value);
         });
       }
-      return field({ label: def.label, description: def.name, control: el('div', { className: 'kdl-themes__var' }, [picker, text]) });
+      return field({ label: t(def.label), description: def.name, control: el('div', { className: 'kdl-themes__var' }, [picker, text]) });
     })
   );
 }
@@ -341,28 +347,28 @@ function varsEditor(draft: Theme, changed: () => void): HTMLElement {
 function transformsEditor(draft: Theme, changed: () => void): HTMLElement {
   const wrap = el('div', { className: 'kdl-settings__group' });
   const render = () => {
-    const rows = draft.transforms.map((t, index) => {
+    const rows = draft.transforms.map((tr, index) => {
       const update = (patch: Partial<Transform>) => {
         draft.transforms[index] = { ...draft.transforms[index], ...patch };
         changed();
       };
-      const argInput = input({ value: t.arg ?? '', placeholder: ACTION_HINTS[t.action], ariaLabel: 'Argument', onInput: (v) => update({ arg: v || undefined }) });
+      const argInput = input({ value: tr.arg ?? '', placeholder: t(ACTION_HINTS[tr.action]), ariaLabel: t('themes.transform.argument'), onInput: (v) => update({ arg: v || undefined }) });
       return el('div', { className: 'kdl-themes__transform' }, [
-        input({ value: t.selector, placeholder: 'CSS selector', ariaLabel: 'Selector', onInput: (v) => update({ selector: v }) }),
+        input({ value: tr.selector, placeholder: t('themes.transform.selector.placeholder'), ariaLabel: t('themes.transform.selector'), onInput: (v) => update({ selector: v }) }),
         select({
-          value: t.action,
-          ariaLabel: 'Action',
+          value: tr.action,
+          ariaLabel: t('themes.transform.action'),
           options: TRANSFORM_ACTIONS,
           onChange: (v) => {
             update({ action: v as TransformAction });
-            argInput.placeholder = ACTION_HINTS[v as TransformAction];
+            argInput.placeholder = t(ACTION_HINTS[v as TransformAction]);
           },
         }),
         argInput,
         input({
-          value: t.pages?.join(', ') ?? '',
-          placeholder: 'pages (all)',
-          ariaLabel: 'Pages, comma separated',
+          value: tr.pages?.join(', ') ?? '',
+          placeholder: t('themes.transform.pages.placeholder'),
+          ariaLabel: t('themes.transform.pages'),
           onChange: (v) => {
             const pages = v.split(/[\s,]+/).filter((p): p is PageType => PAGE_TYPES.includes(p as PageType));
             update({ pages: pages.length ? pages : undefined });
@@ -372,7 +378,7 @@ function transformsEditor(draft: Theme, changed: () => void): HTMLElement {
           icon: 'x',
           variant: 'ghost',
           size: 'icon',
-          ariaLabel: 'Remove transform',
+          ariaLabel: t('themes.transform.remove'),
           onClick: () => {
             draft.transforms.splice(index, 1);
             changed();
@@ -385,7 +391,7 @@ function transformsEditor(draft: Theme, changed: () => void): HTMLElement {
       ...rows,
       el('div', { className: 'kdl-themes__toolbar' }, [
         button({
-          label: 'Add transform',
+          label: t('themes.transform.add'),
           icon: 'check',
           variant: 'outline',
           size: 'sm',
@@ -409,7 +415,7 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
 
   const showStatus = () => {
     const size = themeSize(draft);
-    status.textContent = `${(size / 1024).toFixed(1)} KB of ${MAX_THEME_BYTES / 1024} KB`;
+    status.textContent = t('themes.size', { size: (size / 1024).toFixed(1), max: MAX_THEME_BYTES / 1024 });
     delete status.dataset.error;
   };
   const save = () => {
@@ -429,7 +435,7 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
       themeThumbnail(draft),
       el('p', {
         className: 'kdl-themes__preview-note',
-        textContent: 'Sketch of the page with this theme’s colours, radius and card gap. Only pages listed under Pages are drawn as a post or creator page.',
+        textContent: t('themes.preview.note'),
       })
     );
   drawPreview();
@@ -443,7 +449,7 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
 
   const head = el('div', { className: 'kdl-themes__toolbar' }, [
     button({
-      label: 'Back to themes',
+      label: t('themes.back'),
       icon: 'chevron-left',
       variant: 'outline',
       size: 'sm',
@@ -454,14 +460,14 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
       },
     }),
     el('span', { className: 'kdl-settings__footer-spacer' }),
-    button({ label: 'Export', icon: 'download', variant: 'secondary', size: 'sm', onClick: () => download(exportThemeJson(draft), fileName(draft.name)) }),
+    button({ label: t('themes.action.export'), icon: 'download', variant: 'secondary', size: 'sm', onClick: () => download(exportThemeJson(draft), fileName(draft.name)) }),
     button({
-      label: 'Delete',
+      label: t('themes.action.delete'),
       icon: 'x',
       variant: 'destructive',
       size: 'sm',
       onClick: () => {
-        if (!confirm(`Delete the theme "${draft.name}"? This cannot be undone.`)) return;
+        if (!confirm(t('themes.delete.confirm', { name: draft.name }))) return;
         clearTimeout(timer);
         deleteTheme(draft.id);
         open(null);
@@ -469,48 +475,46 @@ function editorView(theme: Theme, open: (id: string | null) => void): HTMLElemen
     }),
   ]);
 
-  const general = section('Theme', [
+  const general = section(t('themes.editor.title'), [
     head,
     field({
-      label: 'Name',
+      label: t('themes.editor.name'),
       control: input({ id: 'kdl-theme-name', value: draft.name, onInput: (v) => ((draft.name = v), changed()) }),
     }),
     preview,
-    switchRow({ label: 'Enabled', checked: draft.enabled, onChange: (on) => ((draft.enabled = on), changed()) }),
-    field({ label: 'Sites', description: 'None checked: every site.', control: checkGroup<SiteId>(SITE_IDS, draft.sites, (v) => ((draft.sites = v), changed())) }),
-    field({ label: 'Pages', description: 'None checked: every page.', control: checkGroup<PageType>(PAGE_TYPES, draft.pages, (v) => ((draft.pages = v), changed())) }),
+    switchRow({ label: t('themes.editor.enabled'), checked: draft.enabled, onChange: (on) => ((draft.enabled = on), changed()) }),
+    field({ label: t('themes.editor.sites'), description: t('themes.editor.sites.hint'), control: checkGroup<SiteId>(SITE_IDS, draft.sites, (v) => ((draft.sites = v), changed())) }),
+    field({ label: t('themes.editor.pages'), description: t('themes.editor.pages.hint'), control: checkGroup<PageType>(PAGE_TYPES, draft.pages, (v) => ((draft.pages = v), changed()), pageLabel) }),
     status,
   ], { icon: 'settings' });
 
-  const colours = section('Variables', [varsEditor(draft, changed)], {
+  const colours = section(t('themes.editor.vars'), [varsEditor(draft, changed)], {
     icon: 'sliders-horizontal',
-    description: 'Site-wide values; colours also recolour the script’s own panels. Leave empty to keep the site default.',
+    description: t('themes.editor.vars.hint'),
   });
 
   const cssSection = section('CSS', [
     codeArea(draft.css, (v) => ((draft.css = v), changed())),
     el('p', {
       className: 'kdl-settings__note',
-      textContent: 'Every selector is scoped to the theme’s sites and pages automatically (`:root`/`html` included). Changes preview as you type.',
+      textContent: t('themes.editor.css.note'),
     }),
   ], { icon: 'file' });
 
-  const transforms = section('Transforms', [transformsEditor(draft, changed), errors], {
+  const transforms = section(t('themes.editor.transforms'), [transformsEditor(draft, changed), errors], {
     icon: 'layout-grid',
-    description: 'hide and sticky become CSS; the rest change the page and are undone when the theme turns off.',
+    description: t('themes.editor.transforms.hint'),
   });
 
   const out = [general, colours, cssSection, transforms];
   if (draft.origin === 'local') {
     const allowed = getModuleSetting<boolean>('restyle', 'allowScripts') === true;
     out.push(
-      section('Script', [
+      section(t('themes.editor.script'), [
         codeArea(draft.script ?? '', (v) => ((draft.script = v), changed()), 8),
         el('p', {
           className: 'kdl-themes__warning',
-          textContent:
-            (allowed ? '' : 'Scripts are off: turn on "Allow theme scripts" in the theme list. ') +
-            'Runs as new Function(kdl) with kdl = { page, site, theme, root, onCleanup(fn) }, once per page. May fail under a strict CSP or AdGuard. Never exported.',
+          textContent: (allowed ? `${t('themes.editor.script.off')} ` : '') + t('themes.editor.script.note'),
         }),
       ], { icon: 'triangle-alert' })
     );

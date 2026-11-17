@@ -3,11 +3,14 @@
 // Redefining a site variable replaces it (there is no "fallback to the old value"), so a
 // mapping is only emitted for the variables a theme actually sets.
 
+import type { UiKey } from '../../i18n';
+
 export type VarKind = 'color' | 'length' | 'font';
 
 export interface ThemeVarDef {
   name: string;
-  label: string;
+  /** i18n key of the label shown in the theme editor */
+  label: UiKey;
   kind: VarKind;
   /** Site custom properties set to var(name) */
   site: string[];
@@ -21,7 +24,7 @@ export interface ThemeVarDef {
 export const THEME_VARS: ThemeVarDef[] = [
   {
     name: '--kdl-site-bg',
-    label: 'Background',
+    label: 'themes.var.bg',
     kind: 'color',
     site: ['--colour1-primary'],
     kit: ['--kdl-background', '--kdl-primary-foreground'],
@@ -29,7 +32,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-site-surface',
-    label: 'Surface (sidebar, header, cards)',
+    label: 'themes.var.surface',
     kind: 'color',
     site: ['--colour1-secondary'],
     kit: ['--kdl-card', '--kdl-popover', '--kdl-secondary', '--kdl-muted', '--kdl-accent'],
@@ -40,7 +43,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-site-text',
-    label: 'Text',
+    label: 'themes.var.text',
     kind: 'color',
     site: ['--colour0-primary'],
     kit: ['--kdl-foreground', '--kdl-card-foreground', '--kdl-popover-foreground', '--kdl-secondary-foreground', '--kdl-accent-foreground'],
@@ -48,7 +51,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-site-muted',
-    label: 'Muted text',
+    label: 'themes.var.muted',
     kind: 'color',
     site: ['--colour0-secondary'],
     kit: ['--kdl-muted-foreground'],
@@ -56,7 +59,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-site-accent',
-    label: 'Accent (links, buttons)',
+    label: 'themes.var.accent',
     kind: 'color',
     site: [
       '--anchour-colour1-primary',
@@ -70,7 +73,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-radius',
-    label: 'Corner radius',
+    label: 'themes.var.radius',
     kind: 'length',
     site: [],
     kit: ['--kdl-radius'],
@@ -82,7 +85,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-content-width',
-    label: 'Content width',
+    label: 'themes.var.contentWidth',
     kind: 'length',
     site: [],
     kit: [],
@@ -91,7 +94,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-grid-gap',
-    label: 'Card gap',
+    label: 'themes.var.gridGap',
     kind: 'length',
     site: [],
     kit: [],
@@ -100,7 +103,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-font',
-    label: 'Font family',
+    label: 'themes.var.font',
     kind: 'font',
     site: [],
     kit: ['--kdl-font'],
@@ -109,7 +112,7 @@ export const THEME_VARS: ThemeVarDef[] = [
   },
   {
     name: '--kdl-font-size',
-    label: 'Font size',
+    label: 'themes.var.fontSize',
     kind: 'length',
     site: [],
     kit: [],

@@ -133,7 +133,7 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
   });
   node.classList.add('kdl-settings__module');
   node.dataset.module = mod.id;
-  node.dataset.search = [mod.id, mod.name, modName(mod), mod.description, modDescription(mod), mod.group, mod.group && modGroup(mod.group), extra?.title]
+  node.dataset.search = [mod.id, mod.name, modName(mod), mod.description, modDescription(mod), mod.group, mod.group && modGroup(mod.group), extra?.title, extra && tx(`settings.tab.${extra.id}`, extra.title)]
     .filter(Boolean)
     .join(' ')
     .toLowerCase();
@@ -187,9 +187,9 @@ function renderModules(container: HTMLElement): void {
     groups.get(group)!.push(moduleCard(mod, byModule.get(mod.id)));
   });
   const looseCards = loose.map((s) => {
-    const node = section(s.title, [], { icon: s.icon, description: s.description });
+    const node = section(tx(`settings.tab.${s.id}`, s.title), [], { icon: s.icon, description: s.description });
     node.dataset.section = s.id;
-    node.dataset.search = [s.id, s.title, s.description].filter(Boolean).join(' ').toLowerCase();
+    node.dataset.search = [s.id, s.title, tx(`settings.tab.${s.id}`, s.title), s.description].filter(Boolean).join(' ').toLowerCase();
     s.render(node.querySelector<HTMLElement>('.kdl-ui-card__content')!);
     return node;
   });

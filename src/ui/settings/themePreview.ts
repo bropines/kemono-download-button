@@ -7,17 +7,18 @@ import { scopeSelector } from '../../modules/restyle/scopeCss';
 import type { Theme } from '../../modules/restyle/types';
 import { el } from '../../utils/dom';
 import { button, getKitRoot, KIT_ROOT_ID } from '../kit';
+import { t, tx, type UiKey } from '../../i18n';
 
 type MockPage = 'grid' | 'post' | 'creator';
 type Variant = 'dense' | 'rail' | 'compact-header' | 'reader' | 'creator-compact' | 'dim' | '';
 
-const PRESET_VARIANTS: Record<string, { page: MockPage; variant: Variant; caption: string }> = {
-  'builtin-dense-grid': { page: 'grid', variant: 'dense', caption: 'More, smaller cards' },
-  'builtin-clutter-off': { page: 'grid', variant: 'rail', caption: 'Icon rail, no banners or footer' },
-  'builtin-compact-header': { page: 'grid', variant: 'compact-header', caption: 'Thin sticky top bar' },
-  'builtin-reader': { page: 'post', variant: 'reader', caption: 'Centred reading column' },
-  'builtin-compact-creator': { page: 'creator', variant: 'creator-compact', caption: 'Slim header, pill tabs' },
-  'builtin-dim-viewed': { page: 'grid', variant: 'dim', caption: 'Viewed posts fade out' },
+const PRESET_VARIANTS: Record<string, { page: MockPage; variant: Variant; caption: UiKey }> = {
+  'builtin-dense-grid': { page: 'grid', variant: 'dense', caption: 'themes.preview.caption.denseGrid' },
+  'builtin-clutter-off': { page: 'grid', variant: 'rail', caption: 'themes.preview.caption.clutterOff' },
+  'builtin-compact-header': { page: 'grid', variant: 'compact-header', caption: 'themes.preview.caption.compactHeader' },
+  'builtin-reader': { page: 'post', variant: 'reader', caption: 'themes.preview.caption.reader' },
+  'builtin-compact-creator': { page: 'creator', variant: 'creator-compact', caption: 'themes.preview.caption.compactCreator' },
+  'builtin-dim-viewed': { page: 'grid', variant: 'dim', caption: 'themes.preview.caption.dimViewed' },
 };
 
 const DEFAULTS = {
@@ -59,7 +60,7 @@ function scaled(value: string | undefined, factor: number, max: number): string 
 
 function mockFor(theme: Theme): { page: MockPage; variant: Variant; caption: string } {
   const preset = PRESET_VARIANTS[theme.id];
-  if (preset) return preset;
+  if (preset) return { ...preset, caption: t(preset.caption) };
   const pages = theme.pages === 'any' ? [] : theme.pages;
   if (pages.length && pages.every((p) => p === 'post')) return { page: 'post', variant: '', caption: '' };
   if (pages.length && pages.every((p) => p === 'creator')) return { page: 'creator', variant: '', caption: '' };
@@ -131,6 +132,15 @@ const PEEK_STYLE_ID = 'kdl-peek-theme';
 const PEEK_CLASS = 'kdl-peek';
 let peekHint: HTMLElement | null = null;
 
+/** Built-in presets are translated (`themes.preset.<id>.name`); user themes keep their own name */
+export function themeName(theme: Theme): string {
+  return theme.origin === 'builtin' ? tx(`themes.preset.${theme.id}.name`, theme.name) : theme.name;
+}
+
+export function themeDescription(theme: Theme): string {
+  return theme.origin === 'builtin' ? tx(`themes.preset.${theme.id}.description`, theme.description ?? '') : theme.description ?? '';
+}
+
 export function themeAppliesHere(theme: Theme): boolean {
   try {
     return document.documentElement.matches(scopeSelector(theme.sites, theme.pages));
@@ -150,7 +160,7 @@ function startPeek(theme: Theme): void {
   (document.head || document.documentElement).appendChild(style);
   document.getElementById(KIT_ROOT_ID)?.classList.add(PEEK_CLASS);
   peekHint?.remove();
-  peekHint = el('div', { className: 'kdl-tp-peek-hint', textContent: `Previewing “${theme.name}” · release to go back` });
+  peekHint = el('div', { className: 'kdl-tp-peek-hint', textContent: t('themes.peek.hint', { name: themeName(theme) }) });
   getKitRoot().appendChild(peekHint);
 }
 
@@ -168,10 +178,8 @@ export function peekButton(theme: Theme): HTMLButtonElement {
     icon: 'eye',
     variant: 'ghost',
     size: 'icon',
-    ariaLabel: `Hold to preview ${theme.name} on this page`,
-    title: applies
-      ? 'Hold to preview on this page (CSS, colours, hide/sticky; other transforms are not previewed)'
-      : 'This theme does not apply to the current page',
+    ariaLabel: t('themes.peek.label', { name: themeName(theme) }),
+    title: applies ? t('themes.peek.title') : t('themes.peek.notHere'),
     disabled: !applies,
     className: 'kdl-tp-peek',
   });

@@ -1,3 +1,41 @@
 // English source strings (modules). Keys are namespaced; see src/i18n/README.md.
+// Module names, descriptions and setting labels come from `mod.<id>.*` convention keys, not from here.
 export default {
+  // tags.tools
+  'tags.filter.placeholder': 'Filter tags…',
+  'tags.filter.label': 'Filter tags',
+  'tags.sort.label': 'Sort tags',
+  'tags.script.label': 'Filter by script',
+  'tags.script.all': 'All scripts',
+  'tags.script.latin': 'Latin',
+  'tags.script.cyrillic': 'Cyrillic',
+  'tags.script.cjk': 'CJK (Han, Kana, Hangul)',
+  'tags.script.other': 'Other',
+  'tags.group.button': 'A–Z groups',
+  'tags.group.title': 'Group by first letter',
+  'tags.jump.label': 'Jump to letter',
+  'tags.jump.key': '{letter}: {count, plural, one{# tag} other{# tags}}',
+  'tags.count': '{count, plural, one{# tag} other{# tags}}',
+  'tags.countFiltered': '{shown} of {count, plural, one{# tag} other{# tags}}',
+  'tags.empty': 'No tags match',
+
+  // posts.search
+  'search.noResults': 'No results for “{query}”',
+  'search.results': '{count, plural, one{# result} other{# results}}',
+  'search.resultsMore': '{count}+ results',
+  'search.hint': 'Enter: full search · Esc: clear',
+  'search.clear': 'Clear',
+  'search.loadMore': 'Load more',
+  'search.loadingMore': '{results} · loading more…',
+  'search.searching': 'Searching…',
+  'search.failed': 'Search failed: {error}. Press Enter for the site search.',
+  'search.networkError': 'network error',
+  'search.untitled': 'Untitled',
+
+  // ui.shadcn.pages: FAQ toolbar
+  'faq.filter.placeholder': 'Filter questions…',
+  'faq.filter.label': 'Filter questions',
+  'faq.expandAll': 'Expand all',
+  'faq.collapseAll': 'Collapse all',
+  'faq.empty': 'No answers match.',
 } as const;
