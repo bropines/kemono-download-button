@@ -74,6 +74,8 @@ export default {
   // Post gallery and videos
   'kui.gallery.toggleThumbnails': 'Toggle thumbnails',
   'kui.video.togglePlaylist': 'Toggle playlist',
+  'kui.video.loopOn': 'Loop video (L)',
+  'kui.video.loopOff': 'Stop looping (L)',
   'kui.video.untitled': 'Video {n}',
 
   // Text translation buttons

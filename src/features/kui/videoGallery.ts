@@ -3,6 +3,68 @@ import { VideoData } from '../../types';
 import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
 import { t } from '../../i18n';
 import { plyrI18n } from '../../i18n/plyr';
+import { icon } from '../../config/icons';
+import { readStored, writeStored } from '../../state/gmStorage';
+
+// Loop toggle in Plyr's control bar. Plyr has the L key and player.loop but no button, and it swaps the <video>
+// on every source change, so the choice is kept here (and stored) and put back on each new video.
+const LOOP_KEY = 'kui.video.loop';
+function addLoopControl(player: Plyr): void {
+  let looping = readStored<boolean>(LOOP_KEY, false) === true;
+  const label = (): string => t(looping ? 'kui.video.loopOff' : 'kui.video.loopOn');
+  const tip = document.createElement('span');
+  tip.className = 'plyr__tooltip';
+  const control = document.createElement('button');
+  control.type = 'button';
+  control.className = 'plyr__controls__item plyr__control kui-plyr-loop';
+  control.append(icon('repeat'), tip);
+  const render = (): void => {
+    control.classList.toggle('plyr__control--pressed', looping);
+    control.setAttribute('aria-pressed', String(looping));
+    control.setAttribute('aria-label', label());
+    tip.textContent = label();
+  };
+  const apply = (): void => {
+    try {
+      (player as unknown as { loop: boolean }).loop = looping;
+    } catch {
+      /* media not ready yet: the next ready/loadedmetadata applies it */
+    }
+    if (player.media) player.media.loop = looping;
+    render();
+  };
+  const set = (value: boolean): void => {
+    looping = value;
+    writeStored(LOOP_KEY, value);
+    apply();
+  };
+  control.addEventListener('click', () => set(!looping));
+  // Plyr's own L shortcut flips player.loop: follow it
+  const followKey = (event: KeyboardEvent): void => {
+    if (event.key.toLowerCase() !== 'l' || event.ctrlKey || event.metaKey || event.altKey) return;
+    setTimeout(() => {
+      const now = !!player.media?.loop;
+      if (now !== looping) set(now);
+    }, 0);
+  };
+  document.addEventListener('keydown', followKey);
+  player.on('destroy', () => document.removeEventListener('keydown', followKey));
+  const place = (): void => {
+    const controls = (player.elements as { controls?: HTMLElement | null }).controls;
+    if (!controls) return;
+    if (!control.isConnected || control.parentElement !== controls) {
+      // Before the settings / PiP / fullscreen group at the right end
+      const anchor = controls.querySelector('[data-plyr="settings"], .plyr__menu, [data-plyr="pip"], [data-plyr="fullscreen"]');
+      const item = anchor?.closest('.plyr__controls__item, .plyr__menu') || anchor;
+      if (item && item.parentElement === controls) controls.insertBefore(control, item);
+      else controls.appendChild(control);
+    }
+    apply();
+  };
+  player.on('ready', place);
+  player.on('loadedmetadata', place);
+  place();
+}
 
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
@@ -156,6 +218,7 @@ export function initializeVideoGallery(): void {
     i18n: plyrI18n()
   });
   activePlayer = player;
+  addLoopControl(player);
 
   player.on("loadedmetadata", () => {
     const videoEl = player.media;

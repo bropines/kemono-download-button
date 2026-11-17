@@ -148,6 +148,14 @@ export const kuiPlyrStyles = css({
     pointerEvents: 'none',
     width: 'var(--plyr-control-icon-size,18px)',
   },
+  // Loop toggle (videoGallery.ts): a stroke icon, tinted while on
+  '.plyr__control.kui-plyr-loop svg': {
+    fill: 'none',
+    stroke: 'currentColor',
+  },
+  '.plyr__control.kui-plyr-loop.plyr__control--pressed': {
+    color: 'var(--plyr-color-main, #00b2ff)',
+  },
   '.plyr__control:focus': {
     outline: 0,
   },
