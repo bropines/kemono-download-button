@@ -4,6 +4,23 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-17
+
+Themes and a Modules tab.
+
+### Added
+- **Themes tab.** Restyle the site with your own CSS and colour, width, grid and font variables, limited to chosen sites and page types (post, creator, lists…). Edits preview live, themes import and export as files, and later themes win over earlier ones.
+- **Layout rules in themes:** hide, move, wrap, retext or restyle page elements declaratively; everything is undone cleanly when the theme is turned off or the page changes.
+- **Built-in presets**, all off by default: Dense grid, Clutter off, Compact sticky header, Reader mode, Compact creator header, Dim viewed posts.
+- **Theme scripts** for your own themes, local only and behind a separate "Allow theme scripts" switch. Imported themes never carry scripts.
+- **Modules tab.** Every feature is listed by group with its description, the pages it runs on, an on/off switch and its own settings, plus search.
+- Settings export/import now includes module switches and settings, embed rules, comment layout and debug options; imports check types and skip unknown keys.
+
+### Changed
+- Kit styles now win over the site's generic button and card CSS; card checkboxes, comments and translate-button tooltips use the kit.
+- The video player follows the kit colours.
+- The interface root repairs itself if the site removes it.
+
 ## [1.0.0] - 2026-11-17
 
 A new interface and a module system underneath it.
