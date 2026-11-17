@@ -9,12 +9,38 @@ import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitIcon, select } from '../../ui/kit';
 import { t, tx, type UiKey } from '../../i18n';
+import { getModuleSetting } from '../../core/registry';
 
 export const TAGS_TOOLS_ID = 'tags.tools';
 
 const CONTAINER = 'section#tag-container';
 const HIDDEN_ATTR = 'data-kdl-tag-hidden';
 const TOOLBAR_ID = 'kdl-tags-toolbar';
+
+// The layout lives on <html> (set at document start from the stored setting), so the site's cloud is drawn in
+// the chosen layout from the first paint. The toolbar's last height is remembered too and reserved above the
+// tags until the toolbar is built, so nothing jumps when it arrives.
+const LAYOUT_ATTR = 'data-kdl-tags-layout';
+const RESERVE_VAR = '--kdl-tags-reserve';
+const RESERVE_KEY = 'kdl-tags-toolbar-h';
+const layoutOf = (value: unknown): 'grid' | 'cloud' => (value === 'cloud' ? 'cloud' : 'grid');
+function setLayoutAttr(layout: 'grid' | 'cloud'): void {
+  if (document.documentElement.getAttribute(LAYOUT_ATTR) !== layout) document.documentElement.setAttribute(LAYOUT_ATTR, layout);
+}
+function readReserve(): number {
+  try {
+    return Number(localStorage.getItem(RESERVE_KEY)) || 0;
+  } catch {
+    return 0;
+  }
+}
+function saveReserve(height: number): void {
+  try {
+    if (height > 0 && Math.abs(readReserve() - height) > 1) localStorage.setItem(RESERVE_KEY, String(Math.round(height)));
+  } catch {
+    /* storage blocked: the reserve just stays a guess */
+  }
+}
 
 type SortMode = 'count-desc' | 'count-asc' | 'az' | 'za' | 'site';
 type ScriptId = 'all' | 'latin' | 'cyrillic' | 'cjk' | 'other';
@@ -192,13 +218,16 @@ function apply(): void {
 
   if (countLabel) countLabel.textContent = shown === items.length ? t('tags.count', { count: items.length }) : t('tags.countFiltered', { shown, count: items.length });
   container.toggleAttribute('data-kdl-tags-grouped', group);
-  container.setAttribute('data-kdl-tags-layout', ctx.settings.get<string>('layout') === 'cloud' ? 'cloud' : 'grid');
+  setLayoutAttr(layoutOf(ctx.settings.get<string>('layout')));
   // The value is the message the CSS shows
   if (shown === 0) container.setAttribute('data-kdl-tags-empty', t('tags.empty'));
   else container.removeAttribute('data-kdl-tags-empty');
   renderJumpBar(group ? shownLetters : null);
   // Jumped-to headings land below the sticky toolbar
-  if (toolbar) container.style.setProperty('--kdl-tags-toolbar-h', `${toolbar.offsetHeight + 12}px`);
+  if (toolbar) {
+    container.style.setProperty('--kdl-tags-toolbar-h', `${toolbar.offsetHeight + 12}px`);
+    saveReserve(toolbar.offsetHeight);
+  }
 }
 
 function renderJumpBar(letters: Map<string, number> | null): void {
@@ -340,7 +369,6 @@ function restore(): void {
     container.append(frag);
     container.removeAttribute('data-kdl-tags-grouped');
     container.removeAttribute('data-kdl-tags-empty');
-    container.removeAttribute('data-kdl-tags-layout');
     container.style.removeProperty('--kdl-tags-toolbar-h');
     if (!container.getAttribute('style')) container.removeAttribute('style');
   }
@@ -414,8 +442,12 @@ section#tag-container > .kdl-tags-letter {
   scroll-margin-top: var(--kdl-tags-toolbar-h, 120px);
 }
 section#tag-container[data-kdl-tags-grouped] { justify-content: flex-start; }
+/* Room for the toolbar until it is built (its last height, see RESERVE_KEY) */
+html[data-kdl-tags-layout] section#tag-container:not(.kdl-tags-toolbar + section#tag-container) {
+  margin-top: calc(var(${RESERVE_VAR}, 0px) + 2em) !important;
+}
 /* List layout: columns of rows, name left, post count right, a bar for popularity */
-section#tag-container[data-kdl-tags-layout="grid"] {
+html[data-kdl-tags-layout="grid"] section#tag-container {
   display: grid !important;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 2px 12px !important;
@@ -424,7 +456,7 @@ section#tag-container[data-kdl-tags-layout="grid"] {
   padding: 12px 0;
   box-sizing: border-box;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article {
+html[data-kdl-tags-layout="grid"] section#tag-container > article {
   display: block !important;
   width: auto !important;
   min-width: 0;
@@ -434,7 +466,7 @@ section#tag-container[data-kdl-tags-layout="grid"] > article {
   background: none !important;
   overflow: hidden;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article > a {
+html[data-kdl-tags-layout="grid"] section#tag-container > article > a {
   display: flex !important;
   align-items: center;
   gap: 8px;
@@ -448,33 +480,33 @@ section#tag-container[data-kdl-tags-layout="grid"] > article > a {
   line-height: 1;
   text-decoration: none;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article > a:is(:hover, :focus-visible) {
+html[data-kdl-tags-layout="grid"] section#tag-container > article > a:is(:hover, :focus-visible) {
   background:
     linear-gradient(to right, color-mix(in srgb, var(--kdl-primary, #888) 32%, transparent) var(--kdl-tag-p, 0%), transparent 0),
     var(--kdl-accent, rgba(127, 127, 127, 0.25)) !important;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article > a > span {
+html[data-kdl-tags-layout="grid"] section#tag-container > article > a > span {
   display: block;
   height: auto !important;
   padding: 0 !important;
   line-height: 1.3 !important;
   font-size: 13px !important;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:first-child {
+html[data-kdl-tags-layout="grid"] section#tag-container > article > a > span:first-child {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:nth-child(2) {
+html[data-kdl-tags-layout="grid"] section#tag-container > article > a > span:nth-child(2) {
   flex: 0 0 auto;
   color: color-mix(in srgb, var(--kdl-foreground, #fff) 70%, transparent) !important;
   font-size: 12px !important;
   font-variant-numeric: tabular-nums;
 }
-section#tag-container[data-kdl-tags-layout="grid"] > .kdl-tags-letter,
-section#tag-container[data-kdl-tags-layout="grid"][data-kdl-tags-empty]::before { grid-column: 1 / -1; }
+html[data-kdl-tags-layout="grid"] section#tag-container > .kdl-tags-letter,
+html[data-kdl-tags-layout="grid"] section#tag-container[data-kdl-tags-empty]::before { grid-column: 1 / -1; }
 section#tag-container[data-kdl-tags-empty]::before { content: attr(data-kdl-tags-empty); flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
 @media (max-width: 640px) {
   .kdl-tags-toolbar { width: auto; margin: 0.5em 8px 0; }
@@ -510,8 +542,13 @@ export const tagsToolsModule: KdlModule = {
     ctx.settings.onChange('sort', changed);
     ctx.settings.onChange('group', changed);
     ctx.settings.onChange('layout', changed);
+    setLayoutAttr(layoutOf(ctx.settings.get<string>('layout')));
+    const reserve = readReserve();
+    if (reserve) document.documentElement.style.setProperty(RESERVE_VAR, `${reserve}px`);
     sync(ctx);
     ctx.onCleanup(() => {
+      document.documentElement.removeAttribute(LAYOUT_ATTR);
+      document.documentElement.style.removeProperty(RESERVE_VAR);
       restore();
       ctxRef = null;
       prefs.query = '';
@@ -520,6 +557,11 @@ export const tagsToolsModule: KdlModule = {
   },
   update(ctx) {
     sync(ctx);
+  },
+  early() {
+    setLayoutAttr(layoutOf(getModuleSetting(TAGS_TOOLS_ID, 'layout')));
+    const reserve = readReserve();
+    if (reserve) document.documentElement.style.setProperty(RESERVE_VAR, `${reserve}px`);
   },
   beforeSnapshot() {
     // htmx clones the DOM synchronously after this hook; rebuild right after with the same filter

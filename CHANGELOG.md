@@ -9,6 +9,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ### Fixed
 - Tag list layout: names and counts are centred in their rows, rows and popularity bars are brighter.
+- Tag pages open straight in the chosen layout: the list no longer starts as the site's cloud and rearranges after load, and the space for the toolbar is kept from the first paint, so the tags do not jump down.
 - Site skin: the pinned top bar no longer shows while the sidebar is open on wide screens (the site hides it then).
 
 ## [1.6.0] - 2026-11-17
