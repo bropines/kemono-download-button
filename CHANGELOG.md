@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-17
+
 ### Changed
 - Dropdowns (site skin and the script's own) open as a styled menu: dark card, rounded items, a hover highlight and a checkmark on the chosen one (Chrome 135+; other browsers keep their native list).
 - Creator pages: the tabs sit on their own row under the header on every tab, instead of inside the pages bar on Posts only; the header keeps the same width on Linked accounts and Similar creators.
