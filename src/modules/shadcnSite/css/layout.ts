@@ -114,7 +114,7 @@ ${ITEM_HOVER} {
 .content-wrapper .header-link:first-of-type { margin-left: 8px; }
 .content-wrapper .header-link:is(:hover, :focus-visible) { background: var(--kdl-accent); color: var(--kdl-foreground); }
 /* Narrow screens: the links scroll sideways instead of being dropped (the site hides Import, Home, Login);
-   the menu button stays pinned at the left */
+   the menu button scrolls with them */
 @media (max-width: 1020px) {
   .content-wrapper .header {
     overflow-x: auto;
@@ -124,15 +124,7 @@ ${ITEM_HOVER} {
   }
   .content-wrapper .header::-webkit-scrollbar { display: none; }
   .content-wrapper .header > .header-link { display: flex; flex: 0 0 auto; height: 2.25rem; }
-  .content-wrapper .header #burgor {
-    position: sticky;
-    left: 0;
-    z-index: 1;
-    width: 2.25rem;
-    height: 2.25rem;
-    background: var(--kdl-sidebar);
-    box-shadow: 8px 0 8px -4px var(--kdl-sidebar);
-  }
+  .content-wrapper .header #burgor { flex: 0 0 auto; width: 2.25rem; height: 2.25rem; }
 }
 .content-wrapper .backdrop { background: var(--kdl-overlay); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
 

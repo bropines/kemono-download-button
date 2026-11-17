@@ -68,6 +68,8 @@ export const postCss = (): string => `
 .post__title { margin-bottom: 4px; font-size: 1.5rem; font-weight: 700; line-height: 1.25; letter-spacing: -0.025em; }
 .post__title > span + span { color: var(--kdl-muted-foreground); font-size: 0.7em; font-weight: 500; letter-spacing: 0; }
 .post__published, .post__added, .post__edited { color: var(--kdl-muted-foreground); font-size: 13px; }
+/* The site gives the label a fixed 89px: longer (translated) labels broke mid-word */
+.post__published > div, .post__added div, .post__edited > div { width: auto !important; min-width: 89px; margin-right: 6px; white-space: nowrap; }
 section#post-tags { align-items: center; gap: 6px; margin: 2px 0; font-size: 13px; }
 section#post-tags span#label { color: var(--kdl-muted-foreground); }
 section#post-tags > div { flex-wrap: wrap; gap: 4px; overflow: visible; }

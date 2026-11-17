@@ -4,6 +4,17 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-11-17
+
+### Added
+- **Touch gestures in the image viewer:** pinch to zoom around your fingers, drag to pan, double tap to zoom in or back to fit, swipe left/right to change picture. Mouse and wheel work as before.
+
+### Fixed
+- Site skin on phones: the post page download buttons fit the screen (long labels shorten with an ellipsis, one column on narrow phones); "Published:" / "Imported:" labels no longer break mid-word.
+- Site skin on phones: the pagination never wraps; the menu button in the top bar scrolls with the links instead of floating over them.
+- Site skin on phones: the home page art no longer rescales while the address bar hides and shows.
+- Site skin: the contact page mail addresses are buttons.
+
 ## [1.3.4] - 2026-11-17
 
 ### Fixed

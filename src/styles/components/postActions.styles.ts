@@ -127,9 +127,16 @@ export const postActionsStyles = css({
   },
   '.kdl-scope.kdl-actions-container': {
     display: 'grid',
-    gridTemplateColumns: '1fr 1fr',
+    // minmax(0, …): long labels shrink with an ellipsis instead of pushing the grid past the screen
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
     gap: '8px',
     marginTop: '12px',
+    boxSizing: 'border-box',
+    maxWidth: '100%',
+  },
+  '.kdl-actions-container .kdl-ui-btn > span': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 },
+  '@media (max-width: 480px)': {
+    '.kdl-scope.kdl-actions-container': { gridTemplateColumns: 'minmax(0, 1fr)' },
   },
   '@media (max-width: 849px)': {
     '.kdl-scope.kdl-actions-container': {

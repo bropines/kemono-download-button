@@ -54,10 +54,12 @@ export const lightboxModule = {
   zoom: 1,
   offsetX: 0,
   offsetY: 0,
-  isDragging: false,
-  dragStartX: 0,
-  dragStartY: 0,
   lastTap: 0,
+  pointers: new Map<number, { x: number; y: number }>(),
+  gesture: null as null | {
+    startX: number; startY: number; startOffsetX: number; startOffsetY: number; startTime: number; startZoom: number; moved: boolean; pinched: boolean;
+    pinch: null | { distance: number; zoom: number; midX: number; midY: number; offsetX: number; offsetY: number };
+  },
   canvas: null as HTMLCanvasElement | null,
   ctx: null as CanvasRenderingContext2D | null,
   image: new Image(),
@@ -75,6 +77,8 @@ export const lightboxModule = {
     this.translateMode = translated && state.settings.showImageTranslateButton;
     this.imageLinks = links;
     this.currentIndex = index;
+    this.pointers.clear();
+    this.gesture = null;
     // A lightbox closed moments ago is still fading out
     this.root?.remove();
     this.build();
@@ -209,13 +213,14 @@ export const lightboxModule = {
     const container = this.container;
     if (container) {
       container.addEventListener("wheel", this.handleWheel.bind(this), { passive: false });
-      container.addEventListener("mousedown", this.handleMouseDown.bind(this));
-      container.addEventListener("mousemove", this.handleMouseMove.bind(this));
-      container.addEventListener("mouseup", this.handleMouseUp.bind(this));
-      container.addEventListener("mouseleave", this.handleMouseUp.bind(this));
-      container.addEventListener("touchstart", this.handleTouchStart.bind(this), { passive: false });
-      container.addEventListener("touchmove", this.handleTouchMove.bind(this), { passive: false });
-      container.addEventListener("touchend", this.handleTouchEnd.bind(this));
+      // Pointer events cover mouse, touch and pen alike; touch-action: none hands every gesture to us
+      // instead of the browser (which would scroll or zoom the page underneath)
+      container.style.touchAction = "none";
+      container.addEventListener("pointerdown", this.handlePointerDown.bind(this));
+      container.addEventListener("pointermove", this.handlePointerMove.bind(this));
+      container.addEventListener("pointerup", this.handlePointerUp.bind(this));
+      container.addEventListener("pointercancel", this.handlePointerUp.bind(this));
+      container.addEventListener("lostpointercapture", this.handlePointerUp.bind(this));
     }
     this.boundResize = this.resizeCanvas.bind(this);
     window.addEventListener("resize", this.boundResize);
@@ -396,53 +401,116 @@ export const lightboxModule = {
     this.zoom = newZoom;
     this.drawImage();
   },
-  handleMouseDown(e: MouseEvent) {
-    if (e.button !== 0 || !this.canvas) return;
+  // ---- Pointer gestures: drag to pan, pinch to zoom, double tap to zoom in/out, swipe to change picture ----
+  zoomAt(newZoom: number, x: number, y: number) {
+    const zoom = Math.min(20, Math.max(0.05, newZoom));
+    this.offsetX = x - (x - this.offsetX) * (zoom / this.zoom);
+    this.offsetY = y - (y - this.offsetY) * (zoom / this.zoom);
+    this.zoom = zoom;
+  },
+  fitZoom(): number {
+    if (!this.isDrawable() || !this.canvas) return 1;
+    return Math.min(this.canvas.width / this.image.width, this.canvas.height / this.image.height, 1);
+  },
+  localPoint(e: { clientX: number; clientY: number }): { x: number; y: number } {
+    const rect = this.canvas!.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  },
+  handlePointerDown(e: PointerEvent) {
+    if (!this.canvas || (e.pointerType === "mouse" && e.button !== 0)) return;
+    // Buttons and panels over the picture keep their own clicks
+    if ((e.target as Element | null)?.closest?.("button, a, input, select, .kui-lens-panel")) return;
     e.preventDefault();
-    this.isDragging = true;
-    this.dragStartX = e.clientX - this.offsetX;
-    this.dragStartY = e.clientY - this.offsetY;
-    this.canvas.style.cursor = "grabbing";
+    try {
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+    const point = this.localPoint(e);
+    this.pointers.set(e.pointerId, point);
+    if (this.pointers.size === 1) {
+      this.gesture = { startX: point.x, startY: point.y, startOffsetX: this.offsetX, startOffsetY: this.offsetY, startTime: Date.now(), startZoom: this.zoom, moved: false, pinched: false, pinch: null };
+      this.canvas.style.cursor = "grabbing";
+    } else if (this.pointers.size === 2 && this.gesture) {
+      const [a, b] = [...this.pointers.values()];
+      this.gesture.pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y) || 1, zoom: this.zoom, midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2, offsetX: this.offsetX, offsetY: this.offsetY };
+      this.gesture.moved = true;
+      this.gesture.pinched = true;
+    }
   },
-  handleMouseMove(e: MouseEvent) {
-    if (this.isDragging) {
-      this.offsetX = e.clientX - this.dragStartX;
-      this.offsetY = e.clientY - this.dragStartY;
+  handlePointerMove(e: PointerEvent) {
+    if (!this.pointers.has(e.pointerId) || !this.gesture) return;
+    e.preventDefault();
+    const point = this.localPoint(e);
+    this.pointers.set(e.pointerId, point);
+    const g = this.gesture;
+    if (g.pinch && this.pointers.size >= 2) {
+      const [a, b] = [...this.pointers.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+      const midX = (a.x + b.x) / 2;
+      const midY = (a.y + b.y) / 2;
+      // Zoom around the starting midpoint, then follow the fingers as they move together
+      const zoom = Math.min(20, Math.max(0.05, g.pinch.zoom * (distance / g.pinch.distance)));
+      this.offsetX = g.pinch.midX - (g.pinch.midX - g.pinch.offsetX) * (zoom / g.pinch.zoom) + (midX - g.pinch.midX);
+      this.offsetY = g.pinch.midY - (g.pinch.midY - g.pinch.offsetY) * (zoom / g.pinch.zoom) + (midY - g.pinch.midY);
+      this.zoom = zoom;
       this.drawImage();
-    }
-  },
-  handleMouseUp() {
-    this.isDragging = false;
-    if (this.canvas) {
-      this.canvas.style.cursor = "grab";
-    }
-  },
-  handleTouchStart(e: TouchEvent) {
-    const now = new Date().getTime();
-    const timeSince = now - this.lastTap;
-    if (timeSince < 300 && timeSince > 0) {
-      this.resetPanZoom();
-      e.preventDefault();
       return;
     }
-    this.lastTap = now;
-    if (e.touches.length === 1) {
-      const touch = e.touches[0];
-      this.isDragging = true;
-      this.dragStartX = touch.clientX - this.offsetX;
-      this.dragStartY = touch.clientY - this.offsetY;
+    const dx = point.x - g.startX;
+    const dy = point.y - g.startY;
+    if (!g.moved && Math.hypot(dx, dy) > 6) g.moved = true;
+    if (!g.moved) return;
+    // At fit size a horizontal drag is a swipe between pictures: the picture follows the finger sideways only
+    const atFit = this.zoom <= this.fitZoom() * 1.01;
+    if (atFit && e.pointerType !== "mouse") {
+      this.offsetX = g.startOffsetX + dx;
+      this.offsetY = g.startOffsetY;
+    } else {
+      this.offsetX = g.startOffsetX + dx;
+      this.offsetY = g.startOffsetY + dy;
+    }
+    this.drawImage();
+  },
+  handlePointerUp(e: PointerEvent) {
+    if (!this.pointers.has(e.pointerId)) return;
+    const point = this.pointers.get(e.pointerId)!;
+    this.pointers.delete(e.pointerId);
+    const g = this.gesture;
+    if (!g) return;
+    if (this.pointers.size === 1 && g.pinch) {
+      // One finger lifted after a pinch: carry on panning with the other from where it is
+      const [rest] = [...this.pointers.values()];
+      this.gesture = { ...g, pinch: null, startX: rest.x, startY: rest.y, startOffsetX: this.offsetX, startOffsetY: this.offsetY };
+      return;
+    }
+    if (this.pointers.size > 0) return;
+    this.gesture = null;
+    if (this.canvas) this.canvas.style.cursor = "grab";
+    if (e.type !== "pointerup") return;
+    const dx = point.x - g.startX;
+    const dt = Date.now() - g.startTime;
+    // A swipe only counts when the picture was and still is at fit size, and no pinch happened on the way
+    const atFit = !g.pinched && g.startZoom <= this.fitZoom() * 1.01 && this.zoom <= this.fitZoom() * 1.01;
+    if (atFit && g.moved && e.pointerType !== "mouse" && Math.abs(dx) > 60 && dt < 600) {
+      this.navigate(dx < 0 ? 1 : -1);
+      return;
+    }
+    if (atFit && g.moved && e.pointerType !== "mouse") {
+      this.resetPanZoom();
+      return;
+    }
+    if (!g.moved && e.pointerType !== "mouse") {
+      const now = Date.now();
+      if (now - this.lastTap < 300) {
+        this.lastTap = 0;
+        // Double tap: zoom in 2.5x at the finger, or back to fit when already zoomed
+        if (this.zoom > this.fitZoom() * 1.05) this.resetPanZoom();
+        else {
+          this.zoomAt(this.fitZoom() * 2.5, point.x, point.y);
+          this.drawImage();
+        }
+      } else this.lastTap = now;
     }
   },
-  handleTouchMove(e: TouchEvent) {
-    if (e.touches.length === 1 && this.isDragging) {
-      e.preventDefault();
-      const touch = e.touches[0];
-      this.offsetX = touch.clientX - this.dragStartX;
-      this.offsetY = touch.clientY - this.dragStartY;
-      this.drawImage();
-    }
-  },
-  handleTouchEnd() {
-    this.isDragging = false;
-  }
 };

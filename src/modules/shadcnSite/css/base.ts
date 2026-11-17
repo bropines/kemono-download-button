@@ -205,8 +205,9 @@ ${PRIMARY} {
 }
 @media (max-width: 600px) {
   /* Nine buttons fit one 360px row */
-  .paginator menu { gap: 2px; }
-  .paginator menu > li, .paginator menu > a { min-width: 2rem; height: 2rem; font-size: 13px; }
+  /* Never wraps: the buttons give up width first */
+  .paginator menu { flex-wrap: nowrap; gap: 2px; }
+  .paginator menu > li, .paginator menu > a { flex: 0 1 2rem; min-width: 1.5rem; height: 2rem; font-size: 13px; }
   .paginator menu > li > b, .paginator menu > a > b { padding: 0 0.35rem; }
   .paginator menu > li:is(.pagination-button-optional, .pagination-desktop),
   .paginator menu > a:is(.pagination-button-optional, .pagination-desktop) { display: none; }

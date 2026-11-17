@@ -227,6 +227,26 @@ export const pagesCss = (): string => `
 .jumbo-announcement :is(h2, h3) { font-size: 1rem; }
 .announcement-title-container .date { font-size: 12px; }
 
+/* Contact page: the mail addresses as buttons */
+.site-section--contact a[href^="mailto:"] {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  margin: 2px 0;
+  padding: 0 0.75rem;
+  border: 1px solid var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) - 2px);
+  background: var(--kdl-secondary);
+  color: var(--kdl-secondary-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  vertical-align: middle;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.site-section--contact a[href^="mailto:"]:hover { background: var(--kdl-accent); border-color: var(--kdl-ring); }
+
 /* Home: the welcome art fills the page as is; only the sidebar and the text card blur what is behind them */
 .site-section--home .jumbo-welcome {
   position: static;
@@ -240,7 +260,12 @@ export const pagesCss = (): string => `
 }
 .site-section--home .jumbo-welcome-background {
   position: fixed;
-  inset: 0;
+  /* Sized to the large viewport: on phones the address bar showing/hiding would otherwise rescale the art */
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100vh;
+  height: 100lvh;
   z-index: -1;
   width: auto;
   height: auto;
