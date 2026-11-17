@@ -3,7 +3,7 @@ import { LAYERS } from '../../ui/kit/layers';
 
 /** Light DOM: the settings entries injected into the site's sidebar and header. */
 export const fixedControlsStyles = css({
-  '#kdl-settings-btn-sidebar, #kui-settings-btn-sidebar, #kdl-settings-btn-header, #kui-settings-btn-header': {
+  '#kdl-settings-btn-sidebar, #kdl-settings-btn-header': {
     cursor: 'pointer !important',
   },
 });

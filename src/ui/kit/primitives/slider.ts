@@ -16,6 +16,12 @@ export interface SliderOptions {
   onChange?: (value: number) => void;
 }
 
+// Redraws fill + readout; keyed by the input so setSliderValue works with either element
+const syncers = new WeakMap<HTMLInputElement, () => void>();
+
+const rangeOf = (node: HTMLElement): HTMLInputElement | null =>
+  node instanceof HTMLInputElement ? node : node.querySelector<HTMLInputElement>('.kdl-ui-slider__input');
+
 /** Native range input with a filled track. Returns a wrapper; the input is `.kdl-ui-slider__input`. */
 export function slider(options: SliderOptions = {}): HTMLDivElement {
   const { min = 0, max = 100, step = 1 } = options;
@@ -34,6 +40,7 @@ export function slider(options: SliderOptions = {}): HTMLDivElement {
     range.style.setProperty('--kdl-ui-fill', `${((value - min) / (max - min || 1)) * 100}%`);
     if (output) output.textContent = format(value);
   };
+  syncers.set(range, sync);
   range.addEventListener('input', () => {
     sync();
     options.onInput?.(Number(range.value));
@@ -41,4 +48,16 @@ export function slider(options: SliderOptions = {}): HTMLDivElement {
   if (options.onChange) range.addEventListener('change', () => options.onChange!(Number(range.value)));
   sync();
   return el('div', { className: cx('kdl-ui-slider', options.className) }, [range, output]);
+}
+
+/** Moves a slider (wrapper or its input) to a value, with fill and readout; fires no events. */
+export function setSliderValue(node: HTMLElement, value: number): void {
+  const range = rangeOf(node);
+  if (!range) return;
+  range.value = String(value);
+  syncers.get(range)?.();
+}
+
+export function getSliderValue(node: HTMLElement): number {
+  return Number(rangeOf(node)?.value ?? NaN);
 }

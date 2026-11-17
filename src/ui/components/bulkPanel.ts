@@ -3,8 +3,7 @@ import { getPostCardDetails } from '../../services/collectorService';
 import { appState } from '../../state/store';
 import { PostDetails } from '../../types';
 import { el } from '../../utils/dom';
-import { badge, button, select, setButtonLoading } from '../kit';
-import { mountOverlayStyles } from '../overlayStyles';
+import { addKitStyles, badge, button, select, setButtonLoading } from '../kit';
 import { bulkPanelStyles } from '../../styles/components/bulkPanel.styles';
 import { getDockSlot } from './fixedControls';
 import { showMultiPostFilePickerModal } from './filePickerModal';
@@ -173,7 +172,7 @@ export function initializeShiftClickLogic(): void {
         (event: MouseEvent) => {
           if (!event.shiftKey) return;
           const target = event.target as HTMLElement;
-          if (target.closest('.post-card-download-controls, .kdl-post-checkbox')) return;
+          if (target.closest('.post-card-download-controls, .kdl-post-checkbox-scope')) return;
           const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
           if (!checkbox) return;
 
@@ -212,7 +211,7 @@ export function createBulkDownloadPanel(): void {
   if (!document.querySelector('.card-list')) return;
   if (!document.getElementById(MARKER_ID)) document.body.appendChild(el('div', { id: MARKER_ID, hidden: true }));
   if (!bar?.root.isConnected) {
-    mountOverlayStyles('kdl-bulk-styles', bulkPanelStyles);
+    addKitStyles('kdl-bulk-styles', bulkPanelStyles);
     bar = buildBulkBar();
     getDockSlot('bulk').appendChild(bar.root);
   }

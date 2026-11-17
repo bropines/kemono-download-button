@@ -3,8 +3,7 @@ import { downloadFilesToDiskWithProgress, DownloadFileSpec } from '../../service
 import { state } from '../../state/store';
 import { FileItem, PostDetails } from '../../types';
 import { el } from '../../utils/dom';
-import { badge, button, checkbox, dialog, emptyState, kitIcon, progress, scrollArea, setProgress, type DialogHandle } from '../kit';
-import { mountOverlayStyles } from '../overlayStyles';
+import { addKitStyles, badge, button, checkbox, dialog, emptyState, kitIcon, progress, scrollArea, setProgress, type DialogHandle } from '../kit';
 import { filePickerModalStyles } from '../../styles/components/filePickerModal.styles';
 import { showMessage } from '../toast';
 
@@ -30,7 +29,7 @@ interface Picker {
 }
 
 function openPicker(title: string, size: 'md' | 'lg', id: string): Picker {
-  mountOverlayStyles('kdl-file-picker-styles', filePickerModalStyles);
+  addKitStyles('kdl-file-picker-styles', filePickerModalStyles);
   let closed = false;
   const handle = dialog({ title, size, onClose: () => (closed = true) });
   handle.element.id = id;

@@ -7,10 +7,10 @@ import { readStored, writeStored } from '../../../state/gmStorage';
 import { kuiState, setEmbedRules, setHideEmptySections, setPreloadImages } from '../../../state/kuiState';
 import type { EmbedRules } from '../../../types';
 import { el } from '../../../utils/dom';
-import { badge, button, field, input, kitIcon, select, slider } from '../../kit';
+import { badge, button, field, input, kitIcon, select, setSliderValue, slider } from '../../kit';
 import { getModuleSetting, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
-import { grid, notifySaved, section, settingSwitch, switchRow } from '../controls';
+import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 
 const GRID_MIN = 120;
@@ -28,6 +28,10 @@ function gridSizeField(): HTMLElement {
     // The gridSize module applies the size to the page as soon as its setting changes
     onInput: (value) => setModuleSetting('gridSize', 'size', value),
     onChange: () => notifySaved(),
+  });
+  // Follows changes made elsewhere (the page's grid panel, the Modules tab, a reset or an import)
+  whileConnected(control, (event) => {
+    if (event.type === 'setting' && event.id === 'gridSize' && event.key === 'size') setSliderValue(control, Number(event.value));
   });
   return field({ label: 'Post card size', description: 'Width of post cards in post lists.', control });
 }

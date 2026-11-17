@@ -4,7 +4,7 @@ import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, translateImage } from '../../services/lensImages';
 import { showMessage } from '../../ui/toast';
 import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
-import { lensIcon, linkButton } from '../../ui/components/kui/linkButton';
+import { lensIcon } from '../../ui/components/kui/lensIcon';
 import { fetchPostFileData } from './api';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
@@ -206,7 +206,7 @@ export async function initializeImageGallery(): Promise<void> {
             { href: lensLink, icon: lensIcon(), text: "Search with Google Lens" },
           ].forEach(({ href, icon, text }) => {
             const action = tooltip(
-              linkButton({ href, icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
+              button({ href, target: '_blank', icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
               { text, side: 'left' }
             );
             action.addEventListener("click", (e) => e.stopPropagation());

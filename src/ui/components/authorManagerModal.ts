@@ -5,7 +5,7 @@ import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
 import { getApiUrl, getThumbnailUrl, sanitizeFilename } from '../../utils/helpers';
 import { PostDetails } from '../../types';
-import {
+import { addKitStyles,
   badge,
   button,
   checkbox,
@@ -20,7 +20,6 @@ import {
   sheet,
   type DialogHandle
 } from '../kit';
-import { mountOverlayStyles } from '../overlayStyles';
 import { authorManagerModalStyles } from '../../styles/components/authorManagerModal.styles';
 
 const CACHE_PREFIX = 'kemono_posts_cache_';
@@ -210,7 +209,7 @@ function bindRangeSelection(list: HTMLElement): void {
 /** Builds the sheet once; it keeps its rows and filters between openings. */
 function getView(): ManagerView {
   if (view) return view;
-  mountOverlayStyles('kdl-author-manager-styles', authorManagerModalStyles);
+  addKitStyles('kdl-author-manager-styles', authorManagerModalStyles);
 
   const search = input({
     type: 'search',
@@ -342,10 +341,16 @@ export function populateManagerList(posts: any[]): void {
     const postUrl = getApiUrl(`/${post.service}/user/${post.user}/post/${post.id}`);
     const box = checkbox({ ariaLabel: postTitle });
     box.dataset.id = String(post.id);
-    const openLink = el('a', { href: postUrl, target: '_blank', rel: 'noopener', className: 'kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-icon kdl-ov-manager__open', title: 'Open post in new tab' }, [
-      kitIcon('external-link')
-    ]);
-    openLink.setAttribute('aria-label', `Open ${postTitle} in a new tab`);
+    const openLink = button({
+      href: postUrl,
+      target: '_blank',
+      icon: 'external-link',
+      variant: 'ghost',
+      size: 'icon',
+      title: 'Open post in new tab',
+      ariaLabel: `Open ${postTitle} in a new tab`,
+      className: 'kdl-ov-manager__open'
+    });
 
     fragment.appendChild(
       el(

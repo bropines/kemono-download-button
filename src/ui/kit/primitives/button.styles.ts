@@ -21,7 +21,7 @@ export const buttonStyles = css({
     cursor: 'pointer',
     transition: 'background-color 0.15s, color 0.15s, border-color 0.15s, opacity 0.15s',
   },
-  '.kdl-ui-btn:disabled': { opacity: 0.5, pointerEvents: 'none' },
+  '.kdl-ui-btn:disabled, .kdl-ui-btn[aria-disabled="true"]': { opacity: 0.5, pointerEvents: 'none' },
   '.kdl-ui-btn[data-loading]': { opacity: 0.7 },
   '.kdl-ui-btn--default': {
     background: 'var(--kdl-primary)',

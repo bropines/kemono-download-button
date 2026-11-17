@@ -1,5 +1,5 @@
 import { css } from '../../utils/cssBuilder';
-import { getKitRoot, LAYERS } from '../kit';
+import { addKitStyles, LAYERS } from '../kit';
 
 const STYLE_ID = 'kdl-settings-styles';
 
@@ -65,6 +65,35 @@ export const settingsStyles = css({
   '.kdl-settings__chip-remove .kdl-ui-icon': { width: '12px', height: '12px' },
   '.kdl-settings__chip-toggle': { cursor: 'pointer', fontStyle: 'italic' },
   '.kdl-settings__footer-spacer': { flex: '1 1 auto' },
+  '.kdl-settings__module-search': { position: 'relative', display: 'flex', alignItems: 'center' },
+  '.kdl-settings__module-search > .kdl-ui-icon': {
+    position: 'absolute',
+    left: '10px',
+    width: '14px',
+    height: '14px',
+    color: 'var(--kdl-muted-foreground)',
+  },
+  '.kdl-settings__module-search > .kdl-ui-input': { paddingLeft: '32px' },
+  '.kdl-settings__module-group': { display: 'flex', flexDirection: 'column', gap: '8px' },
+  '.kdl-settings__module-group-title': {
+    marginTop: '4px',
+    fontSize: '12px',
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'var(--kdl-muted-foreground)',
+  },
+  '.kdl-settings__module-toggle': { marginLeft: 'auto' },
+  '.kdl-settings__module-badges': { display: 'flex', flexWrap: 'wrap', gap: '6px' },
+  '.kdl-settings__module-notice': {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '13px',
+    color: 'var(--kdl-warning)',
+  },
+  '.kdl-settings__module-notice .kdl-ui-icon': { width: '14px', height: '14px' },
+  '.kdl-settings__module[data-state="off"] .kdl-settings__module-settings': { opacity: 0.6 },
   '@media (max-width: 640px)': {
     '.kdl-settings': { height: 'calc(100vh - 32px)', padding: '16px' },
     '.kdl-settings__footer-spacer': { display: 'none' },
@@ -73,10 +102,5 @@ export const settingsStyles = css({
 
 /** Adds the dialog layout CSS to the kit shadow root once. */
 export function ensureSettingsStyles(): void {
-  const root = getKitRoot();
-  if (root.getElementById(STYLE_ID)) return;
-  const style = document.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = settingsStyles;
-  root.appendChild(style);
+  addKitStyles(STYLE_ID, settingsStyles);
 }

@@ -2,34 +2,6 @@ import { SELECTORS } from '../../config/selectors';
 import { VideoData } from '../../types';
 import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
 
-// Plyr variable -> kit token. Plyr's player can't sit in a .kdl-scope (the kit reset would undo its control
-// styles), so the token values are read from the scoped playlist and handed to Plyr's own variables.
-const PLYR_TOKENS: Record<string, string> = {
-  '--plyr-color-main': '--kdl-primary',
-  '--plyr-video-control-color': '--kdl-foreground',
-  '--plyr-video-control-color-hover': '--kdl-primary-foreground',
-  '--plyr-video-control-background-hover': '--kdl-primary',
-  '--plyr-video-background': '--kdl-background',
-  '--plyr-menu-background': '--kdl-popover',
-  '--plyr-menu-color': '--kdl-popover-foreground',
-  '--plyr-tooltip-background': '--kdl-primary',
-  '--plyr-tooltip-color': '--kdl-primary-foreground',
-  '--plyr-badge-background': '--kdl-secondary',
-  '--plyr-badge-text-color': '--kdl-secondary-foreground',
-  '--plyr-range-thumb-background': '--kdl-foreground',
-  '--plyr-font-family': '--kdl-font',
-  '--plyr-control-radius': '--kdl-radius',
-  '--plyr-menu-radius': '--kdl-radius',
-};
-
-function applyPlyrTheme(target: HTMLElement, scope: HTMLElement): void {
-  const computed = getComputedStyle(scope);
-  Object.entries(PLYR_TOKENS).forEach(([plyrVar, token]) => {
-    const value = computed.getPropertyValue(token).trim();
-    if (value) target.style.setProperty(plyrVar, value);
-  });
-}
-
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
 
@@ -136,7 +108,8 @@ export function initializeVideoGallery(): void {
   playerArea.className = "kui-video-player-area";
 
   const playerContainer = document.createElement("div");
-  playerContainer.className = "kui-video-player-container";
+  // Tokens only (no kit reset, which would undo Plyr's control styles); kuiPlyr.styles maps --plyr-* to them
+  playerContainer.className = "kui-video-player-container kdl-tokens";
 
   const mainPlayerElement = document.createElement("video");
   mainPlayerElement.id = "kui-main-video-player";
@@ -221,7 +194,6 @@ export function initializeVideoGallery(): void {
   }
 
   setActiveVideo(0);
-  applyPlyrTheme(playerContainer, videoList);
 
   // The site runs fluidPlayer() on every <video> in the document (pawchive: getElementsByTagName("video")),
   // possibly after we built the gallery. Reloading the source makes Plyr drop the captured media element

@@ -1012,4 +1012,22 @@ export const kuiPlyrStyles = css({
   '.plyr [hidden]': {
     display: 'none!important',
   },
+  // Kit theme for the post's video player: its container carries .kdl-tokens (variables, no reset)
+  '.kdl-tokens.kui-video-player-container': {
+    '--plyr-color-main': 'var(--kdl-primary)',
+    '--plyr-video-control-color': 'var(--kdl-foreground)',
+    '--plyr-video-control-color-hover': 'var(--kdl-primary-foreground)',
+    '--plyr-video-control-background-hover': 'var(--kdl-primary)',
+    '--plyr-video-background': 'var(--kdl-background)',
+    '--plyr-menu-background': 'var(--kdl-popover)',
+    '--plyr-menu-color': 'var(--kdl-popover-foreground)',
+    '--plyr-tooltip-background': 'var(--kdl-primary)',
+    '--plyr-tooltip-color': 'var(--kdl-primary-foreground)',
+    '--plyr-badge-background': 'var(--kdl-secondary)',
+    '--plyr-badge-text-color': 'var(--kdl-secondary-foreground)',
+    '--plyr-range-thumb-background': 'var(--kdl-foreground)',
+    '--plyr-font-family': 'var(--kdl-font)',
+    '--plyr-control-radius': 'var(--kdl-radius)',
+    '--plyr-menu-radius': 'var(--kdl-radius)',
+  },
 });

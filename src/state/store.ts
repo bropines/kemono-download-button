@@ -5,6 +5,7 @@ import { AppState, DownloaderSettings } from '../types';
 import { debugLog } from '../utils/helpers';
 import { KUI_STORAGE_KEYS } from '../config/storage';
 import { kuiState, setDebugMode, setSessionKey, setVerboseDebugMode } from './kuiState';
+import { exportExtraSettings, importExtraSettings } from './settingsTransfer';
 
 export const state = {
   settings: { ...DEFAULT_SETTINGS } as DownloaderSettings
@@ -61,15 +62,18 @@ export async function saveSetting<K extends keyof DownloaderSettings>(key: K, va
   state.settings[key] = value;
 }
 
+/** Downloader settings, plus interface settings and module switches/settings (mod.* keys), in one flat object. */
 export async function exportSettings(): Promise<void> {
   await getSettings();
-  const settingsJson = JSON.stringify(state.settings, null, 2);
+  const settingsJson = JSON.stringify({ ...state.settings, ...exportExtraSettings() }, null, 2);
   const blob = new Blob([settingsJson], { type: 'application/json;charset=utf-8' });
   saveBlob(blob, `kemono-downloader-settings-${new Date().toISOString().split('T')[0]}.json`, true);
 }
 
+/** Imports a file from exportSettings (older downloader-only files too). Wrong types and unknown keys are skipped. */
 export async function importSettings(jsonString: string): Promise<number> {
   const newSettings = JSON.parse(jsonString);
+  if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) throw new Error('not a settings object');
   await getSettings();
   let importCount = 0;
   for (const key in DEFAULT_SETTINGS) {
@@ -84,7 +88,7 @@ export async function importSettings(jsonString: string): Promise<number> {
   settingsLoadPromise = null;
   await getSettings();
   syncSessionKey();
-  return importCount;
+  return importCount + importExtraSettings(newSettings);
 }
 
 // ---- Merged settings -------------------------------------------------------------------------

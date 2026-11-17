@@ -190,7 +190,7 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
 
   container.classList.remove(...LAYOUT_CLASSES);
-  container.classList.add(`kui-comments--${layout}`);
+  container.classList.add(`kui-comments--${layout}`, 'kdl-tokens');
   comments.forEach((comment, index) => comment.classList.toggle('kui-comment-hidden', index >= visibleCount));
 
   const count = toolbar.querySelector('.kui-comments-count');
@@ -323,7 +323,7 @@ export function removeCommentsLayout(): void {
   document.querySelectorAll<HTMLElement>('.post__comments').forEach((container) => {
     resizeObservers.get(container)?.disconnect();
     resizeObservers.delete(container);
-    container.classList.remove(...LAYOUT_CLASSES);
+    container.classList.remove(...LAYOUT_CLASSES, 'kdl-tokens');
     // Put threaded replies back into the site's original flat order
     Array.from(container.querySelectorAll<HTMLElement>('.comment[data-kui-index]'))
       .sort((a, b) => Number(a.dataset.kuiIndex) - Number(b.dataset.kuiIndex))

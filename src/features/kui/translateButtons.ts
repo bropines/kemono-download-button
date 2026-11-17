@@ -4,7 +4,7 @@ import { isTranslationConfigured, translateText } from '../../services/translato
 import { appState, getSettings, state } from '../../state/store';
 import { showMessage } from '../../ui/toast';
 import { el } from '../../utils/dom';
-import { ensureKit, kitIcon } from '../../ui/kit';
+import { ensureKit, kitIcon, setTooltip } from '../../ui/kit';
 
 type TranslateKind = 'title' | 'content' | 'comment';
 type ButtonState = 'idle' | 'loading' | 'translated';
@@ -28,7 +28,7 @@ let listenerBound = false;
 function setButtonState(button: HTMLButtonElement, buttonState: ButtonState): void {
   const { iconName, label } = STATE_VIEW[buttonState];
   button.dataset.state = buttonState;
-  button.title = label;
+  setTooltip(button, label);
   button.setAttribute('aria-label', label);
   button.disabled = buttonState === 'loading';
   button.setAttribute('aria-busy', String(buttonState === 'loading'));
@@ -111,12 +111,15 @@ export function syncTranslateButton(host: Element | null, kind: TranslateKind, c
     if (button && button.dataset.state !== 'translated') button.remove();
     return;
   }
-  if (button) return;
+  if (button) {
+    // One restored from an htmx history snapshot lost its tooltip listeners; setTooltip attaches them again
+    setTooltip(button, STATE_VIEW[(button.dataset.state as ButtonState) || 'idle']?.label ?? STATE_VIEW.idle.label);
+    return;
+  }
 
   bindListener();
   ensureKit();
-  // Self-scoped kit ghost icon button: it sits inside the site's headings and comment footers. A native title
-  // rather than a kit tooltip: the label follows the state, and restored history snapshots drop listeners
+  // Self-scoped kit ghost icon button: it sits inside the site's headings and comment footers
   const created = el('button', {
     type: 'button',
     className: 'kdl-scope kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-icon kui-translate-btn',
