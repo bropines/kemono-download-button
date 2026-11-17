@@ -158,6 +158,8 @@ declare global {
   function GM_setValue<T>(key: string, value: T): void;
   function GM_registerMenuCommand(name: string, fn: () => void): void;
   function GM_setClipboard(text: string): void;
+  // The page's real window; the script's own `window` may be a sandbox
+  var unsafeWindow: Window & typeof globalThis;
   // The callbacks are typed so handlers written inline get a response rather than an implicit any
   function GM_xmlhttpRequest(details: {
     onload?: (response: any) => void;

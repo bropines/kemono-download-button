@@ -92,7 +92,9 @@ export function generateFilePath(template: string, fileData: Record<string, any>
 
 export function getWindowPageData(targetPostID?: string): any {
   try {
-    const winData = (window as any).page_data;
+    // The page's own global: with any @grant, AdGuard's `window` is a sandbox copy made before the page set it
+    const pageWindow: any = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+    const winData = pageWindow.page_data;
     if (winData) {
       const post = winData.post || winData.props?.post || (Array.isArray(winData) ? winData[0] : winData);
       if (post && post.id && (!targetPostID || String(post.id) === String(targetPostID))) {

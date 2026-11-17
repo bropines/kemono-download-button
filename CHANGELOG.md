@@ -4,6 +4,23 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-11-17
+
+A new interface and a module system underneath it.
+
+### Added
+- **New look throughout**, in the style of shadcn/ui: one dark design system for every button, field, dialog and panel. Floating windows live in their own shadow root, so the site's CSS no longer bleeds into them.
+- **One Settings window** with tabs (General, Downloads, Translation, Images, Interface, Modules) replaces the separate Downloader and UI settings. Changes save as you make them; Export, Import and Reset sit at the bottom. The sidebar and header now have a single Settings link.
+- **Module system.** Every feature is a module that switches on and off cleanly as you move between pages: downloader buttons, the creator bulk tools, quick favourites, the post page layout, viewed posts, grid size, copy username and the ad blocker. The page type is exposed on the html element (data-kdl-page) for themes.
+- The author manager opens as a side panel with search, sort, live loading status and selection kept between openings.
+- The bulk download bar, file picker, progress cards and queue share one dock at the bottom of the screen.
+
+### Changed
+- Post buttons, card buttons, link buttons (Mega, Gofile and others), comment controls, the image viewer and its translation panel all use the new components. Post info on cards opens on click.
+- One session field instead of two (a bare key still works), one debug switch with a verbose option, and one kind of notification.
+- The script reads the page's own data under AdGuard too (new unsafeWindow grant), so it can skip an API request.
+- Settings kept from earlier versions are moved to the new storage keys once; nothing needs to be set again.
+
 ## [0.9.1] - 2026-11-17
 
 ### Fixed
