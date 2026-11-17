@@ -168,8 +168,20 @@ const MAX_WAIT_MS = 600;
 let mutationTimer: ReturnType<typeof setTimeout> | null = null;
 let firstPendingAt = 0;
 
+// rAF never fires in a background tab: a timer stands in so tabs opened in the background still get set up
+function nextFrame(fn: () => void): void {
+  let done = false;
+  const run = () => {
+    if (done) return;
+    done = true;
+    fn();
+  };
+  requestAnimationFrame(run);
+  setTimeout(run, 250);
+}
+
 function flushMutations(): void {
-  requestAnimationFrame(() => {
+  nextFrame(() => {
     refreshRoot();
     if (window.location.pathname !== lastPath) {
       reconcile();
