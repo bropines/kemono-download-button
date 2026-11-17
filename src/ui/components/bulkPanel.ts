@@ -9,30 +9,37 @@ import { showMultiPostFilePickerModal } from './filePickerModal';
 let lastCheckedIndex: number | null = null;
 let selectionPageUrl = '';
 
-export function getSelectedPostsDetails(): PostDetails[] {
-  const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
-  const pageAuthorName = document.querySelector('.post-header__name, .user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
-  const selectedDetails: PostDetails[] = [];
+// Selection survives paging through a creator (?o=): cards on other pages are gone from the DOM,
+// so their details are kept from when they were ticked. The router clears selectedPostIds when
+// the creator changes, and the stale details are pruned against it here.
+const selectedDetails = new Map<string, PostDetails>();
 
-  postCards.forEach((card) => {
+function syncSelectionFromPage(): void {
+  for (const id of selectedDetails.keys()) {
+    if (!appState.selectedPostIds.has(id)) selectedDetails.delete(id);
+  }
+  const pageAuthorName = document.querySelector('.post-header__name, .user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
+  document.querySelectorAll<HTMLElement>('article.post-card[data-id]').forEach((card) => {
     const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-    if (checkbox && checkbox.checked) {
-      selectedDetails.push(getPostCardDetails(card, pageAuthorName));
+    const id = checkbox?.dataset.id;
+    if (!checkbox || !id) return;
+    if (checkbox.checked) {
+      selectedDetails.set(id, getPostCardDetails(card, pageAuthorName));
+      appState.selectedPostIds.add(id);
+    } else {
+      selectedDetails.delete(id);
+      appState.selectedPostIds.delete(id);
     }
   });
+}
 
-  return selectedDetails;
+export function getSelectedPostsDetails(): PostDetails[] {
+  syncSelectionFromPage();
+  return [...selectedDetails.values()];
 }
 
 export function updateSelectionState(): void {
-  const postCards = Array.from(document.querySelectorAll('article.post-card[data-id]')) as HTMLElement[];
-  appState.selectedPostIds.clear();
-  postCards.forEach((card) => {
-    const checkbox = card.querySelector('.kdl-post-checkbox') as HTMLInputElement | null;
-    if (checkbox && checkbox.checked) {
-      appState.selectedPostIds.add(checkbox.dataset.id!);
-    }
-  });
+  syncSelectionFromPage();
 
   const selectedCount = appState.selectedPostIds.size;
   const downloadBtn = document.getElementById('kdl-bulk-download-btn') as HTMLButtonElement | null;
