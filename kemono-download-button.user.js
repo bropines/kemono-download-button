@@ -832,7 +832,15 @@ html[data-kdl-sk-halign="center"] .content-wrapper .header #burgor { margin-righ
 html[data-kdl-sk-halign="center"] .content-wrapper .header::after { content: ''; flex: 0 0 2.25rem; margin-left: auto; }
 html[data-kdl-sk-halign="center"] .content-wrapper .header-link:first-of-type { margin-left: 0; }
 /* Pinned top bar */
-html[data-kdl-sk-pin="true"] .content-wrapper .header { position: sticky; top: 0; z-index: 5; }
+/* Only while the bar is shown: with the sidebar open on wide screens the site hides it with a negative margin,
+   which a sticky bar would undo as soon as the page scrolls */
+@media (max-width: 1020px) {
+  html[data-kdl-sk-pin="true"] .content-wrapper .header { position: sticky; top: 0; z-index: 5; }
+}
+@media (min-width: 1021px) {
+  html[data-kdl-sk-pin="true"] .content-wrapper .header.sidebar-retracted,
+  html[data-kdl-sk-pin="true"][data-kdl-sk-sidebar="overlay"] .content-wrapper .header { position: sticky; top: 0; z-index: 5; }
+}
 /* Overlay sidebar (wide screens): the page keeps its full width and the top bar stays, the open sidebar
    floats over the page and dims it (a click outside closes it, see index.ts) */
 @media (min-width: 1021px) {

@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- Site skin: the pinned top bar no longer shows while the sidebar is open on wide screens (the site hides it then).
+
 ## [1.6.0] - 2026-11-17
 
 ### Added
