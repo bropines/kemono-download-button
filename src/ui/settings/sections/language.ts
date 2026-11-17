@@ -31,6 +31,7 @@ function statusLines(): string[] {
   else {
     lines.push(t('common.lang.status.checked', { time: new Date(status.checkedAt).toLocaleString() }));
     if (status.result === 'rejected') lines.push(t('common.lang.status.rejected', { error: status.message ?? '' }));
+    else if (status.result === 'updated' && status.dropped) lines.push(t('common.lang.status.dropped', { count: status.dropped }));
     else if (status.result === 'failed') lines.push(t('common.lang.status.failed', { error: status.message ?? '' }));
   }
   return lines;
@@ -81,7 +82,7 @@ export function languageSection(): HTMLElement {
       try {
         const result = await updateTranslations(true);
         if (result.result === 'updated') showMessage(t('common.lang.result.updated'), 'success');
-        else if (result.result === 'rejected') showMessage(t('common.lang.result.rejected'), 'error');
+        else if (result.result === 'rejected') showMessage(t('common.lang.result.rejected', { error: result.message ?? '' }), 'error');
         else if (result.result === 'failed') showMessage(t('common.lang.result.failed', { error: result.message ?? '' }), 'error');
         else showMessage(t('common.lang.result.current'), 'info');
       } finally {

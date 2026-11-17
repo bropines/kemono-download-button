@@ -10,6 +10,7 @@
 import type { KdlModule } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitScope } from '../../ui/kit';
+import { t } from '../../i18n';
 
 const MARK = 'data-kdl-sk';
 const HEADINGS = 'h1, h2, h3, h4';
@@ -97,16 +98,16 @@ function applyFilter(root: HTMLElement, query: string, empty: HTMLElement): void
 
 function toolbar(root: HTMLElement): HTMLElement {
   ensureKit();
-  const empty = el('p', { className: 'kdl-sk-faq-empty', textContent: 'No answers match.' });
+  const empty = el('p', { className: 'kdl-sk-faq-empty', textContent: t('faq.empty') });
   empty.hidden = true;
   const setAll = (open: boolean) =>
     root.querySelectorAll<HTMLDetailsElement>(`:scope > [${MARK}="acc"]:not([hidden])`).forEach((details) => (details.open = open));
-  const search = input({ type: 'search', placeholder: 'Filter questions…', ariaLabel: 'Filter questions', className: 'kdl-sk-faq-search', onInput: (value) => applyFilter(root, value, empty) });
+  const search = input({ type: 'search', placeholder: t('faq.filter.placeholder'), ariaLabel: t('faq.filter.label'), className: 'kdl-sk-faq-search', onInput: (value) => applyFilter(root, value, empty) });
   const bar = kitScope(
     [
       search,
-      button({ label: 'Expand all', variant: 'outline', size: 'sm', onClick: () => setAll(true) }),
-      button({ label: 'Collapse all', variant: 'ghost', size: 'sm', onClick: () => setAll(false) }),
+      button({ label: t('faq.expandAll'), variant: 'outline', size: 'sm', onClick: () => setAll(true) }),
+      button({ label: t('faq.collapseAll'), variant: 'ghost', size: 'sm', onClick: () => setAll(false) }),
       empty,
     ],
     { className: 'kdl-sk-faq-tools' }

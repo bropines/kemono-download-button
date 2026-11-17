@@ -14,7 +14,9 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   const postDetails = getPostDetailsFromPage();
   ensureKit();
 
+  // data-kdl-action: a language-independent hook for tests and user styles
   const createButton = (
+    action: string,
     iconName: IconName,
     text: string,
     hint: string,
@@ -24,6 +26,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   ) => {
     // kdl-button stays as a stable hook for user styles; the look is the kit's
     const btn = button({ icon: iconName, label: text, variant, size: 'sm', className: 'kdl-button', onClick });
+    btn.dataset.kdlAction = action;
     if (onContext) btn.addEventListener('contextmenu', onContext);
     return hint === text ? btn : tooltip(btn, { text: hint });
   };
@@ -35,6 +38,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   if (state.settings.showCopyLinksButton) {
     toolsCol.appendChild(
       createButton(
+        'links',
         'copy',
         t('dl.post.copyLinks'),
         t('dl.post.copyLinks.hint'),
@@ -50,7 +54,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showShareButton && typeof navigator.share === 'function') {
     toolsCol.appendChild(
-      createButton('share-2', t('dl.post.shareLinks'), t('dl.post.shareLinks'), 'outline', (e) =>
+      createButton('share', 'share-2', t('dl.post.shareLinks'), t('dl.post.shareLinks'), 'outline', (e) =>
         executeLinkAction('share', postDetails, e.currentTarget as HTMLElement, 'Share Links')
       )
     );
@@ -59,7 +63,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   // Column 2: Download Actions
   if (state.settings.showImagesButton) {
     downloadsCol.appendChild(
-      createButton('images', t('dl.post.downloadImages'), t('dl.post.downloadImages'), 'secondary', (e) =>
+      createButton('images', 'images', t('dl.post.downloadImages'), t('dl.post.downloadImages'), 'secondary', (e) =>
         addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), postDetails, e.currentTarget as HTMLElement, 'Download Images')
       )
     );
@@ -67,7 +71,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showFilesButton) {
     downloadsCol.appendChild(
-      createButton('paperclip', t('dl.post.downloadAttachments'), t('dl.post.downloadAttachments'), 'secondary', (e) =>
+      createButton('attachments', 'paperclip', t('dl.post.downloadAttachments'), t('dl.post.downloadAttachments'), 'secondary', (e) =>
         addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.currentTarget as HTMLElement, 'Download Attachments')
       )
     );
@@ -75,7 +79,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showZipButton) {
     downloadsCol.appendChild(
-      createButton('package', t('dl.post.downloadZip'), t('dl.post.downloadZip'), 'default', (e) =>
+      createButton('zip', 'package', t('dl.post.downloadZip'), t('dl.post.downloadZip'), 'default', (e) =>
         addTaskToQueue('ZIP', executeZipDownload, postDetails, e.currentTarget as HTMLElement, 'Download (ZIP)')
       )
     );

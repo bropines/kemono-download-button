@@ -31,7 +31,7 @@
 - Floating surfaces (dialogs, sheets, panels, toasts, overlays) mount into the shadow root from `getKitRoot()`/`portal()`, so site CSS cannot reach them. Widgets injected into the site's own layout use kit primitives inside a `.kdl-scope` element.
 - No hardcoded colours, radii or z-indexes in components: use the kit tokens and `LAYERS`. Icons come from `src/config/icons.ts`.
 - Keep IDs and classes stable once shipped: user themes and the restyle layer select on them.
-- User-visible text goes through `t('area.key')` (`src/i18n`, English baseline in `src/i18n/en/`), module names and setting labels through convention keys; read `src/i18n/README.md`. Translations live in signed `locales/<code>.json` (`locales/README.md`).
+- User-visible text goes through `t('area.key')` (`src/i18n`, English baseline in `src/i18n/en/`), module names and setting labels through convention keys; read `src/i18n/README.md`. Translations live in `locales/<code>.json`, contributed by pull request and checked by `npm run check-locales` (`locales/README.md`).
 
 ### 5. Dependencies & Userscript Hosts
 - **ZIP**: archives are streamed with `fflate`, which is small and bundled. JSZip is no longer used; do not bring it back.

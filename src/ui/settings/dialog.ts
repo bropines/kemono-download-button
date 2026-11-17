@@ -33,6 +33,7 @@ function buildTabs(): HTMLElement {
   });
   node.querySelectorAll<HTMLElement>('.kdl-ui-tabs__trigger').forEach((trigger, i) => {
     trigger.dataset.section = sections[i].id;
+    trigger.dataset.kdlTab = sections[i].id;
     const name = sections[i].icon;
     if (name) trigger.prepend(kitIcon(name));
   });

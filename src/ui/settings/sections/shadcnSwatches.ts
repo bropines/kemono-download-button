@@ -8,6 +8,7 @@ import { css } from '../../../utils/cssBuilder';
 import { addKitStyles } from '../../kit';
 import { notifySaved, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { t, tx } from '../../../i18n';
 
 const MODULE_ID = 'ui.shadcn';
 
@@ -44,8 +45,10 @@ function swatchColour(kind: Kind, key: string): string {
 
 function row(kind: Kind, label: string, keys: string[], labels: Record<string, { label: string }>): HTMLElement {
   const buttons = keys.map((key) => {
-    const btn = el('button', { type: 'button', className: 'kdl-swatch', title: labels[key].label, dataset: { key } });
-    btn.setAttribute('aria-label', `${label}: ${labels[key].label}`);
+    // Same texts as the select's options
+    const name = tx(`mod.${MODULE_ID}.setting.${kind}.option.${key}`, labels[key].label);
+    const btn = el('button', { type: 'button', className: 'kdl-swatch', title: name, dataset: { key } });
+    btn.setAttribute('aria-label', `${label}: ${name}`);
     btn.style.background = swatchColour(kind, key);
     btn.addEventListener('click', () => {
       setModuleSetting(MODULE_ID, kind, key);
@@ -74,8 +77,8 @@ registerSettingsSection({
     addKitStyles('kdl-shadcn-swatches', styles);
     container.prepend(
       el('div', { className: 'kdl-swatches' }, [
-        row('accent', 'Accent', Object.keys(ACCENTS), ACCENTS),
-        row('base', 'Base tone', Object.keys(BASES), BASES),
+        row('accent', t('settings.swatches.accent'), Object.keys(ACCENTS), ACCENTS),
+        row('base', t('settings.swatches.base'), Object.keys(BASES), BASES),
       ])
     );
   },

@@ -8,8 +8,9 @@ Two dictionaries per language:
   the site shows it. Applied by the `i18n.site` module (`./site.ts`).
 
 Translations live in `locales/<code>.json` (see `locales/README.md`); Russian is also bundled into the
-script so it works offline. Downloaded packs are verified (ECDSA P-256 signature + SHA-256 from the signed
-index, `./verify.ts`, `./packs.ts`) and cached in storage.
+script so it works offline. Downloaded packs are validated (`./validate.ts`, `./packs.ts`: shape, string
+values, known keys, placeholders matching the English text) and cached in storage. CI runs the same checks
+(`npm run check-locales`), so anyone can contribute a translation by pull request.
 
 ## Adding a UI string
 
@@ -18,8 +19,8 @@ index, `./verify.ts`, `./packs.ts`) and cached in storage.
    `dl.bulk.start`, `kui.lightbox.close`. Keep a key unique across files.
 2. Use it: `import { t } from '../i18n'` then `t('dl.bulk.start')` or `t('dl.toast.done', { count: 3 })`.
    Keys are typed (`UiKey`), so a typo fails `tsc`.
-3. Add the translation under `ui` in `locales/ru.json` (and other packs), bump the pack's `version`,
-   then `npm run sign-locales`.
+3. Add the translation under `ui` in `locales/ru.json` (and other packs), bump the pack's `version` (in the pack and in `locales/index.json`),
+   then `npm run check-locales`.
 
 Call `t()` when the text is rendered, not at import time, so a language switch picks it up.
 Strings in module definitions are read through convention keys instead (no `t()` in the definition):
@@ -33,6 +34,7 @@ Strings in module definitions are read through convention keys instead (no `t()`
 | setting hint | `mod.<id>.setting.<key>.hint` | `SettingDef.hint` |
 | setting option | `mod.<id>.setting.<key>.option.<value>` | option `label` |
 | settings tab title | `settings.tab.<sectionId>` | `SettingsSection.title` |
+| built-in theme preset | `themes.preset.<id>.name` / `.description` | `Theme.name` / `.description` |
 
 So a new module is translated by adding those keys to `locales/<code>.json` only; `tx(key, fallback)`
 does the lookup.

@@ -7,8 +7,9 @@
  *   await kdlSmoke({ download: 'zip' }) also clicks a download button on a post page ('zip' | 'images' | 'attachments' | 'links')
  *   await kdlSmoke({ bulk: true })      on a creator page: ticks two posts, checks the dock bar, unticks them
  *
- * Run it on a post page, a creator page and /posts. It only reads the DOM and the site's public API,
- * and the download option starts a real download in your browser.
+ * Run it on a post page, a creator page and /posts, in any interface language: it finds things by data
+ * attributes (data-kdl-tab, data-kdl-action, data-module), never by text. It only reads the DOM and the
+ * site's public API, and the download option starts a real download in your browser.
  */
 (() => {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -26,10 +27,6 @@
     return null;
   }
 
-  function buttonByText(text, root = document) {
-    return $$('button, a', root).find((b) => b.textContent.trim() === text) || null;
-  }
-
   async function openSettings(tab) {
     const link = $('#kdl-settings-btn-sidebar') || $('#kdl-settings-btn-header');
     if (!link) return null;
@@ -37,7 +34,7 @@
     const dialog = await waitFor(() => kit()?.querySelector('[role=dialog]'));
     if (!dialog) return null;
     if (tab) {
-      const t = $$('[role=tab]', dialog).find((x) => x.textContent.trim() === tab);
+      const t = $(`[role=tab][data-kdl-tab="${tab}"]`, dialog);
       if (!t) return null;
       t.click();
       await sleep(300);
@@ -72,8 +69,8 @@
       if (page === 'post') {
         const box = await waitFor(() => $('.kdl-actions-container'));
         check('post download buttons', !!box);
-        const labels = box ? $$('button', box).map((b) => b.textContent.trim()) : [];
-        note('post buttons', labels.join(' | '));
+        const actions = box ? $$('[data-kdl-action]', box).map((b) => b.dataset.kdlAction) : [];
+        note('post buttons', actions.join(' | '));
         const m = location.pathname.match(/\/([^/]+)\/user\/([^/]+)\/post\/([^/?#]+)/);
         if (m) {
           try {
@@ -86,8 +83,8 @@
           }
         }
         if (opts.download && box) {
-          const text = { zip: 'Download (ZIP)', images: 'Download Images', attachments: 'Download Attachments', links: 'Copy Links' }[opts.download];
-          const btn = buttonByText(text, box);
+          const text = opts.download;
+          const btn = $(`[data-kdl-action="${opts.download}"]`, box);
           check(`"${text}" button present`, !!btn);
           if (btn) {
             btn.click();
@@ -123,7 +120,7 @@
         }
       }
 
-      const dialog = await openSettings('Modules');
+      const dialog = await openSettings('modules');
       check('settings dialog + Modules tab', !!dialog);
       if (dialog) {
         const modules = $$('[data-module]', dialog);

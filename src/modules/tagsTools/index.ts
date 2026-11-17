@@ -8,6 +8,7 @@
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitIcon, select } from '../../ui/kit';
+import { t, tx, type UiKey } from '../../i18n';
 
 export const TAGS_TOOLS_ID = 'tags.tools';
 
@@ -31,12 +32,12 @@ interface TagItem {
   index: number;
 }
 
-const SCRIPT_LABELS: Record<ScriptId, string> = {
-  all: 'All scripts',
-  latin: 'Latin',
-  cyrillic: 'Cyrillic',
-  cjk: 'CJK (Han, Kana, Hangul)',
-  other: 'Other',
+const SCRIPT_LABELS: Record<ScriptId, UiKey> = {
+  all: 'tags.script.all',
+  latin: 'tags.script.latin',
+  cyrillic: 'tags.script.cyrillic',
+  cjk: 'tags.script.cjk',
+  other: 'tags.script.other',
 };
 
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
@@ -182,9 +183,11 @@ function apply(): void {
   }
   container.append(frag);
 
-  if (countLabel) countLabel.textContent = shown === items.length ? `${items.length} tags` : `${shown} of ${items.length} tags`;
+  if (countLabel) countLabel.textContent = shown === items.length ? t('tags.count', { count: items.length }) : t('tags.countFiltered', { shown, count: items.length });
   container.toggleAttribute('data-kdl-tags-grouped', group);
-  container.toggleAttribute('data-kdl-tags-empty', shown === 0);
+  // The value is the message the CSS shows
+  if (shown === 0) container.setAttribute('data-kdl-tags-empty', t('tags.empty'));
+  else container.removeAttribute('data-kdl-tags-empty');
   renderJumpBar(group ? shownLetters : null);
   // Jumped-to headings land below the sticky toolbar
   if (toolbar) container.style.setProperty('--kdl-tags-toolbar-h', `${toolbar.offsetHeight + 12}px`);
@@ -201,7 +204,7 @@ function renderJumpBar(letters: Map<string, number> | null): void {
         type: 'button',
         className: 'kdl-tags-jump__key',
         textContent: letter,
-        title: `${letter}: ${letters.get(letter)} tags`,
+        title: t('tags.jump.key', { letter, count: letters.get(letter) ?? 0 }),
         onClick: () => document.getElementById(headingId(letter))?.scrollIntoView({ block: 'start', behavior: 'smooth' }),
       })
     )
@@ -213,7 +216,7 @@ function scriptOptions(): { value: string; label: string }[] {
   items.forEach((item) => counts.set(item.script, (counts.get(item.script) ?? 0) + 1));
   return (Object.keys(SCRIPT_LABELS) as ScriptId[])
     .filter((id) => id === 'all' || counts.has(id) || prefs.script === id)
-    .map((id) => ({ value: id, label: id === 'all' ? SCRIPT_LABELS.all : `${SCRIPT_LABELS[id]} (${counts.get(id) ?? 0})` }));
+    .map((id) => ({ value: id, label: id === 'all' ? t(SCRIPT_LABELS.all) : `${t(SCRIPT_LABELS[id])} (${counts.get(id) ?? 0})` }));
 }
 
 function buildToolbar(ctx: ModuleContext): HTMLElement {
@@ -221,8 +224,8 @@ function buildToolbar(ctx: ModuleContext): HTMLElement {
   const search = input({
     type: 'search',
     value: prefs.query,
-    placeholder: 'Filter tags…',
-    ariaLabel: 'Filter tags',
+    placeholder: t('tags.filter.placeholder'),
+    ariaLabel: t('tags.filter.label'),
     className: 'kdl-tags-toolbar__search',
     onInput: (value) => {
       prefs.query = value;
@@ -240,13 +243,14 @@ function buildToolbar(ctx: ModuleContext): HTMLElement {
     }
   });
   sortEl = select({
-    ariaLabel: 'Sort tags',
-    options: SORT_OPTIONS,
+    ariaLabel: t('tags.sort.label'),
+    // Same texts as the module setting's options
+    options: SORT_OPTIONS.map((o) => ({ value: o.value, label: tx(`mod.${TAGS_TOOLS_ID}.setting.sort.option.${o.value}`, o.label) })),
     value: ctx.settings.get<string>('sort'),
     onChange: (value) => ctx.settings.set('sort', value),
   });
   const script = select({
-    ariaLabel: 'Filter by script',
+    ariaLabel: t('tags.script.label'),
     options: scriptOptions(),
     value: prefs.script,
     onChange: (value) => {
@@ -255,17 +259,17 @@ function buildToolbar(ctx: ModuleContext): HTMLElement {
     },
   });
   groupBtn = button({
-    label: 'A–Z groups',
+    label: t('tags.group.button'),
     icon: 'list',
     variant: ctx.settings.get<boolean>('group') ? 'secondary' : 'outline',
-    title: 'Group by first letter',
+    title: t('tags.group.title'),
     size: 'sm',
     className: 'kdl-tags-toolbar__group',
     onClick: () => ctx.settings.set('group', !ctx.settings.get<boolean>('group')),
   });
   countLabel = el('span', { className: 'kdl-tags-toolbar__count', role: 'status' });
   jumpBar = el('nav', { className: 'kdl-tags-jump' });
-  jumpBar.setAttribute('aria-label', 'Jump to letter');
+  jumpBar.setAttribute('aria-label', t('tags.jump.label'));
 
   return el('div', { id: TOOLBAR_ID, className: 'kdl-scope kdl-tags-toolbar' }, [
     el('div', { className: 'kdl-tags-toolbar__row' }, [
@@ -384,7 +388,7 @@ section#tag-container > .kdl-tags-letter {
   scroll-margin-top: var(--kdl-tags-toolbar-h, 120px);
 }
 section#tag-container[data-kdl-tags-grouped] { justify-content: flex-start; }
-section#tag-container[data-kdl-tags-empty]::before { content: 'No tags match'; flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
+section#tag-container[data-kdl-tags-empty]::before { content: attr(data-kdl-tags-empty); flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
 @media (max-width: 640px) {
   .kdl-tags-toolbar { width: auto; margin: 0.5em 8px 0; }
   .kdl-tags-toolbar__field { flex-basis: 100%; }

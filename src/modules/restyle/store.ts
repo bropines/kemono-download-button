@@ -7,6 +7,7 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { BUILTIN_THEMES } from './presets';
 import { PAGE_TYPES, SITE_IDS, TRANSFORM_ACTIONS, type Theme, type Transform } from './types';
 import { isValidVar } from './vars';
+import { t, tx } from '../../i18n';
 
 const INDEX_KEY = 'restyle.themes';
 const BUILTINS_KEY = 'restyle.builtins';
@@ -97,7 +98,7 @@ function assertSize(theme: Theme): void {
   const size = themeSize(theme);
   if (size > MAX_THEME_BYTES) {
     throw new ThemeError(
-      `"${theme.name}" is ${Math.ceil(size / 1024)} KB; a theme can be at most ${MAX_THEME_BYTES / 1024} KB. Trim its CSS or script.`
+      t('themes.error.tooBig', { name: theme.name, size: Math.ceil(size / 1024), max: MAX_THEME_BYTES / 1024 })
     );
   }
 }
@@ -157,7 +158,7 @@ export function setThemeEnabled(id: string, enabled: boolean): void {
 
 /** Creates or replaces a user theme. Throws ThemeError when it is too big. */
 export function saveTheme(input: Theme): Theme {
-  if (isBuiltin(input.id)) throw new ThemeError('Built-in themes are read-only; duplicate one to change it.');
+  if (isBuiltin(input.id)) throw new ThemeError(t('themes.error.readOnly'));
   const existing = loadUserThemes().find((t) => t.id === input.id);
   // Origin is fixed at creation: an imported theme never gains a script by being edited
   const origin = existing?.origin ?? (input.origin === 'import' ? 'import' : 'local');
@@ -188,7 +189,7 @@ export function deleteTheme(id: string): void {
 
 export function createTheme(partial: Partial<Theme> = {}): Theme {
   return saveTheme(
-    sanitizeTheme({ name: 'My theme', enabled: true, sites: 'any', pages: 'any', vars: {}, css: '', transforms: [], ...partial, id: newThemeId(), origin: 'local' })
+    sanitizeTheme({ name: t('themes.defaultName'), enabled: true, sites: 'any', pages: 'any', vars: {}, css: '', transforms: [], ...partial, id: newThemeId(), origin: 'local' })
   );
 }
 
@@ -197,7 +198,7 @@ export function duplicateTheme(id: string): Theme | null {
   if (!source) return null;
   // A built-in copy is the user's own; an imported theme stays "imported" (no scripts)
   const origin = source.origin === 'import' ? 'import' : 'local';
-  return saveTheme(sanitizeTheme({ ...source, id: newThemeId(), name: `${source.name} (copy)`, enabled: false, origin }));
+  return saveTheme(sanitizeTheme({ ...source, id: newThemeId(), name: t('themes.copyName', { name: source.origin === 'builtin' ? tx(`themes.preset.${source.id}.name`, source.name) : source.name }), enabled: false, origin }));
 }
 
 // --- Import / export ----------------------------------------------------------------------
@@ -224,20 +225,20 @@ export function exportAllJson(): string {
  * dropped, ids are always new and imported themes start disabled.
  */
 export function importThemesJson(text: string): Theme[] {
-  if (text.length > MAX_THEME_BYTES * 50) throw new ThemeError('The file is too large to be a theme export.');
+  if (text.length > MAX_THEME_BYTES * 50) throw new ThemeError(t('themes.error.fileTooLarge'));
   let data: unknown;
   try {
     data = JSON.parse(text);
   } catch {
-    throw new ThemeError('The file is not valid JSON.');
+    throw new ThemeError(t('themes.error.invalidJson'));
   }
   const d = (data ?? {}) as Record<string, unknown>;
-  if (d.format !== EXPORT_FORMAT) throw new ThemeError('Not a kdl-theme file (missing "format": "kdl-theme").');
+  if (d.format !== EXPORT_FORMAT) throw new ThemeError(t('themes.error.notTheme'));
   if (typeof d.version !== 'number' || d.version > EXPORT_VERSION) {
-    throw new ThemeError(`Unsupported theme file version ${String(d.version)}.`);
+    throw new ThemeError(t('themes.error.version', { version: String(d.version) }));
   }
   const raws = Array.isArray(d.themes) ? d.themes : d.theme ? [d.theme] : [];
-  if (!raws.length) throw new ThemeError('The file contains no themes.');
+  if (!raws.length) throw new ThemeError(t('themes.error.noThemes'));
   const prepared = raws.map((raw) => {
     const r = { ...(raw as Record<string, unknown>) };
     delete r.script;
