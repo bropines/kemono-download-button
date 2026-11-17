@@ -77,6 +77,19 @@ const light = {
 
 export type KitTheme = 'dark' | 'light';
 
+/** The dark palette and font, for code that maps them onto non-kit markup (the shadcn site skin) */
+export const KIT_DARK_TOKENS: Readonly<Record<string, string>> = dark;
+export const KIT_FONT = FONT;
+
+/** The icon tokens drawn in a given colour: the check/dash sit on --kdl-primary, the chevron is muted */
+export function kitIconTokens(onPrimary: string, muted: string): Record<string, string> {
+  return {
+    '--kdl-chevron': svgUrl(CHEVRON, muted),
+    '--kdl-check': svgUrl(CHECK, onPrimary, 3),
+    '--kdl-dash': svgUrl(DASH, onPrimary, 3),
+  };
+}
+
 /**
  * Theme variables: dark on :host / .kdl-scope / .kdl-tokens; light with data-theme="light" or .kdl-theme-light.
  * `.kdl-tokens` carries only these variables (no reset), for third-party markup such as Plyr.
