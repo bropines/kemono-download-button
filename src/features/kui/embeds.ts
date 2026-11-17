@@ -1,73 +1,73 @@
-import { icon } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 import { kuiState } from '../../state/kuiState';
 import { showMessage } from '../../ui/toast';
 import { parseGluedUrl } from '../../utils/urlSanitizer';
 import { copyToClipboard } from '../../utils/clipboard';
+import { badge, ensureKit, kitIcon } from '../../ui/kit';
+import { linkButton } from '../../ui/components/kui/linkButton';
 
 export interface ServiceBrand {
   name: string;
-  gradient: string;
-  textColor: string;
-  borderColor: string;
+  /** Brand colour: only an accent dot when the favicon can't load, the button itself is a kit button. */
+  color: string | null;
 }
 
 export function getServiceBrand(hostname: string): ServiceBrand {
   const host = hostname.toLowerCase().replace(/^www\./, "");
 
   if (host.includes("mega.nz") || host.includes("mega.co.nz")) {
-    return { name: "Mega", gradient: "linear-gradient(135deg, #d9272e, #a81c22)", textColor: "#ffffff", borderColor: "#f87171" };
+    return { name: "Mega", color: "#d9272e" };
   }
   if (host.includes("drive.google.com") || host.includes("docs.google.com")) {
-    return { name: "Google Drive", gradient: "linear-gradient(135deg, #1a73e8, #1254ad)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    return { name: "Google Drive", color: "#1a73e8" };
   }
   if (host.includes("dropbox.com")) {
-    return { name: "Dropbox", gradient: "linear-gradient(135deg, #0061ff, #0046b8)", textColor: "#ffffff", borderColor: "#3b82f6" };
+    return { name: "Dropbox", color: "#0061ff" };
   }
   if (host.includes("mediafire.com")) {
-    return { name: "MediaFire", gradient: "linear-gradient(135deg, #1271ff, #0b4db8)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    return { name: "MediaFire", color: "#1271ff" };
   }
   if (host.includes("pixeldrain.com")) {
-    return { name: "Pixeldrain", gradient: "linear-gradient(135deg, #6366f1, #4338ca)", textColor: "#ffffff", borderColor: "#818cf8" };
+    return { name: "Pixeldrain", color: "#6366f1" };
   }
   if (host.includes("workupload.com")) {
-    return { name: "Workupload", gradient: "linear-gradient(135deg, #0d9488, #0f766e)", textColor: "#ffffff", borderColor: "#2dd4bf" };
+    return { name: "Workupload", color: "#0d9488" };
   }
   if (host.includes("gofile.io")) {
-    return { name: "Gofile", gradient: "linear-gradient(135deg, #d97706, #b45309)", textColor: "#ffffff", borderColor: "#fbbf24" };
+    return { name: "Gofile", color: "#d97706" };
   }
   if (host.includes("terabox.com") || host.includes("teraboxapp.com")) {
-    return { name: "Terabox", gradient: "linear-gradient(135deg, #0284c7, #0369a1)", textColor: "#ffffff", borderColor: "#38bdf8" };
+    return { name: "Terabox", color: "#0284c7" };
   }
   if (host.includes("onedrive") || host.includes("1drv.ms")) {
-    return { name: "OneDrive", gradient: "linear-gradient(135deg, #0078d4, #004e8c)", textColor: "#ffffff", borderColor: "#60a5fa" };
+    return { name: "OneDrive", color: "#0078d4" };
   }
   if (host.includes("catbox.moe")) {
-    return { name: "Catbox", gradient: "linear-gradient(135deg, #e11d48, #9f1239)", textColor: "#ffffff", borderColor: "#fda4af" };
+    return { name: "Catbox", color: "#e11d48" };
   }
   if (host.includes("x.com") || host.includes("twitter.com")) {
-    return { name: "X (Twitter)", gradient: "linear-gradient(135deg, #1f2937, #111827)", textColor: "#f9fafb", borderColor: "#4b5563" };
+    return { name: "X (Twitter)", color: "#1f2937" };
   }
   if (host.includes("patreon.com")) {
-    return { name: "Patreon", gradient: "linear-gradient(135deg, #f96854, #c43e2b)", textColor: "#ffffff", borderColor: "#fca5a5" };
+    return { name: "Patreon", color: "#f96854" };
   }
   if (host.includes("fanbox.cc") || host.includes("pixiv.net")) {
-    return { name: "Fanbox", gradient: "linear-gradient(135deg, #d97706, #92400e)", textColor: "#ffffff", borderColor: "#fde047" };
+    return { name: "Fanbox", color: "#d97706" };
   }
   if (host.includes("subscribestar")) {
-    return { name: "SubscribeStar", gradient: "linear-gradient(135deg, #164e63, #083344)", textColor: "#ffffff", borderColor: "#22d3ee" };
+    return { name: "SubscribeStar", color: "#164e63" };
   }
   if (host.includes("discord.com") || host.includes("discord.gg")) {
-    return { name: "Discord", gradient: "linear-gradient(135deg, #5865f2, #3742fa)", textColor: "#ffffff", borderColor: "#a5b4fc" };
+    return { name: "Discord", color: "#5865f2" };
   }
   if (host.includes("t.me") || host.includes("telegram.org")) {
-    return { name: "Telegram", gradient: "linear-gradient(135deg, #0284c7, #0369a1)", textColor: "#ffffff", borderColor: "#38bdf8" };
+    return { name: "Telegram", color: "#0284c7" };
   }
   if (host.includes("youtube.com") || host.includes("youtu.be")) {
-    return { name: "YouTube", gradient: "linear-gradient(135deg, #dc2626, #991b1b)", textColor: "#ffffff", borderColor: "#fca5a5" };
+    return { name: "YouTube", color: "#dc2626" };
   }
 
-  return { name: host, gradient: "linear-gradient(135deg, #374151, #1f2937)", textColor: "#f3f4f6", borderColor: "#4b5563" };
+  return { name: host, color: null };
 }
 
 function isKnownService(hostname: string): boolean {
@@ -184,6 +184,7 @@ export function restructureLayout(processEmbedsCallback?: () => void): void {
 
 export function formatAttachmentButtons(): void {
   const attachmentLinks = document.querySelectorAll<HTMLAnchorElement>(".post__attachment-link");
+  if (attachmentLinks.length) ensureKit();
   attachmentLinks.forEach((link) => {
     if (link.classList.contains("kui-attachment-styled")) return;
     link.classList.add("kui-attachment-styled");
@@ -195,25 +196,13 @@ export function formatAttachmentButtons(): void {
       rawFileName = decodeURIComponent(rawFileName);
     } catch (e) {}
 
-    const iconSpan = document.createElement("span");
-    iconSpan.style.display = "inline-flex";
-    iconSpan.style.alignItems = "center";
-    iconSpan.style.justifyContent = "center";
-    iconSpan.style.width = "14px";
-    iconSpan.style.height = "14px";
-    iconSpan.style.flexShrink = "0";
-    iconSpan.innerHTML = `<svg viewBox="0 0 24 24" style="width: 100%; height: 100%;"><path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"></path></svg>`;
-
+    // The site's own link, dressed as a kit button; self-scoped since the list around it is the site's
+    link.classList.add("kdl-scope", "kdl-ui-btn", "kdl-ui-btn--outline", "kdl-ui-btn--size-sm");
     const textSpan = document.createElement("span");
-    textSpan.style.overflow = "hidden";
-    textSpan.style.textOverflow = "ellipsis";
-    textSpan.style.whiteSpace = "nowrap";
     textSpan.textContent = `Download ${rawFileName}`;
 
-    link.innerHTML = "";
+    link.replaceChildren(kitIcon("download"), textSpan);
     link.title = `Download ${rawFileName}`;
-    link.appendChild(iconSpan);
-    link.appendChild(textSpan);
   });
 }
 
@@ -317,43 +306,39 @@ export function processEmbeds(): void {
   });
 
   if (urlsToConvert.length > 0) {
+    ensureKit();
     const buttonContainer = document.createElement("div");
-    buttonContainer.className = "kui-embed-container";
+    buttonContainer.className = "kui-embed-container kdl-scope";
     urlsToConvert.forEach((url) => {
       try {
         const urlObject = new URL(url);
         const brand = getServiceBrand(urlObject.hostname);
 
-        const button = document.createElement("a");
-        button.href = url;
-        button.className = "kui-embed-button";
-        button.target = "_blank";
-        button.rel = "noopener noreferrer";
+        const button = linkButton({ href: url, variant: "outline", size: "sm", className: "kui-embed-button" });
         button.title = url;
 
-        button.style.background = brand.gradient;
-        button.style.color = brand.textColor;
-        button.style.borderColor = brand.borderColor;
-
+        // The host shows as its favicon; without one, as a dot in its brand colour
+        const dot = document.createElement("span");
+        dot.className = "kui-embed-dot";
+        dot.hidden = true;
+        if (brand.color) dot.style.setProperty("--kui-brand", brand.color);
         const favicon = document.createElement("img");
+        favicon.alt = "";
         favicon.src = `https://www.google.com/s2/favicons?sz=64&domain_url=${urlObject.origin}`;
         favicon.onerror = () => {
-          favicon.style.display = "none";
+          favicon.remove();
+          dot.hidden = false;
         };
 
         const text = document.createElement("span");
         text.className = "kui-embed-button-text";
         text.textContent = brand.name;
 
-        button.appendChild(favicon);
-        button.appendChild(text);
+        button.append(favicon, dot, text);
 
         const password = linkPasswords.get(url);
         if (password) {
-          const passwordChip = document.createElement("span");
-          passwordChip.className = "kui-embed-password";
-          passwordChip.replaceChildren(icon('key-round'), password);
-          button.appendChild(passwordChip);
+          button.appendChild(badge({ text: password, icon: "key-round", variant: "secondary", className: "kui-embed-password" }));
           button.title = `${url}\nPassword: ${password} (copied on click)`;
           button.addEventListener("click", () => copyPassword(password));
         }

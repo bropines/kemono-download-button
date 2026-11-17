@@ -1,83 +1,38 @@
 import { css } from '../../utils/cssBuilder';
-import { THEME } from '../theme';
 
 export const postCardStyles = css({
   '.user-card, .post-card': {
     position: 'relative !important',
     containerType: 'inline-size',
   },
-  '.post-card .post-card-download-controls': {
+  // Kit icon buttons in a .kdl-scope column, shown on hover
+  '.post-card .kdl-scope.post-card-download-controls': {
     position: 'absolute',
-    top: '5px',
-    right: '5px',
+    top: '6px',
+    right: '6px',
+    zIndex: 10,
     display: 'none',
     flexDirection: 'column',
-    gap: 'clamp(3px, 1.6cqw, 5px)',
-    backgroundColor: 'rgba(20, 23, 28, 0.88)',
-    WebkitBackdropFilter: 'blur(8px)',
-    backdropFilter: 'blur(8px)',
-    padding: 'clamp(3px, 2cqw, 6px)',
-    borderRadius: '6px',
-    zIndex: 10,
-    border: '1px solid rgba(255, 255, 255, 0.12)',
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
-    maxWidth: '55%',
-    boxSizing: 'border-box',
+    gap: '4px',
+    padding: '4px',
+    border: '1px solid var(--kdl-border)',
+    borderRadius: 'var(--kdl-radius)',
+    background: 'var(--kdl-popover)',
+    boxShadow: 'var(--kdl-shadow)',
   },
-  '.post-card:hover .post-card-download-controls': {
+  // Also while the info popover is open, which stays anchored to its button
+  '.post-card:hover .kdl-scope.post-card-download-controls, .post-card .kdl-scope.post-card-download-controls:focus-within, .post-card .kdl-scope.post-card-download-controls:has([aria-expanded="true"])': {
     display: 'flex',
   },
-  '.post-card .post-card-download-controls button': {
-    padding: 'clamp(3px, 1.6cqw, 5px) clamp(6px, 3.2cqw, 10px)',
-    fontSize: 'clamp(0.75rem, 5.8cqw, 0.92rem)',
-    fontWeight: '600',
-    minWidth: 'clamp(44px, 22cqw, 72px)',
-    margin: 0,
-    border: '1px solid rgba(255, 255, 255, 0.12) !important',
-    borderRadius: '4px',
-    color: '#fff !important',
-    cursor: 'pointer',
-    textAlign: 'center',
-    lineHeight: '1.25',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.25)',
-    whiteSpace: 'nowrap',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
+  '.post-card-download-controls .kdl-ui-btn--size-icon': {
+    width: 'clamp(26px, 16cqw, 32px)',
+    height: 'clamp(26px, 16cqw, 32px)',
   },
-  '.post-card .post-card-download-controls button:hover': {
-    filter: 'brightness(1.15)',
-    transform: 'translateY(-1px)',
-    boxShadow: '0 3px 6px rgba(0, 0, 0, 0.35)',
-  },
-  '.post-card .post-card-download-controls button:active': {
-    transform: 'translateY(1px)',
-  },
-  '.post-card .post-card-dl-zip': {
-    background: `${THEME.colors.btnSuccessGradient} !important`,
-  },
-  '.post-card .post-card-dl-img': {
-    background: `${THEME.colors.btnPrimaryGradient} !important`,
-  },
-  '.post-card .post-card-dl-att': {
-    background: `${THEME.colors.btnWarnGradient} !important`,
-    color: '#ffffff !important',
-  },
-  '.post-card .post-card-dl-pick': {
-    background: `${THEME.colors.btnInfoGradient} !important`,
-  },
-  '.post-card .post-card-dl-info': {
-    background: `${THEME.colors.btnSecondaryGradient} !important`,
-  },
-  '.post-card .post-card-download-controls button:disabled, .post__actions button[data-is-downloading=true], .post__actions button[data-is-queued=true]': {
-    opacity: '0.6 !important',
-    cursor: 'not-allowed !important',
-  },
-  '.post-card .post-card-download-controls button[data-is-queued=true], .post__actions button[data-is-queued=true]': {
-    background: `${THEME.colors.orange} !important`,
-  },
-  '.post-card .post-card-download-controls button[data-is-downloading=true], .post__actions button[data-is-downloading=true]': {
-    background: `${THEME.colors.secondary} !important`,
+  // The queue writes "Queued..." / "Processing..." as the label: let the button grow for it
+  '.post-card-download-controls .kdl-ui-btn[data-is-queued], .post-card-download-controls .kdl-ui-btn[data-is-downloading]': {
+    width: 'auto',
+    padding: '0 8px',
+    fontSize: '12px',
   },
   '.kdl-post-checkbox': {
     position: 'absolute',
@@ -91,57 +46,31 @@ export const postCardStyles = css({
     margin: 0,
     backgroundClip: 'content-box',
   },
-  '.kdl-quick-fav-btn': {
+  // Self-scoped kit icon button (.kdl-scope.kdl-ui-btn)
+  '.kdl-scope.kdl-quick-fav-btn': {
     position: 'absolute',
     top: '6px',
     right: '6px',
     zIndex: 12,
-    background: 'rgba(20, 23, 28, 0.85)',
-    border: '1px solid rgba(255, 255, 255, 0.18)',
-    color: '#fff',
-    borderRadius: THEME.borderRadius.sm,
     width: 'clamp(24px, 14cqw, 32px)',
     height: 'clamp(24px, 14cqw, 32px)',
-    fontSize: 'clamp(14px, 10cqw, 18px)',
-    lineHeight: 1,
-    padding: 0,
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    transition: 'transform .2s, color .2s, opacity .2s',
     opacity: 0,
     pointerEvents: 'none',
+    transition: 'opacity 0.15s, background-color 0.15s',
   },
-  '.user-card:hover .kdl-quick-fav-btn, .post-card:hover .kdl-quick-fav-btn': {
-    opacity: 0.9,
+  '.user-card:hover .kdl-scope.kdl-quick-fav-btn, .post-card:hover .kdl-scope.kdl-quick-fav-btn, .kdl-scope.kdl-quick-fav-btn:focus-visible': {
+    opacity: 1,
     pointerEvents: 'auto',
   },
-  '.kdl-quick-fav-btn:hover': {
+  '.kdl-scope.kdl-quick-fav-btn.kdl-favorited': {
+    color: 'var(--kdl-warning)',
+  },
+  '.kdl-quick-fav-btn.kdl-favorited svg': {
+    fill: 'currentColor',
+  },
+  // toggleFavorite swaps in a spinner and disables the button while it works
+  '.kdl-scope.kdl-quick-fav-btn:disabled': {
     opacity: 1,
-    transform: 'scale(1.1)',
-  },
-  '.kdl-quick-fav-btn.kdl-favorited': {
-    color: '#ffeb3b',
-  },
-  '.kdl-quick-fav-btn:disabled': {
     cursor: 'wait',
-    color: '#888',
-  },
-  '.kdl-post-info-tooltip': {
-    position: 'absolute',
-    bottom: '100%',
-    right: 0,
-    backgroundColor: '#1a1a1a',
-    color: '#f0f0f0',
-    padding: '8px',
-    borderRadius: THEME.borderRadius.sm,
-    border: `1px solid ${THEME.colors.borderLight}`,
-    zIndex: THEME.zIndex.dropdown,
-    width: '200px',
-    fontSize: '.85em',
-    display: 'none',
-    pointerEvents: 'none',
-    boxShadow: '0 3px 10px #00000080',
   },
 });

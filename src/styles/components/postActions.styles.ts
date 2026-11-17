@@ -110,7 +110,7 @@ export const postActionsStyles = css({
     textShadow: 'inherit !important',
   },
 
-  /* UserScript 2-Column Action Panel */
+  /* UserScript 2-Column Action Panel (kit buttons inside a .kdl-scope group) */
   '@media (min-width: 850px)': {
     '.post__header': {
       position: 'relative !important',
@@ -118,64 +118,37 @@ export const postActionsStyles = css({
     '.post__info': {
       paddingRight: '400px !important',
     },
-    '.kdl-actions-container': {
-      position: 'absolute !important',
-      top: '15px !important',
-      right: '15px !important',
-      display: 'grid !important',
-      gridTemplateColumns: '1fr 1fr !important',
-      gap: '10px !important',
-      width: '380px !important',
+    '.kdl-scope.kdl-actions-container': {
+      position: 'absolute',
+      top: '15px',
+      right: '15px',
+      width: '380px',
     },
   },
-
+  '.kdl-scope.kdl-actions-container': {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '8px',
+    marginTop: '12px',
+  },
   '@media (max-width: 849px)': {
-    '.kdl-actions-container': {
-      display: 'grid !important',
-      gridTemplateColumns: '1fr 1fr !important',
-      gap: '8px !important',
-      marginTop: '12px !important',
-      width: '100% !important',
+    '.kdl-scope.kdl-actions-container': {
+      width: '100%',
     },
   },
-
-  '.kdl-actions-col': {
-    display: 'flex !important',
-    flexDirection: 'column !important',
-    gap: '8px !important',
+  '.kdl-actions-container .kdl-actions-col': {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
   },
-
-  '.kdl-button': {
-    padding: '7px 12px !important',
-    border: 'none !important',
-    borderRadius: `${THEME.borderRadius.md} !important`,
-    cursor: 'pointer !important',
-    fontSize: '0.86rem !important',
-    fontWeight: '600 !important',
-    lineHeight: '1.3 !important',
-    color: '#fff !important',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2) !important',
-    width: '100% !important',
-    boxSizing: 'border-box !important',
-    display: 'inline-flex !important',
-    alignItems: 'center !important',
-    justifyContent: 'center !important',
-    gap: '5px !important',
-    outline: 'none !important',
-    textShadow: 'none !important',
-    transition: 'opacity 0.2s ease, transform 0.15s ease, filter 0.2s ease !important',
+  '.kdl-actions-container .kdl-ui-btn': {
+    width: '100%',
   },
-  // outline is suppressed above; keep a visible ring for keyboard users
-  '.kdl-button:focus-visible, .post__flag:focus-visible, .post__fav:focus-visible': {
+  // Queued / running: the queue disables the button and writes its status as the label
+  '.kdl-scope .kdl-ui-btn[data-is-queued], .kdl-scope .kdl-ui-btn[data-is-downloading]': {
+    opacity: 0.7,
+  },
+  '.post__flag:focus-visible, .post__fav:focus-visible, #kdl-author-manager-btn:focus-visible': {
     boxShadow: '0 0 0 3px rgba(56, 189, 248, 0.5) !important',
-  },
-  '.kdl-button:hover': {
-    opacity: '0.95 !important',
-    filter: 'brightness(1.1) !important',
-    transform: 'translateY(-1px) !important',
-    boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3) !important',
-  },
-  '.kdl-button:active': {
-    transform: 'translateY(0) !important',
   },
 });

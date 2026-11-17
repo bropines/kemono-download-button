@@ -1,9 +1,9 @@
-import { icon } from '../../../config/icons';
 import { DEFAULT_SETTINGS } from '../../../config/constants';
 import { notifyLensDisplayChanged, notifyLensDisplayPreview } from '../../../services/lensImages';
 import { saveSetting, state } from '../../../state/store';
 import type { DownloaderSettings } from '../../../types';
 import { el } from '../../../utils/dom';
+import { button, field, input, label, select, separator, setSwitch, slider, switchControl, tooltip, uid } from '../../kit';
 
 type Key = keyof DownloaderSettings;
 
@@ -94,6 +94,18 @@ function formatValue(control: Control, value: unknown): string {
   return `${number.toFixed(digits)}${control.unit ?? ''}`;
 }
 
+// The kit slider only follows user input: a reset has to move its fill and readout too
+function setSliderValue(wrapper: HTMLElement, control: Control, value: unknown): void {
+  const range = wrapper.querySelector<HTMLInputElement>('.kdl-ui-slider__input');
+  const output = wrapper.querySelector('.kdl-ui-slider__value');
+  if (!range) return;
+  range.value = String(value);
+  const min = control.min ?? 0;
+  const max = control.max ?? 100;
+  range.style.setProperty('--kdl-ui-fill', `${((Number(range.value) - min) / (max - min || 1)) * 100}%`);
+  if (output) output.textContent = formatValue(control, range.value);
+}
+
 /** The translation display settings, for the image viewer. Every change redraws the translation on screen. */
 export function createLensPanel(onClose: () => void): HTMLElement {
   const dirty = new Set<Key>();
@@ -129,51 +141,46 @@ export function createLensPanel(onClose: () => void): HTMLElement {
     settleTimer = setTimeout(commit, SETTLE_MS);
   };
 
+  const withHint = (row: HTMLElement, control: Control): HTMLElement => {
+    if (control.hint) tooltip(row, { text: control.hint, side: 'left' });
+    return row;
+  };
+
   const buildRow = (control: Control): HTMLElement => {
     const numeric = typeof DEFAULT_SETTINGS[control.key] === 'number';
     const parse = (raw: string): unknown => (numeric ? parseFloat(raw) : raw);
 
     if (control.type === 'checkbox') {
-      const input = el('input', { type: 'checkbox', onChange: () => set(control.key, input.checked) });
-      const row = el('label', { className: 'kui-lens-row kui-lens-row--check', title: control.hint ?? '' }, [input, el('span', {}, [control.label])]);
-      rows.push({ control, row, sync: () => { input.checked = Boolean(readSetting(control.key)); } });
-      return row;
+      const toggle = switchControl({ onChange: (checked) => set(control.key, checked) });
+      const row = field({ label: control.label, control: toggle, orientation: 'horizontal', className: 'kui-lens-row kui-lens-row--check' });
+      rows.push({ control, row, sync: () => setSwitch(toggle, Boolean(readSetting(control.key))) });
+      return withHint(row, control);
     }
 
     if (control.type === 'range') {
-      const value = el('span', { className: 'kui-lens-value' });
-      const input = el('input', {
-        type: 'range',
-        min: String(control.min),
-        max: String(control.max),
-        step: String(control.step),
-        onInput: () => {
-          value.textContent = formatValue(control, input.value);
-          set(control.key, parse(input.value));
-        }
+      const id = uid('kui-lens');
+      const range = slider({
+        id,
+        min: control.min,
+        max: control.max,
+        step: control.step,
+        showValue: (value) => formatValue(control, value),
+        onInput: (value) => set(control.key, parse(String(value))),
       });
-      const row = el('div', { className: 'kui-lens-row kui-lens-row--range', title: control.hint ?? '' }, [
-        el('span', {}, [control.label]),
-        value,
-        input
-      ]);
-      rows.push({
-        control,
-        row,
-        sync: () => {
-          input.value = String(readSetting(control.key));
-          value.textContent = formatValue(control, readSetting(control.key));
-        }
-      });
-      return row;
+      const row = el('div', { className: 'kui-lens-row kui-lens-row--range' }, [label({ text: control.label, htmlFor: id }), range]);
+      rows.push({ control, row, sync: () => setSliderValue(range, control, readSetting(control.key)) });
+      return withHint(row, control);
     }
 
-    const input = control.type === 'select'
-      ? el('select', { onChange: () => set(control.key, parse(input.value)) }, (control.options ?? []).map(([value, text]) => el('option', { value }, [text])))
-      : el('input', { type: 'text', placeholder: 'system-ui', onInput: () => set(control.key, input.value) });
-    const row = el('label', { className: 'kui-lens-row', title: control.hint ?? '' }, [el('span', {}, [control.label]), input]);
-    rows.push({ control, row, sync: () => { input.value = String(readSetting(control.key)); } });
-    return row;
+    const box = control.type === 'select'
+      ? select({
+          options: (control.options ?? []).map(([value, text]) => ({ value, label: text })),
+          onChange: (value) => set(control.key, parse(value)),
+        })
+      : input({ placeholder: 'system-ui', onInput: (value) => set(control.key, value) });
+    const row = field({ label: control.label, control: box, className: 'kui-lens-row' });
+    rows.push({ control, row, sync: () => { box.value = String(readSetting(control.key)); } });
+    return withHint(row, control);
   };
 
   const syncAll = () => {
@@ -181,25 +188,26 @@ export function createLensPanel(onClose: () => void): HTMLElement {
     refreshActive();
   };
 
+  const iconButton = (iconName: 'rotate-ccw' | 'x', text: string, onClick: () => void) =>
+    tooltip(button({ icon: iconName, variant: 'ghost', size: 'icon', ariaLabel: text, className: 'kui-lens-panel-btn', onClick }), { text });
+
   const panel = el('div', { className: 'kui-lens-panel' }, [
     el('div', { className: 'kui-lens-panel-header' }, [
       el('strong', {}, ['Translation display']),
-      el('button', {
-        type: 'button',
-        className: 'kui-lens-panel-btn',
-        title: 'Back to defaults',
-        onClick: () => {
-          CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key], false));
-          syncAll();
-        }
-      }, [icon('rotate-ccw')]),
-      el('button', { type: 'button', className: 'kui-lens-panel-btn', title: 'Close', onClick: onClose }, [icon('x')])
+      iconButton('rotate-ccw', 'Back to defaults', () => {
+        CONTROLS.forEach((control) => set(control.key, DEFAULT_SETTINGS[control.key], false));
+        syncAll();
+      }),
+      iconButton('x', 'Close', onClose),
     ]),
-    ...GROUPS.map((group) => el('section', { className: 'kui-lens-group' }, [
+    ...GROUPS.map((group, index) => el('section', { className: 'kui-lens-group' }, [
+      index ? separator() : null,
       el('h4', {}, [group.title]),
-      ...group.controls.map(buildRow)
-    ]))
+      ...group.controls.map(buildRow),
+    ])),
   ]);
+  panel.setAttribute('role', 'region');
+  panel.setAttribute('aria-label', 'Translation display');
   syncAll();
   return panel;
 }

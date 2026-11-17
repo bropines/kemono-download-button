@@ -1,9 +1,10 @@
 import { SELECTORS } from '../../config/selectors';
-import { ICONS, iconSvg } from '../../config/icons';
 import { kuiState } from '../../state/kuiState';
 import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, translateImage } from '../../services/lensImages';
 import { showMessage } from '../../ui/toast';
+import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
+import { lensIcon, linkButton } from '../../ui/components/kui/linkButton';
 import { fetchPostFileData } from './api';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
@@ -48,17 +49,28 @@ export async function initializeImageGallery(): Promise<void> {
     detachDisplayListener?.();
     detachDisplayListener = null;
 
+    ensureKit();
     const galleryLayout = document.createElement("div") as GalleryLayoutElement;
-    galleryLayout.className = "kui-gallery-layout";
+    galleryLayout.className = "kui-gallery-layout kdl-scope";
     const thumbList = document.createElement("div");
     thumbList.className = "kui-gallery-thumbnails";
     const previewContainer = document.createElement("div");
     previewContainer.className = "kui-gallery-preview";
     const previewImage = document.createElement("img");
     previewImage.className = "kui-gallery-preview-image";
-    const thumbToggle = document.createElement("div");
-    thumbToggle.className = "kui-gallery-thumb-toggle";
-    thumbToggle.addEventListener("click", () => thumbList.classList.toggle("kui-collapsed"));
+    const thumbToggle = tooltip(button({
+      icon: 'panel-left-close',
+      variant: 'secondary',
+      size: 'icon',
+      ariaLabel: 'Toggle thumbnails',
+      className: 'kui-gallery-thumb-toggle',
+      onClick: () => {
+        const collapsed = thumbList.classList.toggle("kui-collapsed");
+        thumbToggle.replaceChildren(kitIcon(collapsed ? 'panel-left-open' : 'panel-left-close'));
+        thumbToggle.setAttribute('aria-expanded', String(!collapsed));
+      },
+    }), { text: 'Toggle thumbnails', side: 'left' });
+    thumbToggle.setAttribute('aria-expanded', 'true');
     previewContainer.appendChild(previewImage);
     previewContainer.appendChild(thumbToggle);
 
@@ -66,10 +78,13 @@ export async function initializeImageGallery(): Promise<void> {
     const translatedByIndex = new Map<number, string>();
     let translateBtn: HTMLButtonElement | null = null;
     if (state.settings.showImageTranslateButton) {
-      translateBtn = document.createElement("button");
-      translateBtn.className = "kui-action-btn";
-      translateBtn.title = "Translate the text in this image";
-      translateBtn.innerHTML = iconSvg('languages');
+      translateBtn = tooltip(button({
+        icon: 'languages',
+        variant: 'secondary',
+        size: 'icon',
+        ariaLabel: 'Translate the text in this image',
+        className: 'kui-action-btn',
+      }), { text: 'Translate / show original', side: 'right' });
       const previewActions = document.createElement("div");
       previewActions.className = "kui-gallery-preview-actions";
       previewActions.appendChild(translateBtn);
@@ -95,7 +110,10 @@ export async function initializeImageGallery(): Promise<void> {
       if (previewImage.src !== previewSrc) {
         previewImage.src = previewSrc;
       }
-      translateBtn?.classList.toggle("kui-active", translatedByIndex.has(currentIndex));
+      if (translateBtn) {
+        translateBtn.dataset.state = translatedByIndex.has(currentIndex) ? "on" : "off";
+        translateBtn.setAttribute("aria-pressed", String(translatedByIndex.has(currentIndex)));
+      }
       thumbLinks.forEach((link) => link.classList.remove("kui-thumb-active"));
       activeThumbLink.classList.add("kui-thumb-active");
       activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -110,7 +128,7 @@ export async function initializeImageGallery(): Promise<void> {
       if (!btn || !link) return;
       const index = currentIndex;
       btn.disabled = true;
-      btn.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
+      btn.replaceChildren(kitIcon('loader-circle', 'kdl-ui-spin'));
       try {
         // The original, not the thumbnail: Lens reads small text badly
         const translated = await translateImage(link.dataset.originalPath || link.href);
@@ -120,7 +138,7 @@ export async function initializeImageGallery(): Promise<void> {
         showMessage(`Lens: ${(error as Error).message}`, 'error');
       } finally {
         btn.disabled = false;
-        btn.innerHTML = iconSvg('languages');
+        btn.replaceChildren(kitIcon('languages'));
       }
     };
 
@@ -182,25 +200,18 @@ export async function initializeImageGallery(): Promise<void> {
           thumbLink.dataset.originalPath = fullOriginalPath;
           const actionsContainer = document.createElement("div");
           actionsContainer.className = "kui-thumb-actions";
-          const originalLinkBtn = document.createElement("a");
-          originalLinkBtn.className = "kui-action-btn";
-          originalLinkBtn.href = fullOriginalPath;
-          originalLinkBtn.innerHTML = ICONS.DOWNLOAD;
-          originalLinkBtn.title = "Download original";
-          originalLinkBtn.target = "_blank";
-          originalLinkBtn.rel = "noopener noreferrer";
-          originalLinkBtn.addEventListener("click", (e) => e.stopPropagation());
-          actionsContainer.appendChild(originalLinkBtn);
           const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
-          const lensBtn = document.createElement("a");
-          lensBtn.className = "kui-action-btn";
-          lensBtn.href = lensLink;
-          lensBtn.title = "Search with Google Lens";
-          lensBtn.target = "_blank";
-          lensBtn.rel = "noopener noreferrer";
-          lensBtn.innerHTML = ICONS.LENS;
-          lensBtn.addEventListener("click", (e) => e.stopPropagation());
-          actionsContainer.appendChild(lensBtn);
+          [
+            { href: fullOriginalPath, icon: 'download' as const, text: "Download original" },
+            { href: lensLink, icon: lensIcon(), text: "Search with Google Lens" },
+          ].forEach(({ href, icon, text }) => {
+            const action = tooltip(
+              linkButton({ href, icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
+              { text, side: 'left' }
+            );
+            action.addEventListener("click", (e) => e.stopPropagation());
+            actionsContainer.appendChild(action);
+          });
           wrapper.appendChild(actionsContainer);
         }
       }

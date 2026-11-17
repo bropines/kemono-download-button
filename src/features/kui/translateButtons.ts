@@ -1,9 +1,10 @@
-import { IconName, iconSvg } from '../../config/icons';
+import type { IconName } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 import { isTranslationConfigured, translateText } from '../../services/translators';
 import { appState, getSettings, state } from '../../state/store';
 import { showMessage } from '../../ui/toast';
 import { el } from '../../utils/dom';
+import { ensureKit, kitIcon } from '../../ui/kit';
 
 type TranslateKind = 'title' | 'content' | 'comment';
 type ButtonState = 'idle' | 'loading' | 'translated';
@@ -30,7 +31,8 @@ function setButtonState(button: HTMLButtonElement, buttonState: ButtonState): vo
   button.title = label;
   button.setAttribute('aria-label', label);
   button.disabled = buttonState === 'loading';
-  button.innerHTML = iconSvg(iconName, buttonState === 'loading' ? 'kdl-icon kdl-spin' : 'kdl-icon');
+  button.setAttribute('aria-busy', String(buttonState === 'loading'));
+  button.replaceChildren(kitIcon(iconName, buttonState === 'loading' ? 'kdl-ui-spin' : undefined));
 }
 
 // Runs fn with the kept children detached, so they are neither translated nor wiped by innerText
@@ -112,7 +114,14 @@ export function syncTranslateButton(host: Element | null, kind: TranslateKind, c
   if (button) return;
 
   bindListener();
-  const created = el('button', { type: 'button', className: 'kui-translate-btn', dataset: { kuiTranslate: kind } });
+  ensureKit();
+  // Self-scoped kit ghost icon button: it sits inside the site's headings and comment footers. A native title
+  // rather than a kit tooltip: the label follows the state, and restored history snapshots drop listeners
+  const created = el('button', {
+    type: 'button',
+    className: 'kdl-scope kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-icon kui-translate-btn',
+    dataset: { kuiTranslate: kind },
+  });
   setButtonState(created, 'idle');
   host.appendChild(created);
 }
