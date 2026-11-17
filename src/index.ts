@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
-// @namespace    http://tampermonkey.net/
+// @namespace    https://github.com/bropines/kemono-download-button
 // @version      1.1.0
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
