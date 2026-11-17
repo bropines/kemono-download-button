@@ -10,13 +10,15 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Login and register pages: a narrow card with spaced fields and a centred call to action.
 - File hash search: the file field is a proper drop zone (icon, "drop a file or click", the chosen file's name and size, a highlight while dragging) instead of the browser's own file input with its off-centre "No file chosen".
 
+### Fixed
+- Russian translation of the login and register pages, the Fanbox session key tutorial and the Safari, Firefox and Discord steps of the session key tutorial.
+
 ## [1.7.1] - 2026-11-17
 
 ### Changed
 - Tag pages render lazily: the first 300 tags at once, the next 300 as you scroll near the end (search, sort and the letter jump still cover every tag). Opening or closing the sidebar no longer stutters on the 2000-tag page.
 
 ### Fixed
-- Russian translation of the login and register pages, the Fanbox session key tutorial and the Safari, Firefox and Discord steps of the session key tutorial.
 - Tag list layout: tags hidden by the filter or the script choice really disappear (they kept their place in the list).
 
 ## [1.7.0] - 2026-11-17
