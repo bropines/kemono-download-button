@@ -5,7 +5,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Changed
-- Site skin: the creator header's upload button is just the upload icon (desktop and phones).
+- Site skin: the creator header's upload and favourite buttons are icon-only; on desktop they slide their label out on hover.
 
 ## [1.4.2] - 2026-11-17
 

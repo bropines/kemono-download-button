@@ -90,10 +90,26 @@ export const creatorCss = (): string => `
   box-shadow: var(--kdl-shadow-sm);
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-/* Upload: icon only (lucide "upload" in the text colour); the label stays for screen readers */
-.user-header__actions > .user-header__upload { flex: 0 0 auto; justify-content: center; width: 2rem; padding: 0; }
-.user-header__upload > span {
-  position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+/* Upload and favourite: icon only; on a pointer device hovering (or keyboard focus) slides the label out.
+   The label stays in the accessibility tree either way */
+.user-header__actions > :is(.user-header__upload, .user-header__favourite) {
+  flex: 0 0 auto; justify-content: center; gap: 0; min-width: 2rem; padding: 0 0.5rem; overflow: hidden;
+}
+.user-header__actions :is(.user-header__upload > span, .user-header__favourite .user-header__fav-text) {
+  display: inline-block;
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+}
+@media (hover: hover) {
+  .user-header__actions > :is(.user-header__upload, .user-header__favourite):is(:hover, :focus-visible) :is(span:not(.user-header__fav-icon)) {
+    max-width: 14rem;
+    margin-left: 6px;
+    opacity: 1;
+  }
 }
 .user-header__upload::before {
   content: '';
@@ -120,7 +136,6 @@ export const creatorCss = (): string => `
   .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
   .user-header__actions .kdl-ui-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-header__actions > :is(.user-header__favourite, .user-header__upload) { flex: 0 0 2.25rem; width: 2.25rem; padding: 0; }
-  .user-header__favourite .user-header__fav-text { display: none; }
   .user-header__favourite .user-header__fav-icon { font-size: 16px; }
 }
 @media (max-width: 480px) {
