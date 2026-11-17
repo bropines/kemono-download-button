@@ -13,6 +13,7 @@ import { tagsToolsModule } from './tagsTools';
 import { postsSearchModule } from './postsSearch';
 import { importerStatusModule } from './importerStatus';
 import { smoothThumbsModule } from './smoothThumbs';
+import { dmsViewerModule } from './dmsViewer';
 import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
@@ -31,6 +32,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   postsSearchModule,
   importerStatusModule,
   smoothThumbsModule,
+  dmsViewerModule,
   siteTranslationModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,

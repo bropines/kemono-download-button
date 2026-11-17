@@ -441,15 +441,23 @@ section#tag-container[data-kdl-tags-layout="grid"] > article > a {
   height: 30px;
   padding: 0 8px !important;
   border-radius: inherit !important;
-  background: linear-gradient(to right, color-mix(in srgb, var(--kdl-primary, #888) 10%, transparent) var(--kdl-tag-p, 0%), transparent 0) !important;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--kdl-primary, #888) 22%, transparent) var(--kdl-tag-p, 0%), transparent 0),
+    color-mix(in srgb, var(--kdl-muted, #444) 45%, transparent) !important;
   color: var(--kdl-foreground, inherit) !important;
+  line-height: 1;
   text-decoration: none;
 }
 section#tag-container[data-kdl-tags-layout="grid"] > article > a:is(:hover, :focus-visible) {
-  background-color: var(--kdl-accent, rgba(127, 127, 127, 0.2)) !important;
+  background:
+    linear-gradient(to right, color-mix(in srgb, var(--kdl-primary, #888) 32%, transparent) var(--kdl-tag-p, 0%), transparent 0),
+    var(--kdl-accent, rgba(127, 127, 127, 0.25)) !important;
 }
 section#tag-container[data-kdl-tags-layout="grid"] > article > a > span {
+  display: block;
+  height: auto !important;
   padding: 0 !important;
+  line-height: 1.3 !important;
   font-size: 13px !important;
 }
 section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:first-child {
@@ -461,10 +469,9 @@ section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:first-ch
 }
 section#tag-container[data-kdl-tags-layout="grid"] > article > a > span:nth-child(2) {
   flex: 0 0 auto;
-  color: var(--kdl-muted-foreground, inherit) !important;
+  color: color-mix(in srgb, var(--kdl-foreground, #fff) 70%, transparent) !important;
   font-size: 12px !important;
   font-variant-numeric: tabular-nums;
-  opacity: 0.85;
 }
 section#tag-container[data-kdl-tags-layout="grid"] > .kdl-tags-letter,
 section#tag-container[data-kdl-tags-layout="grid"][data-kdl-tags-empty]::before { grid-column: 1 / -1; }

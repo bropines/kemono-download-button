@@ -4,7 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- **Messages as cards** (module, on by default): DM pages show an even grid of cards with the creator's avatar and a preview cut to a few lines (short, medium or long in the module settings). A click on a card, or its Read button, opens the whole message in a side panel (or a dialog) with the creator links, copy text, and previous / next by buttons or the arrow keys.
+
 ### Fixed
+- Tag list layout: names and counts are centred in their rows, rows and popularity bars are brighter.
 - Site skin: the pinned top bar no longer shows while the sidebar is open on wide screens (the site hides it then).
 
 ## [1.6.0] - 2026-11-17
