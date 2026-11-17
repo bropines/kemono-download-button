@@ -5,11 +5,9 @@ import { postPageModule } from '../../../features/kui/postPageModule';
 import { hideEmptySections } from '../../../features/kui/embeds';
 import { isAdBlockEnabled, setAdBlockEnabled } from '../../../features/adblock';
 import { EmbedRules } from '../../../types';
-import { setupNavigationSettings } from '../navigationSettings';
 
+// Sidebar/header links come from setupNavigationSettings, which index.ts runs once per init
 export function injectUI(): void {
-  setupNavigationSettings();
-
   if (document.getElementById("kui-settings-panel")) return;
 
   const settingsPanel = document.createElement("div");

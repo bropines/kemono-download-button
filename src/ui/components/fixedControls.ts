@@ -1,6 +1,5 @@
 import { appState } from '../../state/store';
 import { el, getOrCreateContainer } from '../../utils/dom';
-import { setupNavigationSettings } from './navigationSettings';
 
 export function createFixedControls(): void {
   const container = getOrCreateContainer('kdl-fixed-controls');
@@ -17,7 +16,6 @@ export function createFixedControls(): void {
   }
 
   updateQueueIndicator();
-  setupNavigationSettings();
 }
 
 export function updateQueueIndicator(): void {
