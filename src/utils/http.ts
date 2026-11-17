@@ -23,11 +23,15 @@ export function isAbortError(error: unknown): boolean {
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(resolve, ms);
-    signal?.addEventListener('abort', () => {
+    const onAbort = () => {
       clearTimeout(timer);
       reject(abortError());
-    }, { once: true });
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener('abort', onAbort, { once: true });
   });
 }
 
@@ -185,22 +189,27 @@ export async function downloadFileWithFallback(
   if (typeof GM_download === 'function') {
     const tryGmDownload = (): Promise<boolean> => {
       return new Promise((resolve) => {
+        let isDone = false;
+        let onAbort: (() => void) | undefined;
+        const finish = (success: boolean) => {
+          if (isDone) return;
+          isDone = true;
+          if (onAbort) signal?.removeEventListener('abort', onAbort);
+          resolve(success);
+        };
         try {
-          let isDone = false;
           const handle = GM_download({
             url,
             name: cleanName,
             saveAs: false,
-            onload: () => {
-              if (!isDone) { isDone = true; resolve(true); }
-            },
+            onload: () => finish(true),
             onerror: (err) => {
               debugLog('GM_download failed:', err);
-              if (!isDone) { isDone = true; resolve(false); }
+              finish(false);
             },
             ontimeout: () => {
               debugLog('GM_download timed out');
-              if (!isDone) { isDone = true; resolve(false); }
+              finish(false);
             },
             onprogress: (e: any) => {
               if (progressCallback && e.lengthComputable && e.total > 0) {
@@ -208,13 +217,14 @@ export async function downloadFileWithFallback(
               }
             }
           });
-          signal?.addEventListener('abort', () => {
+          onAbort = () => {
             handle?.abort?.();
-            if (!isDone) { isDone = true; resolve(false); }
-          }, { once: true });
+            finish(false);
+          };
+          if (!isDone) signal?.addEventListener('abort', onAbort, { once: true });
         } catch (e) {
           debugLog('GM_download exception:', e);
-          resolve(false);
+          finish(false);
         }
       });
     };

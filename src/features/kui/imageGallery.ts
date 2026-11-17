@@ -13,6 +13,9 @@ import { resolveMediaUrl } from '../../utils/helpers';
 
 // Per container: a slow fetch for the previous post must not block the gallery of the next one
 let initializingContainer: Element | null = null;
+// One gallery is shown at a time: building the next one drops the last one's display listener,
+// which an HTMX swap would otherwise leave behind until the next settings change
+let detachDisplayListener: (() => void) | null = null;
 
 export async function initializeImageGallery(): Promise<void> {
   const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
@@ -42,6 +45,8 @@ export async function initializeImageGallery(): Promise<void> {
     if (!targetSection) return;
 
     targetSection.querySelectorAll(".kui-gallery-layout").forEach((el) => el.remove());
+    detachDisplayListener?.();
+    detachDisplayListener = null;
 
     const galleryLayout = document.createElement("div") as GalleryLayoutElement;
     galleryLayout.className = "kui-gallery-layout";
@@ -140,7 +145,10 @@ export async function initializeImageGallery(): Promise<void> {
       translatedByIndex.clear();
       if (showing) void translateCurrent();
     };
-    if (translateBtn) document.addEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
+    if (translateBtn) {
+      document.addEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
+      detachDisplayListener = () => document.removeEventListener(LENS_DISPLAY_CHANGED, onDisplayChanged);
+    }
 
     let touchStartX = 0;
     previewImage.addEventListener("touchstart", (e) => {

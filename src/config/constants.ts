@@ -65,20 +65,3 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
   ignoredFileExtensions: []
 };
-
-export const SUPPORTED_SERVICES = [
-  'patreon',
-  'fanbox',
-  'fantia',
-  'boosty',
-  'subscribestar',
-  'dlsite',
-  'gumroad',
-  'afdian',
-  'candystand',
-  'pixiv',
-  'onlyfans',
-  'fansly',
-  'candyfuns',
-  'discord'
-] as const;

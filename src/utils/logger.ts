@@ -5,11 +5,21 @@ export const debugModule = {
     if (document.getElementById("kui-debugger")) return;
     const debuggerOverlay = document.createElement("div");
     debuggerOverlay.id = "kui-debugger";
-    if (typeof GM_addStyle === 'function') {
-      GM_addStyle(`
+    const css = `
         #kui-debugger { display: none; position: fixed; bottom: 10px; left: 10px; background-color: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 99999; pointer-events: none; line-height: 1.5; }
         #kui-debugger.kui-active { display: block; }
-      `);
+      `;
+    let styled = false;
+    try {
+      styled = typeof GM_addStyle === 'function' && !!GM_addStyle(css);
+    } catch (e) {
+      styled = false;
+    }
+    // Hosts without GM_addStyle (or where it returns nothing) get a plain <style>
+    if (!styled) {
+      const style = document.createElement("style");
+      style.textContent = css;
+      (document.head || document.documentElement).appendChild(style);
     }
     document.body.appendChild(debuggerOverlay);
     if (kuiState.isDebugModeEnabled) this.show();

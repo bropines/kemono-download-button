@@ -166,18 +166,39 @@ async function answer(url: string, settings: Settings, pixels: Pixels): Promise<
 }
 
 // Object URLs outlive the blob cache they came from, so they are handed out from
-// here and the oldest ones are revoked rather than left to leak.
-const MAX_LIVE_URLS = 8;
+// here and the least recently used ones are revoked rather than left to leak. Enough for a
+// gallery's worth of translated pages, so a picture still on screen is not revoked under it.
+const MAX_LIVE_URLS = 24;
 const liveUrls = new Map<string, string>();
 
+function revokeUnlessLive(url: string): void {
+  for (const live of liveUrls.values()) if (live === url) return;
+  URL.revokeObjectURL(url);
+}
+
+// Hands out the URL already made for `key`, and marks it most recently used
+function reuseUrl(key: string): string | undefined {
+  const url = liveUrls.get(key);
+  if (url) {
+    liveUrls.delete(key);
+    liveUrls.set(key, url);
+  }
+  return url;
+}
+
 function keepUrl(key: string, blob: Blob): string {
+  // Two requests for one rendering raced: the key fixes every drawn setting, so the URL already
+  // handed out shows the same picture, and replacing it would revoke it under whoever shows it
+  const existing = reuseUrl(key);
+  if (existing) return existing;
   const url = URL.createObjectURL(blob);
   liveUrls.set(key, url);
   while (liveUrls.size > MAX_LIVE_URLS) {
-    const oldest = liveUrls.keys().next();
+    const oldest = liveUrls.entries().next();
     if (oldest.done) break;
-    URL.revokeObjectURL(liveUrls.get(oldest.value)!);
-    liveUrls.delete(oldest.value);
+    const [oldestKey, oldestUrl] = oldest.value;
+    liveUrls.delete(oldestKey);
+    revokeUnlessLive(oldestUrl);
   }
   return url;
 }
@@ -206,7 +227,7 @@ export async function translateImage(url: string): Promise<string> {
   const displayedWidth = displayedWidthOf(pixels.width, pixels.height);
   const rendered = renderKey(cacheKey(url, settings), settings, displayedWidth);
 
-  const live = liveUrls.get(rendered);
+  const live = reuseUrl(rendered);
   if (live) return live;
   // A finished rendering short-circuits the rest: no round trip, no drawing
   const done = getRender(rendered, settings);

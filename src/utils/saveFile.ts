@@ -21,7 +21,39 @@ export function saveBlob(blob: Blob, name: string, saveAs = false): void {
     return;
   }
   const blobUrl = URL.createObjectURL(blob);
-  // Revoke once saved or failed; multi-GB archives otherwise stay pinned in memory for the tab's lifetime
+  // Revoke once settled; multi-GB archives otherwise stay pinned in memory for the tab's lifetime
   const revoke = () => setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-  GM_download({ url: blobUrl, name, saveAs, onload: revoke, onerror: revoke, ontimeout: revoke });
+  let settled = false;
+  // A failed GM_download (blocked extension, disallowed name, timeout) must not lose the file
+  const fallBack = (reason: unknown) => {
+    if (settled) return;
+    settled = true;
+    console.warn('[Kemono DL] GM_download failed, saving through the browser instead:', reason);
+    revoke();
+    saveBlobViaAnchor(blob, name);
+  };
+  try {
+    GM_download({
+      url: blobUrl,
+      name,
+      saveAs,
+      onload: () => {
+        if (settled) return;
+        settled = true;
+        revoke();
+      },
+      onerror: (error: any) => {
+        // Cancelling the Save As dialog is a choice, not a failure
+        if (/cancel/i.test(JSON.stringify(error ?? ''))) {
+          settled = true;
+          revoke();
+          return;
+        }
+        fallBack(error);
+      },
+      ontimeout: () => fallBack('timeout')
+    });
+  } catch (e) {
+    fallBack(e);
+  }
 }

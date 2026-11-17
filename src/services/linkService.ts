@@ -1,5 +1,6 @@
 import { showMessage } from '../ui/toast';
 import { saveBlob } from '../utils/saveFile';
+import { copyToClipboard } from '../utils/clipboard';
 import { PostDetails } from '../types';
 import { collectFilesForPost } from './collectorService';
 import { state } from '../state/store';
@@ -21,8 +22,11 @@ export async function executeLinkAction(
 
   if (actionType === 'copy-aria') {
     const textToCopy = urlFiles.map((f) => `${f.data}\n  out=${f.name}`).join('\n');
-    GM_setClipboard(textToCopy);
-    showMessage(`Copied ${urlFiles.length} links formatted for aria2c/IDM!`, 'info');
+    if (await copyToClipboard(textToCopy)) {
+      showMessage(`Copied ${urlFiles.length} links formatted for aria2c/IDM!`, 'info');
+    } else {
+      showMessage('Could not copy the links to the clipboard.', 'error');
+    }
   } else if (actionType === 'download-txt') {
     const textContent = urlFiles.map((f) => f.data).join('\n');
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });

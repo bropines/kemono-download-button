@@ -1,6 +1,6 @@
 import { DEFAULT_SETTINGS } from '../../config/constants';
 import { icon, IconName } from '../../config/icons';
-import { clearAllCache, clearIncompleteCache, getCacheStats } from '../../services/cacheService';
+import { clearAllCache, getCacheStats } from '../../services/cacheService';
 import { OPENAI_COMPATIBLE_PRESETS, TRANSLATION_LANGUAGES } from '../../services/translators';
 import { exportSettings, getSettings, importSettings, saveSetting, state } from '../../state/store';
 import { clearImageTranslationCache } from '../../services/lensImages';
@@ -264,7 +264,6 @@ export function createSettingsModal(): void {
     el('div', { className: 'kdl-cache-box' }, [
       el('div', { id: 'kdl-cache-stats-text' }, ['Cached Data: Loading...']),
       el('div', { style: { display: 'flex', gap: '8px', marginTop: '6px' } }, [
-        el('button', { id: 'kdl-clear-incomplete-cache-btn', className: 'kdl-btn-warn', style: { flex: '1' } }, ['Clear Incomplete']),
         el('button', { id: 'kdl-clear-all-cache-btn', className: 'kdl-btn-danger', style: { flex: '1' } }, ['Clear All'])
       ])
     ])
@@ -326,6 +325,8 @@ export function createSettingsModal(): void {
     checkboxItem('kdl-setting-savePostTags', 'Add tags.txt to ZIP'),
     checkboxItem('kdl-setting-savePostComments', 'Add comments.txt to ZIP'),
     inputItem('kdl-setting-maxConcurrentIndividualDownloads', 'number', 'Max Concurrent Downloads', { min: 1, max: 10 }, 'Number of concurrent file download streams (1-10)'),
+    inputItem('kdl-setting-maxConcurrentFileDownloadsInZip', 'number', 'Concurrent Files per ZIP', { min: 1, max: 10 }, 'How many files of one ZIP archive download at the same time (1-10)'),
+    inputItem('kdl-setting-maxConcurrentOperations', 'number', 'Concurrent Queue Jobs', { min: 1, max: 5 }, 'How many queued downloads (posts or archives) run at the same time (1-5)'),
     inputItem('kdl-setting-zipFileDownloadTimeout', 'number', 'File Timeout (ms)', { min: 10000, step: 1000 }, 'Maximum response timeout when downloading a file inside ZIP'),
     checkboxItem('kdl-setting-enableDownloadRetries', 'Enable Download Retries', 'Automatically retry failed downloads on network errors'),
     inputItem('kdl-setting-downloadRetryCount', 'number', 'Number of Retries', { min: 0, max: 5 }, undefined, 'kdl-retry-count-setting'),
@@ -542,12 +543,6 @@ export function createSettingsModal(): void {
     fileNameTemplateInput.value = DEFAULT_SETTINGS.fileNameTemplate;
     await saveSetting('fileNameTemplate', DEFAULT_SETTINGS.fileNameTemplate);
     showMessage('Reset template to default pattern!', 'info');
-  });
-
-  document.getElementById('kdl-clear-incomplete-cache-btn')!.addEventListener('click', async () => {
-    const deleted = await clearIncompleteCache();
-    await refreshCacheStatsUI();
-    showMessage(`Cleared ${deleted} incomplete cache entries!`, 'info');
   });
 
   document.getElementById('kdl-clear-all-cache-btn')!.addEventListener('click', async () => {
