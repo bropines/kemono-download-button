@@ -4,6 +4,34 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-17
+
+Stabilisation before the interface rebuild.
+
+### Fixed
+- **Pages no longer re-run the script every 300 ms.** On the posts, artists and creators lists, and on creator pages without a card list, the script kept tearing down and rebuilding its buttons, which kept the CPU busy.
+- **Downloading selected posts from the author manager works for posts on other pages.** They used to be skipped silently, and so did everything left after navigating during a bulk download.
+- **The author manager no longer starts one download per time it was opened**, and its search and sort no longer run several times over.
+- **The bulk selection survives page swaps and paging through a creator.**
+- The tags.txt and comments.txt options now add those files to archives.
+- The Preload gallery images switch now takes effect.
+- Archive indexes link the names files were actually stored under, including renamed duplicates and failure notes.
+- Two downloads of the same post no longer share one cancel button or remove each other's progress.
+- Titles containing ## [Unreleased]
+ or  no longer garble file names.
+- A failed GM_download falls back to a normal browser download instead of losing the file.
+- Post info tooltips no longer pile up on cards; styles and settings links are injected once.
+- Favourites are fetched once per page load, through the right site's API, and a missing login shows one message instead of many.
+- Post metadata and author post lists are no longer cached forever; viewed posts are capped.
+- Reopening the image viewer right after closing it no longer picks up the old one.
+
+### Added
+- Settings for concurrent files per archive and concurrent queue jobs.
+
+### Changed
+- The script is minified: 504 KB down to about 300 KB.
+- Removed the Clear Incomplete cache button, which never found anything, and unused code.
+
 ## [0.8.53] - 2026-09-29
 
 ### Fixed
