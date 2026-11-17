@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      1.4.2
+// @version      1.4.3
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -1300,12 +1300,32 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
   box-shadow: var(--kdl-shadow-sm);
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-/* Upload: the site's link has no icon; a lucide "upload" drawn in the text colour */
+/* Upload and favourite: icon only; on a pointer device hovering (or keyboard focus) slides the label out.
+   The label stays in the accessibility tree either way */
+.user-header__actions > :is(.user-header__upload, .user-header__favourite) {
+  flex: 0 0 auto; justify-content: center; gap: 0; min-width: 2rem; padding: 0 0.5rem; overflow: hidden;
+}
+.user-header__actions :is(.user-header__upload > span, .user-header__favourite .user-header__fav-text) {
+  display: inline-block;
+  max-width: 0;
+  margin-left: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  transition: max-width 0.25s ease, margin-left 0.25s ease, opacity 0.2s ease;
+}
+@media (hover: hover) {
+  .user-header__actions > :is(.user-header__upload, .user-header__favourite):is(:hover, :focus-visible) :is(span:not(.user-header__fav-icon)) {
+    max-width: 14rem;
+    margin-left: 6px;
+    opacity: 1;
+  }
+}
 .user-header__upload::before {
   content: '';
   flex: 0 0 auto;
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   background: currentColor;
   -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' x2='12' y1='3' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
   mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='17 8 12 3 7 8'/%3E%3Cline x1='12' x2='12' y1='3' y2='15'/%3E%3C/svg%3E") center / contain no-repeat;
@@ -1324,9 +1344,8 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
   .user-header__actions > #kdl-author-manager-btn { display: flex; }
   .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn { flex: 1 1 auto; width: 100%; height: 2.25rem; }
   .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
-  .user-header__actions :is(.user-header__upload > span, .kdl-ui-btn > span) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .user-header__actions > .user-header__favourite { flex: 0 0 2.25rem; padding: 0; }
-  .user-header__favourite .user-header__fav-text { display: none; }
+  .user-header__actions .kdl-ui-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-header__actions > :is(.user-header__favourite, .user-header__upload) { flex: 0 0 2.25rem; width: 2.25rem; padding: 0; }
   .user-header__favourite .user-header__fav-icon { font-size: 16px; }
 }
 @media (max-width: 480px) {
