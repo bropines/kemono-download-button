@@ -1,6 +1,8 @@
 // Sidebar, top header, content padding, page headings and the footer.
 // Widths and the header height stay the site's: its own media queries slide them in and out.
 
+import { NK } from './base';
+
 const ITEM_HOVER = [
   '.global-sidebar-entry-item:not(.header):hover',
   '.global-sidebar-entry-item.clickable-header:hover',
@@ -111,6 +113,27 @@ ${ITEM_HOVER} {
 }
 .content-wrapper .header-link:first-of-type { margin-left: 8px; }
 .content-wrapper .header-link:is(:hover, :focus-visible) { background: var(--kdl-accent); color: var(--kdl-foreground); }
+/* Narrow screens: the links scroll sideways instead of being dropped (the site hides Import, Home, Login);
+   the menu button stays pinned at the left */
+@media (max-width: 1020px) {
+  .content-wrapper .header {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .content-wrapper .header::-webkit-scrollbar { display: none; }
+  .content-wrapper .header > .header-link { display: flex; flex: 0 0 auto; height: 2.25rem; }
+  .content-wrapper .header #burgor {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    width: 2.25rem;
+    height: 2.25rem;
+    background: var(--kdl-sidebar);
+    box-shadow: 8px 0 8px -4px var(--kdl-sidebar);
+  }
+}
 .content-wrapper .backdrop { background: var(--kdl-overlay); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
 
 /* Content */
@@ -121,6 +144,9 @@ ${ITEM_HOVER} {
 .site-section__header { margin-bottom: 8px; }
 .site-section__heading { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.025em; }
 .site-section__subheading { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; }
+@media (max-width: 600px) {
+  h1${NK}, .site-section__heading { font-size: 1.5rem; }
+}
 .no-posts, .no-results, .card-list__item--no-results { color: var(--kdl-muted-foreground); }
 
 /* Surface panels (transparent at flat contrast): pagination bars */

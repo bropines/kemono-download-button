@@ -13,6 +13,7 @@
 
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { onPageChange } from '../../core/router';
+import { keepInHead } from '../../core/page';
 import { scopeCss } from '../restyle/scopeCss';
 import { tokensCss } from './css/tokens';
 import { baseCss } from './css/base';
@@ -20,6 +21,9 @@ import { layoutCss } from './css/layout';
 import { cardsCss } from './css/cards';
 import { postCss } from './css/post';
 import { creatorCss } from './css/creator';
+import { formsCss } from './css/forms';
+import { pagesCss } from './css/pages';
+import { shadcnPagesTransform } from './pages';
 import { ACCENT_OPTIONS, BASE_OPTIONS, SURFACE_OPTIONS, paletteCss } from './palette';
 
 export const SHADCN_ID = 'ui.shadcn';
@@ -70,7 +74,7 @@ function syncActive(): void {
 function syncPalette(ctx: ModuleContext): void {
   let node = document.getElementById(PALETTE_ID);
   if (!node) {
-    node = document.createElement('style');
+    node = keepInHead(document.createElement('style'));
     node.id = PALETTE_ID;
   }
   const options = {
@@ -105,13 +109,16 @@ export const shadcnSiteModule: KdlModule = {
     { key: 'base', label: 'Base tone', type: 'select', default: 'zinc', options: BASE_OPTIONS },
     { key: 'surfaces', label: 'Surface contrast', type: 'select', default: 'subtle', options: SURFACE_OPTIONS, hint: 'How far the sidebar, cards and page sections stand out from the background.' },
   ],
-  styles: scoped(() => tokensCss() + baseCss() + layoutCss()),
+  styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss()),
   mount(ctx) {
     setFlag(true);
     syncPalette(ctx);
     PALETTE_KEYS.forEach((key) => ctx.settings.onChange(key, () => syncPalette(ctx)));
     syncActive();
     ctx.onCleanup(onPageChange(() => syncActive()));
+    // The URL is already the new one on afterSettle: move the marker before the coalesced page change
+    document.addEventListener('htmx:afterSettle', syncActive);
+    ctx.onCleanup(() => document.removeEventListener('htmx:afterSettle', syncActive));
     ctx.onCleanup(() => {
       setFlag(false);
       clearActive();
@@ -139,4 +146,8 @@ export const shadcnSiteParts: KdlModule[] = [
   part('cards', 'shadcn skin: cards', 'Post cards with the thumbnail on top and a meta line below; creator, DM and other cards; tag clouds.', cardsCss),
   part('post', 'shadcn skin: post page', 'Post header card, tags as badges, content typography and comments.', postCss),
   part('creator', 'shadcn skin: creator page', 'Creator header as a profile card: banner, avatar, name and actions.', creatorCss),
+  {
+    ...part('pages', 'shadcn skin: pages', 'Importer notes, FAQ, contact and account pages as card panels; the FAQ as an accordion with a filter; key cards with status badges; the home page over its blurred background art.', pagesCss),
+    ...shadcnPagesTransform,
+  },
 ];

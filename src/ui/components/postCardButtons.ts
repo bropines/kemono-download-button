@@ -1,4 +1,5 @@
 import { getApiAdapter } from '../../api';
+import { fetchCreatorName } from '../../api/kemonoApi';
 import type { IconName } from '../../config/icons';
 import { getPostCardDetails } from '../../services/collectorService';
 import { executeIndividualDownload, executeZipDownload } from '../../services/downloadService';
@@ -22,16 +23,26 @@ async function loadPostInfo(postCardNode: HTMLElement, details: ReturnType<typeo
   return infoText;
 }
 
-export async function injectPostCardButtons(postCardNode: HTMLElement, pageAuthorName: string): Promise<void> {
+// List cards (posts, popular, search) carry no creator name: look it up when a download starts
+async function withAuthorName(details: ReturnType<typeof getPostCardDetails>): Promise<typeof details> {
+  if (details.authorName) return details;
+  details.authorName = (await fetchCreatorName(details.service, details.userID)) || 'UnknownAuthor';
+  return details;
+}
+
+/** `pageAuthorName` null: a list card, the name is fetched on the first download */
+export async function injectPostCardButtons(postCardNode: HTMLElement, pageAuthorName: string | null): Promise<void> {
   // Claim the card before the first await: overlapping inits used to both pass the check and stack tooltips
   if (postCardNode.dataset.kdlCardButtons) return;
   postCardNode.dataset.kdlCardButtons = 'true';
   await getSettings();
   // Leftovers from an htmx history snapshot have no listeners: rebuild them
   postCardNode.querySelectorAll(':scope > .post-card-download-controls, :scope > .kdl-post-info-tooltip').forEach((node) => node.remove());
-  const details = getPostCardDetails(postCardNode, pageAuthorName);
+  const details = getPostCardDetails(postCardNode, pageAuthorName || '');
   if (details.postID === 'UnknownPostID') return;
   ensureKit();
+  const queue = (label: string, run: Parameters<typeof addTaskToQueue>[1], btn: HTMLElement, short: string) =>
+    void withAuthorName(details).then((ready) => addTaskToQueue(label, run, ready, btn, short));
 
   const controlsContainer = kitScope([], { className: 'post-card-download-controls' });
 
@@ -53,11 +64,11 @@ export async function injectPostCardButtons(postCardNode: HTMLElement, pageAutho
     return btn;
   };
 
-  if (state.settings.showZipButton) createMiniBtn('package', 'Download ZIP', 'post-card-dl-zip', 'default', (btn) => addTaskToQueue('ZIP', executeZipDownload, details, btn, 'ZIP'));
-  if (state.settings.showImagesButton) createMiniBtn('images', 'Download Images', 'post-card-dl-img', 'secondary', (btn) => addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), details, btn, 'Imgs'));
+  if (state.settings.showZipButton) createMiniBtn('package', 'Download ZIP', 'post-card-dl-zip', 'default', (btn) => queue('ZIP', executeZipDownload, btn, 'ZIP'));
+  if (state.settings.showImagesButton) createMiniBtn('images', 'Download Images', 'post-card-dl-img', 'secondary', (btn) => queue('Images', (pd) => executeIndividualDownload('Images', pd), btn, 'Imgs'));
   if (state.settings.showFilesButton) {
-    createMiniBtn('paperclip', 'Download Attachments', 'post-card-dl-att', 'secondary', (btn) => addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), details, btn, 'Attach.'));
-    createMiniBtn('folder-open', 'Pick & Download Attachment', 'post-card-dl-pick', 'secondary', () => showFilePickerModal(details));
+    createMiniBtn('paperclip', 'Download Attachments', 'post-card-dl-att', 'secondary', (btn) => queue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), btn, 'Attach.'));
+    createMiniBtn('folder-open', 'Pick & Download Attachment', 'post-card-dl-pick', 'secondary', () => void withAuthorName(details).then(showFilePickerModal));
   }
 
   if (controlsContainer.hasChildNodes()) {

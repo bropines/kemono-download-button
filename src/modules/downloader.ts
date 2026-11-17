@@ -226,6 +226,52 @@ export const downloaderCreatorModule: KdlModule = {
   beforeSnapshot: () => stripCreatorInjections(true)
 };
 
+// ---- downloader.list ----
+// The same per-card buttons on post lists (posts, popular, search, tag results, favourite posts). No
+// checkboxes or bulk panel: those belong to one creator. injectPostCardButtons marks the card itself.
+
+let listActive = false;
+const LIST_UNHANDLED = `${LIST_POST_CARDS}:not([data-kdl-card-buttons])`;
+
+const injectList = serialRunner(
+  () => listActive,
+  async () => {
+    if (!document.querySelector(LIST_UNHANDLED)) return;
+    await getSettings();
+    if (!listActive) return;
+    document.querySelectorAll<HTMLElement>(LIST_UNHANDLED).forEach((card) => {
+      injectPostCardButtons(card, null).catch((error) => debugLog('List card buttons failed:', error));
+    });
+  }
+);
+
+function stripListInjections(): void {
+  document.querySelectorAll<HTMLElement>(LIST_POST_CARDS).forEach((card) => {
+    card.querySelectorAll(':scope > .post-card-download-controls').forEach((node) => node.remove());
+    delete card.dataset.kdlCardButtons;
+  });
+}
+
+export const downloaderListModule: KdlModule = {
+  id: 'downloader.list',
+  name: 'List card downloads',
+  description: 'Download, ZIP, pick-files and info buttons on post cards in lists: posts, popular, search and favourite posts.',
+  group: 'Downloader',
+  pages: ['list', 'search'],
+  defaultEnabled: true,
+  setup: installRestoreGuard,
+  mount() {
+    listActive = true;
+    injectList();
+  },
+  update: () => injectList(),
+  unmount() {
+    listActive = false;
+    stripListInjections();
+  },
+  beforeSnapshot: stripListInjections
+};
+
 // ---- favorites.quick ----
 
 let favoritesActive = false;
@@ -283,5 +329,6 @@ export const favoritesQuickModule: KdlModule = {
 function stripAllInjections(snapshot: boolean): void {
   document.querySelectorAll(POST_NODES).forEach((node) => node.remove());
   stripCreatorInjections(snapshot);
+  stripListInjections();
   stripFavoriteInjections();
 }

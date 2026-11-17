@@ -78,4 +78,30 @@ export const postCardStyles = css({
     opacity: 1,
     cursor: 'wait',
   },
+  // List cards carry both the download column (top right) and the star: the star moves to the free corner
+  '.post-card:has(> .post-card-download-controls) > .kdl-scope.kdl-quick-fav-btn': {
+    right: 'auto',
+    left: '6px',
+  },
+  // Touch screens have no hover: keep the star and the download buttons visible, as a row
+  '@media (hover: none)': {
+    '.user-card .kdl-scope.kdl-quick-fav-btn, .post-card .kdl-scope.kdl-quick-fav-btn': {
+      opacity: 0.92,
+      pointerEvents: 'auto',
+    },
+    // One row along the bottom edge of the thumbnail (square, so 100cqw tall), clear of the checkbox and star
+    '.post-card .kdl-scope.post-card-download-controls': {
+      display: 'flex',
+      flexDirection: 'row',
+      flexWrap: 'nowrap',
+      top: 'calc(100cqw - 40px)',
+      right: '6px',
+      gap: '3px',
+      padding: '3px',
+    },
+    '.post-card-download-controls .kdl-ui-btn--size-icon': {
+      width: '28px',
+      height: '28px',
+    },
+  },
 });

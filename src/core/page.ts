@@ -40,3 +40,22 @@ export function writePageAttributes(page: PageInfo): void {
 export function resolveRoot(): Element {
   return document.querySelector('main#main') || document.getElementById('main') || document.body || document.documentElement;
 }
+
+// Pawchive's own script marks the <head> styles present at DOMContentLoaded with data-keep and removes every
+// other <style>/<script> in <head> on htmx:beforeSwap. Ours come later, so without the mark each navigation
+// dropped them until the next reconcile put them back: the site flashed its own look in between.
+const KEEP_ATTR = 'data-keep';
+const OWN_HEAD_NODES = 'style[id^="kdl-"], style[id^="kui-"], link[id^="kdl-"]';
+
+/** Exempts one of our <head> nodes from the site's per-navigation cleanup */
+export function keepInHead<T extends Element>(node: T): T {
+  node.setAttribute(KEEP_ATTR, '');
+  return node;
+}
+
+/** Marks every style of ours in <head>, including ones a host's GM_addStyle created */
+export function keepOwnHeadNodes(): void {
+  document.querySelectorAll(OWN_HEAD_NODES).forEach((node) => {
+    if (!node.hasAttribute(KEEP_ATTR)) keepInHead(node);
+  });
+}

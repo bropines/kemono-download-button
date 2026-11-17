@@ -46,7 +46,7 @@ h2${NK} { font-size: 1.25rem; line-height: 1.4; }
 h3${NK} { font-size: 1.125rem; line-height: 1.4; }
 :is(h4, h5, h6)${NK} { font-size: 1rem; line-height: 1.5; }
 :is(button, input, select, textarea)${NK} { font-family: inherit; }
-input:is([type=checkbox], [type=radio])${NK} { accent-color: var(--kdl-primary); }
+
 hr${NK} { border: 0; border-top: 1px solid var(--kdl-border); }
 code${NK}, kbd${NK} {
   padding: 0.1em 0.35em;

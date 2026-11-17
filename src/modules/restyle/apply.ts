@@ -7,6 +7,7 @@ import { scopeCssParts, scopeSelector } from './scopeCss';
 import { compileTransformCss } from './transforms';
 import type { Theme } from './types';
 import { compileVars } from './vars';
+import { keepInHead } from '../../core/page';
 
 const STYLE_PREFIX = 'kdl-theme-';
 const compiledCache = new Map<string, { source: string; css: string }>();
@@ -43,7 +44,7 @@ export function applyThemeStyles(themes: Theme[]): void {
     const id = styleId(theme);
     let node = document.getElementById(id) as HTMLStyleElement | null;
     if (!node) {
-      node = document.createElement('style');
+      node = keepInHead(document.createElement('style'));
       node.id = id;
     }
     const css = compileTheme(theme);

@@ -26,6 +26,7 @@ Storage goes through `readStored`/`writeStored`, so it is AdGuard-safe.
 - `onPageChange(fn)`: after every pathname change (before modules mount).
 - `getCurrentPage(): PageInfo`, `detectPage()`, `detectSite()`.
 - `<html data-kdl-page="post|creator|list|artists|search|other" data-kdl-site="kemono|coomer|pawchive">` for CSS.
+- Our `<head>` styles carry `data-keep` (`keepInHead` / `keepOwnHeadNodes`): Pawchive removes every unmarked head `<style>` on `htmx:beforeSwap`.
 
 ## Writing a module
 
@@ -81,11 +82,12 @@ Rules:
 | `kui.post` | post | gallery/video/embeds/comments/translation; settings `preloadImages`, `hideEmptySections` (mirrored in `kuiState`) |
 | `downloader.post` | post | post action buttons + post data prefetch |
 | `downloader.creator` | creator | card buttons, checkboxes, bulk panel, author manager, shift/ctrl-click selection |
+| `downloader.list` | list, search | the same card buttons on post lists (no checkboxes); the creator name is fetched from the profile API on the first download |
 | `favorites.quick` | list, search, artists | quick favourite stars |
 | `tags.tools` | list, creator | tag pages only (`section#tag-container`): filter, sort, A–Z groups with a jump bar, script filter; settings `sort`, `group` |
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
 | `ui.shadcn` | any | off by default: shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">` |
-| `ui.shadcn.cards` / `.post` / `.creator` | any | parts of the skin, `requires: ["ui.shadcn"]` |
+| `ui.shadcn.cards` / `.post` / `.creator` / `.pages` | any | parts of the skin, `requires: ["ui.shadcn"]`; `.pages` also wraps importer notes in panels and turns the FAQ into an accordion (reversible, stripped before snapshots) |
 
 ## Storage migration
 
