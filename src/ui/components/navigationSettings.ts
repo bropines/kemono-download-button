@@ -18,11 +18,20 @@ function settingsLink(id: string, className: string, withIcon: boolean): HTMLAnc
     link.append(svg);
   }
   link.append('Settings');
-  link.addEventListener('click', (e: MouseEvent) => {
+  return link;
+}
+
+// Delegated from document: htmx history snapshots bring the links back as plain markup without listeners
+let delegated = false;
+function delegateClicks(): void {
+  if (delegated) return;
+  delegated = true;
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as Element | null;
+    if (!target || typeof target.closest !== 'function' || !target.closest(`#${SIDEBAR_ID}, #${HEADER_ID}`)) return;
     e.preventDefault();
     openSettings();
   });
-  return link;
 }
 
 /**
@@ -30,6 +39,7 @@ function settingsLink(id: string, className: string, withIcon: boolean): HTMLAnc
  * and to the top header. Idempotent: re-run after every HTMX swap.
  */
 export function setupNavigationSettings(): void {
+  delegateClicks();
   LEGACY_IDS.forEach((id) => document.getElementById(id)?.remove());
 
   const sidebar = document.querySelector('.global-sidebar');

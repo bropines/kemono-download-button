@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- **Viewed posts** are marked when the post page actually opens (also from a new tab), not on any click on the card: ticking a checkbox or pressing a card button no longer dims it. New setting in Modules → Mark viewed posts: dimmed, a "Viewed" tag, or no change.
+- The script has its own `@namespace`, so under AdGuard it no longer shares a sandbox with other scripts. Tampermonkey/Violentmonkey may install it as a separate script: export your settings first, then import them into the new copy and remove the old one.
+
+### Fixed
+- The sidebar "Settings" link works again after going back with the browser's Back button.
+
 ## [1.1.0] - 2026-11-17
 
 Themes and a Modules tab.

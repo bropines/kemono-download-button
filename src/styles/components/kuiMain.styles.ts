@@ -12,10 +12,6 @@ export const kuiMainStyles = css({
     paddingTop: '0 !important',
   },
 
-  '.kui-viewed': {
-    opacity: 0.5,
-  },
-
   /* User Profile Header */
   'h1.user-header__name': {
     display: 'flex',
