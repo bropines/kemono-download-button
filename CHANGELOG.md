@@ -4,6 +4,17 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-11-17
+
+### Changed
+- Site skin: the site's tag filter (Filters → AI-generated: Show / Hide / Only) is a segmented switch instead of a dropdown.
+- Our panels and dialogs use thin scrollbars in the interface colours; the settings tabs wrap onto a second row instead of hiding the last ones.
+- Site skin: the home page footer has no rule line and its links sit in a readable pill over the art.
+
+### Fixed
+- After switching pages the site's text stayed in English for a while: the site translation (and other features that run on every page) now update right after navigation.
+- Site skin: creator avatars in lists no longer slip out of their frame.
+
 ## [1.3.1] - 2026-11-17
 
 ### Fixed

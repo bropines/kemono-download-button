@@ -36,9 +36,9 @@ export const pagesCss = (): string => `
 .site-section--importer > .kdl-sk-panel { max-width: 40rem; }
 
 /* Long-form pages (FAQ / tutorial, contact) */
-:is(#page.page, .site-section--faq):not(:has(.card-list__items > :is(.user-card, .post-card))) { ${READABLE} line-height: 1.7; }
-:is(#page.page, .site-section--faq) > h1 { margin: 8px 0 16px; text-align: center; }
-:is(#page.page, .site-section--faq) > h2 {
+:is(#page.page:not(:has(.card-list)), .site-section--faq) { ${READABLE} line-height: 1.7; }
+:is(#page.page:not(:has(.card-list)), .site-section--faq) > h1 { margin: 8px 0 16px; text-align: center; }
+:is(#page.page:not(:has(.card-list)), .site-section--faq) > h2 {
   margin: 28px 0 10px;
   color: var(--kdl-muted-foreground);
   font-size: 13px;
@@ -46,9 +46,9 @@ export const pagesCss = (): string => `
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-:is(#page.page, .site-section--faq) :is(ul, ol)${NK} { padding-left: 1.25rem; }
-:is(#page.page, .site-section--faq) li${NK} { margin: 4px 0; }
-:is(#page.page, .site-section--faq) img${NK} {
+:is(#page.page:not(:has(.card-list)), .site-section--faq) :is(ul, ol)${NK} { padding-left: 1.25rem; }
+:is(#page.page:not(:has(.card-list)), .site-section--faq) li${NK} { margin: 4px 0; }
+:is(#page.page:not(:has(.card-list)), .site-section--faq) img${NK} {
   display: block;
   max-width: 100%;
   height: auto;
@@ -56,7 +56,7 @@ export const pagesCss = (): string => `
   border: 1px solid var(--kdl-border);
   border-radius: var(--kdl-radius);
 }
-:is(#page.page, .site-section--faq) code${NK} { overflow-wrap: anywhere; }
+:is(#page.page:not(:has(.card-list)), .site-section--faq) code${NK} { overflow-wrap: anywhere; }
 .kdl-sk-filtered { display: none; }
 
 /* FAQ toolbar and accordion */
@@ -265,6 +265,16 @@ export const pagesCss = (): string => `
 .site-section--home .jumbo-welcome-description ul${NK} { padding-left: 1.25rem; }
 .site-section--home .jumbo-welcome-credits { float: none; margin-top: 12px; color: var(--kdl-muted-foreground); font-size: 12px; }
 body:has(.site-section--home) { background-color: var(--kdl-background); }
+/* Footer over the art: no rule line, the links sit in a small readable pill */
+body:has(.site-section--home) .global-footer { border: 0; background: transparent; box-shadow: none; }
+body:has(.site-section--home) .global-footer > * {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--kdl-card) 72%, transparent);
+  color: var(--kdl-foreground);
+}
+body:has(.site-section--home) .global-footer .footer li { color: var(--kdl-foreground); }
 body:has(.site-section--home) .global-sidebar {
   background: color-mix(in srgb, var(--kdl-sidebar) 70%, transparent);
   -webkit-backdrop-filter: blur(10px);

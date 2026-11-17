@@ -118,7 +118,12 @@ export const cardsCss = (): string => `
   box-shadow: 0 0 0 1px var(--kdl-hover-ring), var(--kdl-shadow);
 }
 .user-card--fav { border-color: color-mix(in srgb, var(--kdl-warning) 60%, var(--kdl-border)); }
-.user-card__icon { width: 64px; height: 64px; border-radius: var(--kdl-radius); box-shadow: 0 0 0 1px var(--kdl-border); }
+.user-card__icon { flex: 0 0 auto; width: 64px; height: 64px; overflow: hidden; border-radius: var(--kdl-radius); box-shadow: 0 0 0 1px var(--kdl-border); }
+/* The avatar inside keeps the site's own size and offset otherwise, and slides out of the frame */
+.user-card__icon :is(.user-card__user-icon, .fancy-image, .fancy-image__picture) {
+  display: block; position: static; width: 100%; height: 100%; margin: 0; padding: 0; transform: none; border-radius: 0;
+}
+.user-card__icon .fancy-image__image { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 0; }
 .user-card__info { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 0; }
 .user-card__service {
   padding: 0.125rem 0.5rem;

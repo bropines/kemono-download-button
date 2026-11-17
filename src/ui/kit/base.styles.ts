@@ -25,6 +25,18 @@ export const baseStyles = css({
     borderStyle: 'solid',
     borderColor: 'var(--kdl-border)',
   },
+  // Thin, token-coloured scrollbars everywhere in the kit instead of the system ones
+  [scoped('*')]: { scrollbarWidth: 'thin', scrollbarColor: 'var(--kdl-border) transparent' },
+  [scoped('*::-webkit-scrollbar')]: { width: '10px', height: '10px' },
+  [scoped('*::-webkit-scrollbar-track')]: { background: 'transparent' },
+  [scoped('*::-webkit-scrollbar-button')]: { display: 'none' },
+  [scoped('*::-webkit-scrollbar-thumb')]: {
+    background: 'var(--kdl-border)',
+    borderRadius: '9999px',
+    border: '3px solid transparent',
+    backgroundClip: 'padding-box',
+  },
+  [scoped('*::-webkit-scrollbar-thumb:hover')]: { backgroundColor: 'var(--kdl-muted-foreground)' },
   [scoped(':where(button, input, select, textarea)')]: {
     font: 'inherit',
     color: 'inherit',

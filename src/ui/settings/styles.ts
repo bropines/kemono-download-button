@@ -14,6 +14,10 @@ export const settingsStyles = css({
   // other and onto the panel on phones
   '.kdl-settings .kdl-ui-tabs__trigger': { gap: '6px', flexShrink: 0 },
   '.kdl-settings .kdl-ui-tabs__list::-webkit-scrollbar': { display: 'none' },
+  // Wide enough screens show every tab (two rows if needed); phones keep the sideways scroll
+  '@media (min-width: 641px)': {
+    '.kdl-settings .kdl-ui-tabs__list': { flexWrap: 'wrap', height: 'auto', overflowX: 'visible' },
+  },
   '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { width: '14px', height: '14px' },
   '.kdl-settings .kdl-ui-tabs__panel': { paddingBottom: '4px' },
   '.kdl-settings__panel': { display: 'flex', flexDirection: 'column', gap: '12px' },

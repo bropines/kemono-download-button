@@ -19,7 +19,8 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 
 /** Puts every node we wrapped back where it was */
 function undo(): void {
-  document.querySelectorAll(`[${MARK}="tools"]`).forEach((node) => node.remove());
+  document.querySelectorAll(`[${MARK}="tools"], [${MARK}="seg"]`).forEach((node) => node.remove());
+  document.querySelectorAll('.kdl-sk-seg-source').forEach((node) => node.classList.remove('kdl-sk-seg-source'));
   document.querySelectorAll<HTMLElement>(`[${MARK}="acc"]`).forEach((details) => {
     const heading = details.querySelector(':scope > summary > :is(h1, h2, h3, h4, h5, h6)');
     const body = details.querySelector(':scope > .kdl-sk-acc__body');
@@ -155,14 +156,54 @@ function buildAccordion(): void {
   (title || root.firstElementChild)?.after(toolbar(root));
 }
 
+// The site's tag filters (Filters → "AI-generated: Show / Hide / Only") are native selects in a popover:
+// each gets a segmented control next to it that drives the select (its inline onchange applies the filter).
+// The select stays in place, hidden, so the site's own sync code keeps working.
+function segmentFilters(): void {
+  document.querySelectorAll<HTMLSelectElement>('select[data-filter-tag]').forEach((select) => {
+    let group = select.nextElementSibling as HTMLElement | null;
+    if (!group || group.getAttribute(MARK) !== 'seg') {
+      select.classList.add('kdl-sk-seg-source');
+      group = el('div', { className: 'kdl-sk-seg' });
+      group.setAttribute(MARK, 'seg');
+      group.setAttribute('role', 'radiogroup');
+      Array.from(select.options).forEach((option) => {
+        const item = el('button', { className: 'kdl-sk-seg__item' }) as HTMLButtonElement;
+        item.type = 'button';
+        item.dataset.value = option.value;
+        item.setAttribute('role', 'radio');
+        item.addEventListener('click', (event) => {
+          event.preventDefault();
+          if (select.value === option.value) return;
+          select.value = option.value;
+          select.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+        group!.appendChild(item);
+      });
+      select.after(group);
+    }
+    // Labels follow the options (the site translation may rewrite them), the checked item follows the value
+    group.querySelectorAll<HTMLButtonElement>('.kdl-sk-seg__item').forEach((item) => {
+      const option = Array.from(select.options).find((o) => o.value === item.dataset.value);
+      const label = option?.textContent?.trim() || '';
+      if (item.textContent !== label) item.textContent = label;
+      const checked = select.value === item.dataset.value;
+      item.setAttribute('aria-checked', String(checked));
+      item.toggleAttribute('data-checked', checked);
+    });
+  });
+}
+
 export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
   mount() {
     wrapPanels();
     buildAccordion();
+    segmentFilters();
   },
   update() {
     wrapPanels();
     buildAccordion();
+    segmentFilters();
   },
   unmount: undo,
   beforeSnapshot: undo,

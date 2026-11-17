@@ -44,6 +44,9 @@ function reconcile(): void {
       }
     });
     syncModules();
+    // Modules mounted for 'any' page stay mounted across the navigation: they still need to see the new page now,
+    // not on the next unrelated mutation
+    updateMounted();
     return;
   }
   // Same path (query change, partial swap, history restore of the same page): re-detect, keep what still matches
