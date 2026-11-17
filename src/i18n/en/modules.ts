@@ -38,4 +38,21 @@ export default {
   'faq.expandAll': 'Expand all',
   'faq.collapseAll': 'Collapse all',
   'faq.empty': 'No answers match.',
+
+  // Import status page
+  'importer.line.creator': 'Checking creator',
+  'importer.line.done': 'Done:',
+  'importer.filter.all': 'All',
+  'importer.filter.posts': 'Posts',
+  'importer.filter.creators': 'Creators',
+  'importer.filter.problems': 'Problems',
+  'importer.search': 'Search the log…',
+  'importer.follow': 'Follow',
+  'importer.copy': 'Copy log',
+  'importer.copied': 'Log copied',
+  'importer.stat.creators': 'creators',
+  'importer.stat.posts': 'posts added',
+  'importer.stat.skipped': 'unchanged',
+  'importer.stat.flagged': 'flagged',
+  'importer.stat.errors': 'errors',
 } as const;

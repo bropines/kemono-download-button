@@ -11,6 +11,7 @@ import { restyleModule } from './restyle';
 import { shadcnSiteModule, shadcnSiteParts } from './shadcnSite';
 import { tagsToolsModule } from './tagsTools';
 import { postsSearchModule } from './postsSearch';
+import { importerStatusModule } from './importerStatus';
 import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
@@ -27,6 +28,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   favoritesQuickModule,
   tagsToolsModule,
   postsSearchModule,
+  importerStatusModule,
   siteTranslationModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,

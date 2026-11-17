@@ -9,6 +9,11 @@ import { getLanguage, onLanguageChange, translateSiteText } from './index';
 export const SITE_SCOPES = [
   '.global-sidebar',
   '.content-wrapper > .header',
+  // Import status: the card and the log toolbar (not the log lines, which name posts and creators)
+  '.import__card',
+  '.import__logs-head',
+  '.import__reverse',
+  '.loading-placeholder',
   '.site-section__header',
   '.site-section__heading',
   '.site-section__subheading',
