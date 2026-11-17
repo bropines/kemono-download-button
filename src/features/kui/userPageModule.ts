@@ -1,5 +1,6 @@
 import { iconSvg } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
+import type { KdlModule } from '../../core/types';
 
 export const userPageModule = {
   init() {
@@ -36,5 +37,19 @@ export const userPageModule = {
     });
     nameContainer.appendChild(copyButton);
   },
-  cleanup() {}
+  cleanup() {
+    document.getElementById("kui-copy-username-btn")?.remove();
+  }
+};
+
+export const copyUsernameModule: KdlModule = {
+  id: 'copyUsername',
+  name: 'Copy creator name',
+  description: 'Adds a copy button next to the creator name.',
+  group: 'Creator page',
+  pages: ['creator'],
+  defaultEnabled: true,
+  mount: () => userPageModule.init(),
+  update: () => userPageModule.init(),
+  unmount: () => userPageModule.cleanup()
 };
