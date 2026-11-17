@@ -1,94 +1,36 @@
 import { css } from '../../utils/cssBuilder';
-import { THEME } from '../theme';
 
+/** Kit shadow root: the floating bulk-selection bar at the bottom of the dock. */
 export const bulkPanelStyles = css({
-  '#kdl-bulk-panel': {
-    position: 'fixed',
-    bottom: '24px',
-    left: '50%',
-    transform: 'translateX(-50%) translateY(140%)',
-    opacity: 0,
-    pointerEvents: 'none',
-    backgroundColor: THEME.colors.bgDark,
-    padding: '10px 20px',
-    borderRadius: '30px',
-    zIndex: THEME.zIndex.bulkPanel,
+  '.kdl-ov-bulkbar': {
     display: 'flex',
     flexWrap: 'wrap',
-    maxWidth: 'calc(100vw - 24px)',
-    boxSizing: 'border-box',
-    gap: '12px',
     alignItems: 'center',
     justifyContent: 'center',
-    border: `1px solid ${THEME.colors.borderDark}`,
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
-    WebkitBackdropFilter: 'blur(12px)',
-    backdropFilter: 'blur(12px)',
-    transition: 'transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s ease',
+    gap: '8px',
+    maxWidth: '100%',
+    padding: '8px 12px',
+    border: '1px solid var(--kdl-border)',
+    borderRadius: 'calc(var(--kdl-radius) + 4px)',
+    background: 'var(--kdl-background)',
+    color: 'var(--kdl-foreground)',
+    boxShadow: 'var(--kdl-shadow)',
+    opacity: 0,
+    visibility: 'hidden',
+    transform: 'translateY(16px)',
+    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease, visibility 0s linear 0.3s',
   },
-  '#kdl-bulk-panel.kdl-visible': {
-    transform: 'translateX(-50%) translateY(0)',
-    opacity: 1,
+  '.kdl-ov-bulkbar[data-state="open"]': {
     pointerEvents: 'auto',
+    opacity: 1,
+    visibility: 'visible',
+    transform: 'none',
+    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease',
   },
-  '#kdl-bulk-panel button': {
-    padding: '8px 14px',
-    border: 'none',
-    borderRadius: '20px',
-    cursor: 'pointer',
-    fontSize: '.9em',
-    fontWeight: '500',
-    color: '#fff',
-    transition: 'background-color .2s, transform .1s, filter .2s',
-  },
-  '#kdl-bulk-panel button:active': {
-    transform: 'scale(0.96)',
-  },
-  '#kdl-bulk-download-btn': {
-    backgroundColor: THEME.colors.success,
-  },
-  '#kdl-bulk-download-btn:hover': {
-    filter: 'brightness(1.15)',
-  },
-  '#kdl-bulk-download-btn:disabled': {
-    backgroundColor: 'var(--colour0-tertirary, #555)',
-    cursor: 'not-allowed',
-    opacity: 0.7,
-  },
-  '#kdl-bulk-pick-attachments-btn': {
-    background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-    color: '#ffffff',
-  },
-  '#kdl-bulk-pick-attachments-btn:hover': {
-    filter: 'brightness(1.15)',
-  },
-  '#kdl-bulk-pick-attachments-btn:disabled': {
-    backgroundColor: 'var(--colour0-tertirary, #555)',
-    cursor: 'not-allowed',
-    opacity: 0.7,
-  },
-  '#kdl-bulk-select-all': {
-    backgroundColor: THEME.colors.primary,
-    color: 'var(--colour1-primary, #17191a)',
-  },
-  '#kdl-bulk-select-all:hover': {
-    filter: 'brightness(1.15)',
-  },
-  '#kdl-bulk-deselect-all': {
-    backgroundColor: THEME.colors.danger,
-  },
-  '#kdl-bulk-deselect-all:hover': {
-    filter: 'brightness(1.15)',
-  },
+  '.kdl-ov-bulkbar__sep': { width: '1px', height: '24px', background: 'var(--kdl-border)' },
+  '.kdl-ov-bulkbar .kdl-ui-select': { width: 'auto', height: '32px' },
   '@media (max-width: 600px)': {
-    '#kdl-bulk-panel': {
-      bottom: '12px',
-      padding: '8px 10px',
-      gap: '6px',
-      borderRadius: '16px',
-    },
-    '#kdl-bulk-panel button': {
-      padding: '7px 10px',
-    },
+    '.kdl-ov-bulkbar': { gap: '6px', padding: '8px' },
+    '.kdl-ov-bulkbar__sep': { display: 'none' },
   },
 });

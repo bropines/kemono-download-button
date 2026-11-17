@@ -1,21 +1,14 @@
 import { postCardStyles } from './components/postCard.styles';
 import { postActionsStyles } from './components/postActions.styles';
 import { fixedControlsStyles } from './components/fixedControls.styles';
-import { bulkPanelStyles } from './components/bulkPanel.styles';
-import { filePickerModalStyles } from './components/filePickerModal.styles';
-import { authorManagerModalStyles } from './components/authorManagerModal.styles';
-import { progressBarStyles } from './components/progressBar.styles';
 
 /**
- * Downloader Component Styles for Kemono, Coomer, and Pawchive.
- * Assembled from modular component style builders.
+ * Downloader styles for the parts injected into the site's own layout.
+ * Floating surfaces (settings, bulk bar, file picker, author manager, progress) style themselves
+ * inside the kit shadow root.
  */
 export const downloadButtonStyles = [
   postCardStyles,
   postActionsStyles,
   fixedControlsStyles,
-  bulkPanelStyles,
-  filePickerModalStyles,
-  authorManagerModalStyles,
-  progressBarStyles,
 ].join('\n\n');

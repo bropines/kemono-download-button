@@ -3,234 +3,185 @@ import { downloadFilesToDiskWithProgress, DownloadFileSpec } from '../../service
 import { state } from '../../state/store';
 import { FileItem, PostDetails } from '../../types';
 import { el } from '../../utils/dom';
-import { icon, IconName } from '../../config/icons';
-
-const setHeading = (header: HTMLElement, iconName: IconName, text: string): void =>
-  header.querySelector('h4')!.replaceChildren(icon(iconName), text);
+import { badge, button, checkbox, dialog, emptyState, kitIcon, progress, scrollArea, setProgress, type DialogHandle } from '../kit';
+import { mountOverlayStyles } from '../overlayStyles';
+import { filePickerModalStyles } from '../../styles/components/filePickerModal.styles';
 import { showMessage } from '../toast';
 
+const baseName = (name: string): string => name.split('/').pop() || name;
+
+/** Short type label from the extension ("JPG", "ZIP"), or a generic one. */
+function fileType(file: FileItem): string {
+  const match = /\.([a-z0-9]{1,5})$/i.exec(baseName(file.name));
+  return match ? match[1].toUpperCase() : file.isMedia ? 'MEDIA' : 'FILE';
+}
+
+/** Icon, name and type badge shared by both pickers' rows. */
+const fileRowParts = (file: FileItem) => [
+  kitIcon(file.isMedia ? 'image' : 'file'),
+  el('span', { className: 'kdl-ov-picker__name', title: baseName(file.name) }, [baseName(file.name)]),
+  badge({ text: fileType(file), variant: 'outline' }),
+];
+
+interface Picker {
+  handle: DialogHandle;
+  setTitle: (text: string) => void;
+  isClosed: () => boolean;
+}
+
+function openPicker(title: string, size: 'md' | 'lg', id: string): Picker {
+  mountOverlayStyles('kdl-file-picker-styles', filePickerModalStyles);
+  let closed = false;
+  const handle = dialog({ title, size, onClose: () => (closed = true) });
+  handle.element.id = id;
+  handle.open();
+  const titleNode = handle.element.querySelector('.kdl-ui-dialog__title')!;
+  return { handle, setTitle: (text) => (titleNode.textContent = text), isClosed: () => closed };
+}
+
+const statusLine = (text: string, error = false) =>
+  el('p', { className: `kdl-ov-picker__status${error ? ' kdl-ov-picker__status--error' : ''}` }, [text]);
+
 export async function showFilePickerModal(postDetails: PostDetails): Promise<void> {
-  const closeOverlay = () => {
-    overlay.remove();
-    document.removeEventListener('keydown', onEscape);
-  };
-  const onEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') closeOverlay();
-  };
-  document.addEventListener('keydown', onEscape);
-
-  const closeBtn = el('button', {
-    className: 'kdl-modal-close',
-    title: 'Close',
-    onClick: closeOverlay
-  }, [icon('x')]);
-
-  const header = el('div', { className: 'kdl-modal-header' }, [
-    el('h4', {}, [icon('paperclip'), 'Loading attachments...']),
-    closeBtn
-  ]);
-
-  const overlay = el('div', {
-    id: 'kdl-file-picker-overlay',
-    onClick: (e: MouseEvent) => {
-      if (e.target === overlay) closeOverlay();
-    }
-  });
-
-  const modal = el('div', { id: 'kdl-file-picker-modal' }, [header]);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
+  const { handle, setTitle } = openPicker('Loading attachments...', 'md', 'kdl-file-picker-modal');
+  handle.body.replaceChildren(progress({ ariaLabel: 'Loading attachments' }));
 
   try {
     const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
     const attachments = files.filter((t) => t.source === 'url');
 
     if (attachments.length === 0) {
-      setHeading(header, 'paperclip', 'No attachments found');
-      modal.appendChild(el('p', { style: { color: '#94a3b8', margin: '16px 0 0' } }, ['No attachments or downloadable files available for this post.']));
+      setTitle('No attachments found');
+      handle.body.replaceChildren(
+        emptyState({ icon: 'paperclip', title: 'Nothing to download', description: 'No attachments or downloadable files available for this post.' })
+      );
       return;
     }
 
-    setHeading(header, 'paperclip', `Select a file to download (${attachments.length})`);
-
-    const list = el('ul', { id: 'kdl-file-picker-list' });
-    attachments.forEach((file) => {
-      const fileName = file.name.split('/').pop() || file.name;
-      const fileIcon = icon(file.isMedia ? 'image' : 'file');
-      const a = el('a', { href: '#', dataset: { url: file.data, name: file.name } }, [
-        el('span', { className: 'kdl-file-icon' }, [fileIcon]),
-        el('span', { className: 'kdl-file-name' }, [fileName])
-      ]);
-      list.appendChild(el('li', {}, [a]));
-    });
-
-    list.addEventListener('click', async (e: MouseEvent) => {
-      e.preventDefault();
-      const link = (e.target as HTMLElement).closest('a');
-      if (link) {
-        const url = link.dataset.url!;
-        const fileName = link.dataset.name!.split('/').pop() || link.dataset.name!;
-        closeOverlay();
-        showMessage(`Starting download for ${fileName}`, 'info');
-        await downloadFilesToDiskWithProgress(
-          [{ url, fileName }],
-          fileName,
-          1
-        );
-      }
-    });
-
-    modal.appendChild(list);
+    setTitle(`Select a file to download (${attachments.length})`);
+    const rows = attachments.map((file) =>
+      el('button', {
+        type: 'button',
+        className: 'kdl-ov-picker__row',
+        onClick: async () => {
+          const fileName = baseName(file.name);
+          handle.close();
+          showMessage(`Starting download for ${fileName}`, 'info');
+          await downloadFilesToDiskWithProgress([{ url: file.data, fileName }], fileName, 1);
+        }
+      }, fileRowParts(file))
+    );
+    handle.body.replaceChildren(scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: 'Attachments', children: rows }));
+    rows[0]?.focus();
   } catch (error: any) {
-    setHeading(header, 'triangle-alert', 'Failed to load attachments');
-    modal.appendChild(el('p', { style: { color: '#f87171', margin: '16px 0 0', fontSize: '0.9rem' } }, [error.message]));
+    setTitle('Failed to load attachments');
+    handle.body.replaceChildren(statusLine(error.message, true));
   }
 }
 
 export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promise<void> {
   if (!posts || posts.length === 0) return;
 
-  const closeOverlay = () => {
-    overlay.remove();
-    document.removeEventListener('keydown', onEscape);
-  };
-  const onEscape = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') closeOverlay();
-  };
-  document.addEventListener('keydown', onEscape);
-
-  const closeBtn = el('button', {
-    className: 'kdl-modal-close',
-    title: 'Close',
-    onClick: closeOverlay
-  }, [icon('x')]);
-
-  const header = el('div', { className: 'kdl-modal-header' }, [
-    el('h4', {}, [icon('paperclip'), `Fetching attachments for ${posts.length} posts...`]),
-    closeBtn
-  ]);
-
-  const overlay = el('div', {
-    id: 'kdl-file-picker-overlay',
-    onClick: (e: MouseEvent) => {
-      if (e.target === overlay) closeOverlay();
-    }
-  });
-
-  const modal = el('div', { id: 'kdl-file-picker-modal', style: { width: '680px' } }, [header]);
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-
-  const statusText = el('p', { style: { color: '#94a3b8', margin: '0 0 16px', fontSize: '0.9rem' } }, [
-    `Fetching metadata (0/${posts.length} posts loaded)...`
-  ]);
-  modal.appendChild(statusText);
+  const picker = openPicker(`Fetching attachments for ${posts.length} posts...`, 'lg', 'kdl-file-picker-modal');
+  const { handle, setTitle } = picker;
+  const loadStatus = statusLine(`Fetching metadata (0/${posts.length} posts loaded)...`);
+  const loadBar = progress({ value: 0, max: posts.length, ariaLabel: 'Fetching attachments' });
+  handle.body.replaceChildren(el('div', { className: 'kdl-ui-stack' }, [loadStatus, loadBar]));
 
   try {
-    let loadedCount = 0;
     const postFileGroups: Array<{ post: PostDetails; files: FileItem[] }> = [];
-
+    let loadedCount = 0;
     for (const post of posts) {
+      // Closing the dialog stops fetching the rest
+      if (picker.isClosed()) return;
       const { files } = await collectFilesForPost(post, { template: state.settings.fileNameTemplate });
       const urlFiles = files.filter((f) => f.source === 'url');
-      if (urlFiles.length > 0) {
-        postFileGroups.push({ post, files: urlFiles });
-      }
+      if (urlFiles.length > 0) postFileGroups.push({ post, files: urlFiles });
       loadedCount++;
-      statusText.textContent = `Fetching metadata (${loadedCount}/${posts.length} posts loaded)...`;
+      loadStatus.textContent = `Fetching metadata (${loadedCount}/${posts.length} posts loaded)...`;
+      setProgress(loadBar, loadedCount);
     }
 
     if (postFileGroups.length === 0) {
-      setHeading(header, 'paperclip', 'No downloadable attachments found');
-      statusText.textContent = 'None of the selected posts contain downloadable attachments.';
+      setTitle('No downloadable attachments found');
+      handle.body.replaceChildren(
+        emptyState({ icon: 'paperclip', title: 'Nothing to download', description: 'None of the selected posts contain downloadable attachments.' })
+      );
       return;
     }
 
     const totalFilesCount = postFileGroups.reduce((acc, g) => acc + g.files.length, 0);
-    setHeading(header, 'paperclip', `Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`);
-    statusText.remove();
+    setTitle(`Pick Attachments (${totalFilesCount} files in ${postFileGroups.length} posts)`);
 
-    const downloadBtn = el('button', {
-      className: 'kdl-multi-dl-btn',
-      onClick: async () => {
-        const checkedBoxes = Array.from(modal.querySelectorAll<HTMLInputElement>('.kdl-multi-file-cb:checked'));
-        if (checkedBoxes.length === 0) {
-          showMessage('Please select at least one file to download.', 'warning');
-          return;
-        }
+    const fileBoxes: Array<{ box: HTMLInputElement; file: FileItem }> = [];
+    const groupBoxes: Array<{ box: HTMLInputElement; files: HTMLInputElement[] }> = [];
+    const countBadge = badge({ text: '', variant: 'secondary' });
+    const downloadBtn = button({ label: 'Download selected', icon: 'download', onClick: () => void startDownload() });
 
-        const specs: DownloadFileSpec[] = checkedBoxes.map((cb) => ({
-          url: cb.dataset.url!,
-          fileName: cb.dataset.name!
-        }));
-
-        closeOverlay();
-        showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, 'info');
-        await downloadFilesToDiskWithProgress(specs, `Bulk Pick (${specs.length} files)`);
-      }
-    }, [`Download Selected (${totalFilesCount})`]) as HTMLButtonElement;
-
-    const updateCheckedCounter = () => {
-      const count = modal.querySelectorAll('.kdl-multi-file-cb:checked').length;
-      downloadBtn.textContent = `Download Selected (${count})`;
+    // Tri-state sync: a group (or "all") box is checked, unchecked or indeterminate after its files
+    const syncTriState = (box: HTMLInputElement, files: HTMLInputElement[]) => {
+      const checked = files.filter((f) => f.checked).length;
+      box.checked = checked === files.length;
+      box.indeterminate = checked > 0 && checked < files.length;
+    };
+    const refresh = () => {
+      const count = fileBoxes.filter((f) => f.box.checked).length;
+      countBadge.textContent = `${count} / ${totalFilesCount} selected`;
       downloadBtn.disabled = count === 0;
+      groupBoxes.forEach((g) => syncTriState(g.box, g.files));
+      syncTriState(allBox, fileBoxes.map((f) => f.box));
+    };
+    const setAll = (boxes: HTMLInputElement[], value: boolean) => {
+      boxes.forEach((b) => (b.checked = value));
+      refresh();
     };
 
-    const actionToolbar = el('div', { className: 'kdl-multi-picker-toolbar' }, [
-      el('button', {
-        className: 'kdl-tb-btn',
-        onClick: () => {
-          modal.querySelectorAll<HTMLInputElement>('.kdl-multi-file-cb').forEach((cb) => (cb.checked = true));
-          updateCheckedCounter();
-        }
-      }, ['Select All']),
-      el('button', {
-        className: 'kdl-tb-btn',
-        onClick: () => {
-          modal.querySelectorAll<HTMLInputElement>('.kdl-multi-file-cb').forEach((cb) => (cb.checked = false));
-          updateCheckedCounter();
-        }
-      }, ['Deselect All']),
-      downloadBtn
-    ]);
+    const allBox = checkbox({ checked: true, ariaLabel: 'Select all files', onChange: (value) => setAll(fileBoxes.map((f) => f.box), value) });
 
-    modal.appendChild(actionToolbar);
-
-    const listContainer = el('div', { id: 'kdl-multi-file-picker-list' });
-
-    postFileGroups.forEach((group) => {
-      const groupHeader = el('div', { className: 'kdl-post-group-header' }, [
-        el('span', { className: 'kdl-post-group-title' }, [icon('pin'), group.post.postTitle]),
-        el('span', { className: 'kdl-post-group-date' }, [group.post.postDate || ''])
-      ]);
-
-      const groupList = el('ul', { className: 'kdl-group-file-list' });
-      group.files.forEach((file) => {
-        const fileName = file.name.split('/').pop() || file.name;
-        const fileIcon = icon(file.isMedia ? 'image' : 'file');
-        const checkbox = el('input', {
-          type: 'checkbox',
-          checked: true,
-          className: 'kdl-multi-file-cb',
-          dataset: { url: file.data, name: file.name },
-          onChange: updateCheckedCounter
-        }) as HTMLInputElement;
-
-        const label = el('label', { className: 'kdl-multi-file-item' }, [
-          checkbox,
-          el('span', { className: 'kdl-file-icon' }, [fileIcon]),
-          el('span', { className: 'kdl-file-name' }, [fileName])
-        ]);
-
-        groupList.appendChild(el('li', {}, [label]));
+    const groups = postFileGroups.map((group) => {
+      const rows = group.files.map((file) => {
+        const box = checkbox({ checked: true, onChange: refresh });
+        fileBoxes.push({ box, file });
+        return el('label', { className: 'kdl-ov-picker__row' }, [box, ...fileRowParts(file)]);
       });
-
-      listContainer.appendChild(el('div', { className: 'kdl-post-group-card' }, [groupHeader, groupList]));
+      const files = fileBoxes.slice(-rows.length).map((f) => f.box);
+      const groupBox = checkbox({ checked: true, ariaLabel: `Select all files of ${group.post.postTitle}`, onChange: (value) => setAll(files, value) });
+      groupBoxes.push({ box: groupBox, files });
+      return el('div', { className: 'kdl-ov-picker__group' }, [
+        el('label', { className: 'kdl-ov-picker__group-header' }, [
+          groupBox,
+          el('span', { className: 'kdl-ov-picker__group-title', title: group.post.postTitle }, [group.post.postTitle]),
+          el('span', { className: 'kdl-ov-picker__date' }, [group.post.postDate || '']),
+          badge({ text: String(group.files.length), variant: 'secondary' })
+        ]),
+        ...rows
+      ]);
     });
 
-    modal.appendChild(listContainer);
+    const startDownload = async () => {
+      const specs: DownloadFileSpec[] = fileBoxes.filter((f) => f.box.checked).map((f) => ({ url: f.file.data, fileName: f.file.name }));
+      if (specs.length === 0) {
+        showMessage('Please select at least one file to download.', 'warning');
+        return;
+      }
+      handle.close();
+      showMessage(`Starting ${specs.length} parallel downloads with progress tracking...`, 'info');
+      await downloadFilesToDiskWithProgress(specs, `Bulk Pick (${specs.length} files)`);
+    };
+
+    handle.body.replaceChildren(
+      el('div', { className: 'kdl-ov-picker__toolbar' }, [
+        el('label', { className: 'kdl-ui-row' }, [allBox, 'Select all']),
+        countBadge
+      ]),
+      scrollArea({ className: 'kdl-ov-picker__list', ariaLabel: 'Attachments by post', children: groups })
+    );
+    handle.footer.replaceChildren(button({ label: 'Cancel', variant: 'outline', onClick: handle.close }), downloadBtn);
+    handle.footer.hidden = false;
+    refresh();
+    downloadBtn.focus();
   } catch (error: any) {
-    setHeading(header, 'triangle-alert', 'Failed to fetch attachments');
-    modal.appendChild(el('p', { style: { color: '#f87171', margin: '16px 0 0' } }, [error.message]));
+    setTitle('Failed to fetch attachments');
+    handle.body.replaceChildren(statusLine(error.message, true));
   }
 }

@@ -3,9 +3,25 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { executeBulkDownload } from '../../services/downloadService';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
-import { icon } from '../../config/icons';
 import { getApiUrl, getThumbnailUrl, sanitizeFilename } from '../../utils/helpers';
 import { PostDetails } from '../../types';
+import {
+  badge,
+  button,
+  checkbox,
+  emptyState,
+  ensureKit,
+  input,
+  kitIcon,
+  kitScope,
+  progress,
+  scrollArea,
+  select,
+  sheet,
+  type DialogHandle
+} from '../kit';
+import { mountOverlayStyles } from '../overlayStyles';
+import { authorManagerModalStyles } from '../../styles/components/authorManagerModal.styles';
 
 const CACHE_PREFIX = 'kemono_posts_cache_';
 /** Most recently used cache keys first; only these authors keep a cached post list */
@@ -78,55 +94,186 @@ function isoDay(published: unknown): string {
   return Number.isNaN(date.getTime()) ? '' : date.toISOString().split('T')[0];
 }
 
-export async function launchAuthorManager(forceRefresh = false): Promise<void> {
-  let overlay = document.getElementById('kdl-author-manager-overlay');
-  if (!overlay) {
-    overlay = el('div', { id: 'kdl-author-manager-overlay' }, [
-      el('div', { id: 'kdl-author-manager-modal' }, [
-        el('div', { id: 'kdl-manager-header' }, [
-          el('h3', { id: 'kdl-manager-title' }),
-          el('em', { id: 'kdl-manager-cache-status' })
-        ]),
-        el('div', { id: 'kdl-manager-controls' }, [
-          el('button', { id: 'kdl-manager-refresh', className: 'kdl-manager-btn', title: 'Force Refresh' }, [icon('refresh-cw')]),
-          el('input', { type: 'text', id: 'kdl-manager-search', placeholder: 'Search by title...' }),
-          el('select', { id: 'kdl-manager-sort', className: 'kdl-manager-btn' }, [
-            el('option', { value: 'date-desc' }, ['Newest First']),
-            el('option', { value: 'date-asc' }, ['Oldest First']),
-            el('option', { value: 'files-desc' }, ['Most Files']),
-            el('option', { value: 'files-asc' }, ['Fewest Files']),
-            el('option', { value: 'title-asc' }, ['Title (A-Z)']),
-            el('option', { value: 'title-desc' }, ['Title (Z-A)'])
-          ]),
-          el('button', { id: 'kdl-manager-select-all', className: 'kdl-manager-btn' }, ['Select Visible']),
-          el('button', { id: 'kdl-manager-deselect-all', className: 'kdl-manager-btn' }, ['Deselect All'])
-        ]),
-        el('div', { id: 'kdl-manager-post-list' }),
-        el('div', { id: 'kdl-manager-footer' }, [
-          el('span', { id: 'kdl-manager-counter' }, ['Selected: 0']),
-          el('div', {}, [
-            el('button', { id: 'kdl-manager-download', className: 'kdl-manager-btn', disabled: true }, ['Download Selected']),
-            el('button', { id: 'kdl-manager-close', className: 'kdl-manager-btn' }, ['Close'])
-          ])
-        ])
-      ])
-    ]);
-    document.body.appendChild(overlay);
-    overlay.querySelector('#kdl-manager-close')!.addEventListener('click', () => (overlay!.style.display = 'none'));
-    overlay.addEventListener('click', (e) => {
-      if (e.target === overlay) overlay!.style.display = 'none';
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && overlay!.style.display !== 'none') overlay!.style.display = 'none';
-    });
-    // Bound once with the persistent modal; refreshes only replace the rows
-    setupManagerEventListeners();
+
+interface ManagerView {
+  sheet: DialogHandle;
+  title: HTMLElement;
+  search: HTMLInputElement;
+  sort: HTMLSelectElement;
+  list: HTMLElement;
+  loading: HTMLElement;
+  loadingText: HTMLElement;
+  counter: HTMLElement;
+  download: HTMLButtonElement;
+}
+let view: ManagerView | null = null;
+// Bumped by every launch, so a slow fetch never overwrites the rows of a newer one
+let loadToken = 0;
+
+const SORT_OPTIONS = [
+  { value: 'date-desc', label: 'Newest first' },
+  { value: 'date-asc', label: 'Oldest first' },
+  { value: 'files-desc', label: 'Most files' },
+  { value: 'files-asc', label: 'Fewest files' },
+  { value: 'title-asc', label: 'Title (A-Z)' },
+  { value: 'title-desc', label: 'Title (Z-A)' }
+];
+
+const getItems = (list: HTMLElement) => Array.from(list.querySelectorAll<HTMLElement>('.kdl-ov-manager__item'));
+const getCheckboxes = (list: HTMLElement) => Array.from(list.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+
+function applyFiltersAndSort(): void {
+  if (!view) return;
+  const { list, search, sort } = view;
+  const searchTerm = search.value.toLowerCase();
+  const visibleItems = getItems(list).filter((item) => {
+    item.hidden = !item.dataset.title!.includes(searchTerm);
+    return !item.hidden;
+  });
+
+  visibleItems.sort((a, b) => {
+    switch (sort.value) {
+      case 'date-asc':
+        return a.dataset.date!.localeCompare(b.dataset.date!);
+      case 'files-desc':
+        return parseInt(b.dataset.files!, 10) - parseInt(a.dataset.files!, 10);
+      case 'files-asc':
+        return parseInt(a.dataset.files!, 10) - parseInt(b.dataset.files!, 10);
+      case 'title-asc':
+        return a.dataset.title!.localeCompare(b.dataset.title!);
+      case 'title-desc':
+        return b.dataset.title!.localeCompare(a.dataset.title!);
+      default:
+        return b.dataset.date!.localeCompare(a.dataset.date!);
+    }
+  });
+
+  visibleItems.forEach((item) => list.appendChild(item));
+}
+
+function setVisibleChecked(checked: boolean): void {
+  if (!view) return;
+  getItems(view.list).forEach((item) => {
+    if (!item.hidden) item.querySelector<HTMLInputElement>('input[type="checkbox"]')!.checked = checked;
+  });
+  refreshManagerCounter();
+}
+
+function refreshManagerCounter(): void {
+  if (!view) return;
+  const count = view.list.querySelectorAll('input[type="checkbox"]:checked').length;
+  view.counter.textContent = `Selected: ${count}`;
+  view.download.disabled = count === 0;
+}
+
+function downloadSelected(): void {
+  if (!view) return;
+  const selectedIds = new Set(getCheckboxes(view.list).filter((cb) => cb.checked).map((cb) => cb.dataset.id!));
+  // Built from the manager's post objects, so posts that are not on the current page download too
+  const selectedPosts = currentPosts
+    .filter((post) => selectedIds.has(String(post.id)))
+    .map((post) => toPostDetails(post, currentAuthorName));
+  if (selectedPosts.length > 0) {
+    view.sheet.close();
+    executeBulkDownload(selectedPosts);
   }
-  overlay.style.display = 'flex';
+}
+
+/** Row clicks toggle the row's checkbox; Shift extends the toggle over the range from the last clicked row. */
+function bindRangeSelection(list: HTMLElement): void {
+  let lastCheckedIndex: number | null = null;
+  list.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.closest('.kdl-ov-manager__open')) return;
+    const item = target.closest<HTMLElement>('.kdl-ov-manager__item');
+    if (!item) return;
+
+    const checkboxes = getCheckboxes(list);
+    const checkbox = item.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    const currentIndex = checkboxes.indexOf(checkbox);
+    const desiredState = target === checkbox ? checkbox.checked : !checkbox.checked;
+    checkbox.checked = desiredState;
+
+    if (e.shiftKey && lastCheckedIndex !== null) {
+      const start = Math.min(currentIndex, lastCheckedIndex);
+      const end = Math.max(currentIndex, lastCheckedIndex);
+      for (let i = start; i <= end; i++) {
+        // lastCheckedIndex can point past a list that was re-populated by a refresh
+        if (checkboxes[i]) checkboxes[i].checked = desiredState;
+      }
+    }
+    lastCheckedIndex = currentIndex;
+    refreshManagerCounter();
+  });
+}
+
+/** Builds the sheet once; it keeps its rows and filters between openings. */
+function getView(): ManagerView {
+  if (view) return view;
+  mountOverlayStyles('kdl-author-manager-styles', authorManagerModalStyles);
+
+  const search = input({
+    type: 'search',
+    id: 'kdl-manager-search',
+    placeholder: 'Search by title...',
+    ariaLabel: 'Search posts by title',
+    className: 'kdl-ov-manager__search',
+    onInput: applyFiltersAndSort
+  });
+  const sort = select({ id: 'kdl-manager-sort', ariaLabel: 'Sort posts', options: SORT_OPTIONS, onChange: applyFiltersAndSort });
+  const list = scrollArea({ className: 'kdl-ov-manager__list', ariaLabel: 'Posts' });
+  list.id = 'kdl-manager-post-list';
+  bindRangeSelection(list);
+
+  const loadingText = el('p', { className: 'kdl-ov-manager__status' });
+  loadingText.setAttribute('aria-live', 'polite');
+  const loading = el('div', { className: 'kdl-ov-manager__loading' }, [progress({ ariaLabel: 'Loading posts' }), loadingText]);
+  loading.hidden = true;
+
+  const counter = badge({ text: 'Selected: 0', variant: 'secondary', className: 'kdl-ov-manager__count' });
+  counter.id = 'kdl-manager-counter';
+  counter.setAttribute('aria-live', 'polite');
+  const download = button({ id: 'kdl-manager-download', label: 'Download selected', icon: 'download', disabled: true, onClick: downloadSelected });
+
+  const managerSheet = sheet({
+    title: 'Manage posts',
+    description: 'Search, sort and tick posts, then download them. Shift-click selects a range.',
+    side: 'right',
+    className: 'kdl-ov-manager',
+    initialFocus: search,
+    content: [
+      el('div', { id: 'kdl-manager-controls', className: 'kdl-ov-manager__toolbar' }, [
+        search,
+        sort,
+        button({ id: 'kdl-manager-refresh', icon: 'refresh-cw', variant: 'outline', size: 'icon', ariaLabel: 'Force refresh', title: 'Force Refresh', onClick: () => void launchAuthorManager(true) }),
+        button({ id: 'kdl-manager-select-all', label: 'Select visible', variant: 'secondary', onClick: () => setVisibleChecked(true) }),
+        button({ id: 'kdl-manager-deselect-all', label: 'Deselect all', variant: 'ghost', onClick: () => setVisibleChecked(false) })
+      ]),
+      loading,
+      list
+    ],
+    footer: [counter, button({ id: 'kdl-manager-close', label: 'Close', variant: 'outline', onClick: () => view?.sheet.close() }), download]
+  });
+  managerSheet.element.id = 'kdl-author-manager-modal';
+  const title = managerSheet.element.querySelector<HTMLElement>('.kdl-ui-dialog__title')!;
+  title.id = 'kdl-manager-title';
+
+  view = { sheet: managerSheet, title, search, sort, list, loading, loadingText, counter, download };
+  return view;
+}
+
+function setLoading(text: string | null): void {
+  if (!view) return;
+  view.loading.hidden = text === null;
+  view.loadingText.textContent = text ?? '';
+}
+
+export async function launchAuthorManager(forceRefresh = false): Promise<void> {
+  const { sheet: managerSheet, title, list } = getView();
+  managerSheet.open();
+  const token = ++loadToken;
 
   await getSettings();
-  const listContainer = document.getElementById('kdl-manager-post-list')!;
-  const title = document.getElementById('kdl-manager-title')!;
   const authorName = document.querySelector('.user-header__name span[itemprop="name"]')?.textContent?.trim() || 'UnknownAuthor';
 
   const pathParts = window.location.pathname.match(/\/([^/]+)\/user\/([^/]+)/);
@@ -139,6 +286,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
     const cachedPosts = readAuthorCache(cacheKey);
     if (cachedPosts) {
       title.textContent = `Manage ${cachedPosts.length} posts by ${authorName}`;
+      setLoading(null);
       showPosts(cachedPosts, authorName);
       return;
     }
@@ -146,8 +294,14 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
 
   title.textContent = `Loading posts for: ${authorName}`;
   showPosts([], authorName);
-  listContainer.replaceChildren(el('p', { style: { textAlign: 'center', padding: '20px' } }, ['Fetching all post data from API...']));
-  const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID);
+  setLoading('Fetching all post data from API...');
+  // The fetcher reports per-page status through a progress-task-like object
+  const allPosts = await getApiAdapter().fetchAllAuthorPosts(service, userID, {
+    updateStatus: (text: string) => token === loadToken && setLoading(text),
+    finish: () => {}
+  });
+  if (token !== loadToken) return;
+  setLoading(null);
 
   if (allPosts.length > 0) {
     if (state.settings.cacheDurationHours > 0) {
@@ -159,7 +313,7 @@ export async function launchAuthorManager(forceRefresh = false): Promise<void> {
     showPosts(allPosts, authorName);
   } else {
     title.textContent = `Failed to load posts for ${authorName}`;
-    listContainer.replaceChildren(el('p', { style: { textAlign: 'center', padding: '20px' } }, ['Could not retrieve post list.']));
+    list.replaceChildren(emptyState({ icon: 'triangle-alert', title: 'Could not retrieve post list.' }));
   }
 }
 
@@ -167,189 +321,78 @@ function showPosts(posts: any[], authorName: string): void {
   currentPosts = posts;
   currentAuthorName = authorName;
   populateManagerList(posts);
+  applyFiltersAndSort();
   refreshManagerCounter();
 }
 
-function refreshManagerCounter(): void {
-  const listContainer = document.getElementById('kdl-manager-post-list');
-  const downloadBtn = document.getElementById('kdl-manager-download') as HTMLButtonElement | null;
-  const counter = document.getElementById('kdl-manager-counter');
-  if (!listContainer || !downloadBtn || !counter) return;
-  const count = listContainer.querySelectorAll('input[type="checkbox"]:checked').length;
-  counter.textContent = `Selected: ${count}`;
-  downloadBtn.disabled = count === 0;
-}
-
 export function populateManagerList(posts: any[]): void {
-  const listContainer = document.getElementById('kdl-manager-post-list')!;
+  const { list } = getView();
   const fragment = document.createDocumentFragment();
 
   posts.forEach((post) => {
     const postDate = isoDay(post.published) || 'No Date';
     const fileCount = (post.file ? 1 : 0) + (post.attachments ? post.attachments.length : 0);
+    const postTitle = sanitizeFilename(post.title || 'UntitledPost');
 
     const mainFilePath = post.file?.path || (Array.isArray(post.attachments) && post.attachments[0]?.path);
-    let previewElem: HTMLElement;
-    if (mainFilePath) {
-      const thumbUrl = getThumbnailUrl(mainFilePath);
-      previewElem = el('img', { src: thumbUrl, className: 'post-item-preview', loading: 'lazy' });
-    } else {
-      previewElem = el('div', { className: 'post-item-preview' });
-    }
+    const preview = mainFilePath
+      ? el('img', { src: getThumbnailUrl(mainFilePath), className: 'kdl-ov-manager__thumb', loading: 'lazy', alt: '' })
+      : el('div', { className: 'kdl-ov-manager__thumb' });
 
     const postUrl = getApiUrl(`/${post.service}/user/${post.user}/post/${post.id}`);
+    const box = checkbox({ ariaLabel: postTitle });
+    box.dataset.id = String(post.id);
+    const openLink = el('a', { href: postUrl, target: '_blank', rel: 'noopener', className: 'kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-icon kdl-ov-manager__open', title: 'Open post in new tab' }, [
+      kitIcon('external-link')
+    ]);
+    openLink.setAttribute('aria-label', `Open ${postTitle} in a new tab`);
 
-    const item = el(
-      'div',
-      {
-        className: 'post-item',
-        dataset: {
-          id: String(post.id),
-          title: String(post.title || '').toLowerCase(),
-          date: post.published || '0',
-          files: String(fileCount)
-        }
-      },
-      [
-        previewElem,
-        el('input', { type: 'checkbox', dataset: { id: String(post.id) } }),
-        el('div', { className: 'post-item-label' }, [
-          el('span', { className: 'post-item-title' }, [sanitizeFilename(post.title || 'UntitledPost')]),
-          el('span', { className: 'post-item-date' }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
-        ]),
-        el('a', { href: postUrl, target: '_blank', className: 'post-item-open-link', title: 'Open post in new tab' }, [icon('external-link')])
-      ]
+    fragment.appendChild(
+      el(
+        'div',
+        {
+          className: 'kdl-ov-manager__item',
+          dataset: {
+            id: String(post.id),
+            title: String(post.title || '').toLowerCase(),
+            date: post.published || '0',
+            files: String(fileCount)
+          }
+        },
+        [
+          box,
+          preview,
+          el('div', { className: 'kdl-ov-manager__text' }, [
+            el('span', { className: 'kdl-ov-manager__title', title: postTitle }, [postTitle]),
+            el('span', { className: 'kdl-ov-manager__meta' }, [`${postDate} | Files: ${fileCount} | ID: ${post.id}`])
+          ]),
+          openLink
+        ]
+      )
     );
-
-    fragment.appendChild(item);
   });
 
-  listContainer.replaceChildren(fragment);
+  list.replaceChildren(fragment);
 }
 
-/** Binds the modal's controls. Idempotent: the modal persists, and a second binding would multiply every handler (and download). */
-export function setupManagerEventListeners(): void {
-  const searchInput = document.getElementById('kdl-manager-search') as HTMLInputElement;
-  const listContainer = document.getElementById('kdl-manager-post-list')!;
-  const downloadBtn = document.getElementById('kdl-manager-download') as HTMLButtonElement;
-
-  if (listContainer.dataset.kdlListenersBound) {
-    refreshManagerCounter();
-    return;
-  }
-  listContainer.dataset.kdlListenersBound = 'true';
-
-  const getCheckboxes = () => Array.from(listContainer.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
-  const updateCounter = refreshManagerCounter;
-
-  const applyFiltersAndSort = () => {
-    const allItems = Array.from(listContainer.querySelectorAll('.post-item')) as HTMLElement[];
-    const searchTerm = searchInput.value.toLowerCase();
-    const sortMethod = (document.getElementById('kdl-manager-sort') as HTMLSelectElement).value;
-
-    let visibleItems = allItems.filter((item) => {
-      const match = item.dataset.title!.includes(searchTerm);
-      item.style.display = match ? 'flex' : 'none';
-      return match;
-    });
-
-    visibleItems.sort((a, b) => {
-      switch (sortMethod) {
-        case 'date-asc':
-          return a.dataset.date!.localeCompare(b.dataset.date!);
-        case 'files-desc':
-          return parseInt(b.dataset.files!, 10) - parseInt(a.dataset.files!, 10);
-        case 'files-asc':
-          return parseInt(a.dataset.files!, 10) - parseInt(b.dataset.files!, 10);
-        case 'title-asc':
-          return a.dataset.title!.localeCompare(b.dataset.title!);
-        case 'title-desc':
-          return b.dataset.title!.localeCompare(a.dataset.title!);
-        default:
-          return b.dataset.date!.localeCompare(a.dataset.date!);
-      }
-    });
-
-    visibleItems.forEach((item) => listContainer.appendChild(item));
-  };
-
-  searchInput.addEventListener('input', applyFiltersAndSort);
-  document.getElementById('kdl-manager-sort')!.addEventListener('change', applyFiltersAndSort);
-  document.getElementById('kdl-manager-refresh')!.addEventListener('click', () => launchAuthorManager(true));
-
-  document.getElementById('kdl-manager-select-all')!.addEventListener('click', () => {
-    getCheckboxes().forEach((cb) => {
-      if ((cb.closest('.post-item') as HTMLElement).style.display !== 'none') cb.checked = true;
-    });
-    updateCounter();
-  });
-
-  document.getElementById('kdl-manager-deselect-all')!.addEventListener('click', () => {
-    getCheckboxes().forEach((cb) => {
-      if ((cb.closest('.post-item') as HTMLElement).style.display !== 'none') cb.checked = false;
-    });
-    updateCounter();
-  });
-
-  let lastCheckedIndex: number | null = null;
-  listContainer.addEventListener('click', (e: MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.closest('.post-item-open-link')) return;
-    const item = target.closest('.post-item') as HTMLElement;
-    if (!item) return;
-
-    const checkboxes = getCheckboxes();
-    const checkbox = item.querySelector('input[type="checkbox"]') as HTMLInputElement;
-    const currentIndex = checkboxes.indexOf(checkbox);
-
-    const desiredState = target.tagName === 'INPUT' ? checkbox.checked : !checkbox.checked;
-    checkbox.checked = desiredState;
-
-    if (e.shiftKey && lastCheckedIndex !== null) {
-      const start = Math.min(currentIndex, lastCheckedIndex);
-      const end = Math.max(currentIndex, lastCheckedIndex);
-      for (let i = start; i <= end; i++) {
-        // lastCheckedIndex can point past a list that was re-populated by a refresh
-        if (checkboxes[i]) checkboxes[i].checked = desiredState;
-      }
-    }
-    lastCheckedIndex = currentIndex;
-    updateCounter();
-  });
-
-  downloadBtn.addEventListener('click', () => {
-    const selectedIds = new Set<string>();
-    getCheckboxes().forEach((cb) => {
-      if (cb.checked) selectedIds.add(cb.dataset.id!);
-    });
-    // Built from the manager's post objects, so posts that are not on the current page download too
-    const selectedPosts = currentPosts
-      .filter((post) => selectedIds.has(String(post.id)))
-      .map((post) => toPostDetails(post, currentAuthorName));
-    if (selectedPosts.length > 0) {
-      document.getElementById('kdl-author-manager-overlay')!.style.display = 'none';
-      executeBulkDownload(selectedPosts);
-    }
-  });
-
-  updateCounter();
-}
-
+/** Header button in the creator page (light DOM), drawn with the kit inside a .kdl-scope wrapper that carries the id. */
 export function createAuthorManagerButton(): HTMLElement {
-  let managerBtn = document.getElementById('kdl-author-manager-btn');
-  if (managerBtn) return managerBtn;
-  return el(
-    'button',
-    {
-      id: 'kdl-author-manager-btn',
-      className: 'user-header__manage',
-      type: 'button',
-      title: 'Load all posts from this author into a powerful manager with search and bulk selection.',
-      onClick: () => launchAuthorManager()
-    },
+  const existing = document.getElementById('kdl-author-manager-btn');
+  if (existing) return existing;
+  ensureKit();
+  const scope = kitScope(
     [
-      el('span', { className: 'user-header__fav-icon' }, [icon('folders')]),
-      el('span', { className: 'user-header__fav-text' }, ['Manage All Posts'])
-    ]
+      button({
+        label: 'Manage All Posts',
+        icon: 'folders',
+        variant: 'secondary',
+        size: 'sm',
+        title: 'Load all posts from this author into a powerful manager with search and bulk selection.',
+        onClick: () => void launchAuthorManager()
+      })
+    ],
+    { tag: 'span' }
   );
+  scope.id = 'kdl-author-manager-btn';
+  return scope;
 }
