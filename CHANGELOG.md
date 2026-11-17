@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-17
+
 ### Changed
 - Tag pages render lazily: the first 300 tags at once, the next 300 as you scroll near the end (search, sort and the letter jump still cover every tag). Opening or closing the sidebar no longer stutters on the 2000-tag page.
 
