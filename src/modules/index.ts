@@ -7,6 +7,7 @@ import { viewedPostsModule } from '../features/kui/viewedPosts';
 import { copyUsernameModule } from '../features/kui/userPageModule';
 import { kuiPostModule } from '../features/kui/postPageModule';
 import { gridSizeModule } from '../ui/components/kui/gridControls';
+import { restyleModule } from './restyle';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
 export const BUILTIN_MODULES: KdlModule[] = [
@@ -18,7 +19,8 @@ export const BUILTIN_MODULES: KdlModule[] = [
   kuiPostModule,
   downloaderPostModule,
   downloaderCreatorModule,
-  favoritesQuickModule
+  favoritesQuickModule,
+  restyleModule
 ];
 
 export function registerBuiltinModules(): void {
