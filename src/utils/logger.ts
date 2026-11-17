@@ -8,7 +8,7 @@ export const debugModule = {
     debuggerOverlay.id = "kui-debugger";
     const css = `
         #kui-debugger { display: none; position: fixed; bottom: 10px; left: 10px; background-color: rgba(0,0,0,0.7); color: white; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px; z-index: 99999; pointer-events: none; line-height: 1.5; }
-        #kui-debugger.kui-active { display: block; }
+        #kui-debugger.kui-active:not(:empty) { display: block; }
       `;
     let styled = false;
     try {

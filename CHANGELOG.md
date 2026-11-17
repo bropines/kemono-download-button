@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.1] - 2026-11-17
+
+### Fixed
+- Site skin: the creator lists (artists, favourites) use the full width instead of two columns.
+- Site skin: the home page art is shown sharp again; only the sidebar and the welcome card blur what is behind them, and the footer is back to normal.
+- The debug overlay no longer shows as an empty black square in the corner when debug mode is on.
+
 ## [1.3.0] - 2026-11-17
 
 Languages, smarter lists and a polished site skin.

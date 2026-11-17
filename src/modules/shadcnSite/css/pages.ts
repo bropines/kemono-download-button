@@ -36,7 +36,7 @@ export const pagesCss = (): string => `
 .site-section--importer > .kdl-sk-panel { max-width: 40rem; }
 
 /* Long-form pages (FAQ / tutorial, contact) */
-:is(#page.page, .site-section--faq) { ${READABLE} line-height: 1.7; }
+:is(#page.page, .site-section--faq):not(:has(.card-list__items > :is(.user-card, .post-card))) { ${READABLE} line-height: 1.7; }
 :is(#page.page, .site-section--faq) > h1 { margin: 8px 0 16px; text-align: center; }
 :is(#page.page, .site-section--faq) > h2 {
   margin: 28px 0 10px;
@@ -227,7 +227,7 @@ export const pagesCss = (): string => `
 .jumbo-announcement :is(h2, h3) { font-size: 1rem; }
 .announcement-title-container .date { font-size: 12px; }
 
-/* Home: the welcome art fills the page under a blur, the text sits on a translucent card */
+/* Home: the welcome art fills the page as is; only the sidebar and the text card blur what is behind them */
 .site-section--home .jumbo-welcome {
   position: static;
   min-height: calc(100vh - 12rem);
@@ -240,11 +240,12 @@ export const pagesCss = (): string => `
 }
 .site-section--home .jumbo-welcome-background {
   position: fixed;
-  inset: -40px;
+  inset: 0;
   z-index: -1;
   width: auto;
   height: auto;
-  filter: blur(18px) brightness(0.55) saturate(1.15);
+  background-size: cover;
+  background-position: center;
   pointer-events: none;
 }
 .site-section--home .jumbo-welcome-description {
@@ -264,7 +265,7 @@ export const pagesCss = (): string => `
 .site-section--home .jumbo-welcome-description ul${NK} { padding-left: 1.25rem; }
 .site-section--home .jumbo-welcome-credits { float: none; margin-top: 12px; color: var(--kdl-muted-foreground); font-size: 12px; }
 body:has(.site-section--home) { background-color: var(--kdl-background); }
-body:has(.site-section--home) :is(.global-sidebar, .content-wrapper .header, .content-wrapper > .global-footer) {
+body:has(.site-section--home) .global-sidebar {
   background: color-mix(in srgb, var(--kdl-sidebar) 70%, transparent);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
