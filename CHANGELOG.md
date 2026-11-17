@@ -4,6 +4,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.9] - 2026-11-17
+
+### Fixed
+- The Modules tab was cut off in the settings dialog: on desktop the tabs show labels only and all fit one row; phones keep icons and scroll the row.
+- Russian: the creator tab "Linked Accounts (✔️)" reads "Связанные аккаунты" without the site's checkmark.
+
 ## [1.3.8] - 2026-11-17
 
 ### Added

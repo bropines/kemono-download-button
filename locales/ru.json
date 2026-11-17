@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 3,
+  "version": 4,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -799,6 +799,8 @@
     "Announcements": "Объявления",
     "Linked Accounts": "Связанные аккаунты",
     "Linked Accounts ({count})": "Связанные аккаунты ({count})",
+    "Linked Accounts (✔️)": "Связанные аккаунты",
+    "Linked Accounts (✔)": "Связанные аккаунты",
     "Similar Creators": "Похожие авторы",
     "Fancards": "Фанкарты",
     "Upload file": "Загрузить файл",

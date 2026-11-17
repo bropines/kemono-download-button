@@ -14,9 +14,11 @@ export const settingsStyles = css({
   // other and onto the panel on phones
   '.kdl-settings .kdl-ui-tabs__trigger': { gap: '6px', flexShrink: 0 },
   '.kdl-settings .kdl-ui-tabs__list::-webkit-scrollbar': { display: 'none' },
-  // Wide enough screens show every tab (two rows if needed); phones keep the sideways scroll
+  // Desktop: labels only, so every tab fits one row (a wrapped second row was clipped by the flex layout);
+  // phones keep the icons and scroll the row sideways
   '@media (min-width: 641px)': {
-    '.kdl-settings .kdl-ui-tabs__list': { flexWrap: 'wrap', height: 'auto', overflowX: 'visible' },
+    '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { display: 'none' },
+    '.kdl-settings .kdl-ui-tabs__trigger': { paddingInline: '10px' },
   },
   '.kdl-settings .kdl-ui-tabs__trigger .kdl-ui-icon': { width: '14px', height: '14px' },
   '.kdl-settings .kdl-ui-tabs__panel': { paddingBottom: '4px' },
