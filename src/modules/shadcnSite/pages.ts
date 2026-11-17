@@ -20,6 +20,7 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 /** Puts every node we wrapped back where it was */
 function undo(): void {
   unpinHomeArt();
+  undoDropZone();
   undoFilterMove();
   undoFooter();
   undoApiFrame();
@@ -304,6 +305,61 @@ function undoFilterMove(): void {
   });
 }
 
+// File hash search: the browser's file input can't be laid out (its "No file chosen" text sits where it wants),
+// so it moves into our drop zone, stretched invisibly over it: clicks and drops still land on the real input,
+// which the site's script reads. A comment marks its spot for undo.
+const FILE_INPUT = '#file-search input[type="file"]';
+const dropSpots = new WeakMap<HTMLInputElement, { spot: Comment; onChange: () => void }>();
+const fileSize = (bytes: number): string => {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = bytes;
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit++;
+  }
+  return `${value >= 10 || unit === 0 ? Math.round(value) : value.toFixed(1)} ${units[unit]}`;
+};
+function fileDropZone(): void {
+  document.querySelectorAll<HTMLInputElement>(FILE_INPUT).forEach((field) => {
+    if (dropSpots.has(field)) return;
+    const spot = document.createComment('kdl-drop-spot');
+    field.before(spot);
+    const file = el('span', { className: 'kdl-sk-drop__file' });
+    const zone = el('label', { className: 'kdl-sk-drop' }, [
+      el('span', { className: 'kdl-sk-drop__icon', ariaHidden: 'true' }),
+      el('span', { className: 'kdl-sk-drop__title' }, [t('hash.drop.title')]),
+      el('span', { className: 'kdl-sk-drop__hint' }, [t('hash.drop.hint')]),
+      file,
+    ]);
+    zone.setAttribute(MARK, 'drop');
+    spot.after(zone);
+    zone.append(field);
+    const onChange = (): void => {
+      const chosen = field.files?.[0];
+      file.textContent = chosen ? `${chosen.name} · ${fileSize(chosen.size)}` : '';
+      zone.toggleAttribute('data-has-file', !!chosen);
+    };
+    field.addEventListener('change', onChange);
+    onChange();
+    ['dragenter', 'dragover'].forEach((type) => zone.addEventListener(type, () => zone.setAttribute('data-drag', '')));
+    ['dragleave', 'drop'].forEach((type) => zone.addEventListener(type, () => zone.removeAttribute('data-drag')));
+    dropSpots.set(field, { spot, onChange });
+  });
+}
+function undoDropZone(): void {
+  document.querySelectorAll<HTMLElement>(`[${MARK}="drop"]`).forEach((zone) => {
+    const field = zone.querySelector<HTMLInputElement>('input[type="file"]');
+    const saved = field && dropSpots.get(field);
+    if (field && saved) {
+      field.removeEventListener('change', saved.onChange);
+      if (saved.spot.isConnected) saved.spot.replaceWith(field);
+      dropSpots.delete(field);
+    }
+    zone.remove();
+  });
+}
+
 // The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
 // phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,
 // and only a width change (rotation) recomputes it.
@@ -334,6 +390,7 @@ export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount
     footerButtons();
     fitApiFrame();
     moveFilterIntoSearch();
+    fileDropZone();
     pinHomeArt();
   },
   update() {
@@ -343,6 +400,7 @@ export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount
     footerButtons();
     fitApiFrame();
     moveFilterIntoSearch();
+    fileDropZone();
     pinHomeArt();
   },
   unmount: undo,

@@ -309,32 +309,52 @@ body:has(.site-section--home) .global-sidebar {
   text-align: left;
 }
 #file-search > label { color: var(--kdl-foreground); font-size: 14px; font-weight: 600; }
-#file-search input[type="file"] {
-  width: 100%;
-  min-height: 7.5rem;
-  padding: 2.25rem 1rem 1rem;
+/* Our drop zone with the real file input stretched invisibly over it (pages.ts) */
+#file-search .kdl-sk-drop {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 8.5rem;
+  padding: 1.25rem 1rem;
   border: 1.5px dashed var(--kdl-border);
   border-radius: var(--kdl-radius);
-  background: var(--kdl-muted) url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a1a1aa' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M17 8l-5-5-5 5'/%3E%3Cpath d='M12 3v12'/%3E%3C/svg%3E") center 0.75rem / 1.5rem no-repeat;
+  background: color-mix(in srgb, var(--kdl-muted) 55%, transparent);
   color: var(--kdl-muted-foreground);
-  font-size: 13px;
   text-align: center;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
-#file-search input[type="file"]:hover, #file-search input[type="file"]:focus-visible { border-color: var(--kdl-ring); background-color: var(--kdl-accent); outline: none; }
-#file-search input[type="file"]::file-selector-button {
-  display: block;
-  margin: 0 auto 6px;
-  height: 2rem;
-  padding: 0 0.875rem;
-  border: 1px solid var(--kdl-border);
-  border-radius: calc(var(--kdl-radius) - 2px);
-  background: var(--kdl-background);
-  color: var(--kdl-foreground);
-  font: 500 13px var(--kdl-font, inherit);
-  cursor: pointer;
+#file-search .kdl-sk-drop:is(:hover, :focus-within, [data-drag]) { border-color: var(--kdl-ring); background: var(--kdl-accent); }
+#file-search .kdl-sk-drop[data-has-file] { border-style: solid; border-color: color-mix(in srgb, var(--kdl-primary) 60%, var(--kdl-border)); }
+#file-search .kdl-sk-drop > input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
+.kdl-sk-drop__icon {
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-bottom: 4px;
+  background: currentColor;
+  -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M17 8l-5-5-5 5'/%3E%3Cpath d='M12 3v12'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpath d='M17 8l-5-5-5 5'/%3E%3Cpath d='M12 3v12'/%3E%3C/svg%3E") center / contain no-repeat;
 }
+.kdl-sk-drop__title { color: var(--kdl-foreground); font-size: 14px; font-weight: 500; }
+.kdl-sk-drop__hint { font-size: 12px; }
+.kdl-sk-drop__file:empty { display: none; }
+.kdl-sk-drop__file {
+  max-width: 100%;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 9999px;
+  background: var(--kdl-secondary);
+  color: var(--kdl-secondary-foreground);
+  font-size: 12px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#file-search .kdl-sk-drop[data-has-file] .kdl-sk-drop__hint { display: none; }
 #file-search > span { display: flex; align-items: center; gap: 12px; color: var(--kdl-muted-foreground); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
 #file-search > span > br { display: none; }
 #file-search > span::before, #file-search > span::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--kdl-border); }

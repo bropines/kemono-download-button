@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- File hash search: the file field is a proper drop zone (icon, "drop a file or click", the chosen file's name and size, a highlight while dragging) instead of the browser's own file input with its off-centre "No file chosen".
+
 ## [1.7.1] - 2026-11-17
 
 ### Changed

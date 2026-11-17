@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 8,
+  "version": 9,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -797,7 +797,9 @@
     "themes.preset.builtin-dim-viewed.description": "Открытые ранее посты становятся серыми и бледными, получают метку «Viewed» и проясняются при наведении.",
     "themes.preset.builtin-dim-viewed.name": "Приглушать просмотренные",
     "themes.preset.builtin-reader.description": "Посты в колонке по центру с крупным шрифтом, без баннеров и рамок; комментарии свёрнуты до короткого превью (нажмите на заголовок, чтобы развернуть).",
-    "themes.preset.builtin-reader.name": "Режим чтения"
+    "themes.preset.builtin-reader.name": "Режим чтения",
+    "hash.drop.title": "Перетащите файл сюда или нажмите, чтобы выбрать",
+    "hash.drop.hint": "SHA-256 считается прямо в браузере, файл никуда не загружается."
   },
   "site": {
     "Home": "Главная",

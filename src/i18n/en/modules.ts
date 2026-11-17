@@ -14,6 +14,8 @@ export default {
   'tags.group.button': 'A–Z groups',
   'tags.group.title': 'Group by first letter',
   'tags.layout.title': 'List in columns or cloud',
+  'hash.drop.title': 'Drop a file here or click to choose',
+  'hash.drop.hint': 'Its SHA-256 is computed in your browser; the file is not uploaded.',
   'dms.read': 'Read',
   'dms.message': 'Message',
   'dms.creator': 'Creator page',
