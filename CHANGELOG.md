@@ -4,6 +4,26 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-17
+
+Languages, smarter lists and a polished site skin.
+
+### Added
+- **Languages.** The script's interface and the site's own menus, buttons, headings and pagination can be shown in Russian (more languages can be added). Post titles, texts, comments, names and tags are never translated. Language is picked in General settings (Auto follows the browser); translations update from GitHub once a day and work offline. Anyone can contribute a language with a pull request — see `locales/README.md`.
+- **Tag tools** on tag pages: instant search, sorting by count or name, A–Z groups with a jump bar, and a filter by script (Latin, Cyrillic, CJK).
+- **Live post search** on creator pages and /posts: results appear as you type, with "Load more"; download buttons and checkboxes work on them. Enter still runs the site's full search, Esc brings the list back.
+- **Download buttons on every post list**: /posts, popular, search and favourite posts, not only creator pages.
+- **Theme previews**: every preset and theme shows a small sketch of the page, and holding the eye button previews it on the current page. Colour swatches for the skin's accent and tone in the Modules tab.
+- Site skin: FAQ as a searchable accordion, importer notes and account pages as panels, a blurred full-page art background on the home page.
+
+### Changed
+- Site skin: compact one-row filter forms (favourites, artists, popular), shadcn-style checkboxes and radios, clear hover and focus states on forms, a scrollable header and many layout fixes on phones; the settings tabs no longer overlap on narrow screens.
+- The smoke test no longer depends on the interface language.
+
+### Fixed
+- The site skin and themes no longer flash back to the old look while switching pages: the site deleted our styles on every navigation.
+- Pages opened in a background tab are set up right away instead of when you switch to them.
+
 ## [1.2.0] - 2026-11-17
 
 A shadcn-style skin for the whole site.
