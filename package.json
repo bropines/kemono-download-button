@@ -6,6 +6,8 @@
   "scripts": {
     "build": "vite build && node scripts/postbuild.mjs",
     "typecheck": "tsc --noEmit",
+    "sign-locales": "node scripts/sign-locales.mjs",
+    "verify-locales": "node scripts/verify-locales.mjs",
     "dev": "vite build --watch"
   },
   "keywords": [

@@ -2,6 +2,7 @@ import { appState } from '../../state/store';
 import { el } from '../../utils/dom';
 import { addKitStyles, badge } from '../kit';
 import { dockStyles } from '../../styles/components/fixedControls.styles';
+import { t } from '../../i18n';
 
 export type DockSlot = 'progress' | 'queue' | 'bulk';
 const SLOTS: DockSlot[] = ['progress', 'queue', 'bulk'];
@@ -47,7 +48,7 @@ export function updateQueueIndicator(): void {
   indicator.hidden = idle;
   if (idle) return;
   // Keep the badge's icon, replace only its text
-  const text = `Queue: ${appState.activeOperations} active, ${waiting} waiting`;
+  const text = t('dl.queue.status', { active: appState.activeOperations, waiting });
   const last = indicator.lastChild;
   if (last?.nodeType === Node.TEXT_NODE) last.textContent = text;
   else indicator.append(text);

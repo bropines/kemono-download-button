@@ -16,6 +16,7 @@ import {
   type SelectOption,
   type ToastHandle,
 } from '../kit';
+import { t } from '../../i18n';
 
 type Key = keyof DownloaderSettings;
 type KeysOf<T> = { [K in Key]: DownloaderSettings[K] extends T ? K : never }[Key];
@@ -29,8 +30,8 @@ export function notifySaved(): void {
   clearTimeout(savedTimer);
   savedTimer = window.setTimeout(() => {
     const alive = savedToast?.element.isConnected && savedToast.element.dataset.state !== 'closed';
-    if (alive) savedToast!.update({ title: 'Saved' });
-    else savedToast = toast({ title: 'Saved', variant: 'success', duration: 1500 });
+    if (alive) savedToast!.update({ title: t('settings.saved') });
+    else savedToast = toast({ title: t('settings.saved'), variant: 'success', duration: 1500 });
   }, SAVED_DEBOUNCE_MS);
 }
 

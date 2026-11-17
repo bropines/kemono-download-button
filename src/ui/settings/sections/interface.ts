@@ -12,6 +12,7 @@ import { getModuleSetting, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { t } from '../../../i18n';
 
 const GRID_MIN = 120;
 const GRID_MAX = 400;
@@ -33,7 +34,7 @@ function gridSizeField(): HTMLElement {
   whileConnected(control, (event) => {
     if (event.type === 'setting' && event.id === 'gridSize' && event.key === 'size') setSliderValue(control, Number(event.value));
   });
-  return field({ label: 'Post card size', description: 'Width of post cards in post lists.', control });
+  return field({ label: t('settings.interface.cardSize'), description: t('settings.interface.cardSizeDescription'), control });
 }
 
 function embedRulesField(): HTMLElement {
@@ -51,8 +52,8 @@ function embedRulesField(): HTMLElement {
         const toggle = el('button', {
           type: 'button',
           className: 'kdl-settings__chip-toggle',
-          title: 'Switch between button and hide',
-          textContent: action === 'button' ? 'Button' : 'Hide',
+          title: t('settings.interface.embed.toggleTitle'),
+          textContent: action === 'button' ? t('settings.interface.embed.button') : t('settings.interface.embed.hide'),
           onClick: () => {
             rules[domain] = rules[domain] === 'button' ? 'hide' : 'button';
             commit();
@@ -66,20 +67,20 @@ function embedRulesField(): HTMLElement {
             commit();
           },
         }, [kitIcon('x')]);
-        remove.setAttribute('aria-label', `Remove rule for ${domain}`);
+        remove.setAttribute('aria-label', t('settings.interface.embed.removeRule', { domain }));
         const chip = badge({ text: '', variant: 'secondary', className: 'kdl-settings__chip' });
         chip.replaceChildren(toggle, `: ${domain}`, remove);
         return chip;
       })
     );
   };
-  const domainInput = input({ id: 'kui-rule-domain-input', placeholder: 'e.g. *.mega.nz', ariaLabel: 'Domain' });
+  const domainInput = input({ id: 'kui-rule-domain-input', placeholder: t('settings.interface.embed.domainPlaceholder'), ariaLabel: t('settings.interface.embed.domain') });
   const actionSelect = select({
     id: 'kui-rule-action-select',
-    ariaLabel: 'Action',
+    ariaLabel: t('settings.interface.embed.action'),
     options: [
-      { value: 'button', label: 'Convert to button' },
-      { value: 'hide', label: 'Hide link' },
+      { value: 'button', label: t('settings.interface.embed.toButton') },
+      { value: 'hide', label: t('settings.interface.embed.hideLink') },
     ],
   });
   const add = () => {
@@ -92,13 +93,13 @@ function embedRulesField(): HTMLElement {
   domainInput.addEventListener('keydown', (e) => e.key === 'Enter' && add());
   render();
   return field({
-    label: 'Embed link rules',
-    description: 'Links to matching domains in post content become buttons or are hidden. Click a rule’s action to switch it.',
+    label: t('settings.interface.embed.label'),
+    description: t('settings.interface.embed.description'),
     control: el('div', { className: 'kdl-settings__group' }, [
       el('div', { className: 'kdl-settings__row' }, [
         domainInput,
         actionSelect,
-        button({ id: 'kui-add-rule-btn', label: 'Add', icon: 'check', variant: 'secondary', onClick: add }),
+        button({ id: 'kui-add-rule-btn', label: t('settings.interface.embed.add'), icon: 'check', variant: 'secondary', onClick: add }),
       ]),
       tags,
     ]),
@@ -107,20 +108,20 @@ function embedRulesField(): HTMLElement {
 
 function viewedPostsRow(): HTMLElement {
   const stat = el('span', { className: 'kdl-settings__stat' });
-  const update = () => (stat.textContent = `Viewed posts remembered: ${getViewedPostsCount()}`);
+  const update = () => (stat.textContent = t('settings.interface.viewed.count', { count: getViewedPostsCount() }));
   update();
   return el('div', { className: 'kdl-settings__row' }, [
     stat,
     el('span', { className: 'kdl-settings__footer-spacer' }),
     button({
-      label: 'Clear history',
+      label: t('settings.interface.viewed.clear'),
       icon: 'x',
       variant: 'outline',
       size: 'sm',
       onClick: () => {
         clearViewedPosts();
         update();
-        showMessage('Viewed posts history cleared', 'success');
+        showMessage(t('settings.interface.viewed.cleared'), 'success');
       },
     }),
   ]);
@@ -133,16 +134,16 @@ registerSettingsSection({
   order: 50,
   render(container) {
     container.append(
-      section('Post lists', [
+      section(t('settings.interface.listsSection'), [
         gridSizeField(),
-        el('p', { className: 'kdl-settings__note', textContent: 'Posts you opened are dimmed in lists.' }),
+        el('p', { className: 'kdl-settings__note', textContent: t('settings.interface.viewed.note') }),
         viewedPostsRow(),
       ], { icon: 'layout-grid' }),
-      section('Post pages', [
+      section(t('settings.interface.postSection'), [
         switchRow({
           id: 'hideEmptySectionsToggle',
-          label: 'Hide empty post sections',
-          description: 'Hides sections like Content or Comments when they have no text, links or comments.',
+          label: t('settings.interface.hideEmpty'),
+          description: t('settings.interface.hideEmptyDescription'),
           checked: kuiState.isHideEmptySectionsEnabled,
           onChange: (checked) => {
             setHideEmptySections(checked);
@@ -152,8 +153,8 @@ registerSettingsSection({
         }),
         switchRow({
           id: 'preloadImagesToggle',
-          label: 'Preload gallery images',
-          description: 'Loads every image of a post in the background when its gallery opens. Can use a lot of traffic.',
+          label: t('settings.interface.preload'),
+          description: t('settings.interface.preloadDescription'),
           checked: kuiState.isPreloadEnabled,
           onChange: (checked) => {
             setPreloadImages(checked);
@@ -162,11 +163,11 @@ registerSettingsSection({
         }),
         embedRulesField(),
       ], { icon: 'file' }),
-      section('Site', [
+      section(t('settings.interface.siteSection'), [
         switchRow({
           id: 'hideAdsToggle',
-          label: 'Hide site ads',
-          description: 'Hides banner, native and interstitial ad slots, and keeps the Pawchive popunder from loading on later page loads.',
+          label: t('settings.interface.hideAds'),
+          description: t('settings.interface.hideAdsDescription'),
           checked: isAdBlockEnabled(),
           onChange: (checked) => {
             setAdBlockEnabled(checked);
@@ -174,14 +175,14 @@ registerSettingsSection({
           },
         }),
       ], { icon: 'eye' }),
-      section('Visible buttons', [
+      section(t('settings.interface.buttonsSection'), [
         grid([
-          settingSwitch('showZipButton', 'ZIP download'),
-          settingSwitch('showImagesButton', 'Images'),
-          settingSwitch('showFilesButton', 'Attachments'),
-          settingSwitch('showCopyLinksButton', 'Copy links'),
-          settingSwitch('showShareButton', 'Share links'),
-          settingSwitch('showTranslateButton', 'Translate', 'Title, content and comments.'),
+          settingSwitch('showZipButton', t('settings.interface.buttons.zip')),
+          settingSwitch('showImagesButton', t('settings.interface.buttons.images')),
+          settingSwitch('showFilesButton', t('settings.interface.buttons.files')),
+          settingSwitch('showCopyLinksButton', t('settings.interface.buttons.copyLinks')),
+          settingSwitch('showShareButton', t('settings.interface.buttons.share')),
+          settingSwitch('showTranslateButton', t('settings.interface.buttons.translate'), t('settings.interface.buttons.translateDescription')),
         ]),
       ], { icon: 'sliders-horizontal' })
     );

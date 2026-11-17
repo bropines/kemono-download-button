@@ -4,13 +4,14 @@ import { el } from '../../../utils/dom';
 import { field, select } from '../../kit';
 import { notifySaved, section, settingSelect, settingText, showWhen } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { t } from '../../../i18n';
 
 function openAiGroup(): HTMLElement {
-  const baseUrl = settingText('openaiBaseUrl', 'Base URL', 'API root; /chat/completions is appended.', { placeholder: 'https://api.openai.com/v1' });
-  const model = settingText('openaiModel', 'Model', undefined, { placeholder: 'gpt-4o-mini' });
+  const baseUrl = settingText('openaiBaseUrl', t('settings.translation.baseUrl'), t('settings.translation.baseUrlDescription'), { placeholder: 'https://api.openai.com/v1' });
+  const model = settingText('openaiModel', t('settings.translation.model'), undefined, { placeholder: 'gpt-4o-mini' });
   const preset = select({
     id: 'kdl-openai-preset',
-    options: [{ value: '', label: '-- Fill from preset --' }, ...OPENAI_COMPATIBLE_PRESETS.map((p) => ({ value: p.id, label: p.name }))],
+    options: [{ value: '', label: t('settings.translation.presetPlaceholder') }, ...OPENAI_COMPATIBLE_PRESETS.map((p) => ({ value: p.id, label: p.name }))],
     onChange: async (id) => {
       const found = OPENAI_COMPATIBLE_PRESETS.find((p) => p.id === id);
       if (!found) return;
@@ -22,9 +23,9 @@ function openAiGroup(): HTMLElement {
     },
   });
   return el('div', { id: 'kdl-openai-settings', className: 'kdl-settings__nested' }, [
-    field({ label: 'Preset', description: 'Fills in the base URL and a default model for a known provider.', control: preset }),
+    field({ label: t('settings.translation.preset'), description: t('settings.translation.presetDescription'), control: preset }),
     baseUrl,
-    settingText('openaiApiKey', 'API key', 'Not needed for local servers.', { type: 'password' }),
+    settingText('openaiApiKey', t('settings.translation.apiKey'), t('settings.translation.apiKeyDescription'), { type: 'password' }),
     model,
   ]);
 }
@@ -38,17 +39,17 @@ registerSettingsSection({
     const freeNote = el('p', {
       id: 'kdl-free-translator-note',
       className: 'kdl-settings__note',
-      textContent: 'No API key needed: uses the public web translator, which may rate-limit very heavy use.',
+      textContent: t('settings.translation.freeNote'),
     });
     const openai = openAiGroup();
     const gemini = el('div', { id: 'kdl-gemini-settings', className: 'kdl-settings__nested' }, [
-      settingText('geminiApiKey', 'Gemini API key', undefined, { type: 'password' }),
-      settingText('translationModelName', 'Model', undefined, { placeholder: 'gemini-2.5-flash' }),
+      settingText('geminiApiKey', t('settings.translation.geminiKey'), undefined, { type: 'password' }),
+      settingText('translationModelName', t('settings.translation.model'), undefined, { placeholder: 'gemini-2.5-flash' }),
     ]);
     const deepl = el('div', { id: 'kdl-deepl-settings', className: 'kdl-settings__nested' }, [
-      settingText('deeplApiKey', 'DeepL API key', undefined, { type: 'password' }),
-      settingSelect('deeplApiTier', 'API tier', undefined, [
-        { value: 'free', label: 'Free' },
+      settingText('deeplApiKey', t('settings.translation.deeplKey'), undefined, { type: 'password' }),
+      settingSelect('deeplApiTier', t('settings.translation.deeplTier'), undefined, [
+        { value: 'free', label: t('settings.translation.tierFree') },
         { value: 'pro', label: 'Pro' },
       ]),
     ]);
@@ -62,8 +63,8 @@ registerSettingsSection({
 
     const language = settingSelect(
       'translationLanguage',
-      'Target language',
-      'Also used by image translation.',
+      t('settings.translation.target'),
+      t('settings.translation.targetDescription'),
       TRANSLATION_LANGUAGES.map(({ value, name }) => ({ value, label: name }))
     );
     // Older versions stored display names ("Russian"); options use lowercase values
@@ -72,13 +73,13 @@ registerSettingsSection({
     if (!languageSelect.value) languageSelect.value = 'auto';
 
     container.append(
-      section('Provider', [
-        settingSelect('translationProvider', 'Translation provider', 'Service that translates post titles, content and comments.', [
-          { value: 'none', label: 'None' },
-          { value: 'google', label: 'Google Translate (free, no key)' },
-          { value: 'yandex', label: 'Yandex Translate (free, no key)' },
-          { value: 'openai', label: 'OpenAI-compatible LLM (GPT, Gemini, OpenRouter, local…)' },
-          { value: 'gemini', label: 'Gemini AI (native API)' },
+      section(t('settings.translation.providerSection'), [
+        settingSelect('translationProvider', t('settings.translation.provider'), t('settings.translation.providerDescription'), [
+          { value: 'none', label: t('settings.translation.providerNone') },
+          { value: 'google', label: t('settings.translation.providerGoogle') },
+          { value: 'yandex', label: t('settings.translation.providerYandex') },
+          { value: 'openai', label: t('settings.translation.providerOpenai') },
+          { value: 'gemini', label: t('settings.translation.providerGemini') },
           { value: 'deepl', label: 'DeepL' },
         ], sync),
         language,

@@ -5,13 +5,14 @@ import { KUI_STORAGE_KEYS } from '../../config/storage';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitIcon, kitScope, label, select } from '../../ui/kit';
 import { syncTranslateButton } from './translateButtons';
+import { t, type UiKey } from '../../i18n';
 
 type CommentsLayout = 'list' | 'grid' | 'carousel';
 
-const LAYOUTS: Array<{ id: CommentsLayout; iconName: IconName; title: string }> = [
-  { id: 'list', iconName: 'list', title: 'List' },
-  { id: 'grid', iconName: 'layout-grid', title: 'Grid' },
-  { id: 'carousel', iconName: 'gallery-horizontal-end', title: 'Carousel' },
+const LAYOUTS: Array<{ id: CommentsLayout; iconName: IconName; title: UiKey }> = [
+  { id: 'list', iconName: 'list', title: 'kui.comments.layout.list' },
+  { id: 'grid', iconName: 'layout-grid', title: 'kui.comments.layout.grid' },
+  { id: 'carousel', iconName: 'gallery-horizontal-end', title: 'kui.comments.layout.carousel' },
 ];
 const LAYOUT_CLASSES = LAYOUTS.map(({ id }) => `kui-comments--${id}`);
 const LIMIT_OPTIONS = [4, 10, 20, 50, 100, 0]; // 0 = all
@@ -101,8 +102,7 @@ function renderExpandButton(button: HTMLElement, expanded: boolean, replyCount: 
   // Re-rendering on every tick would feed the MutationObserver that runs the tick
   if (button.dataset.state === state) return;
   button.dataset.state = state;
-  const replies = `${replyCount} ${replyCount === 1 ? 'reply' : 'replies'}`;
-  button.title = expanded ? 'Collapse' : replyCount ? `Expand (${replies})` : 'Expand';
+  button.title = expanded ? t('kui.comments.collapse') : replyCount ? t('kui.comments.expandReplies', { count: replyCount }) : t('kui.comments.expand');
   button.setAttribute('aria-expanded', String(expanded));
   button.replaceChildren(...(replyCount && !expanded
     ? [kitIcon('message-square'), el('span', { textContent: String(replyCount) })]
@@ -156,23 +156,23 @@ function buildToolbar(): HTMLElement {
     return btn;
   };
   const limit = select({
-    options: LIMIT_OPTIONS.map((value) => ({ value: String(value), label: value === 0 ? 'All' : String(value) })),
+    options: LIMIT_OPTIONS.map((value) => ({ value: String(value), label: value === 0 ? t('kui.comments.limitAll') : String(value) })),
     className: 'kui-comments-limit-select',
   });
   limit.dataset.kuiCommentsLimit = 'true';
   if (!limit.id) limit.id = 'kui-comments-limit';
   const layouts = el('div', { className: 'kui-comments-layouts' }, LAYOUTS.map(({ id, iconName, title }) =>
-    iconButton(iconName, title, { kuiCommentsLayout: id })
+    iconButton(iconName, t(title), { kuiCommentsLayout: id })
   ));
   layouts.setAttribute('role', 'group');
-  layouts.setAttribute('aria-label', 'Layout');
+  layouts.setAttribute('aria-label', t('kui.comments.layout'));
   return kitScope([
     el('span', { className: 'kui-comments-count' }),
     layouts,
-    el('div', { className: 'kui-comments-limit' }, [label({ text: 'Show', htmlFor: limit.id }), limit]),
+    el('div', { className: 'kui-comments-limit' }, [label({ text: t('kui.comments.show'), htmlFor: limit.id }), limit]),
     el('div', { className: 'kui-comments-nav' }, [
-      iconButton('chevron-left', 'Previous', { kuiCommentsScroll: '-1' }),
-      iconButton('chevron-right', 'Next', { kuiCommentsScroll: '1' }),
+      iconButton('chevron-left', t('kui.comments.previous'), { kuiCommentsScroll: '-1' }),
+      iconButton('chevron-right', t('kui.comments.next'), { kuiCommentsScroll: '1' }),
     ]),
   ], { className: 'kui-comments-toolbar' });
 }
@@ -198,8 +198,8 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
     const total = allComments.length;
     const hasThreads = total > comments.length;
     count.textContent = visibleCount < comments.length
-      ? `Showing ${visibleCount} of ${comments.length} ${hasThreads ? 'threads' : 'comments'}`
-      : `${total} comment${total === 1 ? '' : 's'}${hasThreads ? ` in ${comments.length} threads` : ''}`;
+      ? t(hasThreads ? 'kui.comments.showingThreads' : 'kui.comments.showingComments', { shown: visibleCount, count: comments.length })
+      : hasThreads ? t('kui.comments.totalInThreads', { count: total, threads: comments.length }) : t('kui.comments.total', { count: total });
   }
   toolbar.querySelectorAll<HTMLElement>('[data-kui-comments-layout]').forEach((button) => {
     button.classList.toggle('kui-active', button.dataset.kuiCommentsLayout === layout);
@@ -221,7 +221,7 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
       });
       container.after(moreButton);
     }
-    moreButton.textContent = `Show ${Math.min(limit, remaining)} more (${remaining} left)`;
+    moreButton.textContent = t('kui.comments.showMore', { count: Math.min(limit, remaining), left: remaining });
   } else {
     moreButton?.remove();
   }

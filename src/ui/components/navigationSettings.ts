@@ -1,5 +1,6 @@
 import { icon } from '../../config/icons';
 import { openSettings } from '../settings';
+import { t } from '../../i18n';
 
 const SIDEBAR_ID = 'kdl-settings-btn-sidebar';
 const HEADER_ID = 'kdl-settings-btn-header';
@@ -11,13 +12,13 @@ function settingsLink(id: string, className: string, withIcon: boolean): HTMLAnc
   link.id = id;
   link.className = className;
   link.href = '#';
-  link.title = 'Kemono DL settings';
+  link.title = t('settings.nav.title');
   if (withIcon) {
     const svg = icon('settings', 'global-sidebar-entry-item-icon');
     Object.assign(svg.style, { width: '1rem', height: '1rem', marginRight: '0.5rem', flexShrink: '0', verticalAlign: 'middle' });
     link.append(svg);
   }
-  link.append('Settings');
+  link.append(t('settings.nav.label'));
   return link;
 }
 

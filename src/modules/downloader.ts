@@ -9,6 +9,7 @@ import { injectPostCardButtons, injectArtistFavoriteButton, injectPostFavoriteBu
 import { createBulkDownloadPanel, initializeShiftClickLogic } from '../ui/components/bulkPanel';
 import { createAuthorManagerButton } from '../ui/components/authorManagerModal';
 import { fetchAndCachePostData, getPostDetailsFromPage } from '../services/collectorService';
+import { t } from '../i18n';
 
 // Marks site containers/cards we already handled, so updates only touch new ones (never delete and recreate)
 const PROCESSED_ATTR = 'data-kdl-processed';
@@ -139,7 +140,7 @@ function injectUserPostCard(card: HTMLElement, pageAuthorName: string): void {
     const id = card.dataset.id;
     ensureKit();
     // Cards re-rendered by a swap keep their selection
-    const box = checkbox({ className: 'kdl-post-checkbox', ariaLabel: 'Select post', checked: !!id && appState.selectedPostIds.has(id) });
+    const box = checkbox({ className: 'kdl-post-checkbox', ariaLabel: t('dl.card.selectPost'), checked: !!id && appState.selectedPostIds.has(id) });
     if (id) box.dataset.id = id;
     box.addEventListener('click', (e) => e.stopPropagation());
     // Kit checkbox in its own .kdl-scope: the card around it is the site's

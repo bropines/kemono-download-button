@@ -4,6 +4,7 @@ import { button, setButtonLoading } from '../../kit';
 import { showMessage } from '../../toast';
 import { section, settingSwitch } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { t } from '../../../i18n';
 
 registerSettingsSection({
   id: 'images',
@@ -13,34 +14,33 @@ registerSettingsSection({
   render(container) {
     const clear: HTMLButtonElement = button({
       id: 'kdl-clear-lens-cache-btn',
-      label: 'Clear image translation cache',
+      label: t('settings.images.clearCache'),
       variant: 'outline',
       onClick: async () => {
         setButtonLoading(clear, true);
         try {
           const { entries } = await clearImageTranslationCache();
-          showMessage(entries ? `Forgot ${entries} image translation${entries === 1 ? '' : 's'}` : 'Image translation cache cleared', 'success');
+          showMessage(entries ? t('settings.images.forgot', { count: entries }) : t('settings.images.cleared'), 'success');
         } finally {
           setButtonLoading(clear, false);
         }
       },
     });
     container.append(
-      section('Image translation (Google Lens)', [
+      section(t('settings.images.section'), [
         settingSwitch(
           'showImageTranslateButton',
-          'Show the Translate button on post images',
-          'Translates text drawn inside an image, in the gallery and the lightbox. Needs no key; uses the target language from the Translation tab.'
+          t('settings.images.showButton'),
+          t('settings.images.showButtonDescription')
         ),
         settingSwitch(
           'imageTranslatePersist',
-          'Remember across reloads',
-          'Recognises a picture by its pixels, so reopening a post asks Lens nothing. Kept by this browser, per site.'
+          t('settings.images.persist'),
+          t('settings.images.persistDescription')
         ),
         el('p', {
           className: 'kdl-settings__note',
-          textContent:
-            'Display settings (manga mode, erasing, outline, spacing…) live in the image viewer: open an image and press the sliders button next to Translate.',
+          textContent: t('settings.images.note'),
         }),
         el('div', { className: 'kdl-settings__row' }, [clear]),
       ], { icon: 'image' })

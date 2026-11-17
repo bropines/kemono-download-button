@@ -14,9 +14,12 @@ import {
   showWhen,
 } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { t } from '../../../i18n';
 
-const TEMPLATE_TAGS =
-  'Tags: {author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}';
+const TEMPLATE_TAGS = () =>
+  t('settings.downloads.templateTags', {
+    tags: '{author_name}, {post_date}, {post_title}, {post_id}, {user_id}, {service}, {file_index}, {global_file_index}, {file_name}, {original_file_name}, {file_ext}',
+  });
 
 /** Folder picker that fills a text setting with the chosen folder's name. */
 function withFolderPicker(fieldNode: HTMLElement): HTMLElement {
@@ -34,10 +37,10 @@ function withFolderPicker(fieldNode: HTMLElement): HTMLElement {
     hidden.value = '';
   });
   const browse = button({
-    label: 'Folder',
+    label: t('settings.downloads.folder'),
     icon: 'folder-open',
     variant: 'outline',
-    title: 'Select system folder…',
+    title: t('settings.downloads.folderTitle'),
     className: 'kdl-browse-folder-btn',
     onClick: async () => {
       const picker = (window as unknown as { showDirectoryPicker?: () => Promise<{ name: string }> }).showDirectoryPicker;
@@ -59,7 +62,7 @@ function withFolderPicker(fieldNode: HTMLElement): HTMLElement {
 }
 
 function templateControls(): HTMLElement[] {
-  const templateField = settingText('fileNameTemplate', 'Template for individual downloads', TEMPLATE_TAGS, {
+  const templateField = settingText('fileNameTemplate', t('settings.downloads.template'), TEMPLATE_TAGS(), {
     placeholder: DEFAULT_SETTINGS.fileNameTemplate,
   });
   const templateInput = templateField.querySelector<HTMLInputElement>('input')!;
@@ -69,10 +72,10 @@ function templateControls(): HTMLElement[] {
     notifySaved();
   };
 
-  const presets = select({ id: 'kdl-template-select', options: [], ariaLabel: 'Saved templates' });
+  const presets = select({ id: 'kdl-template-select', options: [], ariaLabel: t('settings.downloads.savedTemplates') });
   const renderPresets = () => {
     presets.replaceChildren(
-      el('option', { value: '', textContent: '-- Load a saved template --' }),
+      el('option', { value: '', textContent: t('settings.downloads.loadTemplate') }),
       ...(state.settings.savedFileNameTemplates || []).map((t) =>
         el('option', { value: t.template, textContent: t.name, dataset: { name: t.name } })
       )
@@ -81,7 +84,7 @@ function templateControls(): HTMLElement[] {
   renderPresets();
   presets.addEventListener('change', () => presets.value && setTemplate(presets.value));
 
-  const nameInput = input({ id: 'kdl-template-name-input', placeholder: 'New template name…', ariaLabel: 'Template name' });
+  const nameInput = input({ id: 'kdl-template-name-input', placeholder: t('settings.downloads.templateNamePlaceholder'), ariaLabel: t('settings.downloads.templateName') });
   const saveTemplates = async (list: NonNullable<typeof state.settings.savedFileNameTemplates>) => {
     await saveSetting('savedFileNameTemplates', list);
     renderPresets();
@@ -89,35 +92,35 @@ function templateControls(): HTMLElement[] {
 
   const savePreset = button({
     id: 'kdl-template-save-btn',
-    label: 'Save as preset',
+    label: t('settings.downloads.savePreset'),
     variant: 'secondary',
     onClick: async () => {
       const name = nameInput.value.trim();
       const template = templateInput.value.trim();
-      if (!name || !template) return showMessage('Please provide a name and a template pattern.', 'warning');
+      if (!name || !template) return showMessage(t('settings.downloads.needNameAndTemplate'), 'warning');
       const list = [...(state.settings.savedFileNameTemplates || [])];
       const existing = list.find((t) => t.name === name);
       if (existing) existing.template = template;
       else list.push({ name, template });
       await saveTemplates(list);
       nameInput.value = '';
-      showMessage(`Template "${name}" saved`, 'success');
+      showMessage(t('settings.downloads.templateSaved', { name }), 'success');
     },
   });
   const deletePreset = button({
     id: 'kdl-template-delete-btn',
-    label: 'Delete',
+    label: t('settings.downloads.delete'),
     variant: 'outline',
     onClick: async () => {
       const name = presets.selectedOptions[0]?.dataset.name;
-      if (!name) return showMessage('Select a saved template to delete.', 'warning');
+      if (!name) return showMessage(t('settings.downloads.selectToDelete'), 'warning');
       await saveTemplates((state.settings.savedFileNameTemplates || []).filter((t) => t.name !== name));
-      showMessage(`Template "${name}" deleted`, 'success');
+      showMessage(t('settings.downloads.templateDeleted', { name }), 'success');
     },
   });
   const reset = button({
     id: 'kdl-template-reset-btn',
-    label: 'Reset to default',
+    label: t('settings.downloads.resetTemplate'),
     icon: 'rotate-ccw',
     variant: 'ghost',
     size: 'sm',
@@ -128,8 +131,8 @@ function templateControls(): HTMLElement[] {
     templateField,
     el('div', { className: 'kdl-settings__row' }, [reset]),
     field({
-      label: 'Saved templates',
-      description: 'Pick one to use it, or save the current template under a name.',
+      label: t('settings.downloads.savedTemplates'),
+      description: t('settings.downloads.savedTemplatesDescription'),
       control: el('div', { className: 'kdl-settings__group' }, [
         el('div', { className: 'kdl-settings__row' }, [presets, deletePreset]),
         el('div', { className: 'kdl-settings__row' }, [nameInput, savePreset]),
@@ -140,15 +143,15 @@ function templateControls(): HTMLElement[] {
 
 function bulkControls(): HTMLElement[] {
   const single = el('div', { id: 'kdl-bulk-single-settings', className: 'kdl-settings__nested' }, [
-    withFolderPicker(settingText('bulkSingleSystemPathTemplate', 'Path of the big archive', 'Where the single ZIP is saved, relative to your downloads folder.', {
+    withFolderPicker(settingText('bulkSingleSystemPathTemplate', t('settings.downloads.singlePath'), t('settings.downloads.singlePathDescription'), {
       placeholder: DEFAULT_SETTINGS.bulkSingleSystemPathTemplate,
     })),
-    withFolderPicker(settingText('bulkSingleInternalPathTemplate', 'Structure inside the big archive', 'Folder hierarchy of each file inside the ZIP.', {
+    withFolderPicker(settingText('bulkSingleInternalPathTemplate', t('settings.downloads.singleInternal'), t('settings.downloads.singleInternalDescription'), {
       placeholder: DEFAULT_SETTINGS.bulkSingleInternalPathTemplate,
     })),
   ]);
   const multiple = el('div', { id: 'kdl-bulk-multiple-settings', className: 'kdl-settings__nested' }, [
-    withFolderPicker(settingText('bulkMultipleSystemPathTemplate', 'Path of each post archive', 'Where every per-post ZIP is saved.', {
+    withFolderPicker(settingText('bulkMultipleSystemPathTemplate', t('settings.downloads.multiplePath'), t('settings.downloads.multiplePathDescription'), {
       placeholder: DEFAULT_SETTINGS.bulkMultipleSystemPathTemplate,
     })),
   ]);
@@ -158,9 +161,9 @@ function bulkControls(): HTMLElement[] {
   };
   sync(state.settings.bulkDownloadMode);
   return [
-    settingSelect('bulkDownloadMode', 'Bulk download mode', 'One big ZIP for all selected posts, or one ZIP per post.', [
-      { value: 'single', label: 'One big archive' },
-      { value: 'multiple', label: 'Multiple archives (one per post)' },
+    settingSelect('bulkDownloadMode', t('settings.downloads.bulkMode'), t('settings.downloads.bulkModeDescription'), [
+      { value: 'single', label: t('settings.downloads.bulkSingle') },
+      { value: 'multiple', label: t('settings.downloads.bulkMultiple') },
     ], sync),
     single,
     multiple,
@@ -183,14 +186,14 @@ function ignoredExtensions(): HTMLElement {
           className: 'kdl-settings__chip-remove',
           onClick: () => save((state.settings.ignoredFileExtensions || []).filter((v) => v !== ext)),
         }, [kitIcon('x')]);
-        remove.setAttribute('aria-label', `Remove ${ext}`);
+        remove.setAttribute('aria-label', t('settings.downloads.removeExtension', { ext }));
         const chip = badge({ text: ext, variant: 'secondary', className: 'kdl-settings__chip' });
         chip.append(remove);
         return chip;
       })
     );
   };
-  const entry = input({ id: 'kdl-ignored-extensions-setting-input', placeholder: 'Type an extension (e.g. psd) and press Enter' });
+  const entry = input({ id: 'kdl-ignored-extensions-setting-input', placeholder: t('settings.downloads.extensionPlaceholder') });
   const add = () => {
     const value = clean(entry.value);
     entry.value = '';
@@ -207,8 +210,8 @@ function ignoredExtensions(): HTMLElement {
   entry.addEventListener('blur', () => entry.value.trim() && add());
   render();
   return field({
-    label: 'Ignored extensions',
-    description: 'Files with these extensions are left out of ZIP archives. Case-insensitive.',
+    label: t('settings.downloads.ignored'),
+    description: t('settings.downloads.ignoredDescription'),
     control: el('div', { className: 'kdl-settings__group' }, [entry, chips]),
   });
 }
@@ -216,13 +219,13 @@ function ignoredExtensions(): HTMLElement {
 function retryControls(): HTMLElement[] {
   const nested = el('div', { className: 'kdl-settings__nested' }, [
     grid([
-      settingNumber('downloadRetryCount', 'Retries', 'Attempts after the first failure (0-5).', { min: 0, max: 5 }),
-      settingNumber('downloadRetryDelay', 'Retry delay (ms)', 'Wait between attempts.', { min: 500, step: 500 }),
+      settingNumber('downloadRetryCount', t('settings.downloads.retries'), t('settings.downloads.retriesDescription'), { min: 0, max: 5 }),
+      settingNumber('downloadRetryDelay', t('settings.downloads.retryDelay'), t('settings.downloads.retryDelayDescription'), { min: 500, step: 500 }),
     ]),
   ]);
   showWhen(nested, state.settings.enableDownloadRetries);
   return [
-    settingSwitch('enableDownloadRetries', 'Retry failed downloads', 'Retries automatically on network errors.', (on) => showWhen(nested, on)),
+    settingSwitch('enableDownloadRetries', t('settings.downloads.retry'), t('settings.downloads.retryDescription'), (on) => showWhen(nested, on)),
     nested,
   ];
 }
@@ -234,30 +237,30 @@ registerSettingsSection({
   order: 20,
   render(container) {
     container.append(
-      section('File naming', templateControls(), { icon: 'folder' }),
-      section('Bulk downloads', bulkControls(), { icon: 'folders' }),
-      section('Performance', [
+      section(t('settings.downloads.namingSection'), templateControls(), { icon: 'folder' }),
+      section(t('settings.downloads.bulkSection'), bulkControls(), { icon: 'folders' }),
+      section(t('settings.downloads.performanceSection'), [
         grid([
-          settingNumber('maxConcurrentIndividualDownloads', 'Concurrent downloads', 'Parallel file downloads (1-10).', { min: 1, max: 10 }),
-          settingNumber('maxConcurrentFileDownloadsInZip', 'Concurrent files per ZIP', 'Files of one archive fetched at once (1-10).', { min: 1, max: 10 }),
-          settingNumber('maxConcurrentOperations', 'Concurrent queue jobs', 'Posts or archives processed at once (1-5).', { min: 1, max: 5 }),
-          settingNumber('zipFileDownloadTimeout', 'File timeout (ms)', 'Longest wait for one file inside a ZIP.', { min: 10000, step: 1000 }),
+          settingNumber('maxConcurrentIndividualDownloads', t('settings.downloads.concurrent'), t('settings.downloads.concurrentDescription'), { min: 1, max: 10 }),
+          settingNumber('maxConcurrentFileDownloadsInZip', t('settings.downloads.concurrentZip'), t('settings.downloads.concurrentZipDescription'), { min: 1, max: 10 }),
+          settingNumber('maxConcurrentOperations', t('settings.downloads.concurrentJobs'), t('settings.downloads.concurrentJobsDescription'), { min: 1, max: 5 }),
+          settingNumber('zipFileDownloadTimeout', t('settings.downloads.timeout'), t('settings.downloads.timeoutDescription'), { min: 10000, step: 1000 }),
         ]),
         ...retryControls(),
       ], { icon: 'refresh-cw' }),
-      section('ZIP archives', [
-        settingSelect('zipCompressionLevel', 'Compression level', '0 stores files as they are: instant and best for images and video.', [
-          { value: '0', label: '0 - Store (instant, recommended)' },
-          { value: '1', label: '1 - Fast' },
-          { value: '4', label: '4 - Normal' },
-          { value: '6', label: '6 - Standard' },
-          { value: '9', label: '9 - Maximum' },
+      section(t('settings.downloads.zipSection'), [
+        settingSelect('zipCompressionLevel', t('settings.downloads.compression'), t('settings.downloads.compressionDescription'), [
+          { value: '0', label: t('settings.downloads.compression0') },
+          { value: '1', label: t('settings.downloads.compression1') },
+          { value: '4', label: t('settings.downloads.compression4') },
+          { value: '6', label: t('settings.downloads.compression6') },
+          { value: '9', label: t('settings.downloads.compression9') },
         ]),
-        settingSwitch('savePostContentAsText', 'Save post content as .txt'),
-        settingSwitch('addMetadataFile', 'Add metadata.json'),
-        settingSwitch('addHtmlIndexInZip', 'Add _index.html to bulk archives'),
-        settingSwitch('savePostTags', 'Add tags.txt'),
-        settingSwitch('savePostComments', 'Add comments.txt'),
+        settingSwitch('savePostContentAsText', t('settings.downloads.saveContent')),
+        settingSwitch('addMetadataFile', t('settings.downloads.addMetadata')),
+        settingSwitch('addHtmlIndexInZip', t('settings.downloads.addIndex')),
+        settingSwitch('savePostTags', t('settings.downloads.addTags')),
+        settingSwitch('savePostComments', t('settings.downloads.addComments')),
         ignoredExtensions(),
       ], { icon: 'archive' })
     );

@@ -37,6 +37,7 @@ import { startRouter } from './core/router';
 import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
 import { ensureStylesInjected } from './modules/core';
+import { installLanguageRuntime } from './i18n/live';
 
 export { ensureStylesInjected };
 
@@ -46,6 +47,7 @@ registerBuiltinModules();
 
 function init(): void {
   startRouter();
+  installLanguageRuntime();
 }
 
 if (document.readyState === 'loading') {

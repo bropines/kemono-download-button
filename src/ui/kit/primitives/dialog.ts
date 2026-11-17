@@ -1,4 +1,5 @@
 import { el } from '../../../utils/dom';
+import { t } from '../../../i18n';
 import { createModal, type ModalOptions } from '../behaviors/modal';
 import { cx, kitIcon, resolveContent, uid, type Child, type Content } from '../utils';
 
@@ -46,7 +47,7 @@ export function buildPanel(
     options.showClose === false
       ? null
       : el('button', { type: 'button', className: 'kdl-ui-dialog__close', onClick: close }, [kitIcon('x')]);
-  closeBtn?.setAttribute('aria-label', 'Close');
+  closeBtn?.setAttribute('aria-label', t('common.close'));
   panel.append(
     el('div', { className: 'kdl-ui-dialog__header' }, [
       el('h2', { id: `${id}-title`, className: 'kdl-ui-dialog__title', textContent: options.title }),

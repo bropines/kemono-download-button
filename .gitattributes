@@ -1,3 +1,6 @@
 # One line ending everywhere. CI compares a fresh build byte for byte with the committed
 # userscript, and Windows checkouts used to flip files to CRLF.
 * text=auto eol=lf
+
+# Locale packs are signed over their exact bytes (covered by the rule above; stated so it is never relaxed)
+locales/** text eol=lf

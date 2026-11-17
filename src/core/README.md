@@ -88,6 +88,7 @@ Rules:
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
 | `ui.shadcn` | any | off by default: shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">` |
 | `ui.shadcn.cards` / `.post` / `.creator` / `.pages` | any | parts of the skin, `requires: ["ui.shadcn"]`; `.pages` also wraps importer notes in panels and turns the FAQ into an accordion (reversible, stripped before snapshots) |
+| `i18n.site` | any | translates the site chrome with the active language's `site` dictionary (`src/i18n/site.ts`); restores originals on disable and before htmx snapshots |
 
 ## Storage migration
 

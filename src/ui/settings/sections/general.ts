@@ -7,12 +7,14 @@ import { button, field, input, setButtonLoading, setSwitch } from '../../kit';
 import { showMessage } from '../../toast';
 import { notifySaved, section, settingNumber, settingSwitch, showWhen, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { languageSection } from './language';
+import { t } from '../../../i18n';
 
 function sessionField(): HTMLElement {
   const control = input({
     id: 'kdl-setting-sessionCookie',
     type: 'password',
-    placeholder: 'Session key or full cookie string',
+    placeholder: t('settings.general.session.placeholder'),
     autocomplete: 'off',
     value: state.settings.sessionCookie,
     onChange: async (value) => {
@@ -22,22 +24,21 @@ function sessionField(): HTMLElement {
     },
   });
   return field({
-    label: 'Session',
-    description:
-      "Needed for restricted or paywalled posts, and a fallback when automatic file fetching fails. Paste the 'session' cookie value (saved as session=<key>) or a full cookie string.",
+    label: t('settings.general.session.label'),
+    description: t('settings.general.session.description'),
     control,
   });
 }
 
 function cacheControls(): HTMLElement {
-  const stats = el('span', { className: 'kdl-settings__stat', id: 'kdl-cache-stats-text', textContent: 'Cached data: loading…' });
+  const stats = el('span', { className: 'kdl-settings__stat', id: 'kdl-cache-stats-text', textContent: t('settings.general.cache.loading') });
   const refresh = async () => {
     const { count, totalSizeBytes } = await getCacheStats();
-    stats.textContent = `Cached data: ${count} entries (${(totalSizeBytes / (1024 * 1024)).toFixed(1)} MB)`;
+    stats.textContent = t('settings.general.cache.stats', { count, size: (totalSizeBytes / (1024 * 1024)).toFixed(1) });
   };
   const clear: HTMLButtonElement = button({
     id: 'kdl-clear-all-cache-btn',
-    label: 'Clear cache',
+    label: t('settings.general.cache.clear'),
     icon: 'x',
     variant: 'outline',
     size: 'sm',
@@ -46,7 +47,7 @@ function cacheControls(): HTMLElement {
       try {
         await clearAllCache();
         await refresh();
-        showMessage('Entire cache has been cleared', 'success');
+        showMessage(t('settings.general.cache.cleared'), 'success');
       } finally {
         setButtonLoading(clear, false);
       }
@@ -59,8 +60,8 @@ function cacheControls(): HTMLElement {
 function debugControls(): HTMLElement {
   const verbose = switchRow({
     id: 'kdl-setting-verboseDebug',
-    label: 'Verbose',
-    description: 'Also logs every API request and response in the F12 console.',
+    label: t('settings.general.debug.verbose'),
+    description: t('settings.general.debug.verboseDescription'),
     checked: kuiState.isVerboseDebugEnabled,
     onChange: (checked) => {
       setVerboseDebugMode(checked);
@@ -71,8 +72,8 @@ function debugControls(): HTMLElement {
   showWhen(nested, state.settings.enableDebugLogging);
   const main = switchRow({
     id: 'kdl-setting-enableDebugLogging',
-    label: 'Debug mode',
-    description: 'Logs to the browser console and shows the on-page debugger.',
+    label: t('settings.general.debug.label'),
+    description: t('settings.general.debug.description'),
     checked: state.settings.enableDebugLogging,
     onChange: async (checked) => {
       await setDebug(checked);
@@ -95,15 +96,16 @@ registerSettingsSection({
   order: 10,
   render(container) {
     container.append(
-      section('Session & API', [
+      languageSection(),
+      section(t('settings.general.sessionSection'), [
         sessionField(),
-        settingSwitch('enableAPIFetch', 'Use the site API', 'Fetch posts through the fast REST API instead of parsing HTML pages.'),
+        settingSwitch('enableAPIFetch', t('settings.general.api.label'), t('settings.general.api.description')),
       ], { icon: 'key-round' }),
-      section('Cache', [
-        settingNumber('cacheDurationHours', 'Post list cache duration (hours)', '0 disables caching.', { min: 0, step: 1 }),
+      section(t('settings.general.cacheSection'), [
+        settingNumber('cacheDurationHours', t('settings.general.cache.duration'), t('settings.general.cache.durationDescription'), { min: 0, step: 1 }),
         cacheControls(),
       ], { icon: 'archive' }),
-      section('Debug', [debugControls()], { icon: 'info' })
+      section(t('settings.general.debugSection'), [debugControls()], { icon: 'info' })
     );
   },
 });

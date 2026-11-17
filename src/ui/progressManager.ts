@@ -2,6 +2,7 @@ import { el } from '../utils/dom';
 import { addKitStyles, button, progress, scrollArea, setProgress } from './kit';
 import { getDockSlot } from './components/fixedControls';
 import { progressBarStyles } from '../styles/components/progressBar.styles';
+import { t } from '../i18n';
 
 export interface ProgressTask {
   id: string;
@@ -33,7 +34,7 @@ class ProgressManager {
     if (!container) {
       container = scrollArea();
       container.id = 'kdl-progress-container';
-      container.setAttribute('aria-label', 'Downloads');
+      container.setAttribute('aria-label', t('dl.progress.region'));
       container.setAttribute('role', 'region');
       slot.appendChild(container);
     }
@@ -48,14 +49,14 @@ class ProgressManager {
     const container = this.getContainer();
     const id = `${baseId}-r${++this.runCounter}`;
     const controller = new AbortController();
-    const status = el('div', { className: 'kdl-ov-task__status' }, ['Initializing...']);
+    const status = el('div', { className: 'kdl-ov-task__status' }, [t('dl.progress.initializing')]);
     status.setAttribute('aria-live', 'polite');
     const cancelButton = button({
       icon: 'x',
       variant: 'ghost',
       size: 'icon',
-      ariaLabel: `Cancel ${titleText}`,
-      title: 'Cancel',
+      ariaLabel: t('dl.progress.cancelTask', { title: titleText }),
+      title: t('dl.common.cancel'),
       className: 'kdl-ov-task__cancel',
       onClick: () => task.cancel(),
     });
@@ -112,7 +113,7 @@ class ProgressManager {
       cancel: () => {
         if (controller.signal.aborted) return;
         controller.abort();
-        status.textContent = 'Cancelling...';
+        status.textContent = t('dl.progress.cancelling');
         cancelButton.disabled = true;
       },
 

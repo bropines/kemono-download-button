@@ -6,6 +6,7 @@ import type { IconName } from '../../config/icons';
 import { getSettings, state } from '../../state/store';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitScope, tooltip, type ButtonVariant } from '../kit';
+import { t } from '../../i18n';
 
 export async function createAndInsertPostPageButtons(container: HTMLElement, referenceElement?: Element | null): Promise<void> {
   await getSettings();
@@ -35,8 +36,8 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
     toolsCol.appendChild(
       createButton(
         'copy',
-        'Copy Links',
-        'Left-click: Copy for aria2c/IDM. Right-click: Get .txt for ADM.',
+        t('dl.post.copyLinks'),
+        t('dl.post.copyLinks.hint'),
         'outline',
         (e) => executeLinkAction('copy-aria', postDetails, e.currentTarget as HTMLElement, 'Copy Links'),
         (e) => {
@@ -49,7 +50,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showShareButton && typeof navigator.share === 'function') {
     toolsCol.appendChild(
-      createButton('share-2', 'Share Links', 'Share Links', 'outline', (e) =>
+      createButton('share-2', t('dl.post.shareLinks'), t('dl.post.shareLinks'), 'outline', (e) =>
         executeLinkAction('share', postDetails, e.currentTarget as HTMLElement, 'Share Links')
       )
     );
@@ -58,7 +59,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
   // Column 2: Download Actions
   if (state.settings.showImagesButton) {
     downloadsCol.appendChild(
-      createButton('images', 'Download Images', 'Download Images', 'secondary', (e) =>
+      createButton('images', t('dl.post.downloadImages'), t('dl.post.downloadImages'), 'secondary', (e) =>
         addTaskToQueue('Images', (pd) => executeIndividualDownload('Images', pd), postDetails, e.currentTarget as HTMLElement, 'Download Images')
       )
     );
@@ -66,7 +67,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showFilesButton) {
     downloadsCol.appendChild(
-      createButton('paperclip', 'Download Attachments', 'Download Attachments', 'secondary', (e) =>
+      createButton('paperclip', t('dl.post.downloadAttachments'), t('dl.post.downloadAttachments'), 'secondary', (e) =>
         addTaskToQueue('Attachments', (pd) => executeIndividualDownload('Attachments', pd), postDetails, e.currentTarget as HTMLElement, 'Download Attachments')
       )
     );
@@ -74,7 +75,7 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   if (state.settings.showZipButton) {
     downloadsCol.appendChild(
-      createButton('package', 'Download (ZIP)', 'Download (ZIP)', 'default', (e) =>
+      createButton('package', t('dl.post.downloadZip'), t('dl.post.downloadZip'), 'default', (e) =>
         addTaskToQueue('ZIP', executeZipDownload, postDetails, e.currentTarget as HTMLElement, 'Download (ZIP)')
       )
     );
@@ -82,6 +83,6 @@ export async function createAndInsertPostPageButtons(container: HTMLElement, ref
 
   const kdlContainer = kitScope([toolsCol, downloadsCol], { className: 'kdl-actions-container' });
   kdlContainer.setAttribute('role', 'group');
-  kdlContainer.setAttribute('aria-label', 'Post downloads');
+  kdlContainer.setAttribute('aria-label', t('dl.post.groupLabel'));
   container.appendChild(kdlContainer);
 }

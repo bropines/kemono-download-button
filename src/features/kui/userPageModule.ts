@@ -1,6 +1,7 @@
 import { iconSvg } from '../../config/icons';
 import { SELECTORS } from '../../config/selectors';
 import type { KdlModule } from '../../core/types';
+import { t } from '../../i18n';
 
 export const userPageModule = {
   init() {
@@ -17,7 +18,7 @@ export const userPageModule = {
 
     const copyButton = document.createElement("button");
     copyButton.id = "kui-copy-username-btn";
-    copyButton.title = "Copy nickname";
+    copyButton.title = t('kui.user.copyNickname');
     copyButton.innerHTML = iconSvg('clipboard');
     copyButton.addEventListener("click", (e) => {
       e.preventDefault();

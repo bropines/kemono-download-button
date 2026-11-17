@@ -7,6 +7,7 @@ import { addKitStyles, badge, button, select, setButtonLoading } from '../kit';
 import { bulkPanelStyles } from '../../styles/components/bulkPanel.styles';
 import { getDockSlot } from './fixedControls';
 import { showMultiPostFilePickerModal } from './filePickerModal';
+import { t } from '../../i18n';
 
 /**
  * Light-DOM marker for the router: it looks for #kdl-bulk-panel to know the panel was injected and removes it
@@ -61,7 +62,7 @@ export function updateSelectionState(): void {
   if (!bar) return;
   const selectedCount = appState.selectedPostIds.size;
   const visible = selectedCount > 0 && !!document.getElementById(MARKER_ID);
-  bar.count.textContent = `${selectedCount} selected`;
+  bar.count.textContent = t('dl.bulk.selected', { count: selectedCount });
   if (!bar.download.hasAttribute('data-loading')) bar.download.disabled = selectedCount === 0;
   bar.pick.disabled = selectedCount === 0;
   bar.root.dataset.state = visible ? 'open' : 'closed';
@@ -95,20 +96,20 @@ async function downloadSelection(): Promise<void> {
 }
 
 function buildBulkBar(): BulkBar {
-  const count = badge({ text: '0 selected' });
+  const count = badge({ text: t('dl.bulk.selected', { count: 0 }) });
   count.setAttribute('aria-live', 'polite');
   const sort = select({
     id: 'kdl-bulk-sort-order',
-    ariaLabel: 'Download order',
+    ariaLabel: t('dl.bulk.order'),
     options: [
-      { value: 'selection', label: 'By selection' },
-      { value: 'oldest', label: 'Oldest first' },
-      { value: 'newest', label: 'Newest first' },
+      { value: 'selection', label: t('dl.bulk.order.selection') },
+      { value: 'oldest', label: t('dl.bulk.order.oldest') },
+      { value: 'newest', label: t('dl.bulk.order.newest') },
     ],
   });
   const pick = button({
     id: 'kdl-bulk-pick-attachments-btn',
-    label: 'Pick attachments',
+    label: t('dl.bulk.pick'),
     icon: 'paperclip',
     variant: 'secondary',
     size: 'sm',
@@ -117,7 +118,7 @@ function buildBulkBar(): BulkBar {
   });
   const download = button({
     id: 'kdl-bulk-download-btn',
-    label: 'Download',
+    label: t('dl.bulk.download'),
     icon: 'download',
     size: 'sm',
     disabled: true,
@@ -125,15 +126,15 @@ function buildBulkBar(): BulkBar {
   });
   const root = el('div', { className: 'kdl-ov-bulkbar', dataset: { state: 'closed' } }, [
     count,
-    button({ id: 'kdl-bulk-select-all', label: 'Select all', variant: 'outline', size: 'sm', onClick: () => clickCheckboxes(':not(:checked)') }),
-    button({ id: 'kdl-bulk-deselect-all', label: 'Deselect all', variant: 'ghost', size: 'sm', onClick: () => clickCheckboxes(':checked') }),
+    button({ id: 'kdl-bulk-select-all', label: t('dl.common.selectAll'), variant: 'outline', size: 'sm', onClick: () => clickCheckboxes(':not(:checked)') }),
+    button({ id: 'kdl-bulk-deselect-all', label: t('dl.bulk.deselectAll'), variant: 'ghost', size: 'sm', onClick: () => clickCheckboxes(':checked') }),
     el('span', { className: 'kdl-ov-bulkbar__sep' }),
     sort,
     pick,
     download,
   ]);
   root.setAttribute('role', 'toolbar');
-  root.setAttribute('aria-label', 'Selected posts');
+  root.setAttribute('aria-label', t('dl.bulk.toolbar'));
   // Escape inside the bar clears the selection (the bar then hides)
   root.addEventListener('keydown', (event: KeyboardEvent) => {
     if (event.key !== 'Escape' || (event.target as HTMLElement).tagName === 'SELECT') return;
