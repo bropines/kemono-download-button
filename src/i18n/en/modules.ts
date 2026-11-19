@@ -97,4 +97,10 @@ export default {
   'importer.stat.skipped': 'unchanged',
   'importer.stat.flagged': 'flagged',
   'importer.stat.errors': 'errors',
+  // creators.similar
+  'similar.title': 'Similar creators',
+  'similar.showAll': 'Show all',
+  'similar.collapse': 'Collapse',
+  'similar.expand': 'Expand',
+  'similar.score': 'Similarity {value}',
 } as const;
