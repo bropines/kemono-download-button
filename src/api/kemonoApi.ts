@@ -74,6 +74,28 @@ export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAda
   };
 }
 
+export interface CreatorTag {
+  tag: string;
+  count: number;
+}
+
+/** A creator's tags with post counts (most used first); throws when the request fails */
+export async function fetchCreatorTags(service: string, userID: string): Promise<CreatorTag[]> {
+  const data = await getJson(`/api/v1/${service}/user/${userID}/tags`, 20000);
+  if (!Array.isArray(data)) return [];
+  return data
+    .filter((row: any) => row && typeof row.tag === 'string' && row.tag)
+    .map((row: any) => ({ tag: row.tag as string, count: Number(row.post_count) || 0 }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/** One page (50 posts) of a creator's posts carrying a tag; Pawchive has no `/posts` suffix */
+export async function fetchTaggedPostsPage(service: string, userID: string, tag: string, offset: number): Promise<any[]> {
+  const suffix = window.location.hostname.includes('pawchive') ? '' : '/posts';
+  const data = await getJson(`/api/v1/${service}/user/${userID}${suffix}?o=${offset}&tag=${encodeURIComponent(tag)}`);
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchUserFavorites(): Promise<boolean> {
   if (appState.favoritesFetched) return true;
   await getSettings();

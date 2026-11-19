@@ -77,7 +77,7 @@ function writeAuthorCache(cacheKey: string, postList: any[]): void {
 }
 
 /** A download descriptor straight from the API post object, independent of what the page currently shows. */
-function toPostDetails(post: any, authorName: string): PostDetails {
+export function toPostDetails(post: any, authorName: string): PostDetails {
   return {
     service: String(post.service),
     userID: String(post.user),
