@@ -10,6 +10,7 @@ import { generateRandomId, getApiUrl, sanitizeFilename, isFileExtensionIgnored }
 import { abortError, downloadFileWithFallback, gmXmlhttpRequestWithRetries, isAbortError } from '../utils/http';
 import { collectFilesForPost, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
+import { dropDownloaded, flushDownloadHistory, recordDownloaded } from './downloadHistory';
 import { t } from '../i18n';
 
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
@@ -19,6 +20,12 @@ function filterIgnoredFiles(files: FileItem[]): FileItem[] {
   const ignoredExts = state.settings.ignoredFileExtensions || [];
   return files.filter((f) => !isFileExtensionIgnored(f.name, ignoredExts));
 }
+
+/** Drops files already in the download history when "skip downloaded files" is on. */
+const skipDownloaded = <T>(items: T[], urlOf: (item: T) => unknown) => dropDownloaded(items, urlOf, !!state.settings.skipDownloadedFiles);
+
+/** Appends "N skipped" to a final status line. */
+const withSkipped = (message: string, skipped: number): string => (skipped > 0 ? `${message} ${t('dl.task.skippedSuffix', { count: skipped })}` : message);
 
 async function runWithConcurrency<T>(
   items: T[],
@@ -91,6 +98,7 @@ async function addUrlFilesToZip(
     try {
       const data = await fetchFileBytes(file.data, (percent) => task.updateFileProgress(fileTaskId, percent), useCache, task.signal);
       storedNames[index] = zip.addFile(file.name || `file_${index + 1}.bin`, data);
+      recordDownloaded(file.data);
       task.markFileComplete(fileTaskId, true);
     } catch (error: any) {
       task.markFileComplete(fileTaskId, false);
@@ -122,10 +130,16 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     const files = filterIgnoredFiles(rawFiles);
     if (files.length === 0) throw new Error(t('dl.task.noZipContent'));
 
+    await getSettings();
+    const allUrlFiles = files.filter((f) => f.source === 'url');
+    const { items: urlFiles, skipped } = await skipDownloaded(allUrlFiles, (f) => f.data);
+    if (allUrlFiles.length > 0 && urlFiles.length === 0) {
+      task.updateStatus(t('dl.task.allSkipped', { count: skipped }));
+      return;
+    }
+
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
-
-    const urlFiles = files.filter((f) => f.source === 'url');
     task.setTotal(urlFiles.length);
     task.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failCount } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
@@ -138,7 +152,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     if (blob.size === 0) throw new Error(t('dl.task.zipEmpty'));
     saveBlob(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
 
-    task.updateStatus(failCount > 0 ? t('dl.task.completeFails', { count: failCount }) : t('dl.task.complete'));
+    task.updateStatus(withSkipped(failCount > 0 ? t('dl.task.completeFails', { count: failCount }) : t('dl.task.complete'), skipped));
   } catch (error: any) {
     if (isAbortError(error)) {
       task.updateStatus(t('dl.task.cancelled'));
@@ -148,6 +162,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     console.error('ZIP process error:', error);
     throw error;
   } finally {
+    void flushDownloadHistory();
     task.finish();
   }
 }
@@ -179,8 +194,17 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       return;
     }
 
+    await getSettings();
+    const { items: toDownload, skipped } = await skipDownloaded(targetFiles, (f) => f.data);
+    if (toDownload.length === 0) {
+      task.updateStatus(t('dl.task.allSkipped', { count: skipped }));
+      task.finish(3000);
+      return;
+    }
+    targetFiles = toDownload;
+
     task.setTotal(targetFiles.length);
-    task.updateStatus(t('dl.task.starting', { count: targetFiles.length }));
+    task.updateStatus(withSkipped(t('dl.task.starting', { count: targetFiles.length }), skipped));
 
     let completedCount = 0;
     await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i) => {
@@ -188,19 +212,21 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       task.addFile(fileTaskId, file.name);
       try {
         await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal);
+        recordDownloaded(file.data);
         task.markFileComplete(fileTaskId, true);
       } catch (err: any) {
         task.markFileComplete(fileTaskId, false);
       } finally {
         completedCount++;
-        if (!task.signal.aborted) task.updateStatus(t('dl.task.downloadedOf', { done: completedCount, total: targetFiles.length }));
+        if (!task.signal.aborted) task.updateStatus(withSkipped(t('dl.task.downloadedOf', { done: completedCount, total: targetFiles.length }), skipped));
       }
     }, task.signal);
 
-    task.updateStatus(task.signal.aborted ? t('dl.task.cancelled') : t('dl.task.allTriggered'));
+    task.updateStatus(task.signal.aborted ? t('dl.task.cancelled') : withSkipped(t('dl.task.allTriggered'), skipped));
   } catch (error: any) {
     task.fail(t('dl.task.error', { message: error.message }));
   } finally {
+    void flushDownloadHistory();
     task.finish();
   }
 }
@@ -213,14 +239,23 @@ export interface DownloadFileSpec {
 export async function downloadFilesToDiskWithProgress(
   downloadSpecs: DownloadFileSpec[],
   taskTitle: string,
-  concurrency?: number
+  concurrency?: number,
+  /** A file the user picked by name is downloaded even when it is in the history. */
+  force = false
 ): Promise<void> {
   if (downloadSpecs.length === 0) return;
   await getSettings();
 
   const task = progressManager.createTask(`pick-${generateRandomId(8)}`, taskTitle);
+  const { items: toDownload, skipped } = force ? { items: downloadSpecs, skipped: 0 } : await skipDownloaded(downloadSpecs, (spec) => spec.url);
+  if (toDownload.length === 0) {
+    task.updateStatus(t('dl.task.allSkipped', { count: skipped }));
+    task.finish(5000);
+    return;
+  }
+  downloadSpecs = toDownload;
   task.setTotal(downloadSpecs.length);
-  task.updateStatus(t('dl.task.queuedFiles', { count: downloadSpecs.length }));
+  task.updateStatus(withSkipped(t('dl.task.queuedFiles', { count: downloadSpecs.length }), skipped));
 
   const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
   let completedCount = 0;
@@ -234,6 +269,7 @@ export async function downloadFilesToDiskWithProgress(
     try {
       const data = await fetchFileBytes(spec.url, (percent) => task.updateFileProgress(fileTaskId, percent), true, task.signal);
       saveBlob(new Blob([data]), cleanName);
+      recordDownloaded(spec.url);
       task.markFileComplete(fileTaskId, true);
     } catch (err: any) {
       task.markFileComplete(fileTaskId, false);
@@ -253,11 +289,12 @@ export async function downloadFilesToDiskWithProgress(
   if (task.signal.aborted) {
     task.updateStatus(t('dl.task.cancelled'));
   } else {
-    task.updateStatus(failCount === 0
+    task.updateStatus(withSkipped(failCount === 0
       ? t('dl.task.allSaved', { count: downloadSpecs.length })
-      : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount })
+      : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped)
     );
   }
+  void flushDownloadHistory();
   task.finish(5000);
 }
 
@@ -272,10 +309,16 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     const files = filterIgnoredFiles(rawFiles);
     if (files.length === 0) throw new Error(t('dl.task.noZipContentShort'));
 
+    await getSettings();
+    const allUrlFiles = files.filter((f) => f.source === 'url');
+    const { items: urlFiles, skipped } = await skipDownloaded(allUrlFiles, (f) => f.data);
+    if (allUrlFiles.length > 0 && urlFiles.length === 0) {
+      postTask.updateStatus(t('dl.task.allSkipped', { count: skipped }));
+      return;
+    }
+
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
-
-    const urlFiles = files.filter((f) => f.source === 'url');
     postTask.setTotal(urlFiles.length);
     postTask.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
     const { failed: failedFileCount } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
@@ -291,7 +334,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     });
 
     saveBlob(await zip.toBlob(), zipFileName);
-    postTask.updateStatus(failedFileCount > 0 ? t('dl.task.completeFails', { count: failedFileCount }) : t('dl.task.complete'));
+    postTask.updateStatus(withSkipped(failedFileCount > 0 ? t('dl.task.completeFails', { count: failedFileCount }) : t('dl.task.complete'), skipped));
   } catch (error: any) {
     if (isAbortError(error)) {
       postTask.updateStatus(t('dl.task.cancelled'));
@@ -301,6 +344,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     postTask.fail(t('dl.task.error', { message: error.message }));
     throw error;
   } finally {
+    void flushDownloadHistory();
     postTask.finish();
   }
 }
@@ -330,6 +374,8 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
   const task = progressManager.createTask('bulk-single', t('dl.task.bulkArchive', { count: posts.length }));
   // One counter per archive keeps global_file_index running across its posts without touching other runs
   const mediaCounter = { value: 0 };
+  let skippedTotal = 0;
+  let downloadableTotal = 0;
 
   try {
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
@@ -355,7 +401,9 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       // The index links to what the ZIP really holds: deduplicated names (_2) and failed_*.txt notes
       const storedNames: string[] = [];
       files.filter((f) => f.source === 'text').forEach((file) => storedNames.push(zip.addFile(file.name, textContentOf(file.data))));
-      const urlFiles = files.filter((f) => f.source === 'url');
+      const { items: urlFiles, skipped } = await skipDownloaded(files.filter((f) => f.source === 'url'), (f) => f.data);
+      skippedTotal += skipped;
+      downloadableTotal += urlFiles.length;
       if (urlFiles.length > 0) {
         const result = await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i}`, false, postPrefix);
         storedNames.push(...result.storedNames.filter(Boolean));
@@ -376,6 +424,11 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       zip.addFile('_index.html', `${htmlIndex}</div></body></html>`);
     }
 
+    if (skippedTotal > 0 && downloadableTotal === 0) {
+      task.updateStatus(t('dl.task.allSkipped', { count: skippedTotal }));
+      return;
+    }
+
     task.updateStatus(t('dl.task.finalizing', { count: posts.length }));
     const finalZipName = formatNameFromTemplate(state.settings.bulkSingleSystemPathTemplate, {
       author_name: authorName,
@@ -383,7 +436,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
     });
 
     saveBlob(await zip.toBlob(), finalZipName);
-    task.updateStatus(t('dl.task.complete'));
+    task.updateStatus(withSkipped(t('dl.task.complete'), skippedTotal));
   } catch (error: any) {
     if (isAbortError(error)) {
       task.updateStatus(t('dl.task.cancelled'));
@@ -392,6 +445,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
     console.error('Bulk download (single) failed:', error);
     task.fail(t('dl.task.error', { message: error.message }));
   } finally {
+    void flushDownloadHistory();
     task.finish();
   }
 }

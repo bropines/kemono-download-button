@@ -66,5 +66,6 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   cacheDurationHours: 24,
   bulkMultipleSystemPathTemplate: '{author_name}/{post_date}_{post_title}.zip',
   savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
-  ignoredFileExtensions: []
+  ignoredFileExtensions: [],
+  skipDownloadedFiles: false
 };
