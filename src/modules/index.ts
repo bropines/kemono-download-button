@@ -18,6 +18,7 @@ import { hiddenCreatorsModule } from './hiddenCreators';
 import { downloadByTagsModule } from './downloadByTags';
 import { similarCreatorsModule } from './similarCreators';
 import { postInfoModule } from './postInfo';
+import { downloadHistoryModule } from './downloadHistory';
 import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
@@ -32,6 +33,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   downloaderCreatorModule,
   downloaderListModule,
   favoritesQuickModule,
+  downloadHistoryModule,
   tagsToolsModule,
   postsSearchModule,
   importerStatusModule,

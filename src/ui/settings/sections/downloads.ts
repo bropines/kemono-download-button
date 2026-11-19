@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from '../../../config/constants';
 import { saveSetting, state } from '../../../state/store';
 import { el } from '../../../utils/dom';
-import { badge, button, field, input, kitIcon, select } from '../../kit';
+import { badge, button, field, input, kitIcon, select, setButtonLoading } from '../../kit';
 import { showMessage } from '../../toast';
 import {
   grid,
@@ -15,6 +15,7 @@ import {
 } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { progressManager } from '../../progressManager';
+import { clearDownloadHistory, downloadedCount, onDownloadHistoryChange } from '../../../services/downloadHistory';
 import { t } from '../../../i18n';
 
 const TEMPLATE_TAGS = () =>
@@ -231,6 +232,36 @@ function retryControls(): HTMLElement[] {
   ];
 }
 
+function historyControls(): HTMLElement[] {
+  const stats = el('span', { className: 'kdl-settings__stat', id: 'kdl-download-history-stats', textContent: t('settings.downloads.history.loading') });
+  const refresh = async () => {
+    stats.textContent = t('settings.downloads.history.stats', { count: await downloadedCount() });
+  };
+  const clear: HTMLButtonElement = button({
+    id: 'kdl-clear-download-history-btn',
+    label: t('settings.downloads.history.clear'),
+    icon: 'x',
+    variant: 'outline',
+    size: 'sm',
+    onClick: async () => {
+      setButtonLoading(clear, true);
+      try {
+        await clearDownloadHistory();
+        showMessage(t('settings.downloads.history.cleared'), 'success');
+      } finally {
+        setButtonLoading(clear, false);
+      }
+    },
+  });
+  void refresh();
+  // The dialog is rebuilt on every open, so the subscription ends with the stats node
+  const stop = onDownloadHistoryChange(() => (stats.isConnected ? void refresh() : stop()));
+  return [
+    settingSwitch('skipDownloadedFiles', t('settings.downloads.skipDownloaded'), t('settings.downloads.skipDownloadedDescription')),
+    el('div', { className: 'kdl-settings__row' }, [stats, el('span', { className: 'kdl-settings__footer-spacer' }), clear]),
+  ];
+}
+
 registerSettingsSection({
   id: 'downloads',
   title: 'Downloads',
@@ -260,6 +291,7 @@ registerSettingsSection({
         ]),
         ...retryControls(),
       ], { icon: 'refresh-cw' }),
+      section(t('settings.downloads.historySection'), historyControls(), { icon: 'history' }),
       section(t('settings.downloads.zipSection'), [
         settingSelect('zipCompressionLevel', t('settings.downloads.compression'), t('settings.downloads.compressionDescription'), [
           { value: '0', label: t('settings.downloads.compression0') },

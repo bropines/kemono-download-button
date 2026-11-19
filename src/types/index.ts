@@ -62,6 +62,7 @@ export interface DownloaderSettings {
   bulkMultipleSystemPathTemplate: string;
   savedFileNameTemplates: SavedTemplate[];
   ignoredFileExtensions: string[];
+  skipDownloadedFiles: boolean;
 }
 
 export type SupportedService =

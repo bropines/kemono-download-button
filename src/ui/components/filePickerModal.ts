@@ -1,5 +1,6 @@
 import { collectFilesForPost } from '../../services/collectorService';
 import { downloadFilesToDiskWithProgress, DownloadFileSpec } from '../../services/downloadService';
+import { isUrlDownloaded, loadDownloadHistory } from '../../services/downloadHistory';
 import { state } from '../../state/store';
 import { FileItem, PostDetails } from '../../types';
 import { el } from '../../utils/dom';
@@ -21,6 +22,7 @@ const fileRowParts = (file: FileItem) => [
   kitIcon(file.isMedia ? 'image' : 'file'),
   el('span', { className: 'kdl-ov-picker__name', title: baseName(file.name) }, [baseName(file.name)]),
   badge({ text: fileType(file), variant: 'outline' }),
+  isUrlDownloaded(file.data) ? badge({ text: t('dl.history.downloaded'), variant: 'success', icon: 'check', title: t('dl.history.downloadedTitle'), className: 'kdl-ov-picker__done' }) : null,
 ];
 
 interface Picker {
@@ -49,6 +51,7 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
   try {
     const { files } = await collectFilesForPost(postDetails, { template: state.settings.fileNameTemplate });
     const attachments = files.filter((t) => t.source === 'url');
+    await loadDownloadHistory();
 
     if (attachments.length === 0) {
       setTitle(t('dl.picker.noneFound'));
@@ -67,7 +70,7 @@ export async function showFilePickerModal(postDetails: PostDetails): Promise<voi
           const fileName = baseName(file.name);
           handle.close();
           showMessage(t('dl.picker.starting', { name: fileName }), 'info');
-          await downloadFilesToDiskWithProgress([{ url: file.data, fileName }], fileName, 1);
+          await downloadFilesToDiskWithProgress([{ url: file.data, fileName }], fileName, 1, true);
         }
       }, fileRowParts(file))
     );
@@ -90,6 +93,7 @@ export async function showMultiPostFilePickerModal(posts: PostDetails[]): Promis
 
   try {
     const postFileGroups: Array<{ post: PostDetails; files: FileItem[] }> = [];
+    await loadDownloadHistory();
     let loadedCount = 0;
     for (const post of posts) {
       // Closing the dialog stops fetching the rest

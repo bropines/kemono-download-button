@@ -2,11 +2,13 @@ import { debugLog } from '../utils/helpers';
 import { state } from '../state/store';
 
 const DB_NAME = 'KemonoDownloaderCache';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_FILES = 'files';
 // Size/age per cached file, so eviction and stats never have to load the file bodies
 const STORE_FILE_META = 'fileMeta';
 const STORE_POSTS = 'posts';
+// Content hashes of downloaded files (key = sha256, value = timestamp); lives apart from the disposable file cache
+export const STORE_HISTORY = 'downloadHistory';
 
 // Downloaded files are kept for re-downloads; the oldest ones are evicted beyond this budget
 const MAX_FILE_CACHE_BYTES = 2 * 1024 * 1024 * 1024;
@@ -26,7 +28,7 @@ const inMemoryFileCache = new Map<string, ArrayBuffer>();
 let inMemoryFileBytes = 0;
 let evictionTimer: ReturnType<typeof setTimeout> | null = null;
 
-function getDB(): Promise<IDBDatabase> {
+export function getDB(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   dbPromise = new Promise((resolve, reject) => {
     if (typeof indexedDB === 'undefined') {
@@ -46,6 +48,7 @@ function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_FILE_META)) {
         db.createObjectStore(STORE_FILE_META, { keyPath: 'url' }).createIndex('timestamp', 'timestamp', { unique: false });
       }
+      if (!db.objectStoreNames.contains(STORE_HISTORY)) db.createObjectStore(STORE_HISTORY);
       if (!db.objectStoreNames.contains(STORE_POSTS)) {
         db.createObjectStore(STORE_POSTS, { keyPath: 'key' });
       }
@@ -59,7 +62,7 @@ function getDB(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-function awaitTransaction(tx: IDBTransaction): Promise<void> {
+export function awaitTransaction(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => resolve();
