@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-19
+
 ### Added
 - **Hidden creators** (module): creators you blocked on Pawchive (the list is read from the Creators page) and creators you hide with the new eye button on a creator page disappear from every list of posts and creators, on all three sites. A chip "N hidden · show" reveals them for the page; dim instead of hide in the module settings. A hidden creator's own page still shows their posts.
 - **Download by tags** (module): a Tags button on creator pages opens the creator's tags with post counts; pick some and every post carrying them goes to the bulk download.
