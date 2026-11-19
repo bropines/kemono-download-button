@@ -177,7 +177,16 @@ export const hiddenCreatorsModule: KdlModule = {
     ctx.settings.onChange('mode', apply);
     ctx.settings.onChange('local', apply);
     apply();
+    // Cards added later (live search, appended pages): one pass per burst of mutations
+    let timer = 0;
+    const observer = new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = window.setTimeout(apply, 150);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
     ctx.onCleanup(() => {
+      observer.disconnect();
+      clearTimeout(timer);
       undo();
       document.documentElement.removeAttribute(REVEAL);
       delete document.documentElement.dataset.kdlHideMode;
