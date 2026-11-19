@@ -1,6 +1,17 @@
 // English source strings (modules). Keys are namespaced; see src/i18n/README.md.
 // Module names, descriptions and setting labels come from `mod.<id>.*` convention keys, not from here.
 export default {
+  // info.badges
+  'info.posts': '{count} posts',
+  'info.dms': '{count} DMs',
+  'info.shares': '{count} shares',
+  'info.chats': '{count} chats',
+  'info.edited': 'Edited',
+  'info.edited.revisions': 'Edited · {count} revisions',
+  'info.flagged': 'Flagged: missing files',
+  'info.files': '{count} files',
+  'info.prev': 'Previous',
+  'info.next': 'Next',
   // tags.tools
   'tags.filter.placeholder': 'Filter tags…',
   'tags.filter.label': 'Filter tags',
