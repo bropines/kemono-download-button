@@ -4,6 +4,17 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- **Creator overview** (module): on a creator's Posts tab, the latest announcement (click to expand), the creator's tags as a chip strip that filters the posts, and linked accounts, read from the API; each part can be switched off.
+
+### Changed
+- Creator links (Also on, Search E-Hentai, Suggest a link) moved into the creator header, under the buttons.
+- "Find elsewhere" shows its answer inside the button: "Only in this post", or "In N other posts", which opens the site's hash search.
+- Similar creators: no "Show all" link (the Similar creators tab is right above).
+
+### Fixed
+- Site skin: the page no longer gets wider than the window (content past the right edge, the sidebar overlapping it) when the top bar or a strip of cards is wide.
+
 ## [1.9.0] - 2026-11-19
 
 ### Added

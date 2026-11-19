@@ -127,11 +127,13 @@ function render(): void {
   if (!creator || !header) return;
   const key = `${creator.service}:${creator.id}`;
   const existing = document.getElementById(ROW_ID);
-  if (existing && existing.dataset.kdlXlKey === key && existing.previousElementSibling === header) return;
+  // Inside the header card, under the action buttons
+  const host = header.querySelector('.user-header__info') || header;
+  if (existing && existing.dataset.kdlXlKey === key && existing.parentElement === host) return;
   ensureKit();
   const row = build(creator);
-  if (existing) existing.replaceWith(row);
-  else header.after(row);
+  if (existing) existing.remove();
+  host.append(row);
 }
 
 /** Rebuilds the row after a newer index arrived (the row was drawn from the cache before) */
@@ -141,13 +143,15 @@ function rerender(): void {
 }
 
 const STYLES = `
-.kdl-xl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0; min-width: 0; }
+.kdl-xl { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin: 2px 0 0; min-width: 0; }
+.kdl-xl .kdl-ui-btn { height: 1.75rem; font-size: 12px; }
 .kdl-xl__label { color: var(--kdl-muted-foreground); font-size: 13px; margin-right: 2px; }
 .kdl-xl .kdl-xl__chip { max-width: 100%; }
 .kdl-xl .kdl-xl__chip > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kdl-xl .kdl-xl__quiet { color: var(--kdl-muted-foreground); }
 .kdl-xl .kdl-xl__quiet:hover { color: var(--kdl-foreground); }
-@media (max-width: 600px) { .kdl-xl { margin-inline: 12px; } }
+/* Phones: the header info is display: contents there, so the row is a grid item of its own under the actions */
+@media (max-width: 600px) { .user-header .kdl-xl { grid-column: 1 / -1; grid-row: 4; padding: 0 16px 14px; margin: 0; } }
 `;
 
 export const creatorLinksModule: KdlModule = {

@@ -162,7 +162,6 @@ function build(items: Similar[], limit: number, withStar: boolean, who: { servic
   });
   const head = el('div', { className: `${OWN}__head` }, [
     el('span', { className: `${OWN}__title` }, [t('similar.title')]),
-    button({ href: `/${who.service}/user/${who.id}/recommended`, label: t('similar.showAll'), variant: 'ghost', size: 'sm' }),
     toggle,
   ]);
   root.append(head, body);
@@ -204,7 +203,8 @@ function cancelIdle(): void {
 }
 
 const STYLES = `
-.${OWN} { margin: 8px 0 12px; }
+/* contain: the strip's width never feeds the page's: twelve 200px chips used to push the whole layout sideways */
+.${OWN} { margin: 8px 0 12px; min-width: 0; max-width: 100%; contain: inline-size; }
 .${OWN}[data-collapsed] .${OWN}__scroll { display: none; }
 .${OWN}__head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .${OWN}__title { margin-right: auto; font-size: 13px; font-weight: 600; color: var(--kdl-muted-foreground); }
@@ -232,7 +232,7 @@ const STYLES = `
 export const similarCreatorsModule: KdlModule = {
   id: 'creators.similar',
   name: 'Similar creators',
-  description: "On a creator's Posts tab: a scrollable strip of similar creators (the site's recommended list) under the header, with a link to all of them.",
+  description: "On a creator's Posts tab: a scrollable strip of similar creators (the site's recommended list) under the header.",
   group: 'Lists',
   pages: ['creator'],
   defaultEnabled: true,

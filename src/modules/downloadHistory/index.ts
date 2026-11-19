@@ -4,7 +4,7 @@
 // unmount and before htmx snapshots; the site's own nodes are never changed.
 
 import type { KdlModule, ModuleContext } from '../../core/types';
-import { button, badge, ensureKit, kitScope, setButtonLoading } from '../../ui/kit';
+import { button, badge, ensureKit, kitIcon, kitScope, setButtonLoading } from '../../ui/kit';
 import { el } from '../../utils/dom';
 import { debugLog, getApiUrl } from '../../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../../utils/http';
@@ -15,7 +15,9 @@ const LINKS = '.post__attachment-link';
 const OWN = 'kdl-hist-own';
 const MARK = 'data-kdl-hist';
 
-const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: 8px; vertical-align: middle; }`;
+const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: 8px; vertical-align: middle; }
+.${OWN} .kdl-hist-find { height: 2.5rem; }
+.${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }`;
 
 const currentPostId = (): string => /\/post\/([^/?#]+)/.exec(window.location.pathname)?.[1] ?? '';
 
@@ -29,24 +31,34 @@ async function otherPostsWith(hash: string): Promise<number | null> {
   return posts.filter((post) => String(post?.id) !== here).length;
 }
 
-function findButton(hash: string, result: HTMLElement): HTMLButtonElement {
+/** The answer replaces the button's own label: "Only in this post" (disabled) or "In N other posts", which then
+ *  opens the site's hash search listing them */
+function findButton(hash: string): HTMLButtonElement {
+  let found = 0;
   const find: HTMLButtonElement = button({
     label: t('dl.history.findElsewhere'),
     icon: 'search',
-    variant: 'ghost',
-    size: 'sm',
+    variant: 'outline',
     title: t('dl.history.elsewhereTitle'),
+    className: 'kdl-hist-find',
     onClick: async () => {
+      if (found > 0) {
+        window.open(`/search_hash?hash=${hash}`, '_blank', 'noopener');
+        return;
+      }
       setButtonLoading(find, true);
       try {
         const count = await otherPostsWith(hash);
         if (count === null) throw new Error('No post list in the response');
-        result.replaceChildren(badge({ text: count > 0 ? t('dl.history.elsewhere', { count }) : t('dl.history.onlyHere'), variant: count > 0 ? 'secondary' : 'outline' }));
-        find.remove();
+        setButtonLoading(find, false);
+        found = count;
+        find.replaceChildren(kitIcon(count > 0 ? 'external-link' : 'check'), el('span', { textContent: count > 0 ? t('dl.history.elsewhere', { count }) : t('dl.history.onlyHere') }));
+        find.disabled = count === 0;
+        find.dataset.result = count > 0 ? 'found' : 'only';
       } catch (error) {
         debugLog('search_hash failed:', error);
-        result.replaceChildren(badge({ text: t('dl.history.failed'), variant: 'destructive' }));
         setButtonLoading(find, false);
+        find.replaceChildren(kitIcon('triangle-alert'), el('span', { textContent: t('dl.history.failed') }));
       }
     },
   });
@@ -63,8 +75,7 @@ function enhance(): void {
     const downloaded = badge({ text: t('dl.history.downloaded'), variant: 'success', icon: 'check', title: t('dl.history.downloadedTitle') });
     downloaded.hidden = !isUrlDownloaded(link.href);
     downloaded.dataset.kdlHistHash = hash;
-    const result = el('span');
-    link.after(kitScope([downloaded, findButton(hash, result), result], { tag: 'span', className: OWN }));
+    link.after(kitScope([downloaded, findButton(hash)], { tag: 'span', className: OWN }));
   });
 }
 

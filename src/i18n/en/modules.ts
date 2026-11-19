@@ -119,7 +119,10 @@ export default {
   'importer.stat.errors': 'errors',
   // creators.similar
   'similar.title': 'Similar creators',
-  'similar.showAll': 'Show all',
+  'overview.announcements': '{count, plural, one{Announcement} other{Announcements (#)}}',
+  'overview.tags': 'Tags',
+  'overview.links': 'Linked accounts',
+  'overview.expand': 'Click to show the whole announcement',
   'similar.collapse': 'Collapse',
   'similar.expand': 'Expand',
   'similar.score': 'Similarity {value}',

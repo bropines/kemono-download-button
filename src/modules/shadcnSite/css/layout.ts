@@ -189,6 +189,9 @@ html[data-kdl-sk-halign="center"] .content-wrapper .header-link:first-of-type { 
 .content-wrapper .backdrop { background: var(--kdl-overlay); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
 
 /* Content */
+/* The wrapper is a flex item: without min-width 0 its widest row (the top bar's labelled links, a strip of cards)
+   sets the page width and pushes everything past the right edge */
+.content-wrapper { min-width: 0; }
 .content-wrapper > .main { padding: 24px 32px; }
 @media (max-width: 1020px) {
   .content-wrapper > .main { padding: 16px 10px; }

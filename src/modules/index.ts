@@ -20,6 +20,7 @@ import { similarCreatorsModule } from './similarCreators';
 import { postInfoModule } from './postInfo';
 import { downloadHistoryModule } from './downloadHistory';
 import { creatorLinksModule } from './creatorLinks';
+import { creatorOverviewModule } from './creatorOverview';
 import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
@@ -45,6 +46,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   similarCreatorsModule,
   postInfoModule,
   creatorLinksModule,
+  creatorOverviewModule,
   siteTranslationModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,
