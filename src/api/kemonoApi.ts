@@ -20,6 +20,11 @@ export async function fetchPostDataFromAPI(service: string, userID: string, post
   return getJson(path);
 }
 
+/** The raw profile object (name, and post_count/dm_count/... where the site has them) */
+export function fetchProfile(service: string, userID: string): Promise<any> {
+  return getJson(`/api/v1/${service}/user/${userID}/profile`, 15000);
+}
+
 const creatorNames = new Map<string, Promise<string | null>>();
 
 /** A creator's display name from the profile endpoint, once per page session; null when it cannot be read */
