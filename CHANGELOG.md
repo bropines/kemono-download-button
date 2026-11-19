@@ -4,6 +4,18 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- **Hidden creators** (module): creators you blocked on Pawchive (the list is read from the Creators page) and creators you hide with the new eye button on a creator page disappear from every list of posts and creators, on all three sites. A chip "N hidden · show" reveals them for the page; dim instead of hide in the module settings. A hidden creator's own page still shows their posts.
+- **Download by tags** (module): a Tags button on creator pages opens the creator's tags with post counts; pick some and every post carrying them goes to the bulk download.
+- **Download history**: the script remembers downloaded files by content hash. Settings → Downloads → "Skip already downloaded files" leaves them out of downloads and ZIPs; post pages and the file picker mark them "Downloaded", and "Find elsewhere" shows how many other posts hold the same file.
+- **Post and creator info** (module): post count (and DMs, shares, chats where the site has them) under a creator's name; "Edited", "Flagged: missing files" and the file count on posts; previous / next buttons where the site has none.
+- **Similar creators** (module): a strip of similar creators under the creator header on the Posts tab.
+- **Creator links on other sites** (module): an "Also on" row on creator pages with the creator on Pixiv (fanbox ids are Pixiv ids) and E-Hentai from the community dataset github.com/bropines/creator-links, a "Search E-Hentai" link and "Suggest a link", which opens a prefilled GitHub form.
+- Post page layout: switches to hide whole blocks of a post (downloads, text, files and gallery, videos, comments, tags).
+
+### Changed
+- The "Manage all posts" button is now called "Post manager".
+
 ### Fixed
 - Site skin: the new Block button on creator pages matches the other header buttons (outline, red tint on hover) and is translated.
 

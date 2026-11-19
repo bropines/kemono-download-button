@@ -8,7 +8,37 @@ import { initializePostTranslation, removeTranslateButtons } from './translateBu
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
 import { hideEmptySections } from './embeds';
-import type { KdlModule } from '../../core/types';
+import type { KdlModule, SettingDef } from '../../core/types';
+import { getModuleSetting } from '../../core/registry';
+
+// Post blocks the user can switch off. Hidden with CSS from an attribute on <html> (set at document start too,
+// so a hidden block never flashes); each block matches both the site's markup and the gallery's wrapped one.
+const BLOCKS: { key: string; label: string; match: string }[] = [
+  { key: 'downloads', label: 'Downloads (attachments)', match: '.post__attachments' },
+  { key: 'content', label: 'Text content', match: '.post__content' },
+  { key: 'files', label: 'Files and image gallery', match: '.post__files, .kui-gallery-layout' },
+  { key: 'videos', label: 'Videos', match: '.kui-video-gallery-layout, .post__video' },
+  { key: 'comments', label: 'Comments', match: 'footer.post__footer' },
+  { key: 'tags', label: 'Tags', match: '#post-tags' },
+];
+const HIDE_ATTR = 'data-kdl-post-hide';
+const blockKey = (key: string): string => 'hide' + key[0].toUpperCase() + key.slice(1);
+function syncHiddenBlocks(get: (key: string) => unknown): void {
+  const hidden = BLOCKS.filter((block) => get(blockKey(block.key)) === true).map((block) => block.key).join(' ');
+  if (hidden) document.documentElement.setAttribute(HIDE_ATTR, hidden);
+  else document.documentElement.removeAttribute(HIDE_ATTR);
+}
+const blockStyles = (): string =>
+  BLOCKS.map(({ key, match }) => {
+    const scope = `html[${HIDE_ATTR}~="${key}"]`;
+    const inner = match.split(',').map((m) => m.trim());
+    return [
+      ...inner.map((m) => `${scope} .kui-post-section:has(${m})`),
+      ...inner.map((m) => `${scope} ${m}`),
+      ...inner.map((m) => `${scope} .post__body > h2:has(+ ${m})`),
+    ].join(', ') + ' { display: none !important; }';
+  }).join(' ');
+const blockSettings: SettingDef[] = BLOCKS.map(({ key, label }) => ({ key: blockKey(key), label: `Hide: ${label}`, type: 'boolean', default: false }));
 
 export const postPageModule = {
   originalContentHTML: null as string | null,
@@ -128,9 +158,12 @@ export const kuiPostModule: KdlModule = {
   // kuiState reads and writes these keys; the listeners keep it in step with a settings UI
   settings: [
     { key: 'preloadImages', label: 'Preload gallery images', type: 'boolean', default: false, hint: 'Loads every post image in the background when the gallery opens.' },
-    { key: 'hideEmptySections', label: 'Hide empty post sections', type: 'boolean', default: true }
+    { key: 'hideEmptySections', label: 'Hide empty post sections', type: 'boolean', default: true },
+    ...blockSettings,
   ],
+  styles: blockStyles,
   setup(ctx) {
+    BLOCKS.forEach(({ key }) => ctx.settings.onChange(blockKey(key), () => syncHiddenBlocks((k) => ctx.settings.get(k))));
     ctx.settings.onChange('preloadImages', (value) => {
       kuiState.isPreloadEnabled = Boolean(value);
     });
@@ -139,7 +172,14 @@ export const kuiPostModule: KdlModule = {
       hideEmptySections();
     });
   },
-  mount: syncPostPage,
+  mount(ctx) {
+    syncHiddenBlocks((k) => ctx.settings.get(k));
+    ctx.onCleanup(() => document.documentElement.removeAttribute(HIDE_ATTR));
+    syncPostPage();
+  },
+  early() {
+    syncHiddenBlocks((k) => getModuleSetting('kui.post', k));
+  },
   update: syncPostPage,
   unmount: () => postPageModule.cleanup(),
   // Snapshots must not carry the gallery/player: they come back without listeners

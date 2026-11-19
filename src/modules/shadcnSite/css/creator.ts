@@ -175,6 +175,10 @@ export const creatorCss = (): string => `
   .user-header__actions .kdl-ui-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-header__actions > :is(.user-header__favourite, .user-header__upload) { flex: 0 0 2.25rem; width: 2.25rem; padding: 0; }
   .user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) { flex: 0 0 auto; height: 2.25rem; }
+  /* The script's extra header buttons (tags, hide) stay icon-sized so "All posts" keeps its label */
+  .user-header__actions > :is(#kdl-tags-btn, .kdl-hide-own) { flex: 0 0 auto; }
+  .user-header__actions > #kdl-tags-btn .kdl-ui-btn { width: 2.25rem; height: 2.25rem; padding: 0; gap: 0; }
+  .user-header__actions > #kdl-tags-btn .kdl-ui-btn > span { display: none; }
   .user-header__favourite .user-header__fav-icon { font-size: 16px; }
 }
 @media (max-width: 480px) {

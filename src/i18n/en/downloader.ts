@@ -102,7 +102,7 @@ export default {
   "dl.manager.openPost": "Open post in new tab",
   "dl.manager.openPostLabel": "Open {title} in a new tab",
   "dl.manager.meta": "{date} | Files: {files} | ID: {id}",
-  "dl.manager.button": "Manage All Posts",
+  "dl.manager.button": "Post manager",
   "dl.manager.buttonHint": "Load all posts from this author into a powerful manager with search and bulk selection.",
   "dl.task.downloadingDone": "{prefix}Downloading... {done}/{total} done",
   "dl.task.zipTitle": "ZIP: {title}",

@@ -121,9 +121,12 @@ function apply(): void {
   const blocked = new Set([...pawList(), ...localList(ctx)].map((k) => k.toLowerCase()));
   document.documentElement.dataset.kdlHideMode = ctx.settings.get<string>('mode');
   const badge = t('creators.hide.badge');
+  const own = creatorKey();
   let count = 0;
   document.querySelectorAll<HTMLElement>(CARDS).forEach((card) => {
-    const hide = blocked.has(keyOf(card));
+    // On a hidden creator's own page their posts stay: opening it means you want to see them
+    const key = keyOf(card);
+    const hide = blocked.has(key) && key !== own;
     if (hide) count++;
     if (hide !== card.hasAttribute(MARK)) {
       if (hide) card.setAttribute(MARK, badge);

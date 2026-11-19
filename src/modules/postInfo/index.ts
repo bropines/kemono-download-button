@@ -12,6 +12,7 @@ import { el } from '../../utils/dom';
 import { badge, button, ensureKit, kitScope, type BadgeVariant } from '../../ui/kit';
 import { debugLog } from '../../utils/helpers';
 import { t } from '../../i18n';
+import { originalText } from '../../i18n/site';
 
 const CREATOR_ROW = 'kdl-info-creator';
 const POST_ROW = 'kdl-info-post';
@@ -56,7 +57,8 @@ function row(id: string, key: string, children: HTMLElement[]): HTMLElement {
 
 /** "Showing 1 - 50 of 656" in the paginator, for sites whose profile has no counts */
 function paginatorTotal(): number | null {
-  const text = (document.querySelector('.paginator')?.textContent || '').replace(/\s+/g, ' ');
+  // The site text may already be translated: read what the site wrote
+  const text = originalText(document.querySelector('.paginator')).replace(/\s+/g, ' ');
   const match = /showing\s+[\d,.]+\s*[-–]\s*[\d,.]+\s+of\s+([\d,.]+)/i.exec(text);
   const value = match ? Number(match[1].replace(/[^\d]/g, '')) : NaN;
   return Number.isFinite(value) && value > 0 ? value : null;
