@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 11,
+  "version": 12,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -1049,6 +1049,11 @@
     "Within the \"Cookies\" dropdown, select \"fanbox.cc\".": "В списке «Cookies» выберите «fanbox.cc».",
     "Now in list of cookies find FANBOXSESSID and select it, copy the contents and that will be the value you will use.": "В списке куки найдите FANBOXSESSID, выберите её и скопируйте содержимое: это и есть нужное значение.",
     "Paste the content of the cookie you copied and submit in the Pawchive import page": "Вставьте скопированное значение на странице импорта Pawchive и отправьте",
-    "Double click FANBOXSESSID and copy everything for \"Value\"": "Дважды щёлкните FANBOXSESSID и скопируйте всё содержимое «Value»"
+    "Double click FANBOXSESSID and copy everything for \"Value\"": "Дважды щёлкните FANBOXSESSID и скопируйте всё содержимое «Value»",
+    "Block": "Заблокировать",
+    "Unblock": "Разблокировать",
+    "Blocked": "Заблокирован",
+    "⊘ Block": "⊘ Заблокировать",
+    "⊘ Unblock": "⊘ Разблокировать"
   }
 }

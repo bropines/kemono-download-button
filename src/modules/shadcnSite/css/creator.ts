@@ -132,6 +132,36 @@ export const creatorCss = (): string => `
 .user-header__favourite :is(.user-header__fav-icon, .user-header__fav-text) { color: inherit; }
 .user-header__favourite .user-header__fav-icon { color: var(--kdl-warning); }
 .user-header__favourite--unfav { border-color: color-mix(in srgb, var(--kdl-warning) 45%, var(--kdl-input)); }
+/* Buttons the site adds later (Block, for logged-in users) get the same outline look, with a red tint on hover.
+   Matched as "any other site control in the row", since their classes may change */
+.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--kdl-input);
+  border-radius: calc(var(--kdl-radius) - 2px);
+  background: var(--kdl-background);
+  color: var(--kdl-muted-foreground);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  text-decoration: none;
+  text-shadow: none;
+  box-shadow: var(--kdl-shadow-sm);
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) * { color: inherit; font: inherit; }
+.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]):is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--kdl-danger) 55%, var(--kdl-input));
+  background: color-mix(in srgb, var(--kdl-danger) 12%, var(--kdl-background));
+  color: var(--kdl-danger);
+}
 /* Phones: the name sits beside the avatar, the actions get their own full-width row of equal buttons
    (the favourite one shows just its star) instead of a stack of wide buttons */
 @media (max-width: 600px) {
@@ -144,6 +174,7 @@ export const creatorCss = (): string => `
   .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
   .user-header__actions .kdl-ui-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .user-header__actions > :is(.user-header__favourite, .user-header__upload) { flex: 0 0 2.25rem; width: 2.25rem; padding: 0; }
+  .user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) { flex: 0 0 auto; height: 2.25rem; }
   .user-header__favourite .user-header__fav-icon { font-size: 16px; }
 }
 @media (max-width: 480px) {

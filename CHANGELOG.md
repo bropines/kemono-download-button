@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- Site skin: the new Block button on creator pages matches the other header buttons (outline, red tint on hover) and is translated.
+
 ## [1.8.1] - 2026-11-17
 
 ### Added
