@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.10.10] - 2026-11-20
+
 ### Added
 - Hide and restore supported creator and post blocks directly in layout editing mode.
 - Reorder creator page blocks, overview sections and post blocks with drag handles or move buttons; the chosen order is remembered.
