@@ -19,6 +19,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Use compact header icons on phones by default, while preserving explicitly chosen header modes.
 
 ### Fixed
+- Match attachment and file-search button sizes on desktop and mobile.
 - Reduce layout recalculations when rendering long comment threads.
 - Reuse bytes from individual downloads for a later ZIP when the userscript fetched the file.
 - Retry stalled downloads after the configured inactivity timeout, even when the userscript host does not report a timeout.

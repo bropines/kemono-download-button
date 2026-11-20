@@ -245,6 +245,10 @@ export const kuiMainStyles = css({
     maxWidth: '320px',
     textDecoration: 'none',
   },
+  '.post__attachment .kui-attachment-styled': {
+    width: '320px',
+    boxSizing: 'border-box',
+  },
   '.kui-embed-button img, .kui-embed-button .kui-embed-dot': {
     width: '16px',
     height: '16px',

@@ -16,7 +16,12 @@ const OWN = 'kdl-hist-own';
 const MARK = 'data-kdl-hist';
 
 const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: 8px; vertical-align: middle; }
-.${OWN} .kdl-hist-find { height: 2.5rem; }
+.post__attachment > .${OWN} { width: min(320px, 100%); max-width: 100%; margin-left: 8px; }
+.post__attachment > .${OWN} .kdl-hist-find { width: 100%; }
+@media (max-width: 600px) {
+  .post__attachment > .${OWN} { width: 100%; margin-left: 0; }
+  .post__attachment > .${OWN} .kdl-hist-find { min-height: 44px; height: auto; }
+}
 .${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }`;
 
 const currentPostId = (): string => /\/post\/([^/?#]+)/.exec(window.location.pathname)?.[1] ?? '';
@@ -39,6 +44,7 @@ function findButton(hash: string): HTMLButtonElement {
     label: t('dl.history.findElsewhere'),
     icon: 'search',
     variant: 'outline',
+    size: 'sm',
     title: t('dl.history.elsewhereTitle'),
     className: 'kdl-hist-find',
     onClick: async () => {
