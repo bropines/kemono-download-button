@@ -7,10 +7,13 @@ import { isModuleEnabled, setModuleEnabled } from '../../core/registry';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { el } from '../../utils/dom';
 import { addKitStyles, button, dialog, field, switchControl, type DialogHandle } from '../../ui/kit';
-import { canOfferPreloadStyle, preloadStyleControl } from '../../ui/components/preloadStyle';
+import { canOfferPreloadStyle, isPreloadStyleOutdated, PRELOAD_STYLE_REVISION, PRELOAD_STYLE_URL, preloadStyleControl } from '../../ui/components/preloadStyle';
+import { toast } from '../../ui/kit';
 import { t } from '../../i18n';
 
 const SEEN_KEY = 'onboarding.version';
+// The style revision an update was last offered for: the toast comes once per new revision
+const OFFERED_KEY = 'preload.offeredRevision';
 const ONBOARDING_VERSION = 1;
 // Let the page settle (and the user see it) before asking anything
 const DELAY_MS = 1500;
@@ -63,6 +66,18 @@ export const onboardingModule: KdlModule = {
   defaultEnabled: true,
   locked: true,
   setup() {
+    // An installed preload style older than this build's: offer the update once (Stylus shows its update page)
+    if (isPreloadStyleOutdated() && Number(readStored<number>(OFFERED_KEY, 0)) < PRELOAD_STYLE_REVISION) {
+      window.setTimeout(() => {
+        writeStored(OFFERED_KEY, PRELOAD_STYLE_REVISION);
+        toast({
+          title: t('preload.updateTitle'),
+          description: t('preload.updateDescription'),
+          duration: 15000,
+          action: { label: t('preload.update'), onClick: () => window.open(PRELOAD_STYLE_URL, '_blank') },
+        });
+      }, DELAY_MS);
+    }
     if (Number(readStored<number>(SEEN_KEY, 0)) >= ONBOARDING_VERSION) return;
     timer = window.setTimeout(() => {
       // Another tab may have shown it meanwhile

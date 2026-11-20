@@ -1,6 +1,6 @@
 {
   "name": "kemono-download-button",
-  "version": "1.10.15",
+  "version": "1.10.16",
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {

@@ -152,4 +152,8 @@ export default {
   'preload.install': 'Install the style in Stylus',
   'preload.getStylus': 'Get Stylus',
   'preload.installed': 'Style installed',
+  'preload.outdated': 'A newer version is out',
+  'preload.update': 'Update the style',
+  'preload.updateTitle': 'The loading style has an update',
+  'preload.updateDescription': 'Stylus will show the new version: confirm it there.',
 } as const;

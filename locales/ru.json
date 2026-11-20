@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 19,
+  "version": 20,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -230,6 +230,10 @@
     "preload.install": "Установить стиль в Stylus",
     "preload.getStylus": "Установить Stylus",
     "preload.installed": "Стиль установлен",
+    "preload.outdated": "Вышла новая версия",
+    "preload.update": "Обновить стиль",
+    "preload.updateTitle": "Для стиля загрузки есть обновление",
+    "preload.updateDescription": "Stylus покажет новую версию — подтвердите её там.",
     "settings.interface.redesignDescription": "Перерисовывает сайт и добавляет похожих авторов, обзор автора, информационные бейджи, меню ссылок автора, порядок блоков и страницу статуса импорта. Если выключить, всё это отключится и сайт вернётся к своему виду.",
     "settings.interface.listsSection": "Списки постов",
     "settings.interface.cardSize": "Размер карточки поста",

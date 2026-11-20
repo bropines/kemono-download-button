@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- The loading skeleton now matches the redesigned page it stands in for: the creator page (profile card, tabs, pagination, card grid), the post page (header card, content and files sections) and post lists.
+- An installed loading style older than the script is detected: the settings show "Update the style", and a one-time notice offers the update.
+
+### Fixed
+- Elements that set their own visibility no longer show through the loading skeleton.
+
 ### Added
 - A welcome screen after install with the redesign switch and the optional no-flash style; Settings → Interface shows it again. Its "seen" mark is kept by the userscript manager, so clearing site data does not bring it back.
 - An optional style for Stylus (`extras/kdl-preload.user.css`) that shows a loading skeleton instead of the site's own layout from the first frame until the script is ready, so the old layout no longer flashes even though userscript managers start scripts late. The same skeleton fills the page during navigations.
