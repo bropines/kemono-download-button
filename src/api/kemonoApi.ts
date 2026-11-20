@@ -17,7 +17,7 @@ async function getJson(path: string, timeout = 30000): Promise<any> {
 
 export async function fetchPostDataFromAPI(service: string, userID: string, postID: string): Promise<any> {
   const path = `/api/v1/${service}/user/${userID}/post/${postID}`;
-  debugLog(`[API] Fetching post data: ${path}`);
+  debugLog('[API]', 'fetch-post');
   return getJson(path);
 }
 
@@ -46,8 +46,8 @@ export function fetchCreatorName(service: string, userID: string): Promise<strin
   if (!creatorNames.has(key)) {
     const request = getJson(`/api/v1/${service}/user/${userID}/profile`, 15000)
       .then((profile) => (typeof profile?.name === 'string' && profile.name.trim()) || null)
-      .catch((error) => {
-        debugLog(`[API] Creator name for ${key} failed:`, error);
+      .catch(() => {
+        debugLog('[API]', 'creator-name-failed');
         creatorNames.delete(key);
         return null;
       });
@@ -76,7 +76,7 @@ export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAda
         if (error.message && error.message.includes('Status 400')) {
           debugLog('Reached end of posts (API returned 400). Normal exit condition.');
         } else {
-          console.error(`Failed to fetch posts at offset ${offset}:`, error);
+          console.error('[API] Failed to fetch posts.');
           showMessage(t('common.api.fetchListFailed'), 'error');
           progressTask?.updateStatus(t('common.api.fetchPostsError', { error: error.message }));
         }
@@ -171,8 +171,8 @@ export async function toggleFavorite(
       updateCardStateFn(button.closest('.user-card, .post-card'), !isFavorited, type);
     }
     showMessage(t(isFavorited ? 'common.api.favRemoved' : 'common.api.favAdded'), 'info');
-  } catch (error) {
-    console.error('[API] Favorite toggle failed:', error);
+  } catch {
+    console.error('[API] Favorite toggle failed.');
     showMessage(t('common.api.favFailed'), 'error');
   } finally {
     button.innerHTML = iconSvg('star');

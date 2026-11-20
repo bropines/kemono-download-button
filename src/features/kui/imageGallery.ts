@@ -12,6 +12,7 @@ import { sanitizeDuplicates } from '../../utils/domChecker';
 import { debugModule } from '../../utils/logger';
 import { resolveMediaUrl } from '../../utils/helpers';
 import { t } from '../../i18n';
+import { revealGalleryThumbnail } from './galleryScroll';
 
 // Per container: a slow fetch for the previous post must not block the gallery of the next one
 let initializingContainer: Element | null = null;
@@ -100,7 +101,7 @@ export async function initializeImageGallery(): Promise<void> {
     let currentIndex = 0;
     let thumbLinks: HTMLAnchorElement[] = [];
 
-    const setActive = (index: number) => {
+    const setActive = (index: number, reveal = false) => {
       currentIndex = (index + imageLinks.length) % imageLinks.length;
       const activeThumbLink = thumbLinks[currentIndex];
       const originalPageLink = imageLinks[currentIndex];
@@ -117,10 +118,10 @@ export async function initializeImageGallery(): Promise<void> {
       }
       thumbLinks.forEach((link) => link.classList.remove("kui-thumb-active"));
       activeThumbLink.classList.add("kui-thumb-active");
-      activeThumbLink.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      if (reveal) revealGalleryThumbnail(thumbList, activeThumbLink);
     };
 
-    galleryLayout.navigate = (direction: number) => setActive(currentIndex + direction);
+    galleryLayout.navigate = (direction: number) => setActive(currentIndex + direction, true);
 
     // Translates the image on show, and redraws it when a display setting changes
     const translateCurrent = async (): Promise<void> => {
@@ -188,7 +189,7 @@ export async function initializeImageGallery(): Promise<void> {
       newThumbLink.href = "#";
       newThumbLink.addEventListener("click", (e) => {
         e.preventDefault();
-        setActive(index);
+        setActive(index, true);
       });
       newThumbLink.appendChild(newThumb);
       wrapper.appendChild(newThumbLink);

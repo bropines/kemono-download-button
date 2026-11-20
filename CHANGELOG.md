@@ -7,6 +7,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ### Added
 - Reorder creator page blocks, overview sections and post blocks with drag handles or move buttons; the chosen order is remembered.
 - Double-tap the left or right side of a video on touchscreens to seek by 10 seconds.
+- Add privacy-conscious download diagnostics when debug logging is enabled.
 
 ### Changed
 - Show page block reorder controls only while layout editing is enabled in Interface settings.
@@ -17,6 +18,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Use compact header icons on phones by default, while preserving explicitly chosen header modes.
 
 ### Fixed
+- Stop the page scrolling to the gallery automatically when its thumbnails load.
+- Keep the downloads indicator and panel in place when the bulk bar is closed or the device is rotated.
 - Identify file requests to Pawchive as this downloader, in accordance with the site's policy.
 - On AdGuard, offer direct browser links when Pawchive refuses individual file requests with HTTP 403.
 - Restore the skin's layout immediately after HTMX saves a history snapshot.

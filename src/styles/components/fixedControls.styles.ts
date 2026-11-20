@@ -34,6 +34,9 @@ export const dockStyles = css({
     width: '100%',
   },
   '.kdl-ov-dock__slot:empty': { display: 'none' },
+  // Closed controls still occupy space with visibility:hidden; their dock slots must not
+  // push the downloads panel up the screen, especially when the bulk bar wraps on phones.
+  '.kdl-ov-dock__slot:has(> .kdl-ov-bulkbar[data-state="closed"]), .kdl-ov-dock__slot:has(> :only-child[hidden])': { display: 'none' },
   '#kdl-queue-indicator': {
     pointerEvents: 'auto',
     boxShadow: 'var(--kdl-shadow)',

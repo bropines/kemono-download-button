@@ -48,7 +48,7 @@ async function _loadSettingsAsync(): Promise<void> {
     state.settings.fileNameTemplate = DEFAULT_SETTINGS.fileNameTemplate;
   }
   migrateMergedSettings();
-  debugLog('Settings loaded:', state.settings);
+  debugLog('Settings loaded');
 }
 
 export function getSettings(): Promise<void> {

@@ -97,6 +97,12 @@ class ProgressManager {
     ring: SVGCircleElement;
   } | null = null;
 
+  constructor() {
+    // Moving between a phone-width dock and a configured corner must follow rotation or resizing,
+    // even while a download is already running and no new task is created.
+    window.addEventListener('resize', () => this.place(), { passive: true });
+  }
+
   private position(): PanelPosition {
     return (state.settings?.downloadPanelPosition as PanelPosition) || 'bottom-right';
   }

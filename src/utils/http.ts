@@ -46,6 +46,25 @@ const PAWCHIVE_DOWNLOADER_UA = 'KemonoDownloadButton/1 (+https://github.com/brop
 // toString rather than instanceof: a sandboxed host can hand back a buffer from another realm
 const isKind = (value: unknown, kind: string): boolean => Object.prototype.toString.call(value) === `[object ${kind}]`;
 
+// Diagnostic fields deliberately exclude paths, query strings, headers, bodies and error messages.
+let diagnosticSequence = 0;
+function downloadHost(url: unknown): string {
+  try {
+    const parsed = new URL(String(url), window.location.href);
+    return parsed.protocol === 'https:' || parsed.protocol === 'http:' ? parsed.hostname : 'unknown';
+  } catch { return 'unknown'; }
+}
+function responseSummary(value: unknown): { kind: string; bytes: number | null; textUnits: number | null } {
+  if (isKind(value, 'ArrayBuffer')) return { kind: 'arraybuffer', bytes: (value as ArrayBuffer).byteLength, textUnits: null };
+  if (ArrayBuffer.isView(value)) return { kind: 'view', bytes: value.byteLength, textUnits: null };
+  if (isKind(value, 'Blob')) return { kind: 'blob', bytes: (value as Blob).size, textUnits: null };
+  if (typeof value === 'string') return { kind: 'text', bytes: null, textUnits: value.length };
+  return { kind: value == null ? 'empty' : 'other', bytes: null, textUnits: null };
+}
+function statusCode(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 async function toArrayBuffer(body: unknown, text: unknown): Promise<ArrayBuffer | null> {
   if (isKind(body, 'ArrayBuffer')) return body as ArrayBuffer;
   if (ArrayBuffer.isView(body)) return body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength) as ArrayBuffer;
@@ -111,9 +130,24 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           headers['Accept'] = 'text/css';
         }
 
+        const trace = !!state.settings.enableDebugLogging && (requestDetails.responseType === 'arraybuffer' || isPawchiveFile(currentUrl));
+        const requestId = trace ? ++diagnosticSequence : 0;
+        const host = trace ? downloadHost(currentUrl) : '';
+        const startedAt = trace ? Date.now() : 0;
+        if (trace) debugLog('[download]', 'request-start', { requestId, host, transport: 'GM_xmlhttpRequest',
+          responseType: requestDetails.responseType === 'arraybuffer' ? 'arraybuffer' : 'other',
+          userAgentRequested: Object.keys(headers).some((key) => key.toLowerCase() === 'user-agent'), attempt: retries + 1 });
+
         const settle = (response: any) => {
+          if (trace) debugLog('[download]', 'response', { requestId, host, status: statusCode(response?.status), elapsedMs: Date.now() - startedAt, ...responseSummary(response?.response) });
           if (response.status >= 200 && response.status < 300) {
-            normalizeResponse(response, requestDetails.responseType).then(resolve, reject);
+            normalizeResponse(response, requestDetails.responseType).then((normalized) => {
+              if (trace) debugLog('[download]', 'normalized', { requestId, ...responseSummary(normalized?.response) });
+              resolve(normalized);
+            }, (error) => {
+              if (trace) debugLog('[download]', 'normalization-error', { requestId });
+              reject(error);
+            });
           } else {
             const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
             err.status = response.status;
@@ -136,6 +170,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
               settle(error);
               return;
             }
+            if (trace) debugLog('[download]', 'request-error', { requestId, host, status: statusCode(error?.status) });
             let errStr = '';
             if (typeof error === 'string') {
               errStr = error;
@@ -151,23 +186,27 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
               reject(new Error(errStr || 'Network Error'));
             }
           },
-          ontimeout: () => reject(new Error('Request Timeout')),
-          onabort: () => reject(abortError())
+          ontimeout: () => { if (trace) debugLog('[download]', 'request-timeout', { requestId, host }); reject(new Error('Request Timeout')); },
+          onabort: () => { if (trace) debugLog('[download]', 'request-aborted', { requestId, host }); reject(abortError()); }
         });
         onAbort = () => {
+          if (trace) debugLog('[download]', 'request-aborted', { requestId, host });
           request?.abort?.();
           reject(abortError());
         };
         signal?.addEventListener('abort', onAbort, { once: true });
       }));
     } catch (error: any) {
+      if (requestDetails.responseType === 'arraybuffer' || isPawchiveFile(currentUrl)) {
+        debugLog('[download]', 'request-failed', { host: downloadHost(currentUrl), status: statusCode(error?.status), aborted: !!signal?.aborted });
+      }
       if (signal?.aborted) throw abortError();
       // pawchive serves /data/ only from file.<domain> (its main domain 404s, while kemono/coomer redirect
       // to the right n1-n4 node themselves). Switching hosts doesn't use up a retry.
       const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);
       if (error.status === 404 && mainDataMatch && !/^(file|n\d+)\./.test(mainDataMatch[1])) {
         currentUrl = `https://file.${mainDataMatch[1]}${mainDataMatch[2]}`;
-        debugLog(`Main domain returned 404, retrying on ${currentUrl}`);
+        debugLog('[download]', 'host-fallback', { host: downloadHost(currentUrl), status: 404 });
         continue;
       }
       // A missing or forbidden file won't appear on a retry
@@ -175,7 +214,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
         throw error;
       }
       retries++;
-      debugLog(`Attempt ${retries} failed for ${currentUrl}: ${error.message}. Retrying in ${retryDelay}ms...`);
+      debugLog('[download]', 'retry', { host: downloadHost(currentUrl), attempt: retries, status: statusCode(error?.status), delayMs: Number(retryDelay) || 0 });
       await sleep(retryDelay, signal);
     } finally {
       if (onAbort) signal?.removeEventListener('abort', onAbort);
@@ -191,6 +230,7 @@ export async function downloadFileWithFallback(
 ): Promise<void> {
   if (signal?.aborted) throw abortError();
   const cleanName = sanitizeFilename(fileName);
+  const host = downloadHost(url);
 
   if (typeof GM_download === 'function') {
     const tryGmDownload = (): Promise<boolean> => {
@@ -204,17 +244,18 @@ export async function downloadFileWithFallback(
           resolve(success);
         };
         try {
+          debugLog('[download]', 'request-start', { host, transport: 'GM_download' });
           const handle = GM_download({
             url,
             name: cleanName,
             saveAs: false,
-            onload: () => finish(true),
-            onerror: (err) => {
-              debugLog('GM_download failed:', err);
+            onload: () => { debugLog('[download]', 'gm-download-complete', { host }); finish(true); },
+            onerror: () => {
+              debugLog('[download]', 'gm-download-error', { host });
               finish(false);
             },
             ontimeout: () => {
-              debugLog('GM_download timed out');
+              debugLog('[download]', 'gm-download-timeout', { host });
               finish(false);
             },
             onprogress: (e: any) => {
@@ -228,8 +269,8 @@ export async function downloadFileWithFallback(
             finish(false);
           };
           if (!isDone) signal?.addEventListener('abort', onAbort, { once: true });
-        } catch (e) {
-          debugLog('GM_download exception:', e);
+        } catch {
+          debugLog('[download]', 'gm-download-exception', { host });
           finish(false);
         }
       });
@@ -241,7 +282,7 @@ export async function downloadFileWithFallback(
 
   if (signal?.aborted) throw abortError();
 
-  debugLog(`GM_download fallback activated for ${url}. Fetching via gmXmlhttpRequest...`);
+  debugLog('[download]', 'gm-request-fallback', { host });
   const response = await gmXmlhttpRequestWithRetries({
     method: 'GET',
     url,

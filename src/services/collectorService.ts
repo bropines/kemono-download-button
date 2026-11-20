@@ -101,8 +101,8 @@ export function getWindowPageData(targetPostID?: string): any {
         return post;
       }
     }
-  } catch (e) {
-    debugLog('Failed to read page_data from window', e);
+  } catch {
+    debugLog('[download]', 'page-data-read-failed');
   }
   return null;
 }
@@ -125,8 +125,8 @@ async function fetchPostComments(postDetails: PostDetails): Promise<unknown> {
       responseType: 'json'
     });
     return response.response;
-  } catch (error) {
-    debugLog('Comments fetch failed:', error);
+  } catch {
+    debugLog('[download]', 'comments-fetch-failed');
     return null;
   }
 }
@@ -150,12 +150,12 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
       if (windowPost) {
         rawApiData = windowPost;
-        debugLog(`Post metadata loaded from window.page_data: ${postDetails.postID}`);
+        debugLog('[download]', 'metadata-from-page');
       } else {
         const cached = await getCachedPost(cacheKey);
         if (cached) {
           rawApiData = cached;
-          debugLog(`Post metadata loaded from IndexedDB cache: ${cacheKey}`);
+          debugLog('[download]', 'metadata-from-cache');
         } else {
           rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
           if (rawApiData) await setCachedPost(cacheKey, rawApiData);
@@ -170,8 +170,8 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
         if (post.content) postDetails.postContent = htmlToFormattedText(post.content);
         isApiSuccess = true;
       }
-    } catch (e) {
-      debugLog('API Fetch failed, falling back to DOM parsing.', e);
+    } catch {
+      debugLog('[download]', 'metadata-dom-fallback');
     }
   }
 

@@ -29,6 +29,12 @@ const skipDownloaded = <T>(items: T[], urlOf: (item: T) => unknown) => dropDownl
 /** Appends "N skipped" to a final status line. */
 const withSkipped = (message: string, skipped: number): string => (skipped > 0 ? `${message} ${t('dl.task.skippedSuffix', { count: skipped })}` : message);
 const withForbidden = (message: string, forbidden: boolean): string => forbidden ? `${message} ${t('dl.task.pawchiveForbidden')}` : message;
+// Network errors can contain URLs, credentials or filenames. Keep console errors useful without exposing them.
+const errorDetails = (error: unknown): { status: number | null; kind: string } => {
+  const status = (error as { status?: unknown } | null)?.status;
+  const httpStatus = typeof status === 'number' && Number.isFinite(status) ? status : null;
+  return { status: httpStatus, kind: isAbortError(error) ? 'aborted' : httpStatus !== null ? 'http' : 'other' };
+};
 
 async function runWithConcurrency<T>(
   items: T[],
@@ -109,7 +115,7 @@ async function addUrlFilesToZip(
       if (isAbortError(error)) return;
       failed++;
       if (error?.status === 403 && isPawchiveFile(file.data)) forbidden = true;
-      console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
+      console.error('[Kemono DL] File download failed:', errorDetails(error));
       const baseName = sanitizeFilename(file.name.split('/').pop() || 'file');
       const reason = error?.status === 403 && isPawchiveFile(file.data) ? t('dl.task.pawchiveForbidden') : error?.message || error;
       storedNames[index] = zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${reason}`);
@@ -165,7 +171,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
       return;
     }
     task.fail(t('dl.task.error', { message: error.message }));
-    console.error('ZIP process error:', error);
+    console.error('[Kemono DL] ZIP process failed:', errorDetails(error));
     throw error;
   } finally {
     void flushDownloadHistory();
@@ -231,7 +237,7 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
             forbidden = true;
             if (typeof GM_download !== 'function') directFiles[i] = { url: file.data, fileName: file.name };
           }
-          console.error(`[Kemono DL] Individual download failed for ${file.name}:`, err);
+          console.error('[Kemono DL] Individual download failed:', errorDetails(err));
         }
       } finally {
         completedCount++;
@@ -305,7 +311,7 @@ export async function downloadFilesToDiskWithProgress(
     } catch (err: any) {
       task.markFileComplete(fileTaskId, false);
       if (isAbortError(err)) return;
-      console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
+      console.error('[Kemono DL] File download failed:', errorDetails(err));
       failCount++;
       if (err?.status === 403 && isPawchiveFile(spec.url)) {
         forbidden = true;
@@ -377,7 +383,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
       postTask.updateStatus(t('dl.task.cancelled'));
       return;
     }
-    console.error(`Failed to download post ${details.postID} as ZIP:`, error);
+    console.error('[Kemono DL] Post ZIP failed:', errorDetails(error));
     postTask.fail(t('dl.task.error', { message: error.message }));
     throw error;
   } finally {
@@ -483,7 +489,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       task.updateStatus(t('dl.task.cancelled'));
       return;
     }
-    console.error('Bulk download (single) failed:', error);
+    console.error('[Kemono DL] Bulk ZIP failed:', errorDetails(error));
     task.fail(t('dl.task.error', { message: error.message }));
   } finally {
     void flushDownloadHistory();
@@ -557,7 +563,7 @@ export async function executeBulkDownload(posts: PostDetails[]): Promise<void> {
       await executeBulkDownloadSingle(postsToProcess, authorName);
     }
   } catch (error) {
-    console.error('Bulk download execution failed:', error);
+    console.error('[Kemono DL] Bulk download failed:', errorDetails(error));
     showMessage(t('dl.bulk.critical'), 'error');
   } finally {
     if (downloadBtn) downloadBtn.disabled = false;
