@@ -200,10 +200,11 @@ export function formatAttachmentButtons(): void {
     // The site's own link, dressed as a kit button; self-scoped since the list around it is the site's
     link.classList.add("kdl-scope", "kdl-ui-btn", "kdl-ui-btn--outline", "kdl-ui-btn--size-sm");
     const textSpan = document.createElement("span");
-    textSpan.textContent = t('kui.embeds.downloadFile', { name: rawFileName });
+    textSpan.textContent = rawFileName;
 
     link.replaceChildren(kitIcon("download"), textSpan);
     link.title = t('kui.embeds.downloadFile', { name: rawFileName });
+    link.setAttribute('aria-label', t('kui.embeds.downloadFile', { name: rawFileName }));
   });
 }
 

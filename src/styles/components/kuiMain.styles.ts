@@ -229,7 +229,7 @@ export const kuiMainStyles = css({
     maxHeight: '85vh',
   },
   /* Embeds & Attachments Buttons (kit outline buttons; the host keeps only a favicon or a dot in its colour) */
-  '.kui-embed-container, .post__attachments': {
+  '.kui-embed-container': {
     display: 'flex !important',
     flexWrap: 'wrap !important',
     gap: '8px !important',
@@ -237,11 +237,45 @@ export const kuiMainStyles = css({
     padding: '0 !important',
     margin: '10px 0 15px 0 !important',
   },
-  '.post__attachment': {
-    margin: '0 !important',
-    display: 'inline-block !important',
+  '.post__attachments': {
+    display: 'grid !important',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 500px), 1fr))',
+    gap: '8px !important',
+    listStyle: 'none !important',
+    padding: '0 !important',
+    margin: '10px 0 15px 0 !important',
   },
-  '.kui-embed-container .kui-embed-button, .post__attachment .kui-attachment-styled': {
+  '.post__attachments > .post__attachment': {
+    display: 'grid !important',
+    gridTemplateColumns: 'minmax(0, 1fr)',
+    alignItems: 'start',
+    gap: '8px',
+    minWidth: '0',
+    margin: '0 !important',
+    padding: '0',
+  },
+  '.post__attachments > .post__attachment:has(> .kdl-hist-own)': {
+    gridTemplateColumns: 'minmax(0, 1fr) auto',
+  },
+  '.post__attachment .kui-attachment-styled.kdl-ui-btn': {
+    boxSizing: 'border-box',
+    width: '100%',
+    maxWidth: 'none',
+    minWidth: '0',
+    minHeight: '40px',
+    height: 'auto',
+    justifyContent: 'flex-start',
+    padding: '8px 12px',
+    textDecoration: 'none',
+  },
+  '.post__attachment .kui-attachment-styled > span': {
+    minWidth: '0',
+    whiteSpace: 'normal',
+    overflowWrap: 'anywhere',
+    textAlign: 'left',
+    lineHeight: '1.35',
+  },
+  '.kui-embed-container .kui-embed-button': {
     maxWidth: '320px',
     textDecoration: 'none',
   },
@@ -259,41 +293,13 @@ export const kuiMainStyles = css({
     borderRadius: '9999px',
     background: 'var(--kui-brand, var(--kdl-muted-foreground))',
   },
-  '.kui-embed-button-text, .kui-attachment-styled > span': {
+  '.kui-embed-button-text': {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
-  '@media (max-width: 600px)': {
-    '.post__attachments > .post__attachment': {
-      display: 'flex !important',
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      width: '100%',
-      minWidth: '0',
-      gap: '6px',
-      padding: '0',
-    },
-    '.post__attachment .kui-attachment-styled.kdl-ui-btn': {
-      boxSizing: 'border-box',
-      width: '100%',
-      maxWidth: '100%',
-      height: 'auto',
-      minHeight: '44px',
-      justifyContent: 'flex-start',
-      padding: '8px 12px',
-    },
-    '.post__attachment .kui-attachment-styled > span': {
-      minWidth: '0',
-      whiteSpace: 'normal',
-      overflowWrap: 'anywhere',
-      textAlign: 'left',
-      lineHeight: '1.35',
-    },
-    '.post__attachment > .kdl-hist-own': {
-      marginLeft: '0',
-      maxWidth: '100%',
-    },
+  '@media (max-width: 600px), (pointer: coarse)': {
+    '.post__attachment .kui-attachment-styled.kdl-ui-btn': { minHeight: '44px' },
   },
   '.kui-embed-button .kui-embed-password': {
     maxWidth: '140px',

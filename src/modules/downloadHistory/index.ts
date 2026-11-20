@@ -15,19 +15,20 @@ const LINKS = '.post__attachment-link';
 const OWN = 'kdl-hist-own';
 const MARK = 'data-kdl-hist';
 
-const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
-.post__attachments > .post__attachment:has(> .${OWN}) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; flex: 1 1 520px; min-width: 0; }
-.post__attachment > .kui-attachment-styled.kdl-ui-btn { width: 100%; max-width: none; min-width: 0; }
-.post__attachment > .${OWN} { display: contents !important; }
-.post__attachment > .${OWN} .kdl-hist-find { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; }
-.post__attachment > .${OWN} .kdl-hist-find > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.post__attachment > .${OWN} .kdl-ui-badge { grid-column: 2; grid-row: 2; justify-self: start; }
-@media (max-width: 600px) {
-  .post__attachments > .post__attachment:has(> .${OWN}) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .post__attachment > .${OWN} .kdl-hist-find { grid-column: 1; grid-row: 2; min-height: 44px; height: auto; }
-  .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 1; grid-row: 3; }
+const STYLES = `
+.${OWN} { display: inline-flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; min-width: 0; max-width: 100%; }
+.post__attachment > .${OWN} .kdl-hist-find { flex: 0 0 auto; width: 40px; height: 40px; padding: 0; }
+.${OWN} .kdl-hist-result { color: var(--kdl-muted-foreground); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; max-width: 12rem; }
+.${OWN} .kdl-hist-result:empty { display: none; }
+.kui-post-section .post__attachment > .${OWN} { display: contents; }
+.kui-post-section .post__attachment > .${OWN} .kdl-hist-find { grid-column: 2; grid-row: 1; }
+.kui-post-section .post__attachment > .${OWN} .kdl-hist-result { grid-column: 1; grid-row: 2; max-width: none; }
+.kui-post-section .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 2; grid-row: 2; justify-self: end; }
+.${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }
+@media (max-width: 600px), (pointer: coarse) {
+  .post__attachment > .${OWN} .kdl-hist-find { width: 44px; height: 44px; }
 }
-.${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }`;
+`;
 
 const currentPostId = (): string => /\/post\/([^/?#]+)/.exec(window.location.pathname)?.[1] ?? '';
 
@@ -43,13 +44,13 @@ async function otherPostsWith(hash: string): Promise<number | null> {
 
 /** The answer replaces the button's own label: "Only in this post" (disabled) or "In N other posts", which then
  *  opens the site's hash search listing them */
-function findButton(hash: string): HTMLButtonElement {
+function findButton(hash: string, result: HTMLElement): HTMLButtonElement {
   let found = 0;
   const find: HTMLButtonElement = button({
-    label: t('dl.history.findElsewhere'),
     icon: 'search',
     variant: 'outline',
-    size: 'sm',
+    size: 'icon',
+    ariaLabel: t('dl.history.elsewhereTitle'),
     title: t('dl.history.elsewhereTitle'),
     className: 'kdl-hist-find',
     onClick: async () => {
@@ -57,19 +58,27 @@ function findButton(hash: string): HTMLButtonElement {
         window.open(`/search_hash?hash=${hash}`, '_blank', 'noopener');
         return;
       }
+      result.textContent = '';
       setButtonLoading(find, true);
       try {
         const count = await otherPostsWith(hash);
         if (count === null) throw new Error('No post list in the response');
         setButtonLoading(find, false);
         found = count;
-        find.replaceChildren(kitIcon(count > 0 ? 'external-link' : 'check'), el('span', { textContent: count > 0 ? t('dl.history.elsewhere', { count }) : t('dl.history.onlyHere') }));
+        const message = count > 0 ? t('dl.history.elsewhere', { count }) : t('dl.history.onlyHere');
+        result.textContent = message;
+        find.title = message;
+        find.setAttribute('aria-label', message);
+        find.replaceChildren(kitIcon(count > 0 ? 'external-link' : 'check'));
         find.disabled = count === 0;
         find.dataset.result = count > 0 ? 'found' : 'only';
       } catch (error) {
         debugLog('search_hash failed:', error);
         setButtonLoading(find, false);
-        find.replaceChildren(kitIcon('triangle-alert'), el('span', { textContent: t('dl.history.failed') }));
+        result.textContent = t('dl.history.failed');
+        find.title = t('dl.history.failed');
+        find.setAttribute('aria-label', t('dl.history.failed'));
+        find.replaceChildren(kitIcon('triangle-alert'));
       }
     },
   });
@@ -86,7 +95,10 @@ function enhance(): void {
     const downloaded = badge({ text: t('dl.history.downloaded'), variant: 'success', icon: 'check', title: t('dl.history.downloadedTitle') });
     downloaded.hidden = !isUrlDownloaded(link.href);
     downloaded.dataset.kdlHistHash = hash;
-    link.after(kitScope([downloaded, findButton(hash)], { tag: 'span', className: OWN }));
+    const result = el('span', { className: 'kdl-hist-result' });
+    result.setAttribute('role', 'status');
+    result.setAttribute('aria-live', 'polite');
+    link.after(kitScope([downloaded, result, findButton(hash, result)], { tag: 'span', className: OWN }));
   });
 }
 

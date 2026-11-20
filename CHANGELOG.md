@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.10.13] - 2026-11-20
+
+### Changed
+- Redesign attachment rows for desktop and mobile, keeping filenames readable and file search compact.
+
 ## [1.10.12] - 2026-11-20
 
 ### Fixed
