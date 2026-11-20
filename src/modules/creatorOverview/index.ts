@@ -22,6 +22,8 @@ interface Overview { announcement: { text: string; added: string; count: number 
 const cache = new Map<string, Promise<Overview>>();
 let node: HTMLElement | null = null;
 let current = '';
+let pending = '';
+let generation = 0;
 
 const creatorFromPath = (): Who | null => {
   const m = POSTS_TAB.exec(location.pathname);
@@ -111,9 +113,11 @@ function place(): void {
 }
 
 function remove(): void {
+  generation++;
   node?.remove();
   node = null;
   current = '';
+  pending = '';
 }
 
 async function render(ctx: ModuleContext): Promise<void> {
@@ -121,12 +125,16 @@ async function render(ctx: ModuleContext): Promise<void> {
   if (!who) return remove();
   const key = `${who.service}/${who.id}${location.search}`;
   if (key === current && node?.isConnected) return place();
+  if (key === pending) return;
   remove();
   current = key;
+  pending = key;
+  const request = generation;
   const cacheKey = `${who.service}/${who.id}`;
   if (!cache.has(cacheKey)) cache.set(cacheKey, load(who, ctx));
   const data = await cache.get(cacheKey)!;
-  if (current !== key) return;
+  if (request !== generation) return;
+  pending = '';
   node = build(who, data);
   place();
 }
@@ -198,7 +206,6 @@ export const creatorOverviewModule: KdlModule = {
     void render(ctx);
   },
   beforeSnapshot() {
-    node?.remove();
-    current = '';
+    remove();
   },
 };

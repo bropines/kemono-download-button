@@ -1,11 +1,12 @@
 {
   "name": "kemono-download-button",
-  "version": "1.10.0",
+  "version": "1.10.1",
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
     "build": "vite build && node scripts/postbuild.mjs",
     "typecheck": "tsc --noEmit",
+    "test": "node tests/creator-overview-race.cjs",
     "verify-locales": "node scripts/verify-locales.mjs",
     "check-locales": "node scripts/verify-locales.mjs",
     "locale-template": "node scripts/locale-template.mjs",

@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- Creator overview no longer duplicates its tags, announcements or linked accounts when page updates overlap while loading.
+
 ## [1.10.0] - 2026-11-19
 
 ### Added
