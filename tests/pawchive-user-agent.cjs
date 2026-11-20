@@ -14,10 +14,11 @@ const location = { href: 'https://pawchive.pw/patreon/user/1', hostname: 'pawchi
 const rate = load('src/utils/pawchiveRateLimit.ts', {}, { URL, window: { location }, performance, DOMException, setTimeout, clearTimeout });
 const requests = [];
 const slots = [];
+let saved = 0;
 let statusFor = () => 200;
 const http = load('src/utils/http.ts', {
   '../state/store': { state: { settings: { enableDownloadRetries: false } } },
-  './saveFile': {},
+  './saveFile': { saveBlobViaAnchor: () => { saved++; } },
   './helpers': { debugLog() {}, sanitizeFilename: name => name },
   './pawchiveRateLimit': {
     isPawchiveFile: rate.isPawchiveFile,
@@ -67,5 +68,15 @@ const expectedUA = 'KemonoDownloadButton/1 (+https://github.com/bropines/kemono-
   controller.abort();
   await assert.rejects(http.gmXmlhttpRequestWithRetries({ url: 'https://file.pawchive.pw/data/file.jpg', signal: controller.signal }), { name: 'AbortError' });
   assert.equal(requests.length, before + 1, 'pre-aborted requests never reach the server');
+
+  statusFor = () => 200;
+  let cachedBytes;
+  await http.downloadFileWithFallback('https://file.pawchive.pw/data/file.jpg', 'file.jpg', undefined, undefined,
+    async data => { cachedBytes = [...new Uint8Array(data)]; });
+  assert.deepEqual(cachedBytes, [1, 2], 'fallback passes the downloaded bytes to the cache');
+  assert.equal(saved, 1);
+  await http.downloadFileWithFallback('https://file.pawchive.pw/data/file.jpg', 'file.jpg', undefined, undefined,
+    async () => { throw Error('storage unavailable'); });
+  assert.equal(saved, 2, 'cache failure does not turn a browser download into an error');
   console.log('Pawchive downloader identification checks passed');
 })().catch(error => { console.error(error); process.exitCode = 1; });

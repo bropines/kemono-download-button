@@ -56,7 +56,7 @@ const impl = load('src/services/downloadService.ts', {
   } } },
   '../ui/toast': {}, '../ui/components/fixedControls': {},
   '../state/store': { appState: store, state: store, getSettings: async () => {} },
-  '../utils/helpers': { sanitizeFilename: s => s, generateRandomId: () => '1' },
+  '../utils/helpers': { debugLog() {}, sanitizeFilename: s => s, generateRandomId: () => '1' },
   '../utils/http': { downloadFileWithFallback: async url => { await request(url); }, gmXmlhttpRequestWithRetries: async ({url}) => request(url), isAbortError: e => e?.name === 'AbortError' },
   './collectorService': {}, './queueService': {},
   './downloadHistory': { dropDownloaded: async items => ({ items, skipped: 0 }), recordDownloaded: url => history.push(url), flushDownloadHistory: async () => {} },

@@ -6,7 +6,7 @@ import { showMessage } from '../ui/toast';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { appState, getSettings, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
-import { generateRandomId, getApiUrl, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
+import { debugLog, generateRandomId, getApiUrl, sanitizeFilename, isFileExtensionIgnored } from '../utils/helpers';
 import { abortError, downloadFileWithFallback, gmXmlhttpRequestWithRetries, isAbortError } from '../utils/http';
 import { collectFilesForPost, formatNameFromTemplate } from './collectorService';
 import { addTaskToQueue } from './queueService';
@@ -63,9 +63,11 @@ async function fetchFileBytes(
   if (useCache) {
     const cached = await getCachedFile(url);
     if (cached && cached.byteLength > 0) {
+      debugLog('[download]', 'cache-hit', { bytes: cached.byteLength });
       onProgress(100);
       return cached;
     }
+    debugLog('[download]', 'cache-miss');
   }
 
   const response = await gmXmlhttpRequestWithRetries({
@@ -226,7 +228,11 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       const fileTaskId = `indiv-${i}`;
       task.addFile(fileTaskId, file.name);
       try {
-        await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal);
+        await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal,
+          async (data) => {
+            await setCachedFile(file.data, data);
+            debugLog('[download]', 'individual-cache-stored', { bytes: data.byteLength });
+          });
         recordDownloaded(file.data);
         task.markFileComplete(fileTaskId, true);
       } catch (err: any) {

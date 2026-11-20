@@ -113,7 +113,6 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
 
   while (true) {
     if (signal?.aborted) throw abortError();
-    let onAbort: (() => void) | undefined;
     try {
       return await withPawchiveFileLimit(currentUrl, signal, () => new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
@@ -138,25 +137,68 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           responseType: requestDetails.responseType === 'arraybuffer' ? 'arraybuffer' : 'other',
           userAgentRequested: Object.keys(headers).some((key) => key.toLowerCase() === 'user-agent'), attempt: retries + 1 });
 
+        // Some hosts never call ontimeout. Keep our own inactivity deadline, with exactly one
+        // terminal callback even when abort() synchronously triggers onabort or an old onload arrives.
+        const isFile = requestDetails.responseType === 'arraybuffer' || isPawchiveFile(currentUrl);
+        const requestedTimeout = Number(requestDetails.timeout);
+        const timeout = Number.isFinite(requestedTimeout) && requestedTimeout > 0 ? requestedTimeout : 0;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let request: { abort?: () => void } | undefined;
+        let done = false;
+        let processing = false;
+        let lastLoaded = -1;
+        const finish = (action: () => void): void => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          signal?.removeEventListener('abort', onAbort);
+          action();
+        };
+        const onAbort = (): void => finish(() => {
+          if (trace) debugLog('[download]', 'request-aborted', { requestId, host });
+          try { request?.abort?.(); } catch { /* already finished by the host */ }
+          reject(abortError());
+        });
+        const onTimeout = (): void => finish(() => {
+          if (trace) debugLog('[download]', 'request-timeout', { requestId, host });
+          try { request?.abort?.(); } catch { /* already finished by the host */ }
+          reject(new Error('Request Timeout'));
+        });
+        const arm = (): void => {
+          if (!(timeout > 0) || !Number.isFinite(timeout) || done) return;
+          clearTimeout(timer);
+          timer = setTimeout(onTimeout, timeout);
+        };
         const settle = (response: any) => {
+          if (done || processing) return;
           if (trace) debugLog('[download]', 'response', { requestId, host, status: statusCode(response?.status), elapsedMs: Date.now() - startedAt, ...responseSummary(response?.response) });
           if (response.status >= 200 && response.status < 300) {
+            processing = true;
             normalizeResponse(response, requestDetails.responseType).then((normalized) => {
-              if (trace) debugLog('[download]', 'normalized', { requestId, ...responseSummary(normalized?.response) });
-              resolve(normalized);
+              finish(() => {
+                if (trace) debugLog('[download]', 'normalized', { requestId, ...responseSummary(normalized?.response) });
+                resolve(normalized);
+              });
             }, (error) => {
-              if (trace) debugLog('[download]', 'normalization-error', { requestId });
-              reject(error);
+              finish(() => {
+                if (trace) debugLog('[download]', 'normalization-error', { requestId });
+                reject(error);
+              });
             });
           } else {
             const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
             err.status = response.status;
-            reject(err);
+            finish(() => reject(err));
           }
         };
 
-        const request = GM_xmlhttpRequest({
+        signal?.addEventListener('abort', onAbort, { once: true });
+        if (signal?.aborted) return onAbort();
+        arm();
+        try { request = GM_xmlhttpRequest({
           ...requestDetails,
+          // Native GM deadlines are absolute; a progressing multi-GB transfer must not be cut off.
+          ...(isFile && timeout > 0 ? { timeout: 0 } : {}),
           ...(requestDetails.responseType === 'arraybuffer' && !requestDetails.overrideMimeType
             ? { overrideMimeType: BINARY_MIME }
             : {}),
@@ -164,6 +206,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           headers,
           onload: settle,
           onerror: (error: any) => {
+            if (done || processing) return;
             // AdGuard routes every non-2xx through onerror. A status means the request was answered,
             // so a 404 still fails fast and still moves /data/ over to the file host
             if (error && typeof error === 'object' && error.status > 0) {
@@ -181,20 +224,20 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
             }
 
             if (errStr.includes('BLOCKED') || errStr.includes('blocked')) {
-              reject(new Error(`Blocked by browser/AdBlocker extension (${errStr})`));
+              finish(() => reject(new Error(`Blocked by browser/AdBlocker extension (${errStr})`)));
             } else {
-              reject(new Error(errStr || 'Network Error'));
+              finish(() => reject(new Error(errStr || 'Network Error')));
             }
           },
-          ontimeout: () => { if (trace) debugLog('[download]', 'request-timeout', { requestId, host }); reject(new Error('Request Timeout')); },
-          onabort: () => { if (trace) debugLog('[download]', 'request-aborted', { requestId, host }); reject(abortError()); }
-        });
-        onAbort = () => {
-          if (trace) debugLog('[download]', 'request-aborted', { requestId, host });
-          request?.abort?.();
-          reject(abortError());
-        };
-        signal?.addEventListener('abort', onAbort, { once: true });
+          onprogress: (event: any) => {
+            if (done || processing) return;
+            const loaded = Number(event?.loaded);
+            if (Number.isFinite(loaded) && loaded > lastLoaded) { lastLoaded = loaded; arm(); }
+            requestDetails.onprogress?.(event);
+          },
+          ontimeout: onTimeout,
+          onabort: () => finish(() => reject(abortError()))
+        }); } catch (error) { finish(() => reject(error)); }
       }));
     } catch (error: any) {
       if (requestDetails.responseType === 'arraybuffer' || isPawchiveFile(currentUrl)) {
@@ -216,8 +259,6 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
       retries++;
       debugLog('[download]', 'retry', { host: downloadHost(currentUrl), attempt: retries, status: statusCode(error?.status), delayMs: Number(retryDelay) || 0 });
       await sleep(retryDelay, signal);
-    } finally {
-      if (onAbort) signal?.removeEventListener('abort', onAbort);
     }
   }
 }
@@ -226,58 +267,81 @@ export async function downloadFileWithFallback(
   url: string,
   fileName: string,
   progressCallback?: (percent: number) => void,
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  onFetched?: (data: ArrayBuffer) => Promise<void>
 ): Promise<void> {
   if (signal?.aborted) throw abortError();
   const cleanName = sanitizeFilename(fileName);
   const host = downloadHost(url);
 
   if (typeof GM_download === 'function') {
-    const tryGmDownload = (): Promise<boolean> => {
+    const tryGmDownload = (): Promise<'success' | 'failed' | 'timeout'> => {
       return new Promise((resolve) => {
         let isDone = false;
         let onAbort: (() => void) | undefined;
-        const finish = (success: boolean) => {
+        let handle: { abort?: () => void } | undefined;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let lastLoaded = -1;
+        const timeout = Number(state.settings.zipFileDownloadTimeout) || 120000;
+        const finish = (result: 'success' | 'failed' | 'timeout', abort = false) => {
           if (isDone) return;
           isDone = true;
+          clearTimeout(timer);
           if (onAbort) signal?.removeEventListener('abort', onAbort);
-          resolve(success);
+          if (abort) { try { handle?.abort?.(); } catch { /* already finished by the host */ } }
+          resolve(result);
+        };
+        const arm = () => {
+          if (isDone) return;
+          clearTimeout(timer);
+          timer = setTimeout(() => {
+            debugLog('[download]', 'gm-download-timeout', { host });
+            finish('timeout', true);
+          }, timeout);
         };
         try {
           debugLog('[download]', 'request-start', { host, transport: 'GM_download' });
-          const handle = GM_download({
+          onAbort = () => finish('failed', true);
+          signal?.addEventListener('abort', onAbort, { once: true });
+          if (signal?.aborted) return onAbort();
+          arm();
+          handle = GM_download({
             url,
             name: cleanName,
             saveAs: false,
-            onload: () => { debugLog('[download]', 'gm-download-complete', { host }); finish(true); },
+            onload: () => { if (!isDone) debugLog('[download]', 'gm-download-complete', { host }); finish('success'); },
             onerror: () => {
-              debugLog('[download]', 'gm-download-error', { host });
-              finish(false);
+              if (!isDone) debugLog('[download]', 'gm-download-error', { host });
+              finish('failed');
             },
             ontimeout: () => {
-              debugLog('[download]', 'gm-download-timeout', { host });
-              finish(false);
+              if (!isDone) debugLog('[download]', 'gm-download-timeout', { host });
+              finish('timeout', true);
             },
             onprogress: (e: any) => {
+              if (isDone) return;
+              const loaded = Number(e?.loaded);
+              if (Number.isFinite(loaded) && loaded > lastLoaded) { lastLoaded = loaded; arm(); }
               if (progressCallback && e.lengthComputable && e.total > 0) {
                 progressCallback((e.loaded / e.total) * 100);
               }
             }
           });
-          onAbort = () => {
-            handle?.abort?.();
-            finish(false);
-          };
-          if (!isDone) signal?.addEventListener('abort', onAbort, { once: true });
         } catch {
-          debugLog('[download]', 'gm-download-exception', { host });
-          finish(false);
+          if (!isDone) debugLog('[download]', 'gm-download-exception', { host });
+          finish('failed');
         }
       });
     };
 
-    const success = await withPawchiveFileLimit(url, signal, tryGmDownload);
-    if (success) return;
+    const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
+    for (let retries = 0; ; retries++) {
+      const result = await withPawchiveFileLimit(url, signal, tryGmDownload);
+      if (result === 'success') return;
+      if (signal?.aborted) throw abortError();
+      if (result !== 'timeout' || retries >= maxRetries) break;
+      await sleep(Number(state.settings.downloadRetryDelay) || 0, signal);
+    }
   }
 
   if (signal?.aborted) throw abortError();
@@ -302,6 +366,11 @@ export async function downloadFileWithFallback(
   }
 
   saveBlobViaAnchor(new Blob([arrayBuffer]), cleanName);
+  // The fallback already has the bytes: let the caller reuse them for a later ZIP.
+  if (onFetched) {
+    try { await onFetched(arrayBuffer); }
+    catch { debugLog('[download]', 'cache-write-failed'); }
+  }
 }
 
 export { saveBlobViaAnchor };

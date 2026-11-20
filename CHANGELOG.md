@@ -18,6 +18,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Use compact header icons on phones by default, while preserving explicitly chosen header modes.
 
 ### Fixed
+- Reuse bytes from individual downloads for a later ZIP when the userscript fetched the file.
+- Retry stalled downloads after the configured inactivity timeout, even when the userscript host does not report a timeout.
 - Stop the page scrolling to the gallery automatically when its thumbnails load.
 - Keep the downloads indicator and panel in place when the bulk bar is closed or the device is rotated.
 - Identify file requests to Pawchive as this downloader, in accordance with the site's policy.
