@@ -1,6 +1,7 @@
 import { readStored, writeStored } from '../../state/gmStorage';
 import { button, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
+import { getModuleSetting, onRegistryChange } from '../../core/registry';
 
 export type SectionId = string;
 export interface OverviewSection { id: SectionId; node: HTMLElement; title: string; members?: HTMLElement[] }
@@ -11,6 +12,7 @@ const DEFAULT_ORDER: SectionId[] = ['announcements', 'tags', 'links'];
 // Larger hit areas on phones and other touch devices; headings may shrink instead of
 // forcing the control row wider than the page.
 export const ORDER_CONTROLS_STYLE = `
+.kdl-ov__order[hidden], .kdl-creator-order__head[hidden] { display: none !important; }
 @media (max-width: 600px), (pointer: coarse) {
   .kdl-ov__order .kdl-ui-btn.kdl-ov__move, .kdl-ov__order .kdl-ui-btn.kdl-ov__drag { width: 44px; height: 44px; }
   .kdl-ov__head .kdl-ov__title, .kdl-sim__head .kdl-sim__title, .kdl-creator-order__title {
@@ -53,9 +55,12 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
   if (sections.length < 2) return { nodes, cleanup: () => {} };
 
   let cancelDrag = () => {};
+  let editing = getModuleSetting<boolean>('creator.blockOrder', 'editMode') === true;
   const controlNodes: HTMLElement[] = [];
+  const extraHeadings: HTMLElement[] = [];
   const controls = new Map<SectionId, { up: HTMLButtonElement; down: HTMLButtonElement }>();
   const apply = (source: SectionId, target: SectionId, after: boolean) => {
+    if (!editing) return;
     const next = moveSection(order, source, target, after);
     if (next.join('|') === order.join('|')) return;
     order = next;
@@ -82,6 +87,7 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     const heading = options?.heading ?? '.kdl-ov__head';
     const head = typeof heading === 'function' ? heading(byId.get(id)!) : node.querySelector<HTMLElement>(heading);
     if (!head) return;
+    if (head.matches?.('.kdl-creator-order__head')) extraHeadings.push(head);
     const move = (delta: number) => {
       const visible = sorted();
       const index = visible.findIndex((section) => section.id === id);
@@ -100,10 +106,11 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     const handle = button({ variant: 'ghost', size: 'icon', icon: 'list', title: dragLabel, ariaLabel: dragLabel, className: 'kdl-ov__drag' });
     controls.set(id, { up, down });
     const buttons = kitScope([up, down, handle], { className: 'kdl-ov__order' });
+    buttons.hidden = !editing;
     controlNodes.push(buttons);
     head.append(buttons);
     handle.addEventListener('pointerdown', (event) => {
-      if (event.button !== 0) return;
+      if (!editing || event.button !== 0) return;
       event.preventDefault();
       cancelDrag();
       const pointerId = event.pointerId;
@@ -135,5 +142,13 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     const control = controls.get(id);
     if (control) { control.up.disabled = index === 0; control.down.disabled = index === visible.length - 1; }
   });
-  return { nodes, cleanup: () => { cancelDrag(); controlNodes.forEach((node) => node.remove()); } };
+  extraHeadings.forEach((head) => { head.hidden = !editing; });
+  const off = onRegistryChange((event) => {
+    if (event.type !== 'setting' || event.id !== 'creator.blockOrder' || event.key !== 'editMode') return;
+    editing = event.value === true;
+    if (!editing) cancelDrag();
+    controlNodes.forEach((node) => { node.hidden = !editing; });
+    extraHeadings.forEach((head) => { head.hidden = !editing; });
+  });
+  return { nodes, cleanup: () => { off(); cancelDrag(); controlNodes.forEach((node) => node.remove()); } };
 }

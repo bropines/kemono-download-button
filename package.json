@@ -1,12 +1,12 @@
 {
   "name": "kemono-download-button",
-  "version": "1.10.2",
+  "version": "1.10.3",
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
     "build": "vite build && node scripts/postbuild.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "node tests/creator-overview-race.cjs && node tests/overview-order.cjs && node tests/creator-block-order.cjs && node tests/post-block-order.cjs && node tests/creator-overview-cache.cjs && node tests/post-cache-expiry.cjs && node tests/settings-modules.cjs && node tests/early-style.cjs && node tests/individual-download-status.cjs && node tests/pawchive-rate-limit.cjs && node tests/double-tap-seek.cjs",
+    "test": "node tests/creator-overview-race.cjs && node tests/overview-order.cjs && node tests/creator-block-order.cjs && node tests/post-block-order.cjs && node tests/creator-overview-cache.cjs && node tests/post-cache-expiry.cjs && node tests/settings-modules.cjs && node tests/early-style.cjs && node tests/individual-download-status.cjs && node tests/direct-download-fallback.cjs && node tests/pawchive-rate-limit.cjs && node tests/double-tap-seek.cjs",
     "verify-locales": "node scripts/verify-locales.mjs",
     "check-locales": "node scripts/verify-locales.mjs",
     "locale-template": "node scripts/locale-template.mjs",

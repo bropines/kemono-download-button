@@ -61,7 +61,7 @@ export const postBlocksModule: KdlModule = {
   requires: ['kui.post'],
   after: ['kui.post'],
   styles: `
-.kui-post-section > h2:has(> .kdl-ov__order) { display: flex; align-items: center; gap: 4px; }
+.kui-post-section > h2:has(> .kdl-ov__order:not([hidden])) { display: flex; align-items: center; gap: 4px; }
 .kdl-ov__order { display: inline-flex; align-items: center; margin-left: auto; flex: 0 0 auto; }
 .kdl-ov__order .kdl-ui-btn.kdl-ov__move, .kdl-ov__order .kdl-ui-btn.kdl-ov__drag { width: 28px; height: 28px; padding: 4px; color: var(--kdl-muted-foreground); }
 .kdl-ov__drag { cursor: grab; touch-action: none; }

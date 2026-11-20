@@ -13,6 +13,7 @@ import { addTaskToQueue } from './queueService';
 import { dropDownloaded, flushDownloadHistory, recordDownloaded } from './downloadHistory';
 import { t } from '../i18n';
 import { isPawchiveFile } from '../utils/pawchiveRateLimit';
+import { showDirectDownloadFallback, type DirectDownloadFile } from '../ui/components/directDownloadFallback';
 
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
 const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
@@ -214,6 +215,7 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
     let completedCount = 0;
     let failCount = 0;
     let forbidden = false;
+    const directFiles: Array<DirectDownloadFile | undefined> = [];
     await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i) => {
       const fileTaskId = `indiv-${i}`;
       task.addFile(fileTaskId, file.name);
@@ -225,7 +227,10 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
         task.markFileComplete(fileTaskId, false);
         if (!isAbortError(err)) {
           failCount++;
-          if (err?.status === 403 && isPawchiveFile(file.data)) forbidden = true;
+          if (err?.status === 403 && isPawchiveFile(file.data)) {
+            forbidden = true;
+            if (typeof GM_download !== 'function') directFiles[i] = { url: file.data, fileName: file.name };
+          }
           console.error(`[Kemono DL] Individual download failed for ${file.name}:`, err);
         }
       } finally {
@@ -242,6 +247,8 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       const summary = withForbidden(withSkipped(t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped), forbidden);
       if (failCount === targetFiles.length) task.fail(summary);
       else task.updateStatus(summary);
+      const links = directFiles.filter((file): file is DirectDownloadFile => !!file);
+      if (links.length) showDirectDownloadFallback(links);
     } else {
       task.updateStatus(withSkipped(t('dl.task.allTriggered'), skipped));
     }
@@ -283,6 +290,7 @@ export async function downloadFilesToDiskWithProgress(
   let completedCount = 0;
   let failCount = 0;
   let forbidden = false;
+  const directFiles: Array<DirectDownloadFile | undefined> = [];
 
   await runWithConcurrency(downloadSpecs, maxConcurrency, async (spec, i) => {
     const cleanName = sanitizeFilename(spec.fileName.split('/').pop() || spec.fileName);
@@ -299,7 +307,10 @@ export async function downloadFilesToDiskWithProgress(
       if (isAbortError(err)) return;
       console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
       failCount++;
-      if (err?.status === 403 && isPawchiveFile(spec.url)) forbidden = true;
+      if (err?.status === 403 && isPawchiveFile(spec.url)) {
+        forbidden = true;
+        if (typeof GM_download !== 'function') directFiles[i] = { url: spec.url, fileName: cleanName };
+      }
     } finally {
       completedCount++;
       if (!task.signal.aborted) {
@@ -317,6 +328,8 @@ export async function downloadFilesToDiskWithProgress(
       ? t('dl.task.allSaved', { count: downloadSpecs.length })
       : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped), forbidden)
     );
+    const links = directFiles.filter((file): file is DirectDownloadFile => !!file);
+    if (links.length) showDirectDownloadFallback(links);
   }
   void flushDownloadHistory();
   task.finish(5000);

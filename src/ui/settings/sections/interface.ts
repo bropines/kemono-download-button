@@ -12,7 +12,7 @@ import { getModuleSetting, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
-import { t } from '../../../i18n';
+import { t, tx } from '../../../i18n';
 
 const GRID_MIN = 120;
 const GRID_MAX = 400;
@@ -145,6 +145,16 @@ registerSettingsSection({
   render(container) {
     container.append(
       section(t('settings.interface.listsSection'), [
+        syncedSwitch({
+          id: 'kdl-layout-edit-mode',
+          label: tx('mod.creator.blockOrder.setting.editMode', 'Edit page layout'),
+          description: tx('mod.creator.blockOrder.setting.editMode.hint', 'Show drag handles and move buttons for creator and post blocks.'),
+          checked: getModuleSetting<boolean>('creator.blockOrder', 'editMode'),
+          onChange: (checked) => {
+            setModuleSetting('creator.blockOrder', 'editMode', checked);
+            notifySaved();
+          },
+        }, 'creator.blockOrder', 'editMode'),
         gridSizeField(),
         el('p', { className: 'kdl-settings__note', textContent: t('settings.interface.viewed.note') }),
         viewedPostsRow(),

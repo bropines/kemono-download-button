@@ -92,6 +92,7 @@ export const creatorBlocksModule: KdlModule = {
   pages: ['creator'],
   defaultEnabled: true,
   after: ['creators.similar', 'creators.overview'],
+  settings: [{ key: 'editMode', label: 'Edit page layout', type: 'boolean', default: false, hint: 'Show drag handles and move buttons for creator and post blocks.' }],
   styles: `
 .kdl-creator-order__head { display: flex; align-items: center; gap: 4px; color: var(--kdl-muted-foreground); font-size: 13px; font-weight: 600; }
 .kdl-creator-order__title { margin-right: auto; }

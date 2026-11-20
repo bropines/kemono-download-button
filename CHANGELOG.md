@@ -9,6 +9,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Double-tap the left or right side of a video on touchscreens to seek by 10 seconds.
 
 ### Changed
+- Show page block reorder controls only while layout editing is enabled in Interface settings.
 - Apply enabled user themes at document start to reduce flashing on page load.
 - Cache public creator overview API responses for up to 48 hours, and clear them with the existing cache control.
 - Show related module switches and settings alongside the interface, downloads and themes settings.
@@ -16,6 +17,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Use compact header icons on phones by default, while preserving explicitly chosen header modes.
 
 ### Fixed
+- On AdGuard, offer direct browser links when Pawchive refuses individual file requests with HTTP 403.
 - Restore the skin's layout immediately after HTMX saves a history snapshot.
 - Expiring post metadata can no longer delete a newer cached response.
 - Improve mobile attachment layout and centre header button icons.

@@ -130,6 +130,8 @@ export default {
   'overview.creatorBlock': 'Creator overview',
   'overview.postsBlock': 'Posts',
   'mod.creator.blockOrder.name': 'Creator page block order',
+  'mod.creator.blockOrder.setting.editMode': 'Edit page layout',
+  'mod.creator.blockOrder.setting.editMode.hint': 'Show drag handles and move buttons for creator and post blocks.',
   'mod.creator.blockOrder.description': 'Reorder similar creators, the overview and the posts with their pagination.',
   'mod.post.blockOrder.name': 'Post block order',
   'mod.post.blockOrder.description': 'Reorder the post content, downloads, files and video blocks.',

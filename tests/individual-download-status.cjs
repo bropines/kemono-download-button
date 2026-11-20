@@ -30,6 +30,7 @@ const imports = {
   './downloadHistory': { dropDownloaded: async items => ({ items, skipped: 0 }), recordDownloaded: value => history.push(value), flushDownloadHistory: async () => {} },
   '../i18n': { t: (key, args) => `${key}:${JSON.stringify(args ?? {})}` },
   '../utils/pawchiveRateLimit': { isPawchiveFile: url => url === 'bad' },
+  '../ui/components/directDownloadFallback': { showDirectDownloadFallback: () => {} },
 };
 const sandbox = { exports: {}, require: id => { if (!(id in imports)) throw Error(id); return imports[id]; },
   window: { location: { pathname: '/creator/post/1' } }, console: { error() {} } };
