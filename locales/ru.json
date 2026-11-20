@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 15,
+  "version": 16,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -153,7 +153,7 @@
     "settings.downloads.concurrentJobs": "Одновременные задачи очереди",
     "settings.downloads.concurrentJobsDescription": "Сколько постов или архивов обрабатывается сразу (1–5).",
     "settings.downloads.timeout": "Тайм-аут файла (мс)",
-    "settings.downloads.timeoutDescription": "Максимальное ожидание одного файла внутри ZIP.",
+    "settings.downloads.timeoutDescription": "Максимальное время без прогресса загрузки файла перед повторной попыткой.",
     "settings.downloads.retry": "Повторять неудачные загрузки",
     "settings.downloads.retryDescription": "Автоматически повторяет при сетевых ошибках.",
     "settings.downloads.retries": "Повторы",

@@ -93,7 +93,7 @@ export default {
   'settings.downloads.concurrentJobs': 'Concurrent queue jobs',
   'settings.downloads.concurrentJobsDescription': 'Posts or archives processed at once (1-5).',
   'settings.downloads.timeout': 'File timeout (ms)',
-  'settings.downloads.timeoutDescription': 'Longest wait for one file inside a ZIP.',
+  'settings.downloads.timeoutDescription': 'Maximum time without download progress before retrying a file.',
   'settings.downloads.retry': 'Retry failed downloads',
   'settings.downloads.retryDescription': 'Retries automatically on network errors.',
   'settings.downloads.retries': 'Retries',
