@@ -1,7 +1,7 @@
 import { state } from '../state/store';
 import { saveBlobViaAnchor } from './saveFile';
 import { debugLog, sanitizeFilename } from './helpers';
-import { withPawchiveFileLimit } from './pawchiveRateLimit';
+import { isPawchiveFile, withPawchiveFileLimit } from './pawchiveRateLimit';
 
 // The session cookie belongs to the archive site only (incl. its file/cN subdomains)
 function isSiteUrl(url: string): boolean {
@@ -40,6 +40,8 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 // byte becomes one code unit instead of going through a lossy UTF-8 decode; a host that honours
 // responseType ignores it, since it only governs how text is decoded
 const BINARY_MIME = 'text/plain; charset=x-user-defined';
+// Pawchive asks automated downloaders to identify themselves rather than impersonate a browser.
+const PAWCHIVE_DOWNLOADER_UA = 'KemonoDownloadButton/1 (+https://github.com/bropines/kemono-download-button)';
 
 // toString rather than instanceof: a sandboxed host can hand back a buffer from another realm
 const isKind = (value: unknown, kind: string): boolean => Object.prototype.toString.call(value) === `[object ${kind}]`;
@@ -96,6 +98,9 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
     try {
       return await withPawchiveFileLimit(currentUrl, signal, () => new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
+        if (isPawchiveFile(currentUrl) && !Object.keys(headers).some((key) => key.toLowerCase() === 'user-agent')) {
+          headers['User-Agent'] = PAWCHIVE_DOWNLOADER_UA;
+        }
         // Never send the session to third parties (translation APIs, external file hosts)
         // An explicit Cookie from the caller (KUI session key) wins over the downloader setting
         if (state.settings.sessionCookie && isSiteUrl(currentUrl) && !headers['Cookie']) {

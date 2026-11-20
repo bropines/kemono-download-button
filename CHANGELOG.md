@@ -17,6 +17,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Use compact header icons on phones by default, while preserving explicitly chosen header modes.
 
 ### Fixed
+- Identify file requests to Pawchive as this downloader, in accordance with the site's policy.
 - On AdGuard, offer direct browser links when Pawchive refuses individual file requests with HTTP 403.
 - Restore the skin's layout immediately after HTMX saves a history snapshot.
 - Expiring post metadata can no longer delete a newer cached response.
