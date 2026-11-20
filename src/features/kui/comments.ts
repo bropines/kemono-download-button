@@ -117,24 +117,31 @@ function setExpanded(comment: HTMLElement, expanded: boolean): void {
 
 // Grid and carousel cards share one height: a card whose text is cut off or that holds a thread gets an expand toggle
 function syncExpanders(container: HTMLElement, layout: CommentsLayout): void {
-  getComments(container).forEach((comment) => {
+  // Measure every card before changing classes or adding buttons. Interleaving reads
+  // and writes forces a full layout for each comment on long threads.
+  const cards = getComments(container).map((comment) => {
     const footer = comment.querySelector<HTMLElement>(':scope > .comment__footer');
-    let button = footer?.querySelector<HTMLElement>(':scope > .kui-comment-expand-btn') ?? null;
+    const button = footer?.querySelector<HTMLElement>(':scope > .kui-comment-expand-btn') ?? null;
+    const replyCount = countReplies(comment);
+    const body = comment.querySelector<HTMLElement>(':scope > .comment__body');
+    const expanded = comment.classList.contains('kui-comment-expanded');
+    const measurable = !!footer && layout !== 'list' && !expanded && (!body || body.getClientRects().length > 0);
+    const clipped = measurable && !!body && body.scrollHeight > body.clientHeight + 1;
+    return { comment, footer, button, replyCount, expanded, measurable, clipped };
+  });
+  cards.forEach(({ comment, footer, button: existingButton, replyCount, expanded, measurable, clipped }) => {
+    let button = existingButton;
     if (!footer || layout === 'list') {
       button?.remove();
       comment.classList.remove(...CARD_CLASSES);
       return;
     }
-    const replyCount = countReplies(comment);
-    const body = comment.querySelector<HTMLElement>(':scope > .comment__body');
-    // Expanded and hidden cards can't be measured, they keep their last state
-    if (!comment.classList.contains('kui-comment-expanded') && (!body || body.getClientRects().length > 0)) {
-      const clipped = !!body && body.scrollHeight > body.clientHeight + 1;
+    // Expanded and hidden cards can't be measured, they keep their last state.
+    if (measurable) {
       comment.classList.toggle('kui-comment-clipped', clipped);
       comment.classList.toggle('kui-comment-expandable', clipped || replyCount > 0);
     }
     if (!button) {
-      // Self-scoped kit button: it sits in the site's comment footer, with no .kdl-scope around it
       button = el('button', {
         type: 'button',
         className: 'kdl-scope kdl-ui-btn kdl-ui-btn--ghost kdl-ui-btn--size-sm kui-comment-expand-btn',
@@ -142,7 +149,7 @@ function syncExpanders(container: HTMLElement, layout: CommentsLayout): void {
       });
       footer.appendChild(button);
     }
-    renderExpandButton(button, comment.classList.contains('kui-comment-expanded'), replyCount);
+    renderExpandButton(button, expanded, replyCount);
   });
 }
 
