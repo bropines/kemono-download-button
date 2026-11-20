@@ -12,6 +12,7 @@ import { collectFilesForPost, formatNameFromTemplate } from './collectorService'
 import { addTaskToQueue } from './queueService';
 import { dropDownloaded, flushDownloadHistory, recordDownloaded } from './downloadHistory';
 import { t } from '../i18n';
+import { isPawchiveFile } from '../utils/pawchiveRateLimit';
 
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
 const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
@@ -26,6 +27,7 @@ const skipDownloaded = <T>(items: T[], urlOf: (item: T) => unknown) => dropDownl
 
 /** Appends "N skipped" to a final status line. */
 const withSkipped = (message: string, skipped: number): string => (skipped > 0 ? `${message} ${t('dl.task.skippedSuffix', { count: skipped })}` : message);
+const withForbidden = (message: string, forbidden: boolean): string => forbidden ? `${message} ${t('dl.task.pawchiveForbidden')}` : message;
 
 async function runWithConcurrency<T>(
   items: T[],
@@ -87,9 +89,10 @@ async function addUrlFilesToZip(
   taskPrefix: string,
   useCache: boolean,
   statusPrefix = ''
-): Promise<{ failed: number; storedNames: string[] }> {
+): Promise<{ failed: number; storedNames: string[]; forbidden: boolean }> {
   let done = 0;
   let failed = 0;
+  let forbidden = false;
   const storedNames: string[] = [];
 
   await runWithConcurrency(urlFiles, state.settings.maxConcurrentFileDownloadsInZip || 3, async (file, index) => {
@@ -104,9 +107,11 @@ async function addUrlFilesToZip(
       task.markFileComplete(fileTaskId, false);
       if (isAbortError(error)) return;
       failed++;
+      if (error?.status === 403 && isPawchiveFile(file.data)) forbidden = true;
       console.error(`[Kemono DL] Download failed for "${file.data}":`, error);
       const baseName = sanitizeFilename(file.name.split('/').pop() || 'file');
-      storedNames[index] = zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${error?.message || error}`);
+      const reason = error?.status === 403 && isPawchiveFile(file.data) ? t('dl.task.pawchiveForbidden') : error?.message || error;
+      storedNames[index] = zip.addFile(`failed_${baseName}.txt`, `Failed to download file.\nURL: ${file.data}\nError: ${reason}`);
     } finally {
       done++;
       if (!task.signal.aborted) task.updateStatus(t('dl.task.downloadingDone', { prefix: statusPrefix, done, total: urlFiles.length }));
@@ -115,7 +120,7 @@ async function addUrlFilesToZip(
 
   // Never hand a half-downloaded archive to the caller
   if (task.signal.aborted) throw abortError();
-  return { failed, storedNames };
+  return { failed, storedNames, forbidden };
 }
 
 export async function executeZipDownload(postDetails: PostDetails): Promise<void> {
@@ -142,9 +147,9 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
     task.setTotal(urlFiles.length);
     task.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
-    const { failed: failCount } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
+    const { failed: failCount, forbidden } = await addUrlFilesToZip(zip, urlFiles, task, postDetails.postID, true);
     if (urlFiles.length > 0 && failCount === urlFiles.length) {
-      throw new Error(t('dl.task.allFailed'));
+      throw new Error(t(forbidden ? 'dl.task.pawchiveForbidden' : 'dl.task.allFailed'));
     }
 
     task.updateStatus(t('dl.task.zipping'));
@@ -152,7 +157,7 @@ export async function executeZipDownload(postDetails: PostDetails): Promise<void
     if (blob.size === 0) throw new Error(t('dl.task.zipEmpty'));
     saveBlob(blob, sanitizeFilename(`${postDetails.authorName}_${postDetails.postTitle}_${postDetails.postID}_${generateRandomId(6)}.zip`));
 
-    task.updateStatus(withSkipped(failCount > 0 ? t('dl.task.completeFails', { count: failCount }) : t('dl.task.complete'), skipped));
+    task.updateStatus(withForbidden(withSkipped(failCount > 0 ? t('dl.task.completeFails', { count: failCount }) : t('dl.task.complete'), skipped), forbidden));
   } catch (error: any) {
     if (isAbortError(error)) {
       task.updateStatus(t('dl.task.cancelled'));
@@ -207,6 +212,8 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
     task.updateStatus(withSkipped(t('dl.task.starting', { count: targetFiles.length }), skipped));
 
     let completedCount = 0;
+    let failCount = 0;
+    let forbidden = false;
     await runWithConcurrency(targetFiles, state.settings.maxConcurrentIndividualDownloads || 3, async (file, i) => {
       const fileTaskId = `indiv-${i}`;
       task.addFile(fileTaskId, file.name);
@@ -216,13 +223,28 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
         task.markFileComplete(fileTaskId, true);
       } catch (err: any) {
         task.markFileComplete(fileTaskId, false);
+        if (!isAbortError(err)) {
+          failCount++;
+          if (err?.status === 403 && isPawchiveFile(file.data)) forbidden = true;
+          console.error(`[Kemono DL] Individual download failed for ${file.name}:`, err);
+        }
       } finally {
         completedCount++;
-        if (!task.signal.aborted) task.updateStatus(withSkipped(t('dl.task.downloadedOf', { done: completedCount, total: targetFiles.length }), skipped));
+        if (!task.signal.aborted) task.updateStatus(withSkipped(failCount
+          ? t('dl.task.doneOfFailed', { done: completedCount, total: targetFiles.length, failed: failCount })
+          : t('dl.task.downloadedOf', { done: completedCount, total: targetFiles.length }), skipped));
       }
     }, task.signal);
 
-    task.updateStatus(task.signal.aborted ? t('dl.task.cancelled') : withSkipped(t('dl.task.allTriggered'), skipped));
+    if (task.signal.aborted) {
+      task.updateStatus(t('dl.task.cancelled'));
+    } else if (failCount > 0) {
+      const summary = withForbidden(withSkipped(t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped), forbidden);
+      if (failCount === targetFiles.length) task.fail(summary);
+      else task.updateStatus(summary);
+    } else {
+      task.updateStatus(withSkipped(t('dl.task.allTriggered'), skipped));
+    }
   } catch (error: any) {
     task.fail(t('dl.task.error', { message: error.message }));
   } finally {
@@ -260,6 +282,7 @@ export async function downloadFilesToDiskWithProgress(
   const maxConcurrency = concurrency ?? Math.max(1, state.settings.maxConcurrentIndividualDownloads || 3);
   let completedCount = 0;
   let failCount = 0;
+  let forbidden = false;
 
   await runWithConcurrency(downloadSpecs, maxConcurrency, async (spec, i) => {
     const cleanName = sanitizeFilename(spec.fileName.split('/').pop() || spec.fileName);
@@ -276,6 +299,7 @@ export async function downloadFilesToDiskWithProgress(
       if (isAbortError(err)) return;
       console.error(`[Kemono DL] Download error for ${cleanName}:`, err);
       failCount++;
+      if (err?.status === 403 && isPawchiveFile(spec.url)) forbidden = true;
     } finally {
       completedCount++;
       if (!task.signal.aborted) {
@@ -289,9 +313,9 @@ export async function downloadFilesToDiskWithProgress(
   if (task.signal.aborted) {
     task.updateStatus(t('dl.task.cancelled'));
   } else {
-    task.updateStatus(withSkipped(failCount === 0
+    task.updateStatus(withForbidden(withSkipped(failCount === 0
       ? t('dl.task.allSaved', { count: downloadSpecs.length })
-      : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped)
+      : t('dl.task.doneSummary', { ok: completedCount - failCount, failed: failCount }), skipped), forbidden)
     );
   }
   void flushDownloadHistory();
@@ -321,7 +345,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     files.filter((f) => f.source === 'text').forEach((file) => zip.addFile(file.name, textContentOf(file.data)));
     postTask.setTotal(urlFiles.length);
     postTask.updateStatus(t('dl.task.downloadingFiles', { count: urlFiles.length }));
-    const { failed: failedFileCount } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
+    const { failed: failedFileCount, forbidden } = await addUrlFilesToZip(zip, urlFiles, postTask, `multi-${details.postID}`, false);
 
     postTask.updateStatus(t('dl.task.zipping'));
     const zipFileName = formatNameFromTemplate(state.settings.bulkMultipleSystemPathTemplate, {
@@ -334,7 +358,7 @@ export async function downloadPostAsZip(details: PostDetails): Promise<void> {
     });
 
     saveBlob(await zip.toBlob(), zipFileName);
-    postTask.updateStatus(withSkipped(failedFileCount > 0 ? t('dl.task.completeFails', { count: failedFileCount }) : t('dl.task.complete'), skipped));
+    postTask.updateStatus(withForbidden(withSkipped(failedFileCount > 0 ? t('dl.task.completeFails', { count: failedFileCount }) : t('dl.task.complete'), skipped), forbidden));
   } catch (error: any) {
     if (isAbortError(error)) {
       postTask.updateStatus(t('dl.task.cancelled'));
@@ -376,6 +400,8 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
   const mediaCounter = { value: 0 };
   let skippedTotal = 0;
   let downloadableTotal = 0;
+  let failedTotal = 0;
+  let forbidden = false;
 
   try {
     const zip = new ZipBuilder(Number(state.settings.zipCompressionLevel) || 0);
@@ -406,6 +432,8 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
       downloadableTotal += urlFiles.length;
       if (urlFiles.length > 0) {
         const result = await addUrlFilesToZip(zip, urlFiles, task, `bulk-${i}`, false, postPrefix);
+        failedTotal += result.failed;
+        forbidden ||= result.forbidden;
         storedNames.push(...result.storedNames.filter(Boolean));
       }
 
@@ -436,7 +464,7 @@ export async function executeBulkDownloadSingle(posts: PostDetails[], authorName
     });
 
     saveBlob(await zip.toBlob(), finalZipName);
-    task.updateStatus(withSkipped(t('dl.task.complete'), skippedTotal));
+    task.updateStatus(withForbidden(withSkipped(failedTotal > 0 ? t('dl.task.completeFails', { count: failedTotal }) : t('dl.task.complete'), skippedTotal), forbidden));
   } catch (error: any) {
     if (isAbortError(error)) {
       task.updateStatus(t('dl.task.cancelled'));

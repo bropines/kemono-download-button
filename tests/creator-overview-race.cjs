@@ -8,7 +8,8 @@ const source = fs.readFileSync('src/modules/creatorOverview/index.ts', 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
 const blocks = [];
 const requests = [];
-const anchor = { after(node) { node.remove(); node.isConnected = true; node.previousElementSibling = anchor; blocks.unshift(node); } };
+const tagPromises = new Map();
+const anchor = { after(node) { node.remove(); node.isConnected = true; node.previousElementSibling = anchor; blocks.unshift(node); }, compareDocumentPosition: () => 4 };
 function element(tag, attrs, children = []) {
   return { tag, attrs, children, isConnected: false, previousElementSibling: null,
     remove() { const index = blocks.indexOf(this); if (index >= 0) blocks.splice(index, 1); this.isConnected = false; },
@@ -17,17 +18,22 @@ function element(tag, attrs, children = []) {
 const api = {
   fetchAnnouncements: () => Promise.resolve([]),
   fetchCreatorLinks: () => Promise.resolve([]),
-  fetchCreatorTags: () => new Promise(resolve => requests.push(resolve)),
+  fetchCreatorTags: (service, id) => {
+    const key = `${service}/${id}`;
+    if (!tagPromises.has(key)) tagPromises.set(key, new Promise(resolve => requests.push(resolve)));
+    return tagPromises.get(key);
+  },
 };
 const imports = {
   '../../utils/dom': { el: element },
   '../../ui/kit': { ensureKit() {}, kitIcon: () => element('i', {}), kitScope: (children, attrs) => element('div', attrs, children) },
   '../../api/kemonoApi': api,
   '../../i18n': { t: key => key },
+  './order': { orderOverviewSections: sections => ({ nodes: sections.map(section => section.node), cleanup() {} }) },
 };
 const location = { pathname: '/fanbox/user/1', search: '' };
 const context = { exports: {}, require: id => { if (!(id in imports)) throw Error(id); return imports[id]; },
-  location, document: { querySelector: selector => selector === '.kdl-sim' ? anchor : null }, URLSearchParams, console };
+  location, document: { querySelector: selector => selector === '.kdl-sim' || selector === 'header.user-header' ? anchor : null, dispatchEvent() {} }, Event: class {}, URLSearchParams, console };
 vm.runInNewContext(compiled, context);
 const moduleUnderTest = context.exports.creatorOverviewModule;
 const listeners = {};
@@ -69,9 +75,7 @@ const tags = [{ tag: 'sample', count: 1 }];
   await settle();
   assert.equal(blocks.length, 1, 'overview returns after snapshot');
   listeners.tags();
-  const changedRequest = requests.at(-1);
   moduleUnderTest.update(ctx);
-  changedRequest(tags);
   await settle();
   assert.equal(blocks.length, 1, 'setting changes do not duplicate the overview');
   cleanup();

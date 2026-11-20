@@ -21,6 +21,8 @@ import { postInfoModule } from './postInfo';
 import { downloadHistoryModule } from './downloadHistory';
 import { creatorLinksModule } from './creatorLinks';
 import { creatorOverviewModule } from './creatorOverview';
+import { postBlocksModule } from './pageBlocks/post';
+import { creatorBlocksModule } from './pageBlocks/creator';
 import { siteTranslationModule } from '../i18n/site';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
@@ -31,6 +33,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   viewedPostsModule,
   copyUsernameModule,
   kuiPostModule,
+  postBlocksModule,
   downloaderPostModule,
   downloaderCreatorModule,
   downloaderListModule,
@@ -47,6 +50,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   postInfoModule,
   creatorLinksModule,
   creatorOverviewModule,
+  creatorBlocksModule,
   siteTranslationModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,

@@ -27,6 +27,7 @@ import {
 import { notifySaved, section, whileConnected } from '../controls';
 import { getSettingsSections, registerSettingsSection, type SettingsSection } from '../registry';
 import { t, tx } from '../../../i18n';
+import { moduleTopic } from './moduleTopics';
 
 const PAGE_LABELS: Record<PageType, () => string> = {
   post: () => t('settings.modules.page.post'),
@@ -44,7 +45,7 @@ const modGroup = (group: string) => tx(`modules.group.${group}`, group);
 // A slider only when the range is small enough to drag through; otherwise a number input
 const MAX_SLIDER_STEPS = 1000;
 
-const settingId = (mod: KdlModule, key: string) => `kdl-mod-${mod.id}-${key}`.replace(/[^\w-]/g, '-');
+const settingId = (mod: KdlModule, key: string, scope: string) => `kdl-mod-${mod.id}-${key}${scope ? `-${scope}` : ''}`.replace(/[^\w-]/g, '-');
 
 /** Required modules that are switched off, by name. */
 function missingRequirements(mod: KdlModule): string[] {
@@ -52,8 +53,8 @@ function missingRequirements(mod: KdlModule): string[] {
 }
 
 /** Builds the control for one declared setting; `sync` pushes an outside change into it. */
-function settingControl(mod: KdlModule, def: SettingDef): { node: HTMLElement; sync: (value: unknown) => void } {
-  const id = settingId(mod, def.key);
+function settingControl(mod: KdlModule, def: SettingDef, scope: string): { node: HTMLElement; sync: (value: unknown) => void } {
+  const id = settingId(mod, def.key, scope);
   const value = getModuleSetting(mod.id, def.key);
   const save = (next: boolean | number | string) => {
     setModuleSetting(mod.id, def.key, next);
@@ -112,9 +113,9 @@ function pageBadges(mod: KdlModule): HTMLElement {
 }
 
 /** One module: switch, description, pages, its declared settings and any section registered under its id. */
-function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLElement {
+function moduleCard(mod: KdlModule, extra: SettingsSection | undefined, scope = ''): HTMLElement {
   const toggle = switchControl({
-    id: settingId(mod, 'enabled'),
+    id: settingId(mod, 'enabled', scope),
     ariaLabel: t('settings.modules.enable', { name: modName(mod) }),
     checked: isModuleEnabled(mod.id),
     disabled: !!mod.locked,
@@ -124,7 +125,7 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
     },
   });
   const notice = el('p', { className: 'kdl-settings__module-notice' }, [kitIcon('info'), el('span')]);
-  const controls = (mod.settings ?? []).map((def) => ({ def, ...settingControl(mod, def) }));
+  const controls = (mod.settings ?? []).map((def) => ({ def, ...settingControl(mod, def, scope) }));
   const body = el('div', { className: 'kdl-settings__group kdl-settings__module-settings' }, controls.map((c) => c.node));
   if (extra) extra.render(body);
 
@@ -165,6 +166,19 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined): HTMLEle
     if (!editing) control.sync(event.value);
   });
   return node;
+}
+
+/** Modules are also available next to the settings they affect; all copies use the same registry. */
+export function renderTopicModules(container: HTMLElement, topic: string): void {
+  const modules = getModules().filter((mod) => moduleTopic(mod) === topic);
+  if (!modules.length) return;
+  const extras = new Map(getSettingsSections('modules').filter((s) => getModule(s.id)).map((s) => [s.id, s]));
+  const list = el('div', { className: 'kdl-settings__module-group' }, modules.map((mod) => moduleCard(mod, extras.get(mod.id), topic)));
+  const details = el('details', { className: 'kdl-settings__related-modules' }, [
+    el('summary', { textContent: t('settings.modules.related') }),
+    list,
+  ]);
+  container.append(details);
 }
 
 function groupBlock(title: string, cards: HTMLElement[]): HTMLElement {

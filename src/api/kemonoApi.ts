@@ -5,6 +5,7 @@ import { t } from '../i18n';
 import { debugLog, getApiUrl } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 import { IApiAdapter, UpdateCardStateFn } from './types';
+import { cachedCreatorOverview } from './creatorOverviewCache';
 
 // Kemono, Coomer and Pawchive share one REST layout: this module is the common implementation,
 // and each site adapter only overrides what really differs (see pawchiveApi.ts)
@@ -26,13 +27,15 @@ export function fetchProfile(service: string, userID: string): Promise<any> {
 }
 
 /** Linked accounts of a creator (the Linked accounts tab) */
-export function fetchCreatorLinks(service: string, userID: string): Promise<any> {
-  return getJson(`/api/v1/${service}/user/${userID}/links`, 15000);
+export function fetchCreatorLinks(service: string, userID: string, cache = false): Promise<any> {
+  const load = () => getJson(`/api/v1/${service}/user/${userID}/links`, 15000);
+  return cache ? cachedCreatorOverview('links', service, userID, load) : load();
 }
 
 /** A creator's announcements (the Announcements tab), newest first as the site sends them */
-export function fetchAnnouncements(service: string, userID: string): Promise<any> {
-  return getJson(`/api/v1/${service}/user/${userID}/announcements`, 15000);
+export function fetchAnnouncements(service: string, userID: string, cache = false): Promise<any> {
+  const load = () => getJson(`/api/v1/${service}/user/${userID}/announcements`, 15000);
+  return cache ? cachedCreatorOverview('announcements', service, userID, load) : load();
 }
 
 const creatorNames = new Map<string, Promise<string | null>>();
@@ -95,8 +98,9 @@ export interface CreatorTag {
 }
 
 /** A creator's tags with post counts (most used first); throws when the request fails */
-export async function fetchCreatorTags(service: string, userID: string): Promise<CreatorTag[]> {
-  const data = await getJson(`/api/v1/${service}/user/${userID}/tags`, 20000);
+export async function fetchCreatorTags(service: string, userID: string, cache = false): Promise<CreatorTag[]> {
+  const load = () => getJson(`/api/v1/${service}/user/${userID}/tags`, 20000);
+  const data = await (cache ? cachedCreatorOverview('tags', service, userID, load) : load());
   if (!Array.isArray(data)) return [];
   return data
     .filter((row: any) => row && typeof row.tag === 'string' && row.tag)

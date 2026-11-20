@@ -168,10 +168,15 @@ export const progressBarStyles = css({
   '.kdl-ov-file[data-result="error"] .kdl-ov-file__icon, .kdl-ov-file[data-result="error"] .kdl-ov-file__label': { color: 'var(--kdl-danger)' },
 
   '@media (max-width: 600px)': {
+    // Bottom panels share the dock with bulk actions; keep their launcher at the edge,
+    // while the open panel stays above the other docked controls.
+    '.kdl-dl[data-position="bottom-center"]': { alignItems: 'flex-end' },
     '.kdl-dl:not([data-position="bottom-center"])': { width: 'calc(100vw - 16px)' },
     '.kdl-dl[data-position="bottom-right"], .kdl-dl[data-position="top-right"]': { right: '8px' },
     '.kdl-dl[data-position="bottom-left"], .kdl-dl[data-position="top-left"]': { left: '8px' },
     '.kdl-dl[data-position^="bottom"]': { bottom: '8px' },
     '.kdl-dl[data-position^="top"]': { top: '8px' },
+    '.kdl-dl__launcher': { minWidth: '44px', height: '44px', padding: '0 10px 0 5px' },
+    '.kdl-dl__panel': { maxHeight: 'min(45vh, 400px)' },
   },
 });

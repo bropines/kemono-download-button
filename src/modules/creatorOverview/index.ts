@@ -11,6 +11,7 @@ import { el } from '../../utils/dom';
 import { ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { fetchAnnouncements, fetchCreatorLinks, fetchCreatorTags } from '../../api/kemonoApi';
 import { t } from '../../i18n';
+import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from './order';
 
 const OWN = 'kdl-ov';
 const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
@@ -19,8 +20,8 @@ const TAG_LIMIT = 40;
 interface Who { service: string; id: string }
 interface Overview { announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
 
-const cache = new Map<string, Promise<Overview>>();
 let node: HTMLElement | null = null;
+let cleanupOrder = () => {};
 let current = '';
 let pending = '';
 let generation = 0;
@@ -41,9 +42,9 @@ function plain(html: string): string {
 async function load(who: Who, ctx: ModuleContext): Promise<Overview> {
   const want = (key: string) => ctx.settings.get<boolean>(key) !== false;
   const [ann, tags, links] = await Promise.all([
-    want('announcements') ? fetchAnnouncements(who.service, who.id).catch(() => null) : null,
-    want('tags') ? fetchCreatorTags(who.service, who.id).catch(() => []) : [],
-    want('links') ? fetchCreatorLinks(who.service, who.id).catch(() => null) : null,
+    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(() => null) : null,
+    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(() => []) : [],
+    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(() => null) : null,
   ]);
   const annList = Array.isArray(ann) ? ann.filter((a: any) => a && typeof a.content === 'string') : [];
   const latest = annList[0];
@@ -67,7 +68,7 @@ function section(title: string, href: string | null, body: HTMLElement): HTMLEle
 
 function build(who: Who, data: Overview): HTMLElement | null {
   const base = `/${who.service}/user/${who.id}`;
-  const parts: HTMLElement[] = [];
+  const parts: OverviewSection[] = [];
   if (data.announcement) {
     const text = el('div', { className: `${OWN}__ann-text` }, [data.announcement.text]);
     const card = el('div', { className: `${OWN}__ann` }, [
@@ -76,7 +77,8 @@ function build(who: Who, data: Overview): HTMLElement | null {
     ]);
     card.title = t('overview.expand');
     card.addEventListener('click', () => card.toggleAttribute('data-open'));
-    parts.push(section(t('overview.announcements', { count: data.announcement.count }), `${base}/announcements`, card));
+    const title = t('overview.announcements', { count: data.announcement.count });
+    parts.push({ id: 'announcements', title, node: section(title, `${base}/announcements`, card) });
   }
   if (data.tags.length) {
     const active = new URLSearchParams(location.search).get('tag');
@@ -88,7 +90,8 @@ function build(who: Who, data: Overview): HTMLElement | null {
       if (tag === active) chip.setAttribute('aria-current', 'true');
       return chip;
     }));
-    parts.push(section(t('overview.tags'), `${base}/tags`, strip));
+    const title = t('overview.tags');
+    parts.push({ id: 'tags', title, node: section(title, `${base}/tags`, strip) });
   }
   if (data.links.length) {
     const strip = el('div', { className: `${OWN}__scroll` }, data.links.map((l) =>
@@ -99,25 +102,38 @@ function build(who: Who, data: Overview): HTMLElement | null {
           el('span', { className: `${OWN}__link-service` }, [l.service]),
         ]),
       ])));
-    parts.push(section(t('overview.links'), `${base}/links`, strip));
+    const title = t('overview.links');
+    parts.push({ id: 'links', title, node: section(title, `${base}/links`, strip) });
   }
   if (!parts.length) return null;
   ensureKit();
-  return kitScope(parts, { className: OWN });
+  const ordered = orderOverviewSections(parts);
+  cleanupOrder = ordered.cleanup;
+  return kitScope(ordered.nodes, { className: OWN });
 }
 
 function place(): void {
   if (!node) return;
   const where = document.querySelector('.kdl-sim') || document.querySelector('.kdl-sk-tabs-row') || document.querySelector('header.user-header');
-  if (where && node.previousElementSibling !== where) where.after(node);
+  if (!where) return;
+  // An existing node may have been moved by the page block editor. Only place it again if it
+  // is detached or precedes the fixed tabs/header anchor.
+  const anchor = document.querySelector('.kdl-sk-tabs-row') || document.querySelector('header.user-header');
+  if (node.isConnected && anchor && node.parentElement === anchor.parentElement && (anchor.compareDocumentPosition(node) & 4)) return;
+  where.after(node);
+  document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
 function remove(): void {
   generation++;
+  cleanupOrder();
+  cleanupOrder = () => {};
+  const wasConnected = node?.isConnected;
   node?.remove();
   node = null;
   current = '';
   pending = '';
+  if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
 async function render(ctx: ModuleContext): Promise<void> {
@@ -130,9 +146,7 @@ async function render(ctx: ModuleContext): Promise<void> {
   current = key;
   pending = key;
   const request = generation;
-  const cacheKey = `${who.service}/${who.id}`;
-  if (!cache.has(cacheKey)) cache.set(cacheKey, load(who, ctx));
-  const data = await cache.get(cacheKey)!;
+  const data = await load(who, ctx);
   if (request !== generation) return;
   pending = '';
   node = build(who, data);
@@ -142,6 +156,12 @@ async function render(ctx: ModuleContext): Promise<void> {
 const STYLES = `
 .${OWN} { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; min-width: 0; max-width: 100%; contain: inline-size; }
 .${OWN}__head { display: flex; align-items: center; margin-bottom: 6px; }
+.${OWN}__head .${OWN}__title { margin-right: auto; }
+.${OWN}__order { display: inline-flex; align-items: center; flex: 0 0 auto; }
+.${OWN}__head .kdl-ui-btn.${OWN}__move, .${OWN}__head .kdl-ui-btn.${OWN}__drag { width: 28px; height: 28px; padding: 4px; color: var(--kdl-muted-foreground); }
+.${OWN}__drag { cursor: grab; touch-action: none; }
+.${OWN}__drag:active { cursor: grabbing; }
+.${OWN}__section[data-kdl-dragging] { opacity: 0.65; }
 .${OWN}__title { font-size: 13px; font-weight: 600; color: var(--kdl-muted-foreground); text-decoration: none; }
 a.${OWN}__title:hover { color: var(--kdl-foreground); }
 .${OWN}__scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
@@ -175,6 +195,7 @@ a.${OWN}__title:hover { color: var(--kdl-foreground); }
 .${OWN}__link-text { display: flex; flex-direction: column; min-width: 0; }
 .${OWN}__link-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 600; }
 .${OWN}__link-service { font-size: 11px; color: var(--kdl-muted-foreground); }
+${ORDER_CONTROLS_STYLE}
 `;
 
 export const creatorOverviewModule: KdlModule = {
@@ -193,7 +214,6 @@ export const creatorOverviewModule: KdlModule = {
   styles: STYLES,
   mount(ctx) {
     const rerender = () => {
-      cache.clear();
       remove();
       void render(ctx);
     };

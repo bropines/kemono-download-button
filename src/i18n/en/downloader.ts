@@ -110,6 +110,7 @@ export default {
   "dl.task.noZipContent": "No content to ZIP (all files filtered or empty).",
   "dl.task.downloadingFiles": "Downloading {count, plural, one{# file} other{# files}}...",
   "dl.task.allFailed": "All file downloads failed",
+  "dl.task.pawchiveForbidden": "Pawchive refused file access (HTTP 403). Check site access or try again later.",
   "dl.task.zipping": "Zipping...",
   "dl.task.zipEmpty": "Generated ZIP is empty.",
   "dl.task.complete": "Complete!",

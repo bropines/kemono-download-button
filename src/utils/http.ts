@@ -1,6 +1,7 @@
 import { state } from '../state/store';
 import { saveBlobViaAnchor } from './saveFile';
 import { debugLog, sanitizeFilename } from './helpers';
+import { withPawchiveFileLimit } from './pawchiveRateLimit';
 
 // The session cookie belongs to the archive site only (incl. its file/cN subdomains)
 function isSiteUrl(url: string): boolean {
@@ -93,7 +94,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
     if (signal?.aborted) throw abortError();
     let onAbort: (() => void) | undefined;
     try {
-      return await new Promise((resolve, reject) => {
+      return await withPawchiveFileLimit(currentUrl, signal, () => new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
         // Never send the session to third parties (translation APIs, external file hosts)
         // An explicit Cookie from the caller (KUI session key) wins over the downloader setting
@@ -153,7 +154,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           reject(abortError());
         };
         signal?.addEventListener('abort', onAbort, { once: true });
-      });
+      }));
     } catch (error: any) {
       if (signal?.aborted) throw abortError();
       // pawchive serves /data/ only from file.<domain> (its main domain 404s, while kemono/coomer redirect
@@ -229,7 +230,7 @@ export async function downloadFileWithFallback(
       });
     };
 
-    const success = await tryGmDownload();
+    const success = await withPawchiveFileLimit(url, signal, tryGmDownload);
     if (success) return;
   }
 

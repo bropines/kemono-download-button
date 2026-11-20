@@ -46,6 +46,10 @@ export const restyleModule: KdlModule = {
     },
   ],
   after: ['core'],
+  // CSS can be applied before the DOM is ready; transforms and scripts still wait for mount.
+  early() {
+    applyThemeStyles(getEnabledThemes());
+  },
   setup() {
     // Permanent: edits in the Themes tab and other modules' style injections
     onThemesChange(() => activeCtx && sync(activeCtx));

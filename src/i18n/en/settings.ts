@@ -220,6 +220,7 @@ export default {
   'settings.modules.noMatch': 'No matching modules',
   'settings.modules.search': 'Search modules',
   'settings.modules.searchPlaceholder': 'Search modules…',
+  'settings.modules.related': 'Related modules and their settings',
 
   // shadcn skin colour swatches (Modules tab)
   'settings.swatches.accent': 'Accent',

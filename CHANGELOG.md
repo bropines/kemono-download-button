@@ -4,7 +4,23 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- Reorder creator page blocks, overview sections and post blocks with drag handles or move buttons; the chosen order is remembered.
+- Double-tap the left or right side of a video on touchscreens to seek by 10 seconds.
+
+### Changed
+- Apply enabled user themes at document start to reduce flashing on page load.
+- Cache public creator overview API responses for up to 48 hours, and clear them with the existing cache control.
+- Show related module switches and settings alongside the interface, downloads and themes settings.
+- Respect Pawchive's per-tab file request rate and concurrency limits.
+- Use compact header icons on phones by default, while preserving explicitly chosen header modes.
+
 ### Fixed
+- Restore the skin's layout immediately after HTMX saves a history snapshot.
+- Expiring post metadata can no longer delete a newer cached response.
+- Improve mobile attachment layout and centre header button icons.
+- Report failed individual downloads instead of incorrectly saying that all downloads started.
+- Show a clearer message when Pawchive refuses file access and improve the mobile downloads panel.
 - Creator overview no longer duplicates its tags, announcements or linked accounts when page updates overlap while loading.
 
 ## [1.10.0] - 2026-11-19

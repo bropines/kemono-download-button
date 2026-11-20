@@ -226,8 +226,8 @@ export const shadcnSiteModule: KdlModule = {
     { key: 'thumb', label: 'Card thumbnail shape', type: 'select', default: 'square', options: THUMB_OPTIONS, hint: 'Aspect ratio of post card thumbnails; the image is cropped to fill it.' },
     { key: 'headerPinned', label: 'Pin the top bar', type: 'boolean', default: true, hint: 'The top bar with the menu button stays visible while you scroll.' },
     {
-      key: 'headerLabels', label: 'Top bar links', type: 'select', default: 'both',
-      options: [{ value: 'both', label: 'Icon and text' }, { value: 'icons', label: 'Icons only' }, { value: 'text', label: 'Text only' }],
+      key: 'headerLabels', label: 'Top bar links', type: 'select', default: 'auto',
+      options: [{ value: 'auto', label: 'Automatic' }, { value: 'both', label: 'Icon and text' }, { value: 'icons', label: 'Icons only' }, { value: 'text', label: 'Text only' }],
     },
     {
       key: 'headerAlign', label: 'Top bar alignment', type: 'select', default: 'left',

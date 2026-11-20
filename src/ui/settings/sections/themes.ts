@@ -21,8 +21,8 @@ import { THEME_VARS } from '../../../modules/restyle/vars';
 import { el } from '../../../utils/dom';
 import { saveBlob } from '../../../utils/saveFile';
 import { css } from '../../../utils/cssBuilder';
-import { badge, button, checkbox, emptyState, field, getKitRoot, input, select, switchControl, textarea, toast } from '../../kit';
-import { notifySaved, section, switchRow } from '../controls';
+import { badge, button, checkbox, emptyState, field, getKitRoot, input, select, setSwitch, switchControl, textarea, toast } from '../../kit';
+import { notifySaved, section, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { peekButton, themeDescription, themeName, themePreviewStyles, themeThumbnail } from '../themePreview';
 import { t, tx, type UiKey } from '../../../i18n';
@@ -253,6 +253,22 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
     ? el('div', { className: 'kdl-themes__list' }, own.map((t) => themeRow(t, open)))
     : emptyState({ icon: 'sliders-horizontal', title: t('themes.empty.title'), description: t('themes.empty.description') });
 
+  const allowScripts = switchRow({
+    id: 'kdl-themes-allow-scripts',
+    label: tx('mod.restyle.setting.allowScripts', 'Allow theme scripts'),
+    description: tx('mod.restyle.setting.allowScripts.hint', 'Runs the Script field of themes created in this browser. Imported themes never carry scripts.'),
+    checked: getModuleSetting<boolean>('restyle', 'allowScripts') === true,
+    onChange: (on) => {
+      setModuleSetting('restyle', 'allowScripts', on);
+      notifySaved();
+    },
+  });
+  whileConnected(allowScripts, (event) => {
+    if (event.type === 'setting' && event.id === 'restyle' && event.key === 'allowScripts') {
+      setSwitch(allowScripts.querySelector<HTMLElement>('[role="switch"]')!, Boolean(event.value));
+    }
+  });
+
   return [
     section(t('themes.own.title'), [toolbar, ownList], {
       icon: 'sliders-horizontal',
@@ -263,16 +279,7 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
       description: t('themes.presets.description'),
     }),
     section(t('themes.scripts.title'), [
-      switchRow({
-        id: 'kdl-themes-allow-scripts',
-        label: tx('mod.restyle.setting.allowScripts', 'Allow theme scripts'),
-        description: tx('mod.restyle.setting.allowScripts.hint', 'Runs the Script field of themes created in this browser. Imported themes never carry scripts.'),
-        checked: getModuleSetting<boolean>('restyle', 'allowScripts') === true,
-        onChange: (on) => {
-          setModuleSetting('restyle', 'allowScripts', on);
-          notifySaved();
-        },
-      }),
+      allowScripts,
       el('p', {
         className: 'kdl-themes__warning',
         textContent: t('themes.scripts.warning'),

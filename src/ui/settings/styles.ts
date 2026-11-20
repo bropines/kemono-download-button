@@ -96,6 +96,7 @@ export const settingsStyles = css({
   },
   '.kdl-settings__module-search > .kdl-ui-input': { paddingLeft: '32px' },
   '.kdl-settings__module-group': { display: 'flex', flexDirection: 'column', gap: '8px' },
+  '.kdl-settings__related-modules > summary': { cursor: 'pointer', fontWeight: 600, minHeight: '44px', boxSizing: 'border-box', padding: '12px 0', color: 'var(--kdl-foreground)' },
   '.kdl-settings__module-group-title': {
     marginTop: '4px',
     fontSize: '12px',

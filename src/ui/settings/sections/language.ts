@@ -8,9 +8,9 @@ import {
 } from '../../../i18n';
 import { getUpdateStatus, packSource, updateTranslations } from '../../../i18n/packs';
 import { el } from '../../../utils/dom';
-import { button, field, select, setButtonLoading } from '../../kit';
+import { button, field, select, setButtonLoading, setSwitch } from '../../kit';
 import { showMessage } from '../../toast';
-import { notifySaved, section, switchRow } from '../controls';
+import { notifySaved, section, switchRow, whileConnected } from '../controls';
 
 const SITE_MODULE = 'i18n.site';
 
@@ -65,6 +65,11 @@ export function languageSection(): HTMLElement {
       setModuleEnabled(SITE_MODULE, checked);
       notifySaved();
     },
+  });
+  whileConnected(site, (event) => {
+    if ((event.type === 'enabled' || event.type === 'disabled') && event.id === SITE_MODULE) {
+      setSwitch(site.querySelector<HTMLElement>('[role="switch"]')!, event.type === 'enabled');
+    }
   });
 
   const status = el('div', { className: 'kdl-settings__stat', id: 'kdl-translations-status' });

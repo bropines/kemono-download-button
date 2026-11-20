@@ -7,10 +7,10 @@
 // Every wrapper carries data-kdl-sk; undo() puts the original nodes back in place and removes the
 // wrappers, on unmount and before htmx stores a history snapshot.
 
-import type { KdlModule } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitScope } from '../../ui/kit';
 import { t, translateSiteText } from '../../i18n';
+import { reversibleTransform } from './reversibleTransform';
 
 const MARK = 'data-kdl-sk';
 const HEADINGS = 'h1, h2, h3, h4';
@@ -388,12 +388,7 @@ function undoCreatorTabs(): void {
 }
 
 /** The creator part's DOM change (its CSS is in css/creator.ts) */
-export const shadcnCreatorTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
-  mount: liftCreatorTabs,
-  update: liftCreatorTabs,
-  unmount: undoCreatorTabs,
-  beforeSnapshot: undoCreatorTabs,
-};
+export const shadcnCreatorTransform = reversibleTransform(liftCreatorTabs, undoCreatorTabs);
 
 // The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
 // phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,
@@ -417,8 +412,8 @@ function unpinHomeArt(): void {
   document.documentElement.style.removeProperty('--kdl-home-art-h');
 }
 
-export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount' | 'beforeSnapshot'> = {
-  mount() {
+export const shadcnPagesTransform = reversibleTransform(
+  () => {
     wrapPanels();
     buildAccordion();
     segmentFilters();
@@ -428,16 +423,5 @@ export const shadcnPagesTransform: Pick<KdlModule, 'mount' | 'update' | 'unmount
     fileDropZone();
     pinHomeArt();
   },
-  update() {
-    wrapPanels();
-    buildAccordion();
-    segmentFilters();
-    footerButtons();
-    fitApiFrame();
-    moveFilterIntoSearch();
-    fileDropZone();
-    pinHomeArt();
-  },
-  unmount: undo,
-  beforeSnapshot: undo,
-};
+  undo,
+);

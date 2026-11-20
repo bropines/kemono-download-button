@@ -52,6 +52,10 @@ export const kuiPlyrStyles = css({
     height: '100%',
     width: '100%',
   },
+  // Preserve scrolling and pinch zoom while preventing browser double-tap zoom over video.
+  '.kui-video-player-container .plyr__video-wrapper': {
+    touchAction: 'manipulation',
+  },
   '.plyr button': {
     font: 'inherit',
     lineHeight: 'inherit',

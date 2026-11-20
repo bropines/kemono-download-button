@@ -1,5 +1,6 @@
 import { debugLog } from '../utils/helpers';
 import { state } from '../state/store';
+import { clearCreatorOverviewCache } from '../api/creatorOverviewCache';
 
 const DB_NAME = 'KemonoDownloaderCache';
 const DB_VERSION = 3;
@@ -190,11 +191,17 @@ function isPostFresh(timestamp: number | undefined): boolean {
   return hours > 0 && typeof timestamp === 'number' && Date.now() - timestamp < hours * 3600 * 1000;
 }
 
-async function deleteCachedPost(key: string): Promise<void> {
-  inMemoryPostCache.delete(key);
+async function deleteCachedPost(key: string, expiredTimestamp: number | undefined): Promise<void> {
+  if (inMemoryPostCache.get(key)?.timestamp === expiredTimestamp) inMemoryPostCache.delete(key);
   try {
     const tx = (await getDB()).transaction(STORE_POSTS, 'readwrite');
-    tx.objectStore(STORE_POSTS).delete(key);
+    const store = tx.objectStore(STORE_POSTS);
+    // A fresh response may have been written while IndexedDB was opening. Compare and delete
+    // within the same transaction so an old cleanup cannot remove the replacement.
+    const request = store.get(key);
+    request.onsuccess = () => {
+      if (request.result && request.result.timestamp === expiredTimestamp) store.delete(key);
+    };
     await awaitTransaction(tx);
   } catch (e) {
     debugLog('Failed to delete expired post from IndexedDB:', e);
@@ -205,7 +212,7 @@ export async function getCachedPost(key: string): Promise<any | null> {
   const inMemory = inMemoryPostCache.get(key);
   if (inMemory) {
     if (isPostFresh(inMemory.timestamp)) return inMemory.data;
-    void deleteCachedPost(key);
+    void deleteCachedPost(key, inMemory.timestamp);
     return null;
   }
 
@@ -218,7 +225,7 @@ export async function getCachedPost(key: string): Promise<any | null> {
     });
     if (!result?.data) return null;
     if (!isPostFresh(result.timestamp)) {
-      void deleteCachedPost(key);
+      void deleteCachedPost(key, result.timestamp);
       return null;
     }
     inMemoryPostCache.set(key, { data: result.data, timestamp: result.timestamp! });
@@ -248,6 +255,8 @@ export async function clearAllCache(): Promise<void> {
   inMemoryPostCache.clear();
   inMemoryFileCache.clear();
   inMemoryFileBytes = 0;
+
+  await clearCreatorOverviewCache();
 
   try {
     const db = await getDB();

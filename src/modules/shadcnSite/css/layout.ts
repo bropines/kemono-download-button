@@ -159,9 +159,16 @@ ${ITEM_HOVER} {
 }
 ${headerIconsCss()}
 html[data-kdl-sk-hlabels="text"] .content-wrapper .header > a.header-link::before { display: none; }
-html[data-kdl-sk-hlabels="icons"] .content-wrapper .header > a.header-link { width: 2.25rem; padding: 0; justify-content: center; font-size: 0; }
+/* The hidden text is still an anonymous flex item: without zero gap it shifts the icon left. */
+html[data-kdl-sk-hlabels="icons"] .content-wrapper .header > a.header-link { width: 2.25rem; padding: 0; gap: 0; justify-content: center; font-size: 0; }
 html[data-kdl-sk-hlabels="icons"] .content-wrapper .header > a.header-link::before { width: 1.125rem; height: 1.125rem; }
 html[data-kdl-sk-hlabels="icons"] .content-wrapper .header > a.header-link:first-of-type { margin-left: 4px; }
+/* Automatic mode keeps labels on desktop and uses compact icons on narrow phones. Explicit choices win. */
+@media (max-width: 600px) {
+  html[data-kdl-sk-hlabels="auto"] .content-wrapper .header > a.header-link { width: 2.25rem; padding: 0; gap: 0; justify-content: center; font-size: 0; }
+  html[data-kdl-sk-hlabels="auto"] .content-wrapper .header > a.header-link::before { width: 1.125rem; height: 1.125rem; }
+  html[data-kdl-sk-hlabels="auto"] .content-wrapper .header > a.header-link:first-of-type { margin-left: 4px; }
+}
 /* Centred links: the menu button pushes from the left, a spacer of its width balances it on the right */
 html[data-kdl-sk-halign="center"] .content-wrapper .header #burgor { margin-right: auto; }
 html[data-kdl-sk-halign="center"] .content-wrapper .header::after { content: ''; flex: 0 0 2.25rem; margin-left: auto; }

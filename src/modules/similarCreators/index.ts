@@ -132,12 +132,17 @@ function anchor(): Element | null {
 
 function place(): void {
   const where = anchor();
-  if (strip && where && strip.previousElementSibling !== where) where.after(strip);
+  if (!strip || !where) return;
+  if (strip.isConnected && strip.parentElement === where.parentElement && (where.compareDocumentPosition(strip) & 4)) return;
+  where.after(strip);
+  document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
 function remove(): void {
+  const wasConnected = strip?.isConnected;
   strip?.remove();
   strip = null;
+  if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
 function build(items: Similar[], limit: number, withStar: boolean, who: { service: string; id: string }): HTMLElement {

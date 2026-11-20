@@ -7,6 +7,7 @@ import { setModuleSetting } from '../../core/registry';
 import { getSettingsSections, onSettingsSectionsChange } from './registry';
 import { ensureSettingsStyles } from './styles';
 import './sections';
+import { renderTopicModules } from './sections/modules';
 import { t, tx } from '../../i18n';
 
 export type SettingsTab = 'general' | 'downloads' | 'translation' | 'images' | 'interface' | 'modules' | (string & {});
@@ -26,7 +27,10 @@ function buildTabs(): HTMLElement {
       label: tx(`settings.tab.${s.id}`, s.title),
       content: () => {
         const panel = el('div', { className: 'kdl-settings__panel', dataset: { section: s.id } });
-        s.render(panel);
+        const content = el('div', { className: 'kdl-settings__panel' });
+        s.render(content);
+        panel.append(content);
+        renderTopicModules(panel, s.id);
         return panel;
       },
     })),

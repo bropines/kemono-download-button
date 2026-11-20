@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { plyrI18n } from '../../i18n/plyr';
 import { icon } from '../../config/icons';
 import { readStored, writeStored } from '../../state/gmStorage';
+import { installDoubleTapSeek } from './doubleTapSeek';
 
 // Loop toggle in Plyr's control bar. Plyr has the L key and player.loop but no button, and it swaps the <video>
 // on every source change, so the choice is kept here (and stored) and put back on each new video.
@@ -68,10 +69,13 @@ function addLoopControl(player: Plyr): void {
 
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
+let removeDoubleTapSeek: (() => void) | null = null;
 
 export function destroyVideoGallery(): void {
   fluidGuard?.disconnect();
   fluidGuard = null;
+  removeDoubleTapSeek?.();
+  removeDoubleTapSeek = null;
   if (!activePlayer) return;
   try {
     // Unbinds Plyr's window-level keyboard listeners, which otherwise outlive the removed layout
@@ -218,6 +222,7 @@ export function initializeVideoGallery(): void {
     i18n: plyrI18n()
   });
   activePlayer = player;
+  removeDoubleTapSeek = installDoubleTapSeek(playerContainer, () => player.media);
   addLoopControl(player);
 
   player.on("loadedmetadata", () => {

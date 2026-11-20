@@ -7,7 +7,7 @@ import { readStored, writeStored } from '../../../state/gmStorage';
 import { kuiState, setEmbedRules, setHideEmptySections, setPreloadImages } from '../../../state/kuiState';
 import type { EmbedRules } from '../../../types';
 import { el } from '../../../utils/dom';
-import { badge, button, field, input, kitIcon, select, setSliderValue, slider } from '../../kit';
+import { badge, button, field, input, kitIcon, select, setSliderValue, setSwitch, slider } from '../../kit';
 import { getModuleSetting, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
@@ -16,6 +16,16 @@ import { t } from '../../../i18n';
 
 const GRID_MIN = 120;
 const GRID_MAX = 400;
+
+function syncedSwitch(options: Parameters<typeof switchRow>[0], moduleId: string, key?: string): HTMLElement {
+  const row = switchRow(options);
+  const control = row.querySelector<HTMLElement>('[role="switch"]')!;
+  whileConnected(row, (event) => {
+    if (key && event.type === 'setting' && event.id === moduleId && event.key === key) setSwitch(control, Boolean(event.value));
+    if (!key && (event.type === 'enabled' || event.type === 'disabled') && event.id === moduleId) setSwitch(control, event.type === 'enabled');
+  });
+  return row;
+}
 
 function gridSizeField(): HTMLElement {
   const saved = Math.max(GRID_MIN, Math.min(GRID_MAX, Number(getModuleSetting<number>('gridSize', 'size')) || 180));
@@ -140,31 +150,33 @@ registerSettingsSection({
         viewedPostsRow(),
       ], { icon: 'layout-grid' }),
       section(t('settings.interface.postSection'), [
-        switchRow({
+        syncedSwitch({
           id: 'hideEmptySectionsToggle',
           label: t('settings.interface.hideEmpty'),
           description: t('settings.interface.hideEmptyDescription'),
-          checked: kuiState.isHideEmptySectionsEnabled,
+          checked: getModuleSetting<boolean>('kui.post', 'hideEmptySections'),
           onChange: (checked) => {
             setHideEmptySections(checked);
+            setModuleSetting('kui.post', 'hideEmptySections', checked);
             hideEmptySections();
             notifySaved();
           },
-        }),
-        switchRow({
+        }, 'kui.post', 'hideEmptySections'),
+        syncedSwitch({
           id: 'preloadImagesToggle',
           label: t('settings.interface.preload'),
           description: t('settings.interface.preloadDescription'),
-          checked: kuiState.isPreloadEnabled,
+          checked: getModuleSetting<boolean>('kui.post', 'preloadImages'),
           onChange: (checked) => {
             setPreloadImages(checked);
+            setModuleSetting('kui.post', 'preloadImages', checked);
             notifySaved();
           },
-        }),
+        }, 'kui.post', 'preloadImages'),
         embedRulesField(),
       ], { icon: 'file' }),
       section(t('settings.interface.siteSection'), [
-        switchRow({
+        syncedSwitch({
           id: 'hideAdsToggle',
           label: t('settings.interface.hideAds'),
           description: t('settings.interface.hideAdsDescription'),
@@ -173,7 +185,7 @@ registerSettingsSection({
             setAdBlockEnabled(checked);
             notifySaved();
           },
-        }),
+        }, 'adblock'),
       ], { icon: 'eye' }),
       section(t('settings.interface.buttonsSection'), [
         grid([

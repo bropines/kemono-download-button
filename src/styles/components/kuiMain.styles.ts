@@ -264,6 +264,37 @@ export const kuiMainStyles = css({
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
   },
+  '@media (max-width: 600px)': {
+    '.post__attachments > .post__attachment': {
+      display: 'flex !important',
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      width: '100%',
+      minWidth: '0',
+      gap: '6px',
+      padding: '0',
+    },
+    '.post__attachment .kui-attachment-styled.kdl-ui-btn': {
+      boxSizing: 'border-box',
+      width: '100%',
+      maxWidth: '100%',
+      height: 'auto',
+      minHeight: '44px',
+      justifyContent: 'flex-start',
+      padding: '8px 12px',
+    },
+    '.post__attachment .kui-attachment-styled > span': {
+      minWidth: '0',
+      whiteSpace: 'normal',
+      overflowWrap: 'anywhere',
+      textAlign: 'left',
+      lineHeight: '1.35',
+    },
+    '.post__attachment > .kdl-hist-own': {
+      marginLeft: '0',
+      maxWidth: '100%',
+    },
+  },
   '.kui-embed-button .kui-embed-password': {
     maxWidth: '140px',
     overflow: 'hidden',
