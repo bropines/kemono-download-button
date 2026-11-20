@@ -65,6 +65,8 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.match(css, /#main::before \{[\s\S]*?data:image\/svg\+xml/, 'the snapshot is drawn on #main::before');
     assert.match(css, /calc\(50%25 - 479\.5px\)/, 'a centred box keeps to the centre at any width (its stroke inside the box)');
     assert.match(css, /#main::after \{ display: block[\s\S]*?space repeat/, 'the card grid repeats one tile');
+    assert.match(css, /html\[data-kdl-cloak\] #main \{ min-height:/, 'the page is held at the skeleton height only while hidden');
+    assert.doesNotMatch(css, /data-kdl-enter\]\) #main \{ min-height/, 'not while it animates in: the height would jump when the animation ends');
     api.cloak('/none');
     assert.doesNotMatch(style().textContent, /data:image/, 'no snapshot: no skeleton, the content is still hidden');
     api.reveal();

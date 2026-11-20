@@ -31,7 +31,7 @@ function cloakCss(path: string): string {
   let skeleton = '';
   try {
     const snap = snapshotFor(path);
-    if (snap) skeleton = snapshotCss(ON, snap);
+    if (snap) skeleton = snapshotCss(ON, snap, `html[${ATTR}] #main`);
   } catch {
     // A stored snapshot this build cannot draw: hide without a skeleton (capture replaces it later)
   }

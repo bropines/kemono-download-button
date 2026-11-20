@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-11-20
+
+### Fixed
+- Links in the blocks the script adds (similar creators, the creator overview, info badges) open the page in place like the site's own links, with the loading skeleton and transition, instead of reloading the whole site.
+- The page no longer jumps a moment after it has loaded: it was held at the loading skeleton's height until the transition ended.
+- A request that does not change the page (a form, a partial update) no longer leaves the page dimmed for a few seconds.
+
 ## [2.0.0] - 2026-11-20
 
 The redesign is now the default look, and pages load without the site's old layout flashing first.

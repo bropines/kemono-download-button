@@ -7,7 +7,7 @@
 // (src/core/cloak.ts): the enter animation plays when a hidden page is shown, so it only exists with the
 // redesign, and never on a page the user already sees.
 
-import { onCloak, onReveal } from '../../core/cloak';
+import { isCloaked, onCloak, onReveal } from '../../core/cloak';
 import type { KdlModule } from '../../core/types';
 
 const LEAVE = 'data-kdl-leave';
@@ -162,6 +162,10 @@ export const pageTransitionsModule: KdlModule = {
       stopLeaving();
     };
     document.addEventListener('htmx:responseError', cancel);
+    // A boosted request that did not bring a new page (a form, a partial swap): undim right away
+    document.addEventListener('htmx:afterRequest', () => {
+      if (!isCloaked()) cancel();
+    });
     document.addEventListener('htmx:sendError', cancel);
     window.addEventListener('popstate', () => {
       pending = 'out';

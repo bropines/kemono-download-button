@@ -3,6 +3,7 @@ import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, res
 import { attachRuntime, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
 import { cloak, reveal } from './cloak';
 import { scheduleSkeletonCapture } from './skeletonStore';
+import { installLinkBoost } from './boostLinks';
 
 let current: PageInfo;
 let root: Element;
@@ -130,6 +131,7 @@ function writeEarlyPageAttributes(event: Event): boolean {
 }
 
 function installNavigationHooks(): void {
+  installLinkBoost();
   document.addEventListener('htmx:beforeHistorySave', () => snapshotMounted());
   // Capture on window runs before the site's own beforeSwap listener on document (see keepOwnHeadNodes)
   window.addEventListener('htmx:beforeSwap', keepOwnHeadNodes, true);

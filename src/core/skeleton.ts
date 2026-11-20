@@ -74,11 +74,12 @@ ${pseudo} { content: ""; position: absolute; visibility: visible; pointer-events
 `;
 }
 
-/** One snapshot, drawn on the element matched by `scope` */
-export function snapshotCss(scope: string, snap: SkeletonSnapshot): string {
+/** One snapshot, drawn on the element matched by `scope`; `sizeScope` holds the page at its height (only while
+    the content is hidden: the skeleton may stay drawn a moment longer, fading, over the page as it is) */
+export function snapshotCss(scope: string, snap: SkeletonSnapshot, sizeScope = scope): string {
   const [top, left, right] = snap.pad;
   const rules = [
-    `${scope} { min-height: ${px(top + snap.h)}; }`,
+    `${sizeScope} { min-height: ${px(top + snap.h)}; }`,
     `${scope}::before { top: ${px(top)}; left: ${px(left)}; right: ${px(right)}; height: ${px(snap.h)}; ${layers(image(snap.shapes), '100% 100%', 'no-repeat')} }`,
   ];
   const grid = snap.grid;
