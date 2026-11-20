@@ -196,21 +196,23 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
   const limit = readLimit(layout);
   const visibleCount = limit === 0 ? comments.length : Math.min(comments.length, Math.max(limit, revealedCounts.get(container) ?? 0));
 
-  container.classList.remove(...LAYOUT_CLASSES);
-  container.classList.add(`kui-comments--${layout}`, 'kdl-tokens');
+  LAYOUT_CLASSES.forEach((name) => container.classList.toggle(name, name === `kui-comments--${layout}`));
+  container.classList.add('kdl-tokens');
   comments.forEach((comment, index) => comment.classList.toggle('kui-comment-hidden', index >= visibleCount));
 
   const count = toolbar.querySelector('.kui-comments-count');
   if (count) {
     const total = allComments.length;
     const hasThreads = total > comments.length;
-    count.textContent = visibleCount < comments.length
+    const text = visibleCount < comments.length
       ? t(hasThreads ? 'kui.comments.showingThreads' : 'kui.comments.showingComments', { shown: visibleCount, count: comments.length })
       : hasThreads ? t('kui.comments.totalInThreads', { count: total, threads: comments.length }) : t('kui.comments.total', { count: total });
+    if (count.textContent !== text) count.textContent = text;
   }
   toolbar.querySelectorAll<HTMLElement>('[data-kui-comments-layout]').forEach((button) => {
     button.classList.toggle('kui-active', button.dataset.kuiCommentsLayout === layout);
-    button.setAttribute('aria-pressed', String(button.dataset.kuiCommentsLayout === layout));
+    const pressed = String(button.dataset.kuiCommentsLayout === layout);
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
   });
   const limitSelect = toolbar.querySelector<HTMLSelectElement>('[data-kui-comments-limit]');
   if (limitSelect) limitSelect.value = String(limit);
@@ -228,7 +230,8 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
       });
       container.after(moreButton);
     }
-    moreButton.textContent = t('kui.comments.showMore', { count: Math.min(limit, remaining), left: remaining });
+    const text = t('kui.comments.showMore', { count: Math.min(limit, remaining), left: remaining });
+    if (moreButton.textContent !== text) moreButton.textContent = text;
   } else {
     moreButton?.remove();
   }

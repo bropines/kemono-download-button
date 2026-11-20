@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.10.11] - 2026-11-20
+
+### Changed
+- Avoid redundant comment layout work when opening and updating a post.
+
 ## [1.10.10] - 2026-11-20
 
 ### Added

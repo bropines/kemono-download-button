@@ -52,8 +52,6 @@ export const postPageModule = {
     restructureLayout(processEmbeds);
     initializeImageGallery();
     initializeVideoGallery();
-    initializeComments();
-    initializePostTranslation();
     document.addEventListener("keydown", this.handleGlobalKeys, true);
     kuiState.isPostPageModuleActive = true;
   },
