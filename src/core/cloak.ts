@@ -20,7 +20,8 @@ const STYLE_ID = 'kdl-cloak-style';
 const FAILSAFE_MS = 2500;
 const HOLD_MS = 150;
 // A loading skeleton stands in for the hidden content: a snapshot of the page coming in (src/core/skeletonStore.ts)
-const ON = `html[${ATTR}] #main`;
+// It stays drawn while the page animates in (data-kdl-enter, set by the page transitions module), which fades it out
+const ON = `html:is([${ATTR}], [data-kdl-enter]) #main`;
 // The children, not #main itself: a descendant with its own visibility: visible showed through a hidden #main.
 // The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
 const HIDE = `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`;
@@ -38,6 +39,26 @@ function cloakCss(path: string): string {
 }
 
 let failsafe: ReturnType<typeof setTimeout> | undefined;
+const cloakListeners = new Set<() => void>();
+const revealListeners = new Set<() => void>();
+const notify = (listeners: Set<() => void>): void =>
+  listeners.forEach((fn) => {
+    try {
+      fn();
+    } catch {
+      // A listener is decoration (page transitions): the cloak itself must go on
+    }
+  });
+
+/** Called whenever a page is hidden behind its skeleton */
+export function onCloak(fn: () => void): void {
+  cloakListeners.add(fn);
+}
+
+/** Called right as a hidden page is shown (not when it was never hidden) */
+export function onReveal(fn: () => void): void {
+  revealListeners.add(fn);
+}
 let holds: Promise<unknown>[] = [];
 let generation = 0;
 
@@ -58,6 +79,7 @@ export function cloak(path = window.location.pathname): void {
   generation++;
   holds = [];
   document.documentElement.setAttribute(ATTR, '');
+  notify(cloakListeners);
   clearTimeout(failsafe);
   failsafe = setTimeout(uncloak, FAILSAFE_MS);
 }
@@ -69,8 +91,10 @@ function markReady(): void {
 function uncloak(): void {
   clearTimeout(failsafe);
   holds = [];
+  const was = isCloaked();
   document.documentElement.removeAttribute(ATTR);
   markReady();
+  if (was) notify(revealListeners);
 }
 
 /** While cloaked, keep the page hidden until this settles (at most HOLD_MS after the reveal is asked for) */

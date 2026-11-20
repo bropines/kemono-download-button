@@ -4,28 +4,20 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
-### Changed
-- Loading skeletons are now snapshots of the real pages instead of drawings: every kind of page has one (creator page and tabs, posts, post lists, popular, tags, creators, favourites, DMs, importer, account and more), for phones and for wide screens.
-- After a page has settled, the script keeps a snapshot of how it looks in this browser (grid size, page width, theme, phone layout), so the next visit to that kind of page loads behind an exact picture of it.
-- The loading style for Stylus (2.0.0) carries the same skeletons, picked by page and screen width.
-- Bright parts of a page (a white button, checkbox outlines) are muted in the skeleton.
+## [2.0.0] - 2026-11-20
 
-### Changed
-- The loading skeleton now matches the redesigned page it stands in for: the creator page (profile card, tabs, pagination, card grid), the post page (header card, content and files sections) and post lists.
-- An installed loading style older than the script is detected: the settings show "Update the style", and a one-time notice offers the update.
-
-### Fixed
-- Elements that set their own visibility no longer show through the loading skeleton.
+The redesign is now the default look, and pages load without the site's old layout flashing first.
 
 ### Added
-- A welcome screen after install with the redesign switch and the optional no-flash style; Settings → Interface shows it again. Its "seen" mark is kept by the userscript manager, so clearing site data does not bring it back.
-- An optional style for Stylus (`extras/kdl-preload.user.css`) that shows a loading skeleton instead of the site's own layout from the first frame until the script is ready, so the old layout no longer flashes even though userscript managers start scripts late. The same skeleton fills the page during navigations.
+- Page transitions: the next creator tab or page of posts slides in from its side, a post rises in, going back drops in, and cards cascade in as the loading skeleton dissolves. While the next page loads, the current one dims. Follows the system "reduce motion" setting; Settings → Interface → Page transitions turns it off.
+- Loading skeletons: while a page is being set up, a muted, softly shimmering picture of it stands in. Every kind of page has one (creator page and tabs, posts, post lists, popular, tags, creators, favourites, DMs, importer, account and more), for phones and wide screens. They are snapshots of the real pages, and after a page has settled the script keeps a snapshot of how it looks in this browser (grid size, page width, theme, phone layout), so the next visit loads behind an exact picture of it.
+- An optional style for Stylus (`extras/kdl-preload.user.css`) that shows the skeleton instead of the site's own layout from the first frame until the script is ready, since userscript managers start scripts late. An installed style older than the script is detected: the settings show "Update the style", and a one-time notice offers the update.
+- A welcome screen after install with the redesign switch and the optional loading style; Settings → Interface shows it again. Its "seen" mark is kept by the userscript manager, so clearing site data does not bring it back.
 
 ### Changed
-- The redesign is now on by default, with its switch at the top of Settings → Interface. Switching it off also turns off what belongs to it: similar creators, the creator overview, info badges, the creator links menu, block ordering and the import status page.
+- The redesign is now on by default, with its switch at the top of Settings → Interface. Switching it off also turns off what belongs to it: similar creators, the creator overview, info badges, the creator links menu, block ordering, the import status page and page transitions.
 - With the redesign on, the page content stays hidden for the moment it takes to rework it, so the site's own layout no longer flashes on load or navigation.
-- Similar creators, the creator overview and info badges start loading while the page is still loading, side by side instead of one after another. Similar creators are also cached for 48 hours, like the overview.
-- Similar creators show up without waiting for your favourites; the stars are added when those arrive.
+- Similar creators, the creator overview and info badges start loading while the page is still loading, side by side instead of one after another. Similar creators are also cached for 48 hours, like the overview, and show up without waiting for your favourites; the stars are added when those arrive.
 - Faster page set-up: smooth thumbnails no longer force a layout per card, and long comment threads no longer force an extra layout of the whole post page.
 
 ### Fixed

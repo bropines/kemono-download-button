@@ -13,6 +13,7 @@ import { tagsToolsModule } from './tagsTools';
 import { postsSearchModule } from './postsSearch';
 import { importerStatusModule } from './importerStatus';
 import { smoothThumbsModule } from './smoothThumbs';
+import { pageTransitionsModule } from './pageTransitions';
 import { dmsViewerModule } from './dmsViewer';
 import { hiddenCreatorsModule } from './hiddenCreators';
 import { downloadByTagsModule } from './downloadByTags';
@@ -44,6 +45,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   postsSearchModule,
   importerStatusModule,
   smoothThumbsModule,
+  pageTransitionsModule,
   dmsViewerModule,
   hiddenCreatorsModule,
   downloadByTagsModule,
