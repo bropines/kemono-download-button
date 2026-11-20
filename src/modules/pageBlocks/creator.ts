@@ -5,6 +5,7 @@ import { el } from '../../utils/dom';
 import { ensureKit } from '../../ui/kit';
 import { t } from '../../i18n';
 import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from '../creatorOverview/order';
+import { getModuleSetting, onRegistryChange } from '../../core/registry';
 
 const ORDER = ['similar', 'overview', 'posts'];
 const CHANGE = 'kdl:creator-sections-changed';
@@ -41,12 +42,12 @@ function sync(): void {
   const cards = direct('.card-list');
   const bottom = direct('#paginator-bottom');
   const groups: OverviewSection[] = [];
-  if (similar) groups.push({ id: 'similar', node: similar, title: t('similar.title') });
-  if (overview) groups.push({ id: 'overview', node: overview, title: t('overview.creatorBlock') });
+  if (similar) groups.push({ id: 'similar', node: similar, title: t('similar.title'), visibility: { module: 'creator.blockOrder', key: 'hideSimilar' } });
+  if (overview) groups.push({ id: 'overview', node: overview, title: t('overview.creatorBlock'), visibility: { module: 'creator.blockOrder', key: 'hideOverview' } });
   // Only group the three known, adjacent native elements; if a site uses different markup,
   // leave its post list untouched rather than detach pagination or move unrelated widgets.
   if (top && cards && bottom && top.nextElementSibling === cards && cards.nextElementSibling === bottom) {
-    groups.push({ id: 'posts', node: cards, title: t('overview.postsBlock'), members: [top, cards, bottom] });
+    groups.push({ id: 'posts', node: cards, title: t('overview.postsBlock'), members: [top, cards, bottom], visibility: { module: 'creator.blockOrder', key: 'hidePosts' } });
   }
   if (tracked && tracked.root === root && tracked.groups.length === groups.length && tracked.groups.every((old) => {
     const next = groups.find((group) => group.id === old.id);
@@ -54,7 +55,7 @@ function sync(): void {
     return a.length === b.length && a.every((node, index) => node === b[index]);
   })) return;
   restore();
-  if (groups.length < 2) return;
+  if (!groups.length) return;
   // Restoring an older arrangement may itself move the nodes. Slots must follow the
   // resulting DOM order, including when an asynchronous block appeared or disappeared.
   const currentChildren = Array.from(root.children);
@@ -92,10 +93,19 @@ export const creatorBlocksModule: KdlModule = {
   pages: ['creator'],
   defaultEnabled: true,
   after: ['creators.similar', 'creators.overview'],
-  settings: [{ key: 'editMode', label: 'Edit page layout', type: 'boolean', default: false, hint: 'Show drag handles and move buttons for creator and post blocks.' }],
+  settings: [
+    { key: 'editMode', label: 'Edit page layout', type: 'boolean', default: false, hint: 'Show drag handles and move buttons for creator and post blocks.' },
+    { key: 'hideSimilar', label: 'Hide similar creators', type: 'boolean', default: false },
+    { key: 'hideOverview', label: 'Hide creator overview', type: 'boolean', default: false },
+    { key: 'hidePosts', label: 'Hide posts', type: 'boolean', default: false },
+  ],
   styles: `
 .kdl-creator-order__head { display: flex; align-items: center; gap: 4px; color: var(--kdl-muted-foreground); font-size: 13px; font-weight: 600; }
 .kdl-creator-order__title { margin-right: auto; }
+html:not([data-kdl-layout-edit]) .site-section--user > [data-kdl-hidden-block] { display: none !important; }
+html[data-kdl-layout-edit] .site-section--user > [data-kdl-hidden-block] { opacity: 0.65; }
+.kdl-ov__order .kdl-ui-btn.kdl-ov__visibility { width: 28px; height: 28px; padding: 4px; }
+@media (max-width: 600px), (pointer: coarse) { .kdl-ov__order .kdl-ui-btn.kdl-ov__visibility { width: 44px; height: 44px; } }
 .kdl-ov__order { display: inline-flex; align-items: center; margin-left: auto; flex: 0 0 auto; }
 .kdl-ov__order .kdl-ui-btn.kdl-ov__move, .kdl-ov__order .kdl-ui-btn.kdl-ov__drag { width: 28px; height: 28px; padding: 4px; color: var(--kdl-muted-foreground); }
 .kdl-ov__drag { cursor: grab; touch-action: none; }
@@ -106,8 +116,11 @@ ${ORDER_CONTROLS_STYLE}
   mount(ctx) {
     active = true;
     suspended = false;
+    const syncEdit = () => document.documentElement.toggleAttribute('data-kdl-layout-edit', getModuleSetting<boolean>('creator.blockOrder', 'editMode') === true);
+    syncEdit();
+    const off = onRegistryChange((event) => { if (event.type === 'setting' && event.id === 'creator.blockOrder' && event.key === 'editMode') syncEdit(); });
     document.addEventListener(CHANGE, sync);
-    ctx.onCleanup(() => { document.removeEventListener(CHANGE, sync); active = false; clearTimeout(timer); restore(); });
+    ctx.onCleanup(() => { off(); document.documentElement.removeAttribute('data-kdl-layout-edit'); document.removeEventListener(CHANGE, sync); active = false; clearTimeout(timer); restore(); });
     sync();
   },
   update: sync,

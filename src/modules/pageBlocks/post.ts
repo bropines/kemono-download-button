@@ -3,6 +3,7 @@
 import type { KdlModule } from '../../core/types';
 import { ensureKit } from '../../ui/kit';
 import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from '../creatorOverview/order';
+import { getModuleSetting, onRegistryChange } from '../../core/registry';
 
 const IDS = ['downloads', 'content', 'files', 'videos'];
 const selectors: Record<string, string> = {
@@ -35,11 +36,12 @@ function sync(): void {
     const heading = element.querySelector<HTMLElement>(':scope > h2');
     if (!heading) return;
     const id = IDS.find((key) => !sections.some((s) => s.id === key) && (element.matches(selectors[key]) || element.querySelector(selectors[key])));
-    if (id) sections.push({ id, node: element, title: heading.textContent?.trim() || id });
+    if (id) sections.push({ id, node: element, title: heading.textContent?.trim() || id,
+      visibility: { module: 'kui.post', key: `hide${id[0].toUpperCase()}${id.slice(1)}` } });
   });
   if (tracked && tracked.root === root && tracked.nodes.length === sections.length && tracked.nodes.every((node) => sections.some((s) => s.node === node))) return;
   restore();
-  if (sections.length < 2) return;
+  if (!sections.length) return;
   ensureKit();
   const slots = sections.map(({ node }) => {
     const marker = document.createComment('kdl-post-block-position');
@@ -67,9 +69,19 @@ export const postBlocksModule: KdlModule = {
 .kdl-ov__drag { cursor: grab; touch-action: none; }
 .kdl-ov__drag:active { cursor: grabbing; }
 .kui-post-section[data-kdl-dragging] { opacity: 0.65; }
+html[data-kdl-layout-edit] .post__body .kui-post-section[data-kdl-hidden-block] { display: block !important; opacity: 0.65; }
+.kdl-ov__order .kdl-ui-btn.kdl-ov__visibility { width: 28px; height: 28px; padding: 4px; }
+@media (max-width: 600px), (pointer: coarse) { .kdl-ov__order .kdl-ui-btn.kdl-ov__visibility { width: 44px; height: 44px; } }
 ${ORDER_CONTROLS_STYLE}
 `,
-  mount() { active = true; sync(); },
+  mount(ctx) {
+    active = true;
+    const syncEdit = () => document.documentElement.toggleAttribute('data-kdl-layout-edit', getModuleSetting<boolean>('creator.blockOrder', 'editMode') === true);
+    syncEdit();
+    const off = onRegistryChange((event) => { if (event.type === 'setting' && event.id === 'creator.blockOrder' && event.key === 'editMode') syncEdit(); });
+    ctx.onCleanup(() => { off(); document.documentElement.removeAttribute('data-kdl-layout-edit'); });
+    sync();
+  },
   update: sync,
   unmount() { active = false; clearTimeout(timer); restore(); },
   beforeSnapshot() {

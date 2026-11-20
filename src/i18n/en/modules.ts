@@ -127,6 +127,8 @@ export default {
   'overview.moveUp': 'Move {section} up',
   'overview.moveDown': 'Move {section} down',
   'overview.drag': 'Drag to move {section}',
+  'overview.hideBlock': 'Hide {section}',
+  'overview.showBlock': 'Show {section}',
   'overview.creatorBlock': 'Creator overview',
   'overview.postsBlock': 'Posts',
   'mod.creator.blockOrder.name': 'Creator page block order',

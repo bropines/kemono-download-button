@@ -8,6 +8,7 @@ const storage = new Map();
 const listeners = new Map();
 const registryListeners = new Set();
 let editMode = false;
+const visibility = new Map();
 function setEditMode(value) {
   editMode = value;
   registryListeners.forEach(fn => fn({ type: 'setting', id: 'creator.blockOrder', key: 'editMode', value }));
@@ -23,16 +24,16 @@ function makeNode(id) {
   const head = { children: [], append(node) { this.children.push(node); } };
   const node = { id, events, head, parentElement: null,
     querySelector: () => head, contains: child => child === node,
-    setAttribute() {}, removeAttribute() {}, getBoundingClientRect: () => ({ top: 0, height: 100 }),
+    attrs: new Set(), setAttribute() {}, removeAttribute(name) { this.attrs.delete(name); }, toggleAttribute(name, on) { on ? this.attrs.add(name) : this.attrs.delete(name); }, getBoundingClientRect: () => ({ top: 0, height: 100 }),
     get nextSibling() { const siblings = this.parentElement?.children || []; return siblings[siblings.indexOf(this) + 1] || null; } };
   return node;
 }
-function button(options) { return { options, events: {}, disabled: false, addEventListener(name, fn) { this.events[name] = fn; }, focus() {} }; }
+function button(options) { return { options, events: {}, disabled: false, addEventListener(name, fn) { this.events[name] = fn; }, setAttribute(name, value) { this[name] = value; }, replaceChildren() {}, focus() {} }; }
 const imports = {
   '../../state/gmStorage': { readStored: key => storage.get(key), writeStored: (key, value) => storage.set(key, [...value]) },
-  '../../ui/kit': { button, kitScope: children => ({ children, remove() { this.removed = true; } }) },
+  '../../ui/kit': { button, kitIcon: name => name, kitScope: children => ({ children, remove() { this.removed = true; } }) },
   '../../i18n': { t: (key, params) => `${key}:${params.section}` },
-  '../../core/registry': { getModuleSetting: () => editMode, onRegistryChange: fn => { registryListeners.add(fn); return () => registryListeners.delete(fn); } },
+  '../../core/registry': { getModuleSetting: (id, key) => id === 'creator.blockOrder' && key === 'editMode' ? editMode : visibility.get(key), setModuleSetting: (id, key, value) => { visibility.set(key, value); registryListeners.forEach(fn => fn({ type: 'setting', id, key, value })); }, onRegistryChange: fn => { registryListeners.add(fn); return () => registryListeners.delete(fn); } },
 };
 const context = { exports: {}, require: id => imports[id], document: doc };
 vm.runInNewContext(compiled, context);
@@ -77,11 +78,25 @@ const groupRoot = { children: [recommended, top, grid, bottom], insertBefore: ro
 groupRoot.children.forEach(node => { node.parentElement = groupRoot; });
 const groupController = orderOverviewSections([
   { id: 'recommended', node: recommended, title: 'Recommended' },
-  { id: 'posts', node: grid, title: 'Posts', members: [top, grid, bottom] },
+  { id: 'posts', node: grid, title: 'Posts', members: [top, grid, bottom], visibility: { module: 'creator.blockOrder', key: 'hidePosts' } },
 ], { key: 'group', defaults: ['recommended', 'posts'], heading: '.heading' });
 setEditMode(true);
 grid.head.children[0].children[0].options.onClick();
 assert.deepEqual(groupRoot.children.map(node => node.id), ['top', 'grid', 'bottom', 'recommended'], 'moving posts keeps both paginators together');
+const groupEye = grid.head.children[0].children[3];
+groupEye.options.onClick();
+assert.ok([top, grid, bottom].every(node => node.attrs.has('data-kdl-hidden-block')), 'hiding posts also hides both paginators');
+groupEye.options.onClick();
+assert.ok([top, grid, bottom].every(node => !node.attrs.has('data-kdl-hidden-block')), 'restoring posts restores both paginators');
 groupController.cleanup();
+const block = makeNode('content');
+const visibleController = orderOverviewSections([{ id: 'content', node: block, title: 'Content', visibility: { module: 'kui.post', key: 'hideContent' } }], { key: 'post', defaults: ['content'], heading: '.heading' });
+const eye = block.head.children[0].children[0];
+eye.options.onClick();
+assert.equal(visibility.get('hideContent'), true, 'hide uses the existing post setting');
+assert.equal(block.attrs.has('data-kdl-hidden-block'), true, 'hidden section remains identifiable in edit mode');
+eye.options.onClick();
+assert.equal(visibility.get('hideContent'), false, 'a hidden block can be restored');
+visibleController.cleanup();
 assert.equal(registryListeners.size, 0, 'cleanup removes edit mode subscriptions');
 console.log('overview block ordering checks passed');

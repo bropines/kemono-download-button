@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 16,
+  "version": 17,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -906,6 +906,11 @@
     "mod.creator.blockOrder.setting.editMode.hint": "Показывать ручки перетаскивания и кнопки перемещения блоков автора и поста.",
     "mod.creator.blockOrder.description": "Меняйте порядок рекомендаций, обзора автора и списка постов.",
     "overview.moveUp": "Переместить «{section}» выше",
+    "overview.hideBlock": "Скрыть «{section}»",
+    "overview.showBlock": "Показать «{section}»",
+    "mod.creator.blockOrder.setting.hideSimilar": "Скрыть похожих авторов",
+    "mod.creator.blockOrder.setting.hideOverview": "Скрыть обзор автора",
+    "mod.creator.blockOrder.setting.hidePosts": "Скрыть посты",
     "overview.moveDown": "Переместить «{section}» ниже",
     "overview.drag": "Перетащите, чтобы переместить «{section}»",
     "mod.post.blockOrder.name": "Порядок блоков поста",

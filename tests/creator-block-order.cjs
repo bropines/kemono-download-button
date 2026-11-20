@@ -30,12 +30,13 @@ const bottom = new Element('bottom', 'paginator', 'paginator-bottom');
 const foreign = new Element('foreign', 'site-widget');
 [sim, overview, foreign, top, cards, bottom].forEach(node => root.append(node));
 let cleanups = 0, queued = null, listener = null;
-const doc = { querySelector: () => root, createComment: () => new Marker(),
+const doc = { documentElement: { toggleAttribute() {}, removeAttribute() {} }, querySelector: () => root, createComment: () => new Marker(),
   addEventListener: (_event, fn) => { listener = fn; }, removeEventListener: () => { listener = null; } };
 const imports = {
   '../../utils/dom': { el: (_tag, props) => new Element('heading', props.className || '') },
   '../../ui/kit': { ensureKit() {} },
   '../../i18n': { t: key => key },
+  '../../core/registry': { getModuleSetting: () => false, onRegistryChange: () => () => {} },
   '../creatorOverview/order': { orderOverviewSections: groups => ({ nodes: [...groups].sort((a, b) => ['posts', 'overview', 'similar'].indexOf(a.id) - ['posts', 'overview', 'similar'].indexOf(b.id)).map(group => group.node), cleanup: () => cleanups++ }) },
 };
 const location = { pathname: '/fanbox/user/1' };

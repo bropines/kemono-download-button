@@ -38,15 +38,17 @@ root.insertBefore(second, null);
 const imports = {
   '../../ui/kit': { ensureKit() {} },
   '../creatorOverview/order': { orderOverviewSections: sections => ({ nodes: sections.map(s => s.node).reverse(), cleanup: () => cleanupCount++ }) },
+  '../../core/registry': { getModuleSetting: () => false, onRegistryChange: () => () => {} },
 };
 const location = { pathname: '/post/1' };
 const context = { exports: {}, require: id => imports[id], HTMLElement: FakeElement, location,
-  document: { querySelector: () => root, createComment: () => new Marker() },
+  document: { documentElement: { toggleAttribute() {}, removeAttribute() {} }, querySelector: () => root, createComment: () => new Marker() },
   setTimeout: fn => { queued = fn; return 1; }, clearTimeout: () => { queued = null; },
 };
 vm.runInNewContext(compiled, context);
 const moduleUnderTest = context.exports.postBlocksModule;
-moduleUnderTest.mount();
+const ctx = { onCleanup() {} };
+moduleUnderTest.mount(ctx);
 assert.deepEqual(root.children.map(node => node.id), ['content', 'site-widget', 'attachments']);
 moduleUnderTest.update();
 assert.equal(cleanupCount, 0, 'router updates do not repeatedly rebuild controls');
@@ -60,7 +62,7 @@ moduleUnderTest.unmount();
 assert.equal(queued, null, 'unmount cancels delayed restoration');
 assert.deepEqual(root.children.map(node => node.id), ['attachments', 'site-widget', 'content']);
 assert.equal(root.childNodes.length, 3, 'markers are removed');
-moduleUnderTest.mount();
+moduleUnderTest.mount(ctx);
 assert.deepEqual(root.children.map(node => node.id), ['content', 'site-widget', 'attachments'], 're-enabling restores saved order');
 moduleUnderTest.unmount();
 assert.deepEqual(root.children.map(node => node.id), ['attachments', 'site-widget', 'content'], 'disabling restores native order');

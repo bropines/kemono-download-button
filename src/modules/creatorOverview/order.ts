@@ -1,10 +1,10 @@
 import { readStored, writeStored } from '../../state/gmStorage';
-import { button, kitScope } from '../../ui/kit';
+import { button, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
-import { getModuleSetting, onRegistryChange } from '../../core/registry';
+import { getModuleSetting, onRegistryChange, setModuleSetting } from '../../core/registry';
 
 export type SectionId = string;
-export interface OverviewSection { id: SectionId; node: HTMLElement; title: string; members?: HTMLElement[] }
+export interface OverviewSection { id: SectionId; node: HTMLElement; title: string; members?: HTMLElement[]; visibility?: { module: string; key: string } }
 
 const ORDER_KEY = 'creatorOverview.order';
 const DEFAULT_ORDER: SectionId[] = ['announcements', 'tags', 'links'];
@@ -52,7 +52,7 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
   const byId = new Map(sections.map((section) => [section.id, section]));
   const sorted = () => order.flatMap((id) => byId.has(id) ? [byId.get(id)!] : []);
   const nodes = sorted().map((section) => section.node);
-  if (sections.length < 2) return { nodes, cleanup: () => {} };
+  if (sections.length < 2 && !sections.some((section) => section.visibility)) return { nodes, cleanup: () => {} };
 
   let cancelDrag = () => {};
   let editing = getModuleSetting<boolean>('creator.blockOrder', 'editMode') === true;
@@ -83,7 +83,8 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     try { writeStored(key, order); } catch { /* Sorting still works for this page. */ }
   };
 
-  sections.forEach(({ id, node, title }) => {
+  const syncVisibility: Array<() => void> = [];
+  sections.forEach(({ id, node, title, visibility }) => {
     const heading = options?.heading ?? '.kdl-ov__head';
     const head = typeof heading === 'function' ? heading(byId.get(id)!) : node.querySelector<HTMLElement>(heading);
     if (!head) return;
@@ -105,7 +106,25 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     const down = button({ variant: 'ghost', size: 'icon', icon: 'chevron-down', title: downLabel, ariaLabel: downLabel, className: 'kdl-ov__move', onClick: () => move(1) });
     const handle = button({ variant: 'ghost', size: 'icon', icon: 'list', title: dragLabel, ariaLabel: dragLabel, className: 'kdl-ov__drag' });
     controls.set(id, { up, down });
-    const buttons = kitScope([up, down, handle], { className: 'kdl-ov__order' });
+    const items: HTMLElement[] = sections.length > 1 ? [up, down, handle] : [];
+    if (visibility) {
+      const toggle = button({ variant: 'ghost', size: 'icon', icon: 'eye', ariaLabel: t('overview.hideBlock', { section: title }), className: 'kdl-ov__visibility', onClick: () => {
+        setModuleSetting(visibility.module, visibility.key, !getModuleSetting<boolean>(visibility.module, visibility.key));
+      } });
+      const sync = () => {
+        const hidden = getModuleSetting<boolean>(visibility.module, visibility.key) === true;
+        (byId.get(id)?.members ?? [node]).forEach((member) => member.toggleAttribute('data-kdl-hidden-block', hidden));
+        const label = t(hidden ? 'overview.showBlock' : 'overview.hideBlock', { section: title });
+        toggle.title = label;
+        toggle.setAttribute('aria-label', label);
+        toggle.setAttribute('aria-pressed', String(hidden));
+        toggle.replaceChildren(kitIcon(hidden ? 'eye-off' : 'eye'));
+      };
+      syncVisibility.push(sync);
+      sync();
+      items.push(toggle);
+    }
+    const buttons = kitScope(items, { className: 'kdl-ov__order' });
     buttons.hidden = !editing;
     controlNodes.push(buttons);
     head.append(buttons);
@@ -144,11 +163,12 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
   });
   extraHeadings.forEach((head) => { head.hidden = !editing; });
   const off = onRegistryChange((event) => {
+    if (event.type === 'setting' && (event.id === 'kui.post' || event.id === 'creator.blockOrder')) syncVisibility.forEach((sync) => sync());
     if (event.type !== 'setting' || event.id !== 'creator.blockOrder' || event.key !== 'editMode') return;
     editing = event.value === true;
     if (!editing) cancelDrag();
     controlNodes.forEach((node) => { node.hidden = !editing; });
     extraHeadings.forEach((head) => { head.hidden = !editing; });
   });
-  return { nodes, cleanup: () => { off(); cancelDrag(); controlNodes.forEach((node) => node.remove()); } };
+  return { nodes, cleanup: () => { off(); cancelDrag(); controlNodes.forEach((node) => node.remove()); sections.forEach((section) => (section.members ?? [section.node]).forEach((node) => node.removeAttribute('data-kdl-hidden-block'))); } };
 }

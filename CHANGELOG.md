@@ -5,6 +5,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Added
+- Hide and restore supported creator and post blocks directly in layout editing mode.
 - Reorder creator page blocks, overview sections and post blocks with drag handles or move buttons; the chosen order is remembered.
 - Double-tap the left or right side of a video on touchscreens to seek by 10 seconds.
 - Add privacy-conscious download diagnostics when debug logging is enabled.
