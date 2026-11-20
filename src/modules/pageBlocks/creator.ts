@@ -9,6 +9,7 @@ import { getModuleSetting, onRegistryChange } from '../../core/registry';
 
 const ORDER = ['similar', 'overview', 'posts'];
 const CHANGE = 'kdl:creator-sections-changed';
+const LIVE_SEARCH_MORE = 'kdl-live-search-more';
 let active = false;
 let suspended = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
@@ -46,8 +47,17 @@ function sync(): void {
   if (overview) groups.push({ id: 'overview', node: overview, title: t('overview.creatorBlock'), visibility: { module: 'creator.blockOrder', key: 'hideOverview' } });
   // Only group the three known, adjacent native elements; if a site uses different markup,
   // leave its post list untouched rather than detach pagination or move unrelated widgets.
-  if (top && cards && bottom && top.nextElementSibling === cards && cards.nextElementSibling === bottom) {
-    groups.push({ id: 'posts', node: cards, title: t('overview.postsBlock'), members: [top, cards, bottom], visibility: { module: 'creator.blockOrder', key: 'hidePosts' } });
+  // The live search puts its "Load more" box right after the cards: it travels with them.
+  const tail: HTMLElement[] = [];
+  let afterCards = cards?.nextElementSibling ?? null;
+  while (afterCards && afterCards.id === LIVE_SEARCH_MORE) {
+    tail.push(afterCards as HTMLElement);
+    afterCards = afterCards.nextElementSibling;
+  }
+  // The skin lifts the creator tabs out of the top paginator; until it has, moving the paginator would move them too
+  const tabsInside = !!top?.querySelector(':scope > .tabs');
+  if (top && cards && bottom && !tabsInside && top.nextElementSibling === cards && afterCards === bottom) {
+    groups.push({ id: 'posts', node: cards, title: t('overview.postsBlock'), members: [top, cards, ...tail, bottom], visibility: { module: 'creator.blockOrder', key: 'hidePosts' } });
   }
   if (tracked && tracked.root === root && tracked.groups.length === groups.length && tracked.groups.every((old) => {
     const next = groups.find((group) => group.id === old.id);
@@ -92,6 +102,8 @@ export const creatorBlocksModule: KdlModule = {
   group: 'Lists',
   pages: ['creator'],
   defaultEnabled: true,
+  // The skin's creator part gives the tabs a row of their own, so the posts group is only pagination and cards
+  requires: ['ui.shadcn.creator'],
   after: ['creators.similar', 'creators.overview'],
   settings: [
     { key: 'editMode', label: 'Edit page layout', type: 'boolean', default: false, hint: 'Show drag handles and move buttons for creator and post blocks.' },

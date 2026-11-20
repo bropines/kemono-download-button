@@ -8,11 +8,13 @@ import { kuiState, setEmbedRules, setHideEmptySections, setPreloadImages } from 
 import type { EmbedRules } from '../../../types';
 import { el } from '../../../utils/dom';
 import { badge, button, field, input, kitIcon, select, setSliderValue, setSwitch, slider } from '../../kit';
-import { getModuleSetting, setModuleSetting } from '../../../core/registry';
+import { getModuleSetting, isModuleEnabled, setModuleEnabled, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { t, tx } from '../../../i18n';
+import { canOfferPreloadStyle, preloadStyleControl } from '../../components/preloadStyle';
+import { openOnboarding } from '../../../modules/onboarding';
 
 const GRID_MIN = 120;
 const GRID_MAX = 400;
@@ -144,6 +146,22 @@ registerSettingsSection({
   order: 50,
   render(container) {
     container.append(
+      section(t('settings.interface.redesignSection'), [
+        syncedSwitch({
+          id: 'kdl-redesign-toggle',
+          label: t('settings.interface.redesign'),
+          description: t('settings.interface.redesignDescription'),
+          checked: isModuleEnabled('ui.shadcn'),
+          onChange: (checked) => {
+            setModuleEnabled('ui.shadcn', checked);
+            notifySaved();
+          },
+        }, 'ui.shadcn'),
+        canOfferPreloadStyle() ? field({ label: t('preload.title'), description: t('preload.description'), control: preloadStyleControl() }) : null,
+        el('div', { className: 'kdl-settings__row' }, [
+          button({ label: t('onboarding.reopen'), icon: 'info', variant: 'outline', size: 'sm', onClick: () => openOnboarding() }),
+        ]),
+      ].filter(Boolean) as HTMLElement[], { icon: 'sliders-horizontal' }),
       section(t('settings.interface.listsSection'), [
         syncedSwitch({
           id: 'kdl-layout-edit-mode',

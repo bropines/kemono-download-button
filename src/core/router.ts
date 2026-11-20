@@ -1,6 +1,7 @@
 import { PageInfo } from './types';
 import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, resolveRoot, writePageAttributes } from './page';
-import { attachRuntime, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
+import { attachRuntime, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
+import { cloak, reveal } from './cloak';
 
 let current: PageInfo;
 let root: Element;
@@ -47,6 +48,7 @@ function reconcile(): void {
     // Modules mounted for 'any' page stay mounted across the navigation: they still need to see the new page now,
     // not on the next unrelated mutation
     updateMounted();
+    reveal();
     return;
   }
   // Same path (query change, partial swap, history restore of the same page): re-detect, keep what still matches
@@ -54,6 +56,12 @@ function reconcile(): void {
   if (page.type !== current.type) setPage(page);
   syncModules();
   updateMounted();
+  reveal();
+}
+
+// The new page content is in the DOM but not painted yet: keep it hidden until the modules reworked it
+function cloakNewPage(): void {
+  if (isModuleEnabled('ui.shadcn')) cloak();
 }
 
 let navTimer: ReturnType<typeof setTimeout> | null = null;
@@ -102,14 +110,15 @@ function swapReplacesPage(event: Event): boolean {
 
 // The new #main is in the DOM but not painted yet: point <html data-kdl-page> at it now, so page-scoped
 // rules (restyle themes) match on the first frame instead of after the coalesced reconcile
-function writeEarlyPageAttributes(event: Event): void {
+function writeEarlyPageAttributes(event: Event): boolean {
   const target = (event as CustomEvent).detail?.target as Element | undefined;
   // An outerHTML swap leaves the event on the old, now detached #main
   const replacedMain = !!target && !target.isConnected && target.matches('#main, main');
-  if (!replacedMain && !swapReplacesPage(event)) return;
+  if (!replacedMain && !swapReplacesPage(event)) return false;
   const path = htmxNextPath(event) || window.location.pathname;
   const fromUrl = pageFromUrl(path);
   writePageAttributes({ type: fromUrl === 'other' ? pageFromDom() : fromUrl, site: detectSite(), path });
+  return true;
 }
 
 function installNavigationHooks(): void {
@@ -120,11 +129,14 @@ function installNavigationHooks(): void {
     if (swapReplacesPage(event)) leaveIfPathChanges(htmxNextPath(event));
   });
   document.addEventListener('htmx:afterSwap', (event) => {
-    writeEarlyPageAttributes(event);
+    if (writeEarlyPageAttributes(event)) cloakNewPage();
     scheduleReconcile();
   });
   document.addEventListener('htmx:afterSettle', () => scheduleReconcile());
-  document.addEventListener('htmx:historyRestore', () => scheduleReconcile());
+  document.addEventListener('htmx:historyRestore', () => {
+    cloakNewPage();
+    scheduleReconcile();
+  });
   window.addEventListener('popstate', () => {
     if (window.location.pathname !== lastPath) unmountPageScoped();
     scheduleReconcile();

@@ -12,6 +12,11 @@ import { ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { fetchAnnouncements, fetchCreatorLinks, fetchCreatorTags } from '../../api/kemonoApi';
 import { t } from '../../i18n';
 import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from './order';
+import { getModuleSetting } from '../../core/registry';
+import { holdCloak } from '../../core/cloak';
+import { getSettings } from '../../state/store';
+
+const MODULE_ID = 'creators.overview';
 
 const OWN = 'kdl-ov';
 const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
@@ -39,8 +44,9 @@ function plain(html: string): string {
   return (doc.body.textContent || '').replace(/\n{3,}/g, '\n\n').trim();
 }
 
-async function load(who: Who, ctx: ModuleContext): Promise<Overview> {
-  const want = (key: string) => ctx.settings.get<boolean>(key) !== false;
+// The three requests run side by side; each is shared with an earlier identical one (document-start prefetch)
+async function load(who: Who): Promise<Overview> {
+  const want = (key: string) => getModuleSetting<boolean>(MODULE_ID, key) !== false;
   const [ann, tags, links] = await Promise.all([
     want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(() => null) : null,
     want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(() => []) : [],
@@ -142,11 +148,13 @@ async function render(ctx: ModuleContext): Promise<void> {
   const key = `${who.service}/${who.id}${location.search}`;
   if (key === current && node?.isConnected) return place();
   if (key === pending) return;
+  // Loaded already and nothing to show: page mutations must not ask the API again
+  if (key === current && !node) return;
   remove();
   current = key;
   pending = key;
   const request = generation;
-  const data = await load(who, ctx);
+  const data = await load(who);
   if (request !== generation) return;
   pending = '';
   node = build(who, data);
@@ -199,12 +207,14 @@ ${ORDER_CONTROLS_STYLE}
 `;
 
 export const creatorOverviewModule: KdlModule = {
-  id: 'creators.overview',
+  id: MODULE_ID,
   name: 'Creator overview',
   description: "On a creator's Posts tab: the latest announcement, the creator's tags (a chip filters the posts) and linked accounts, from the API, without opening each tab.",
   group: 'Lists',
   pages: ['creator'],
   defaultEnabled: true,
+  // Part of the redesign: switched off with it
+  requires: ['ui.shadcn'],
   after: ['creators.similar'],
   settings: [
     { key: 'announcements', label: 'Latest announcement', type: 'boolean', default: true },
@@ -212,14 +222,19 @@ export const creatorOverviewModule: KdlModule = {
     { key: 'links', label: 'Linked accounts', type: 'boolean', default: true },
   ],
   styles: STYLES,
+  // The URL already names the creator: the requests start while the page is still loading
+  early() {
+    const who = creatorFromPath();
+    if (who) void getSettings().then(() => load(who)).catch(() => undefined);
+  },
   mount(ctx) {
     const rerender = () => {
       remove();
       void render(ctx);
     };
     ['announcements', 'tags', 'links'].forEach((key) => ctx.settings.onChange(key, rerender));
-    // The similar creators strip arrives later and goes right after the tabs, so it lands above this block
-    void render(ctx);
+    // The similar creators strip goes right after the tabs, so it lands above this block whenever it arrives
+    holdCloak(render(ctx));
     ctx.onCleanup(remove);
   },
   update(ctx) {

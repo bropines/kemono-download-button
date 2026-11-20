@@ -365,8 +365,10 @@ function undoDropZone(): void {
 const TABS = '.site-section--user > .paginator > .tabs';
 const tabSpots = new WeakMap<Element, Comment>();
 function liftCreatorTabs(): void {
+  let lifted = false;
   document.querySelectorAll(TABS).forEach((tabs) => {
     if (tabSpots.has(tabs)) return;
+    lifted = true;
     const paginator = tabs.parentElement!;
     const spot = document.createComment('kdl-tabs-spot');
     tabs.before(spot);
@@ -376,6 +378,8 @@ function liftCreatorTabs(): void {
     paginator.before(row);
     row.append(tabs);
   });
+  // The creator block order waits for the tabs to leave the paginator before it moves the posts group
+  if (lifted) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 function undoCreatorTabs(): void {
   document.querySelectorAll(`[${MARK}="tabs"]`).forEach((row) => {

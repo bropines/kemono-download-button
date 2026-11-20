@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      1.10.14
+// @version      1.10.15
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -37,7 +37,9 @@
 import { startRouter } from './core/router';
 import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
-import { bootEarly } from './core/registry';
+import { bootEarly, isModuleEnabled } from './core/registry';
+import { cloak, reveal } from './core/cloak';
+import { isPreloadStyleInstalled } from './ui/components/preloadStyle';
 import { ensureStylesInjected } from './modules/core';
 import { installLanguageRuntime } from './i18n/live';
 
@@ -48,6 +50,12 @@ migrateLegacyKeys();
 registerBuiltinModules();
 // The script starts with the document: styles go in before the first paint, the rest waits for the DOM
 bootEarly();
+// With the redesign on, the page content stays hidden until the modules have reworked it (src/core/cloak.ts).
+// Only while nothing is painted yet: a manager that injects late (after <body> exists) must not hide a page
+// the user already sees.
+// With the preload userstyle the page is hidden from the first frame anyway, so the cloak (and its short wait
+// for cached blocks) applies however late the manager injected us, until the first reveal.
+if (isModuleEnabled('ui.shadcn') && (!document.body || isPreloadStyleInstalled())) cloak();
 
 // Styles injected at document-start sit before the site's own stylesheets; move them after, as they used to be,
 // so equal-specificity rules keep winning (user theme sheets stay last: they are re-appended in the same order)
@@ -58,8 +66,12 @@ function moveOwnStylesLast(): void {
 
 function init(): void {
   moveOwnStylesLast();
-  startRouter();
-  installLanguageRuntime();
+  try {
+    startRouter();
+    installLanguageRuntime();
+  } finally {
+    reveal();
+  }
 }
 
 if (document.readyState === 'loading') {

@@ -4,6 +4,23 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- A welcome screen after install with the redesign switch and the optional no-flash style; Settings → Interface shows it again. Its "seen" mark is kept by the userscript manager, so clearing site data does not bring it back.
+- An optional style for Stylus (`extras/kdl-preload.user.css`) that shows a loading skeleton instead of the site's own layout from the first frame until the script is ready, so the old layout no longer flashes even though userscript managers start scripts late. The same skeleton fills the page during navigations.
+
+### Changed
+- The redesign is now on by default, with its switch at the top of Settings → Interface. Switching it off also turns off what belongs to it: similar creators, the creator overview, info badges, the creator links menu, block ordering and the import status page.
+- With the redesign on, the page content stays hidden for the moment it takes to rework it, so the site's own layout no longer flashes on load or navigation.
+- Similar creators, the creator overview and info badges start loading while the page is still loading, side by side instead of one after another. Similar creators are also cached for 48 hours, like the overview.
+- Similar creators show up without waiting for your favourites; the stars are added when those arrive.
+- Faster page set-up: smooth thumbnails no longer force a layout per card, and long comment threads no longer force an extra layout of the whole post page.
+
+### Fixed
+- Live post search no longer pulls the posts back to their original place, or leaves "Load more" behind, when the creator page blocks were reordered.
+- Creator page block ordering no longer moves or hides the creator tabs along with the posts.
+- The creator overview no longer asks the API again on every page update for creators with nothing to show.
+- Hiding the videos block on a post now also hides the site's own video list.
+
 ## [1.10.14] - 2026-11-20
 
 ### Fixed

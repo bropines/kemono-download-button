@@ -215,7 +215,7 @@ export const shadcnSiteModule: KdlModule = {
     'Restyles the site itself like a shadcn/ui app: dark palette with a choice of accent and base tone, sidebar, header, inputs, buttons, pagination and tabs. The parts below can be switched off one by one. User themes still apply on top.',
   group: 'Interface',
   pages: 'any',
-  defaultEnabled: false,
+  defaultEnabled: true,
   after: ['core'],
   settings: [
     { key: 'accent', label: 'Accent colour', type: 'select', default: 'zinc', options: ACCENT_OPTIONS, hint: 'Primary buttons, focus rings, selection and hover tints. The settings dialog and download panels follow too.' },

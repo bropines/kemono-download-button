@@ -107,13 +107,24 @@ export function getWindowPageData(targetPostID?: string): any {
   return null;
 }
 
-export async function fetchAndCachePostData(service: string, userID: string, postID: string): Promise<any> {
+const postRequests = new Map<string, Promise<any>>();
+
+/** Cached post data, or one shared request while it is in flight (the info badges and the downloader both ask) */
+export function fetchAndCachePostData(service: string, userID: string, postID: string): Promise<any> {
   const cacheKey = `post_${service}_${userID}_${postID}`;
-  const cached = await getCachedPost(cacheKey);
-  if (cached) return cached;
-  const rawApiData = await getApiAdapter().fetchPostData(service, userID, postID);
-  if (rawApiData) await setCachedPost(cacheKey, rawApiData);
-  return rawApiData;
+  const running = postRequests.get(cacheKey);
+  if (running) return running;
+  const request = (async () => {
+    const cached = await getCachedPost(cacheKey);
+    if (cached) return cached;
+    const rawApiData = await getApiAdapter().fetchPostData(service, userID, postID);
+    if (rawApiData) await setCachedPost(cacheKey, rawApiData);
+    return rawApiData;
+  })();
+  postRequests.set(cacheKey, request);
+  const done = () => { if (postRequests.get(cacheKey) === request) postRequests.delete(cacheKey); };
+  void request.then(done, done);
+  return request;
 }
 
 // Comments come from their own endpoint (kemono and pawchive alike); a failure only loses comments.txt

@@ -245,12 +245,15 @@ function applyCommentsView(container: HTMLElement, toolbar: HTMLElement): void {
     );
   });
 
-  // Measured last, once the footer holds all its buttons
-  syncExpanders(container, layout);
+  // Measured last, once the footer holds all its buttons. The first time, the new ResizeObserver's initial
+  // callback does it: it runs on the browser's own layout before the first paint, whereas measuring here
+  // forced an extra layout of the whole page in the middle of the mount (~45 ms on a post with comments)
   if (!resizeObservers.has(container) && typeof ResizeObserver === 'function') {
     const observer = new ResizeObserver(() => syncExpanders(container, readLayout()));
     observer.observe(container);
     resizeObservers.set(container, observer);
+  } else {
+    syncExpanders(container, layout);
   }
 }
 

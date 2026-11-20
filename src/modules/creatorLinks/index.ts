@@ -192,6 +192,8 @@ export const creatorLinksModule: KdlModule = {
   group: 'Lists',
   pages: ['creator'],
   defaultEnabled: true,
+  // Part of the redesign: switched off with it
+  requires: ['ui.shadcn'],
   settings: [
     { key: 'nameOpensMenu', label: 'Clicking the name opens the menu', type: 'boolean', default: true, hint: 'Otherwise the name keeps going to the original site and the menu opens from the link icon. Ctrl+click always goes to the site.' },
     { key: 'searches', label: 'Search sites', type: 'textarea', default: DEFAULT_SEARCHES, hint: 'One per line: "Label | URL". {name} is the creator name, {tag} the same in lower case with underscores (booru tags).' },

@@ -6,7 +6,7 @@ const MAX_ENTRIES = 100;
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_ITEM_BYTES = 256 * 1024;
 
-type Kind = 'announcements' | 'tags' | 'links';
+type Kind = 'announcements' | 'tags' | 'links' | 'similar';
 interface Entry { key: string; saved: number; size: number; data: unknown[] }
 const memory = new Map<string, Entry>();
 const pending = new Map<string, Promise<unknown>>();

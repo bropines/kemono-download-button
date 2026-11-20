@@ -369,6 +369,8 @@ export const importerStatusModule: KdlModule = {
   group: 'Interface',
   pages: 'any',
   defaultEnabled: true,
+  // Part of the redesign: switched off with it
+  requires: ['ui.shadcn'],
   styles,
   mount: enhance,
   update: enhance,

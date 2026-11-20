@@ -13,6 +13,8 @@ import { badge, button, ensureKit, kitScope, type BadgeVariant } from '../../ui/
 import { debugLog } from '../../utils/helpers';
 import { t } from '../../i18n';
 import { originalText } from '../../i18n/site';
+import { holdCloak } from '../../core/cloak';
+import { getSettings } from '../../state/store';
 
 const CREATOR_ROW = 'kdl-info-creator';
 const POST_ROW = 'kdl-info-post';
@@ -82,7 +84,7 @@ function creatorRow(service: string, id: string, profile: any, total: number | n
   return nodes.length ? row(CREATOR_ROW, `${service}/${id}|${total ?? ''}`, nodes) : null;
 }
 
-function syncCreator(): void {
+function syncCreator(): Promise<unknown> | void {
   const name = document.querySelector('h1.user-header__name');
   const match = /^\/([^/]+)\/user\/([^/?#]+)\/?$/.exec(window.location.pathname) || /^\/([^/]+)\/user\/([^/?#]+)/.exec(window.location.pathname);
   if (!name || !match) return;
@@ -92,7 +94,7 @@ function syncCreator(): void {
   const total = paginatorTotal();
   const own = document.getElementById(CREATOR_ROW);
   if (own && own.dataset.kdlKey === `${key}|${total ?? ''}` && name.nextElementSibling === own) return;
-  void loadProfile(service, id).then((profile) => {
+  return loadProfile(service, id).then((profile) => {
     if (creatorKey !== key || !profile) return;
     const current = document.querySelector('h1.user-header__name');
     if (!current) return;
@@ -139,7 +141,21 @@ function postRow(service: string, userId: string, postId: string, data: any): HT
   return nodes.length ? row(POST_ROW, `${service}/${userId}/${postId}`, nodes) : null;
 }
 
-function syncPost(): void {
+function postData(service: string, userId: string, postId: string): Promise<any | null> {
+  const key = `${service}/${userId}/${postId}`;
+  if (!postRequest || postRequest.key !== key) {
+    postRequest = {
+      key,
+      data: fetchAndCachePostData(service, userId, postId).catch((error) => {
+        debugLog('Post info failed:', error);
+        return null;
+      }),
+    };
+  }
+  return postRequest.data;
+}
+
+function syncPost(): Promise<unknown> | void {
   const title = document.querySelector('.post__title');
   const match = /^\/([^/]+)\/user\/([^/?#]+)\/post\/([^/?#]+)/.exec(window.location.pathname);
   if (!title || !match) return;
@@ -154,17 +170,9 @@ function syncPost(): void {
     }
     own.remove();
   }
-  if (!postRequest || postRequest.key !== key) {
-    postRequest = {
-      key,
-      data: fetchAndCachePostData(service, userId, postId).catch((error) => {
-        debugLog('Post info failed:', error);
-        return null;
-      }),
-    };
-  }
-  const request = postRequest;
-  void request.data.then((data) => {
+  postData(service, userId, postId);
+  const request = postRequest!;
+  return request.data.then((data) => {
     if (postRequest !== request || !data) return;
     const current = document.querySelector('.post__title');
     if (!current || document.getElementById(POST_ROW)) return;
@@ -173,9 +181,8 @@ function syncPost(): void {
   });
 }
 
-function sync(): void {
-  syncCreator();
-  syncPost();
+function sync(): Promise<unknown> {
+  return Promise.all([syncCreator(), syncPost()]);
 }
 
 function undo(): void {
@@ -209,9 +216,25 @@ export const postInfoModule: KdlModule = {
   group: 'Interface',
   pages: ['creator', 'post'],
   defaultEnabled: true,
+  // Part of the redesign: switched off with it
+  requires: ['ui.shadcn'],
   styles: STYLES,
+  // The URL already names the creator or post: the request starts while the page is still loading
+  early() {
+    const path = window.location.pathname;
+    const post = /^\/([^/]+)\/user\/([^/?#]+)\/post\/([^/?#]+)/.exec(path);
+    const creator = /^\/([^/]+)\/user\/([^/?#]+)/.exec(path);
+    void getSettings().then(() => {
+      if (post) void postData(post[1], post[2], post[3]);
+      else if (creator) void loadProfile(creator[1], creator[2]);
+    });
+  },
   mount(ctx) {
-    sync();
+    // Post data is usually cached (IndexedDB), so it is worth holding the cloak for; the creator profile always
+    // comes from the network and would only delay the page
+    void syncCreator();
+    const post = syncPost();
+    if (post) holdCloak(post);
     ctx.onCleanup(() => {
       clearTimeout(snapshotTimer);
       creatorKey = '';
@@ -220,10 +243,10 @@ export const postInfoModule: KdlModule = {
     });
   },
   update() {
-    sync();
+    void sync();
   },
   beforeSnapshot() {
     undo();
-    snapshotTimer = window.setTimeout(sync, 0);
+    snapshotTimer = window.setTimeout(() => void sync(), 0);
   },
 };

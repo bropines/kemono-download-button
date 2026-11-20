@@ -1,19 +1,21 @@
 // "Similar creators" strip under a creator's header (Posts tab only). Kemono/Coomer return the list from
 // /api/v1/{svc}/user/{id}/recommended (with a score); Pawchive has no such API but serves the same list as the
 // HTML tab /{svc}/user/{id}/recommended, whose creator cards are read instead (also the fallback when the API
-// fails). Loaded after the page is idle, cached per creator for the session, aborted on navigation; a failure
-// renders nothing. One node of ours (.kdl-sim) after the skin's tabs row or the header; removed on unmount and
+// fails). Requested at document start (the URL names the creator), kept in the creator overview cache for 48h,
+// and holding the page cloak briefly so it is there in the first frame; a failure renders nothing. One node of ours (.kdl-sim) after the skin's tabs row or the header; removed on unmount and
 // before htmx snapshots.
 
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { getApiAdapter } from '../../api';
-import { appState } from '../../state/store';
+import { appState, getSettings } from '../../state/store';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { gmXmlhttpRequestWithRetries, isAbortError } from '../../utils/http';
 import { getApiUrl } from '../../utils/helpers';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
+import { cachedCreatorOverview } from '../../api/creatorOverviewCache';
+import { holdCloak } from '../../core/cloak';
 
 const OWN = 'kdl-sim';
 const COLLAPSED_KEY = 'mod.creators.similar.collapsed';
@@ -30,7 +32,6 @@ interface Similar {
 
 const cache = new Map<string, Promise<Similar[]>>();
 let aborter: AbortController | null = null;
-let idleHandle = 0;
 let strip: HTMLElement | null = null;
 // The creator this module already started (or finished) loading for; empty after unmount / snapshot
 let current = '';
@@ -63,7 +64,7 @@ function fromHtml(html: string): Similar[] {
   }));
 }
 
-async function load(service: string, id: string, signal: AbortSignal): Promise<Similar[]> {
+async function load(service: string, id: string, signal?: AbortSignal): Promise<Similar[]> {
   const base = `/${service}/user/${id}/recommended`;
   const html = async () =>
     fromHtml((await gmXmlhttpRequestWithRetries({ method: 'GET', url: getApiUrl(base), timeout: 20000, signal })).responseText || '');
@@ -77,11 +78,12 @@ async function load(service: string, id: string, signal: AbortSignal): Promise<S
   }
 }
 
-function fetchSimilar(service: string, id: string, signal: AbortSignal): Promise<Similar[]> {
+/** One shared request per creator; without a signal (the document-start prefetch) it is never aborted */
+function fetchSimilar(service: string, id: string, signal?: AbortSignal): Promise<Similar[]> {
   const key = `${service}/${id}`;
   let request = cache.get(key);
   if (!request) {
-    request = load(service, id, signal).catch((error) => {
+    request = cachedCreatorOverview('similar', service, id, () => load(service, id, signal)).catch((error) => {
       cache.delete(key); // an aborted or failed request is not remembered
       throw error;
     });
@@ -97,7 +99,19 @@ function scoreText(score: number, max: number): string {
   return t('similar.score', { value });
 }
 
-function chip(item: Similar, max: number, withStar: boolean): HTMLElement {
+function star(item: Similar): HTMLElement {
+  const key = `${item.service}-${item.id}`;
+  const node = button({ icon: 'star', variant: 'ghost', size: 'icon', ariaLabel: t('dl.card.toggleFavorite'), title: t('dl.card.toggleFavorite'), className: `${OWN}__fav` });
+  const sync = () => node.classList.toggle(`${OWN}__fav--on`, appState.favoritedArtists.has(key));
+  sync();
+  node.addEventListener('click', (event) => {
+    event.preventDefault();
+    void getApiAdapter().toggleFavorite(node, 'creator', item.service, item.id, null, sync).then(sync);
+  });
+  return node;
+}
+
+function chip(item: Similar, max: number): HTMLElement {
   const img = el('img', { src: `/icons/${item.service}/${item.id}`, alt: '', loading: 'lazy' }) as HTMLImageElement;
   img.addEventListener('error', () => img.remove(), { once: true });
   const text = el('span', { className: `${OWN}__text` }, [
@@ -111,17 +125,6 @@ function chip(item: Similar, max: number, withStar: boolean): HTMLElement {
     fill.style.width = `${Math.max(4, Math.round((item.score / max) * 100))}%`;
     text.append(el('span', { className: `${OWN}__bar` }, [fill]));
     node.title = scoreText(item.score, max);
-  }
-  if (withStar) {
-    const key = `${item.service}-${item.id}`;
-    const star = button({ icon: 'star', variant: 'ghost', size: 'icon', ariaLabel: t('dl.card.toggleFavorite'), title: t('dl.card.toggleFavorite'), className: `${OWN}__fav` });
-    const sync = () => star.classList.toggle(`${OWN}__fav--on`, appState.favoritedArtists.has(key));
-    sync();
-    star.addEventListener('click', (event) => {
-      event.preventDefault();
-      void getApiAdapter().toggleFavorite(star, 'creator', item.service, item.id, null, sync).then(sync);
-    });
-    node.append(star);
   }
   return node;
 }
@@ -145,11 +148,16 @@ function remove(): void {
   if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
-function build(items: Similar[], limit: number, withStar: boolean, who: { service: string; id: string }): HTMLElement {
+function build(items: Similar[], limit: number, favourites: Promise<unknown>): HTMLElement {
   ensureKit();
   const shown = items.slice(0, limit);
   const max = Math.max(0, ...shown.map((item) => item.score ?? 0));
-  const body = el('div', { className: `${OWN}__scroll` }, shown.map((item) => chip(item, max, withStar)));
+  const chips = shown.map((item) => chip(item, max));
+  const body = el('div', { className: `${OWN}__scroll` }, chips);
+  // Stars only for a signed-in user; the strip does not wait for the favourites to arrive
+  void favourites.then((signedIn) => {
+    if (signedIn) chips.forEach((node, index) => node.isConnected && !node.querySelector(`.${OWN}__fav`) && node.append(star(shown[index])));
+  });
   const root = kitScope([], { className: OWN });
   const toggle = button({ variant: 'ghost', size: 'icon' });
   const apply = (collapsed: boolean) => {
@@ -183,28 +191,21 @@ async function start(ctx: ModuleContext): Promise<void> {
   current = key;
   aborter?.abort();
   const controller = (aborter = new AbortController());
+  // Favourites load once, alongside the list, and fail quietly without a session
+  const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
   try {
     const items = (await fetchSimilar(who.service, who.id, controller.signal)).filter((item) => !(item.service === who.service && item.id === who.id));
     if (controller.signal.aborted || !items.length) return;
-    // Stars only for a signed-in user: favourites load once, and fail quietly without a session
-    const withStar = await getApiAdapter().fetchUserFavorites().catch(() => false);
     if (controller.signal.aborted || !anchor()) return;
-    strip = build(items, ctx.settings.get<number>('limit') || 12, !!withStar, who);
+    strip = build(items, ctx.settings.get<number>('limit') || 12, favourites);
     place();
   } catch (error) {
     if (!isAbortError(error)) ctx.log('similar creators failed', error);
   }
 }
 
-function schedule(ctx: ModuleContext): void {
-  const run = () => void start(ctx);
-  if (typeof requestIdleCallback === 'function') idleHandle = requestIdleCallback(run, { timeout: 2500 });
-  else idleHandle = window.setTimeout(run, 400);
-}
-
-function cancelIdle(): void {
-  if (typeof cancelIdleCallback === 'function') cancelIdleCallback(idleHandle);
-  clearTimeout(idleHandle);
+function run(ctx: ModuleContext): void {
+  holdCloak(start(ctx));
 }
 
 const STYLES = `
@@ -241,12 +242,18 @@ export const similarCreatorsModule: KdlModule = {
   group: 'Lists',
   pages: ['creator'],
   defaultEnabled: true,
+  // Part of the redesign: switched off with it
+  requires: ['ui.shadcn'],
   settings: [{ key: 'limit', label: 'Creators shown', type: 'number', default: 12, min: 4, max: 30 }],
   styles: STYLES,
+  // The URL already names the creator: the request starts while the page is still loading
+  early() {
+    const who = creatorFromPath();
+    if (who) void getSettings().then(() => fetchSimilar(who.service, who.id)).catch(() => undefined);
+  },
   mount(ctx) {
-    schedule(ctx);
+    run(ctx);
     ctx.onCleanup(() => {
-      cancelIdle();
       aborter?.abort();
       aborter = null;
       remove();
@@ -258,7 +265,7 @@ export const similarCreatorsModule: KdlModule = {
     const who = creatorFromPath();
     if (!who) return;
     if (current === `${who.service}/${who.id}`) place();
-    else schedule(ctx);
+    else run(ctx);
   },
   beforeSnapshot() {
     remove();

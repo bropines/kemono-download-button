@@ -60,7 +60,8 @@ export const postBlocksModule: KdlModule = {
   group: 'Post page',
   pages: ['post'],
   defaultEnabled: true,
-  requires: ['kui.post'],
+  // Post page layout plus the redesign it belongs to
+  requires: ['kui.post', 'ui.shadcn'],
   after: ['kui.post'],
   styles: `
 .kui-post-section > h2:has(> .kdl-ov__order:not([hidden])) { display: flex; align-items: center; gap: 4px; }

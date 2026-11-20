@@ -25,10 +25,11 @@ let resizeObserver: ResizeObserver | null = null;
 let mutationObserver: MutationObserver | null = null;
 let scheduled = 0;
 
-async function draw(img: HTMLImageElement, entry: Entry): Promise<void> {
+/** `rect` is the thumbnail box, measured by the caller when it measures many at once */
+async function draw(img: HTMLImageElement, entry: Entry, rect?: DOMRect): Promise<void> {
   const box = img.parentElement;
   if (!box || !img.isConnected) return;
-  const rect = box.getBoundingClientRect();
+  rect ??= box.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const width = Math.round(rect.width * dpr);
   const height = Math.round(rect.height * dpr);
@@ -62,10 +63,42 @@ async function draw(img: HTMLImageElement, entry: Entry): Promise<void> {
   }
 }
 
-function attach(img: HTMLImageElement): void {
+// Images that loaded since the last frame: measured together, then drawn (one layout for the whole batch)
+const queued = new Map<HTMLImageElement, Entry>();
+let flushPending = false;
+
+function drawBatch(batch: [HTMLImageElement, Entry][]): void {
+  const rects = batch.map(([img]) => img.parentElement?.getBoundingClientRect());
+  batch.forEach(([img, entry], index) => void draw(img, entry, rects[index]));
+}
+
+function flushQueued(): void {
+  flushPending = false;
+  const batch = [...queued];
+  queued.clear();
+  drawBatch(batch.filter(([img]) => img.isConnected));
+}
+
+function queueDraw(img: HTMLImageElement, entry: Entry): void {
+  queued.set(img, entry);
+  if (flushPending) return;
+  flushPending = true;
+  let done = false;
+  const run = (): void => {
+    if (done) return;
+    done = true;
+    flushQueued();
+  };
+  // rAF batches a frame's worth of loads; it never fires in a background tab, the timer does
+  requestAnimationFrame(run);
+  setTimeout(run, 100);
+}
+
+/** Adds the canvas; returns the entry when the image is ready to draw now (the caller measures and draws) */
+function attach(img: HTMLImageElement): Entry | null {
   let entry = entries.get(img);
   const src = img.currentSrc || img.src;
-  if (entry && entry.src === src && entry.canvas.isConnected) return;
+  if (entry && entry.src === src && entry.canvas.isConnected) return null;
   if (!entry) {
     const canvas = document.createElement('canvas');
     canvas.className = CANVAS;
@@ -79,8 +112,9 @@ function attach(img: HTMLImageElement): void {
   entry.key = '';
   if (!entry.canvas.isConnected) img.after(entry.canvas);
   const current = entry;
-  if (img.complete && img.naturalWidth) void draw(img, current);
-  else img.addEventListener('load', () => void draw(img, current), { once: true });
+  if (img.complete && img.naturalWidth) return current;
+  img.addEventListener('load', () => queueDraw(img, current), { once: true });
+  return null;
 }
 
 function scan(): void {
@@ -92,7 +126,14 @@ function scan(): void {
       entries.delete(img);
     }
   });
-  document.querySelectorAll<HTMLImageElement>(IMG).forEach(attach);
+  // All DOM writes first, then every box measured in one layout pass: measuring right after each inserted
+  // canvas forced a layout per card (~70 ms on a 50-card page)
+  const ready: [HTMLImageElement, Entry][] = [];
+  document.querySelectorAll<HTMLImageElement>(IMG).forEach((img) => {
+    const entry = attach(img);
+    if (entry) ready.push([img, entry]);
+  });
+  drawBatch(ready);
 }
 
 function schedule(): void {
@@ -131,12 +172,14 @@ img${IMG}[${READY}] { opacity: 0; }
     });
     mutationObserver = new MutationObserver(schedule);
     mutationObserver.observe(document.body, { childList: true, subtree: true });
-    scan();
+    // A refinement of pictures already on screen: never part of the first frame
+    schedule();
     ctx.onCleanup(() => {
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
       resizeObserver = mutationObserver = null;
       clearTimeout(scheduled);
+      queued.clear();
       scheduled = 0;
       undo();
     });

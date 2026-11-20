@@ -24,6 +24,7 @@ import { creatorOverviewModule } from './creatorOverview';
 import { postBlocksModule } from './pageBlocks/post';
 import { creatorBlocksModule } from './pageBlocks/creator';
 import { siteTranslationModule } from '../i18n/site';
+import { onboardingModule } from './onboarding';
 
 // Registration order is the tie-breaker for mount order; requires/after override it
 export const BUILTIN_MODULES: KdlModule[] = [
@@ -52,6 +53,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   creatorOverviewModule,
   creatorBlocksModule,
   siteTranslationModule,
+  onboardingModule,
   // Before restyle, so user themes keep the last word
   shadcnSiteModule,
   ...shadcnSiteParts,

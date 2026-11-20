@@ -17,7 +17,7 @@ const BLOCKS: { key: string; label: string; match: string }[] = [
   { key: 'downloads', label: 'Downloads (attachments)', match: '.post__attachments' },
   { key: 'content', label: 'Text content', match: '.post__content' },
   { key: 'files', label: 'Files and image gallery', match: '.post__files, .kui-gallery-layout' },
-  { key: 'videos', label: 'Videos', match: '.kui-video-gallery-layout, .post__video' },
+  { key: 'videos', label: 'Videos', match: '.kui-video-gallery-layout, .post__video, .post__videos, .kui-video-section' },
   { key: 'comments', label: 'Comments', match: 'footer.post__footer' },
   { key: 'tags', label: 'Tags', match: '#post-tags' },
 ];

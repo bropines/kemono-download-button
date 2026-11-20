@@ -69,6 +69,14 @@ Rules:
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
   (kemono.cr renders late).
+- **Page cloak** (`cloak.ts`, redesign on only): `#main` stays hidden from document start, and from each
+  page-level htmx swap or history restore, until the router has mounted and updated the modules; it is
+  revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar creators,
+  the creator overview, info badges) so data that is already cached lands in the first frame; holds delay
+  the reveal by at most 150 ms, and a 2.5 s failsafe always reveals.
+- **Document-start prefetch**: modules whose data the URL already names start their requests in `early()`
+  (similar creators, the creator overview, the creator profile / post data for info badges). The fetchers
+  share in-flight requests, so `mount` picks up the same promise.
 
 ## Built-in modules
 
@@ -86,7 +94,7 @@ Rules:
 | `favorites.quick` | list, search, artists | quick favourite stars |
 | `tags.tools` | list, creator | tag pages only (`section#tag-container`): filter, sort, A–Z groups with a jump bar, script filter; settings `sort`, `group` |
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
-| `ui.shadcn` | any | off by default: shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">` |
+| `ui.shadcn` | any | the redesign, on by default (switch at the top of Settings → Interface): shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">`. `creators.similar`, `creators.overview`, `creators.xlinks`, `info.badges`, `importer.status` and `post.blockOrder` require it, `creator.blockOrder` requires `ui.shadcn.creator`, so switching it off turns them off too |
 | `ui.shadcn.cards` / `.post` / `.creator` / `.pages` | any | parts of the skin, `requires: ["ui.shadcn"]`; `.pages` also wraps importer notes in panels and turns the FAQ into an accordion (reversible, stripped before snapshots) |
 | `i18n.site` | any | translates the site chrome with the active language's `site` dictionary (`src/i18n/site.ts`); restores originals on disable and before htmx snapshots |
 

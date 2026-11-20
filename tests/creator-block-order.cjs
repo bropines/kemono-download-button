@@ -10,8 +10,8 @@ class Element {
   get nextElementSibling() { const arr = this.parentElement?.children || []; return arr[arr.indexOf(this) + 1] || null; }
   get nextSibling() { const arr = this.parentElement?.childNodes || []; return arr[arr.indexOf(this) + 1] || null; }
   get isConnected() { return !!this.parentElement; }
-  matches(selector) { return selector.startsWith('#') ? this.id === selector.slice(1) : this.className.split(' ').includes(selector.slice(1)); }
-  querySelector(selector) { return this.children.find(x => x.matches(selector)) || null; }
+  matches(selector) { if (selector === ':scope > .tabs') return false; return selector.startsWith('#') ? this.id === selector.slice(1) : this.className.split(' ').includes(selector.slice(1)); }
+  querySelector(selector) { if (selector === ':scope > .tabs') return this.children.find(x => x.matches('.tabs')) || null; return this.children.find(x => x.matches(selector)) || null; }
   before(node) { this.parentElement.insertBefore(node, this); }
   after(...nodes) { const parent = this.parentElement; nodes.forEach(node => node.remove()); const ref = this.nextSibling; nodes.forEach(node => parent.insertBefore(node, ref)); }
   prepend(node) { this.insertBefore(node, this.childNodes[0] || null); }
@@ -67,4 +67,25 @@ assert.deepEqual(names(), ['similar', 'foreign', 'top', 'cards', 'bottom', 'over
 assert.equal(root.childNodes.length, 6, 'no marker remains');
 assert.equal(overview.children.length, 0, 'injected heading is removed');
 assert.equal(cards.children.length, 0, 'post heading is removed');
+
+// The live search puts its "Load more" box between the cards and the bottom paginator: it stays with the posts.
+moduleUnderTest.mount({ onCleanup: fn => { cleanup = fn; } });
+const more = new Element('more', 'kdl-live-search-more', 'kdl-live-search-more');
+cards.after(more);
+listener();
+assert.deepEqual(names().filter(n => n !== 'heading'), ['top', 'cards', 'more', 'bottom', 'foreign', 'overview', 'similar'], 'live search box moves with the posts group');
+cleanup();
+more.remove();
+
+// Until the skin lifts the creator tabs out of the top paginator, the posts group is left where it is.
+const tabs = new Element('tabs', 'tabs');
+top.append(tabs);
+const posts = () => names().filter(n => n !== 'heading');
+const beforeTabs = posts();
+moduleUnderTest.mount({ onCleanup: fn => { cleanup = fn; } });
+const withTabs = posts();
+assert.deepEqual(withTabs.slice(withTabs.indexOf('top'), withTabs.indexOf('top') + 3), ['top', 'cards', 'bottom']);
+assert.equal(withTabs.indexOf('top'), beforeTabs.indexOf('top'), 'the posts group is not moved while the tabs are inside it');
+cleanup();
+tabs.remove();
 console.log('creator block snapshot checks passed');

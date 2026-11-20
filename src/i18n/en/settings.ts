@@ -165,6 +165,10 @@ export default {
   'settings.images.forgot': '{count, plural, one{Forgot # image translation} other{Forgot # image translations}}',
 
   // Interface
+  'settings.interface.redesignSection': 'Redesign',
+  'settings.interface.redesign': 'New site design',
+  'settings.interface.redesignDescription':
+    'Restyles the site and adds similar creators, the creator overview, info badges, the creator links menu, block ordering and the import status page. Switching it off turns all of them off and brings back the site as it is.',
   'settings.interface.listsSection': 'Post lists',
   'settings.interface.cardSize': 'Post card size',
   'settings.interface.cardSizeDescription': 'Width of post cards in post lists.',
