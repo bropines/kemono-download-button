@@ -5,6 +5,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Changed
+- Loading skeletons are now snapshots of the real pages instead of drawings: every kind of page has one (creator page and tabs, posts, post lists, popular, tags, creators, favourites, DMs, importer, account and more), for phones and for wide screens.
+- After a page has settled, the script keeps a snapshot of how it looks in this browser (grid size, page width, theme, phone layout), so the next visit to that kind of page loads behind an exact picture of it.
+- The loading style for Stylus (2.0.0) carries the same skeletons, picked by page and screen width.
+- Bright parts of a page (a white button, checkbox outlines) are muted in the skeleton.
+
+### Changed
 - The loading skeleton now matches the redesigned page it stands in for: the creator page (profile card, tabs, pagination, card grid), the post page (header card, content and files sections) and post lists.
 - An installed loading style older than the script is detected: the settings show "Update the style", and a one-time notice offers the update.
 

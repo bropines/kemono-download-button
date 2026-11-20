@@ -13,7 +13,7 @@ export const PRELOAD_STYLE_URL = 'https://raw.githubusercontent.com/bropines/kem
 export const STYLUS_URL = 'https://github.com/openstyles/stylus#readme';
 
 /** The revision of the style this build generates (scripts/postbuild.mjs PRELOAD_STYLE_REVISION) */
-export const PRELOAD_STYLE_REVISION = 2;
+export const PRELOAD_STYLE_REVISION = 3;
 
 /** Revision of the style active on this page; 0 when it is not installed (or switched off) */
 export function installedPreloadRevision(): number {

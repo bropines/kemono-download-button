@@ -69,11 +69,20 @@ Rules:
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
   (kemono.cr renders late).
-- **Page cloak** (`cloak.ts`, redesign on only): `#main` stays hidden from document start, and from each
-  page-level htmx swap or history restore, until the router has mounted and updated the modules; it is
-  revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar creators,
-  the creator overview, info badges) so data that is already cached lands in the first frame; holds delay
-  the reveal by at most 150 ms, and a 2.5 s failsafe always reveals.
+- **Page cloak** (`cloak.ts`, redesign on only): the children of `#main` are hidden (opacity) from document
+  start, and from each page-level htmx swap or history restore, until the router has mounted and updated
+  the modules; revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar
+  creators, the creator overview, post info) so cached data lands in the first frame; holds delay the reveal
+  by at most 150 ms, and a 2.5 s failsafe always reveals. `<html data-kdl-ready>` is set at the first reveal.
+- **Loading skeleton**: a picture of the page coming in, drawn on `#main::before/::after` while cloaked. It is a
+  snapshot of the real page (`skeletonCapture.ts`: boxes, controls, images and text lines of the first ~1.5
+  screens, every x/width a `calc()` of the container, the card grid one repeated tile) rendered by
+  `skeleton.ts`. `skeletonStore.ts` picks the user's own snapshot for the route and screen class (taken in
+  this browser after each page settles, kept in GM storage when it changed), else the built-in one
+  (`skeletons.json`), else the creator page / post list. Built-ins are re-taken with `scripts/skeletons.mjs`
+  (see its header) when the redesign's layout changes; `npm run build` then regenerates the optional Stylus
+  userstyle (`extras/kdl-preload.user.css`), which shows the same skeletons from the first frame, one URL
+  section per route and a media query per screen class.
 - **Document-start prefetch**: modules whose data the URL already names start their requests in `early()`
   (similar creators, the creator overview, the creator profile / post data for info badges). The fetchers
   share in-flight requests, so `mount` picks up the same promise.

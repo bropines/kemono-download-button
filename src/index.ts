@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      1.10.16
+// @version      1.10.17
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -39,6 +39,7 @@ import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
 import { bootEarly, isModuleEnabled } from './core/registry';
 import { cloak, reveal } from './core/cloak';
+import { scheduleSkeletonCapture } from './core/skeletonStore';
 import { isPreloadStyleInstalled } from './ui/components/preloadStyle';
 import { ensureStylesInjected } from './modules/core';
 import { installLanguageRuntime } from './i18n/live';
@@ -71,6 +72,7 @@ function init(): void {
     installLanguageRuntime();
   } finally {
     reveal();
+    if (isModuleEnabled('ui.shadcn')) scheduleSkeletonCapture();
   }
 }
 

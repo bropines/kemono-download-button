@@ -39,3 +39,4 @@ pnpm-debug.log*
 
 # Locale signing key (never commit)
 .keys/
+.skeleton-capture/

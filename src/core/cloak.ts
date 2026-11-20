@@ -9,7 +9,8 @@
 // Only #main is hidden: the header and sidebar are pure CSS and already right. A failsafe always reveals.
 
 import { keepInHead } from './page';
-import { skeletonBaseCss, skeletonPageCss } from './skeleton';
+import { skeletonBaseCss, snapshotCss } from './skeleton';
+import { snapshotFor } from './skeletonStore';
 
 const ATTR = 'data-kdl-cloak';
 // Set once the first page is reworked (and kept): the optional preload userstyle (extras/kdl-preload.user.css),
@@ -18,18 +19,23 @@ const READY = 'data-kdl-ready';
 const STYLE_ID = 'kdl-cloak-style';
 const FAILSAFE_MS = 2500;
 const HOLD_MS = 150;
-// A loading skeleton (src/core/skeleton.ts) stands in for the hidden content, laid out like the page coming in
-// (the router writes data-kdl-page as soon as the new content is swapped in)
+// A loading skeleton stands in for the hidden content: a snapshot of the page coming in (src/core/skeletonStore.ts)
 const ON = `html[${ATTR}] #main`;
-const CSS = [
-  // The children, not #main itself: a descendant with its own visibility: visible showed through a hidden
-  // #main. The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
-  `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`,
-  skeletonBaseCss(ON),
-  skeletonPageCss(ON, 'list'),
-  skeletonPageCss(`html[${ATTR}][data-kdl-page="creator"] #main`, 'creator'),
-  skeletonPageCss(`html[${ATTR}][data-kdl-page="post"] #main`, 'post'),
-].join('\n');
+// The children, not #main itself: a descendant with its own visibility: visible showed through a hidden #main.
+// The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
+const HIDE = `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`;
+const BASE = skeletonBaseCss(ON);
+
+function cloakCss(path: string): string {
+  let skeleton = '';
+  try {
+    const snap = snapshotFor(path);
+    if (snap) skeleton = snapshotCss(ON, snap);
+  } catch {
+    // A stored snapshot this build cannot draw: hide without a skeleton (capture replaces it later)
+  }
+  return [HIDE, BASE, skeleton].join('\n');
+}
 
 let failsafe: ReturnType<typeof setTimeout> | undefined;
 let holds: Promise<unknown>[] = [];
@@ -39,14 +45,16 @@ export function isCloaked(): boolean {
   return document.documentElement.hasAttribute(ATTR);
 }
 
-/** Hides the page content until reveal() (or the failsafe) */
-export function cloak(): void {
-  if (!document.getElementById(STYLE_ID)) {
-    const style = keepInHead(document.createElement('style'));
+/** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path` */
+export function cloak(path = window.location.pathname): void {
+  let style = document.getElementById(STYLE_ID);
+  if (!style) {
+    style = keepInHead(document.createElement('style'));
     style.id = STYLE_ID;
-    style.textContent = CSS;
     (document.head || document.documentElement).appendChild(style);
   }
+  const css = cloakCss(path);
+  if (style.textContent !== css) style.textContent = css;
   generation++;
   holds = [];
   document.documentElement.setAttribute(ATTR, '');

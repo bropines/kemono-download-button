@@ -6,9 +6,11 @@ const ts = require('typescript');
 // The page cloak (src/core/cloak.ts): hidden until reveal, holds delay the reveal up to a cap, a failsafe always shows.
 const source = fs.readFileSync('src/core/cloak.ts', 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-// The real skeleton module (it has no imports)
+// The real skeleton renderer (it imports types only)
 const skeletonExports = {};
-vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/core/skeleton.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { exports: skeletonExports, encodeURIComponent });
+vm.runInNewContext(ts.transpileModule(fs.readFileSync('src/core/skeleton.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText, { exports: skeletonExports, require: () => ({}) });
+const SNAP = { v: 1, pad: [24, 32, 32], h: 400, shapes: [{ k: 's', x: [0.5, -480], w: [0, 960], y: 0, h: 270, r: 12, f: 'rgb(17, 17, 17)', s: 'rgb(38, 38, 38)' }, { k: 't', x: [0, 0], w: [1, -40], y: 300, h: 10, r: 4 }],
+  grid: { x: [0, 0], w: [1, 0], y: 320, tw: 209, th: 306, gap: 16, shapes: [{ k: 'i', x: [0, 0], w: [0, 193], y: 0, h: 193, r: 12 }] } };
 
 function load({ failsafeMs, holdMs } = {}) {
   const attrs = new Set();
@@ -33,9 +35,11 @@ function load({ failsafeMs, holdMs } = {}) {
     require: (id) => {
       if (id === './page') return { keepInHead: (node) => node };
       if (id === './skeleton') return skeletonExports;
+      if (id === './skeletonStore') return { snapshotFor: (path) => (path === '/none' ? null : SNAP) };
       throw Error(id);
     },
     document,
+    window: { location: { pathname: '/fanbox/user/1' } },
     // Background tab: rAF never runs, the timer fallback must reveal
     requestAnimationFrame: () => 0,
     setTimeout,
@@ -56,9 +60,13 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     api.cloak();
     assert.equal(cloaked(), true);
     assert.match(style().textContent, /#main/, 'only the page content is hidden');
-    assert.match(style().textContent, /#main::after[\s\S]*background-image/, 'a skeleton stands in for it');
-    assert.match(style().textContent, /data-kdl-page="creator"\] #main::before/, 'creator pages get their own skeleton');
-    assert.match(style().textContent, /data-kdl-page="post"\] #main::before/, 'posts get their own skeleton');
+    const css = style().textContent;
+    assert.match(css, /#main > \*[^{]*\{ opacity: 0 !important/, 'the content is hidden, not #main itself');
+    assert.match(css, /#main::before \{[\s\S]*?data:image\/svg\+xml/, 'the snapshot is drawn on #main::before');
+    assert.match(css, /calc\(50%25 - 479\.5px\)/, 'a centred box keeps to the centre at any width (its stroke inside the box)');
+    assert.match(css, /#main::after \{ display: block[\s\S]*?space repeat/, 'the card grid repeats one tile');
+    api.cloak('/none');
+    assert.doesNotMatch(style().textContent, /data:image/, 'no snapshot: no skeleton, the content is still hidden');
     api.reveal();
     assert.equal(cloaked(), true, 'the reveal waits for the next frame');
     await delay(150);

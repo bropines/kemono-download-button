@@ -2,6 +2,7 @@ import { PageInfo } from './types';
 import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, resolveRoot, writePageAttributes } from './page';
 import { attachRuntime, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
 import { cloak, reveal } from './cloak';
+import { scheduleSkeletonCapture } from './skeletonStore';
 
 let current: PageInfo;
 let root: Element;
@@ -48,7 +49,7 @@ function reconcile(): void {
     // Modules mounted for 'any' page stay mounted across the navigation: they still need to see the new page now,
     // not on the next unrelated mutation
     updateMounted();
-    reveal();
+    revealPage();
     return;
   }
   // Same path (query change, partial swap, history restore of the same page): re-detect, keep what still matches
@@ -56,12 +57,19 @@ function reconcile(): void {
   if (page.type !== current.type) setPage(page);
   syncModules();
   updateMounted();
+  // Not a new page: no new snapshot (an open panel or a typed filter is not how the page loads)
   reveal();
 }
 
 // The new page content is in the DOM but not painted yet: keep it hidden until the modules reworked it
-function cloakNewPage(): void {
-  if (isModuleEnabled('ui.shadcn')) cloak();
+function cloakNewPage(path: string | null = null): void {
+  if (isModuleEnabled('ui.shadcn')) cloak(path || window.location.pathname);
+}
+
+// Shown: a fresh snapshot of it for the next visit's skeleton (with the redesign only)
+function revealPage(): void {
+  reveal();
+  if (isModuleEnabled('ui.shadcn')) scheduleSkeletonCapture();
 }
 
 let navTimer: ReturnType<typeof setTimeout> | null = null;
@@ -129,7 +137,7 @@ function installNavigationHooks(): void {
     if (swapReplacesPage(event)) leaveIfPathChanges(htmxNextPath(event));
   });
   document.addEventListener('htmx:afterSwap', (event) => {
-    if (writeEarlyPageAttributes(event)) cloakNewPage();
+    if (writeEarlyPageAttributes(event)) cloakNewPage(htmxNextPath(event));
     scheduleReconcile();
   });
   document.addEventListener('htmx:afterSettle', () => scheduleReconcile());
