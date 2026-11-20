@@ -15,12 +15,17 @@ const LINKS = '.post__attachment-link';
 const OWN = 'kdl-hist-own';
 const MARK = 'data-kdl-hist';
 
-const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-left: 8px; vertical-align: middle; }
-.post__attachment > .${OWN} { width: min(320px, 100%); max-width: 100%; margin-left: 8px; }
-.post__attachment > .${OWN} .kdl-hist-find { width: 100%; }
+const STYLES = `.${OWN} { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; vertical-align: middle; }
+.post__attachments > .post__attachment:has(> .${OWN}) { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 8px; flex: 1 1 520px; min-width: 0; }
+.post__attachment > .kui-attachment-styled.kdl-ui-btn { width: 100%; max-width: none; min-width: 0; }
+.post__attachment > .${OWN} { display: contents !important; }
+.post__attachment > .${OWN} .kdl-hist-find { grid-column: 2; grid-row: 1; width: 100%; min-width: 0; }
+.post__attachment > .${OWN} .kdl-hist-find > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.post__attachment > .${OWN} .kdl-ui-badge { grid-column: 2; grid-row: 2; justify-self: start; }
 @media (max-width: 600px) {
-  .post__attachment > .${OWN} { width: 100%; margin-left: 0; }
-  .post__attachment > .${OWN} .kdl-hist-find { min-height: 44px; height: auto; }
+  .post__attachments > .post__attachment:has(> .${OWN}) { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+  .post__attachment > .${OWN} .kdl-hist-find { grid-column: 1; grid-row: 2; min-height: 44px; height: auto; }
+  .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 1; grid-row: 3; }
 }
 .${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }`;
 

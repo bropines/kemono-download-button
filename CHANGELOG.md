@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.10.12] - 2026-11-20
+
+### Fixed
+- Keep each attachment and its search button aligned on desktop and mobile.
+
 ## [1.10.11] - 2026-11-20
 
 ### Changed
