@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [1.10.14] - 2026-11-20
+
+### Fixed
+- Close tooltips when their buttons are removed during page navigation.
+
 ## [1.10.13] - 2026-11-20
 
 ### Changed

@@ -31,24 +31,36 @@ export function tooltip<T extends HTMLElement>(target: T, options: TooltipOption
   tip.setAttribute('role', 'tooltip');
   tips.set(target, tip);
   let timer = 0;
+  let anchorObserver: MutationObserver | undefined;
 
   const hide = () => {
     clearTimeout(timer);
-    if (!tip.isConnected) return;
+    if (!anchorObserver) return;
+    anchorObserver.disconnect();
+    anchorObserver = undefined;
     tip.remove();
-    target.removeAttribute('aria-describedby');
+    const otherIds = target.getAttribute('aria-describedby')?.split(/\s+/).filter((id) => id && id !== tip.id);
+    if (otherIds?.length) target.setAttribute('aria-describedby', otherIds.join(' '));
+    else target.removeAttribute('aria-describedby');
     document.removeEventListener('keydown', onKey, true);
   };
   const onKey = (event: KeyboardEvent) => {
     if (event.key === 'Escape') hide();
   };
   const show = () => {
-    if (tip.isConnected || !target.isConnected || !tip.textContent) return;
+    if (anchorObserver || !target.isConnected || !tip.textContent || !target.getClientRects().length) return;
     portal(tip);
     const { x, y, side } = computePosition(target, tip, { side: 'top', offset: 6, ...options });
     Object.assign(tip.style, { left: `${x}px`, top: `${y}px` });
     tip.dataset.side = side;
-    target.setAttribute('aria-describedby', tip.id);
+    target.setAttribute('aria-describedby', [target.getAttribute('aria-describedby'), tip.id].filter(Boolean).join(' '));
+    // A page swap can remove a hovered or focused target without dispatching leave or blur.
+    anchorObserver = new MutationObserver(() => {
+      if (!target.isConnected || !tip.isConnected) hide();
+    });
+    anchorObserver.observe(document, { childList: true, subtree: true });
+    const root = target.getRootNode();
+    if (root !== document) anchorObserver.observe(root, { childList: true, subtree: true });
     document.addEventListener('keydown', onKey, true);
   };
   const showLater = () => {
