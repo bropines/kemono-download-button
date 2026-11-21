@@ -12,6 +12,7 @@ import type { KdlModule } from '../../core/types';
 
 const LEAVE = 'data-kdl-leave';
 const ENTER = 'data-kdl-enter';
+const STILL = 'data-kdl-still';
 type Direction = 'next' | 'prev' | 'in' | 'out';
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -24,19 +25,20 @@ const CARD_STAGGER_MS = 18;
 const ENTER_TOTAL_MS = ENTER_MS + CARDS * CARD_STAGGER_MS + 120;
 const LEAVE_MAX_MS = 4000;
 
-// Where each kind of page comes in from (the content moves from this offset to its place)
+// Where each kind of page comes in from (the content moves from this offset to its place). Moves only, no
+// scaling: a full-width picture (the home page's) visibly zooms at even 1.5%
 const FROM: Record<Direction, string> = {
   next: 'translate3d(32px, 0, 0)',
   prev: 'translate3d(-32px, 0, 0)',
-  in: 'translate3d(0, 18px, 0) scale(0.985)',
-  out: 'translate3d(0, -14px, 0) scale(0.985)',
+  in: 'translate3d(0, 16px, 0)',
+  out: 'translate3d(0, -12px, 0)',
 };
 // Where the current page leans while the next one loads: away from the side the next comes in from
 const AWAY: Record<Direction, string> = {
   next: 'translate3d(-10px, 0, 0)',
   prev: 'translate3d(10px, 0, 0)',
-  in: 'scale(0.99)',
-  out: 'scale(0.99)',
+  in: 'translate3d(0, -4px, 0)',
+  out: 'translate3d(0, 4px, 0)',
 };
 
 const html = (): HTMLElement => document.documentElement;
@@ -71,6 +73,20 @@ function currentTabs(): string[] {
     .filter(Boolean);
 }
 
+// Top-level blocks of #main with a fixed-position element inside: animated by opacity only
+const MAX_SCAN = 5000;
+function markStill(): void {
+  const main = document.querySelector('#main');
+  if (!main) return;
+  let budget = MAX_SCAN;
+  for (const block of Array.from(main.children)) {
+    let still = getComputedStyle(block).position === 'fixed';
+    const walker = document.createTreeWalker(block, NodeFilter.SHOW_ELEMENT);
+    while (!still && budget-- > 0 && walker.nextNode()) still = getComputedStyle(walker.currentNode as Element).position === 'fixed';
+    block.toggleAttribute(STILL, still);
+  }
+}
+
 let pending: Direction | null = null;
 let leaveTimer: ReturnType<typeof setTimeout> | undefined;
 let enterTimer: ReturnType<typeof setTimeout> | undefined;
@@ -82,6 +98,7 @@ function stopLeaving(): void {
 
 function leave(direction: Direction): void {
   pending = direction;
+  markStill();
   html().setAttribute(LEAVE, direction);
   clearTimeout(leaveTimer);
   // A request that never swaps (an error, a cancelled click) must not leave the page dimmed
@@ -93,6 +110,7 @@ function enter(): void {
   pending = null;
   stopLeaving();
   clearTimeout(enterTimer);
+  markStill();
   // Restart the animation even when the previous one has not finished
   html().removeAttribute(ENTER);
   void html().offsetWidth;
@@ -111,7 +129,7 @@ function isPageRequest(detail: { boosted?: boolean; target?: Element } | undefin
 function styles(): string {
   const on = (direction: Direction): string => `html[${ENTER}="${direction}"]`;
   const keyframes = (Object.keys(FROM) as Direction[])
-    .map((direction) => `@keyframes kdl-page-in-${direction} { from { opacity: 0; transform: ${FROM[direction]}; filter: blur(6px); } }`)
+    .map((direction) => `@keyframes kdl-page-in-${direction} { from { opacity: 0; transform: ${FROM[direction]}; filter: blur(3px); } }`)
     .join('\n');
   const blocks = (Object.keys(FROM) as Direction[])
     .map((direction) => `${on(direction)} #main > * { animation: kdl-page-in-${direction} ${ENTER_MS}ms ${EASE} backwards; }`)
@@ -125,14 +143,16 @@ function styles(): string {
   return `
 @media (prefers-reduced-motion: no-preference) {
 ${keyframes}
-@keyframes kdl-card-in { from { opacity: 0; transform: translate3d(0, 14px, 0) scale(0.97); } }
-@keyframes kdl-skeleton-out { to { opacity: 0; } }
+@keyframes kdl-card-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } }
 ${blocks}
 ${stagger}
 ${grid} > * { animation: kdl-card-in 520ms ${EASE} backwards; animation-delay: ${120 + CARDS * CARD_STAGGER_MS}ms; }
 ${cards}
-/* The skeleton dissolves under the arriving page */
-html[${ENTER}]:not([data-kdl-cloak]) #main::before, html[${ENTER}]:not([data-kdl-cloak]) #main::after { animation: kdl-skeleton-out 260ms ease-out forwards; }
+/* A block holding fixed elements (the home page's full-screen background) only fades: a transform or filter
+   on it would make it their containing block, shrinking them to the block for the length of the animation */
+html[${ENTER}] #main > [${STILL}] { animation-name: kdl-page-fade; }
+html[${LEAVE}] #main > [${STILL}] { transform: none; filter: none; }
+@keyframes kdl-page-fade { from { opacity: 0; } }
 html[${LEAVE}] #main > * { opacity: 0.4; filter: saturate(0.6); transition: opacity 220ms ease, transform 320ms ${EASE}, filter 220ms ease; }
 ${leaving}
 }

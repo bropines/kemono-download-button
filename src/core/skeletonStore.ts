@@ -35,13 +35,14 @@ function valid(snap: unknown): snap is SkeletonSnapshot {
 const KNOWN = new Set(Object.keys(BUILTIN).map((key) => key.split('|')[0]));
 const capturable = (route: string): boolean => KNOWN.has(route) || route.startsWith('creator-');
 
-/** The best snapshot for a path at the current screen class */
-export function snapshotFor(path = window.location.pathname): SkeletonSnapshot | null {
+/** The best snapshot for a path at the current screen class. `builtinOnly`: the one the preload userstyle
+    draws (generated from the same built-in snapshots), so taking over from it changes nothing on screen */
+export function snapshotFor(path = window.location.pathname, builtinOnly = false): SkeletonSnapshot | null {
   const route = skeletonRoute(path);
   const bucket = skeletonBucket();
   const candidates = [route, route.startsWith('creator-') ? 'creator' : '', 'posts'].filter(Boolean);
   for (const name of candidates) {
-    const own = readStored<unknown>(storeKey(name, bucket), null);
+    const own = builtinOnly ? null : readStored<unknown>(storeKey(name, bucket), null);
     if (valid(own)) return own;
     const shipped = BUILTIN[`${name}|${bucket}`];
     if (valid(shipped)) return shipped;

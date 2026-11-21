@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-11-21
+
+### Fixed
+- The home page's background no longer grows from a small box to the full screen as the page comes in: blocks holding full-screen elements only fade in. Page transitions no longer zoom at all, and blur less.
+- The loading skeleton is never drawn over a page that is already shown (with reduced motion it stayed for a second over the new page).
+- With the Stylus loading style, the first load no longer switches from its skeleton to a different one when the script starts.
+
 ## [2.0.1] - 2026-11-20
 
 ### Fixed

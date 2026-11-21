@@ -58,6 +58,7 @@ store.scheduleSkeletonCapture();
 timers.shift()();
 assert.equal(writes, 1, 'a settled page is captured');
 assert.equal(tagOf(store.snapshotFor('/fanbox/user/1/links')), 'fresh', "the user's own snapshot wins over the shipped one");
+assert.equal(tagOf(store.snapshotFor('/fanbox/user/1/links', true)), 'builtin-creator', 'under the preload style: the built-in one it draws');
 store.scheduleSkeletonCapture();
 timers.shift()();
 assert.equal(writes, 1, 'an unchanged page is not written again');

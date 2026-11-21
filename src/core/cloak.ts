@@ -25,12 +25,20 @@ const ON = `html:is([${ATTR}], [data-kdl-enter]) #main`;
 // The children, not #main itself: a descendant with its own visibility: visible showed through a hidden #main.
 // The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
 const HIDE = `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`;
-const BASE = skeletonBaseCss(ON);
+// While the page animates in (page transitions), the skeleton dissolves under it; with reduced motion, or
+// without the transitions' styles, it goes at once: never drawn over a page that is already shown
+const LEAVING = `html[data-kdl-enter]:not([${ATTR}]) #main`;
+const BASE = `${skeletonBaseCss(ON)}
+${LEAVING}::before, ${LEAVING}::after { opacity: 0; }
+@media (prefers-reduced-motion: no-preference) {
+  ${LEAVING}::before, ${LEAVING}::after { animation: kdl-skeleton-out 260ms ease-out; }
+  @keyframes kdl-skeleton-out { from { opacity: 1; } to { opacity: 0; } }
+}`;
 
-function cloakCss(path: string): string {
+function cloakCss(path: string, builtinOnly: boolean): string {
   let skeleton = '';
   try {
-    const snap = snapshotFor(path);
+    const snap = snapshotFor(path, builtinOnly);
     if (snap) skeleton = snapshotCss(ON, snap, `html[${ATTR}] #main`);
   } catch {
     // A stored snapshot this build cannot draw: hide without a skeleton (capture replaces it later)
@@ -66,15 +74,16 @@ export function isCloaked(): boolean {
   return document.documentElement.hasAttribute(ATTR);
 }
 
-/** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path` */
-export function cloak(path = window.location.pathname): void {
+/** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path`.
+    `builtinOnly`: the first load under the preload userstyle, whose skeleton (a built-in one) is on screen */
+export function cloak(path = window.location.pathname, builtinOnly = false): void {
   let style = document.getElementById(STYLE_ID);
   if (!style) {
     style = keepInHead(document.createElement('style'));
     style.id = STYLE_ID;
     (document.head || document.documentElement).appendChild(style);
   }
-  const css = cloakCss(path);
+  const css = cloakCss(path, builtinOnly);
   if (style.textContent !== css) style.textContent = css;
   generation++;
   holds = [];

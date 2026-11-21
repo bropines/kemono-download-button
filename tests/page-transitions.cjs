@@ -23,6 +23,7 @@ assert.equal(directionTo('/fanbox/user/1', []), 'out', 'back up to the creator')
 assert.equal(directionTo('/artists', []), 'in', 'anywhere else');
 
 const css = pageTransitionsModule.styles();
+assert.doesNotMatch(css, /scale\(/, 'nothing zooms: a full-width background shows it');
 assert.match(css, /prefers-reduced-motion: no-preference/, 'nothing moves with reduced motion');
 assert.equal(JSON.stringify(pageTransitionsModule.requires), '["ui.shadcn"]', 'goes with the redesign');
 

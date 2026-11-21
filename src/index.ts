@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.0.1
+// @version      2.0.2
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -56,7 +56,11 @@ bootEarly();
 // the user already sees.
 // With the preload userstyle the page is hidden from the first frame anyway, so the cloak (and its short wait
 // for cached blocks) applies however late the manager injected us, until the first reveal.
-if (isModuleEnabled('ui.shadcn') && (!document.body || isPreloadStyleInstalled())) cloak();
+if (isModuleEnabled('ui.shadcn')) {
+  const preload = isPreloadStyleInstalled();
+  // Under the userstyle, keep drawing its skeleton (the built-in one) rather than switching to another
+  if (!document.body || preload) cloak(window.location.pathname, preload);
+}
 
 // Styles injected at document-start sit before the site's own stylesheets; move them after, as they used to be,
 // so equal-specificity rules keep winning (user theme sheets stay last: they are re-appended in the same order)
