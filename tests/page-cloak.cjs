@@ -23,6 +23,8 @@ function load({ failsafeMs, holdMs } = {}) {
   };
   const document = {
     documentElement: html,
+    // A background tab: no animation frames, the reveal goes by timer
+    hidden: true,
     head: null,
     getElementById: (id) => nodes.get(id) || null,
     createElement: () => ({ id: '', textContent: '', setAttribute() {} }),

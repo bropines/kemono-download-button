@@ -190,6 +190,28 @@ let limit = LAZY_STEP;
 let lazyMore = false;
 let sentinel: HTMLElement | null = null;
 let lazyObserver: IntersectionObserver | null = null;
+// The matching tags in their current order, as apply() last laid them out
+let shownList: TagItem[] = [];
+
+// The next batch: only its rows change (and their letter headings), the other 2000 stay put. A full apply()
+// re-sorted and re-appended every row, ~100 ms that the observer spent right as the page was shown.
+function showMore(): void {
+  const ctx = ctxRef;
+  if (!ctx || !container) return;
+  const from = limit;
+  limit += LAZY_STEP;
+  const group = ctx.settings.get<boolean>('group');
+  for (let i = from; i < Math.min(limit, shownList.length); i++) {
+    const item = shownList[i];
+    if (group && item.letter !== shownList[i - 1]?.letter) {
+      const heading = el('h3', { className: 'kdl-tags-letter', id: headingId(item.letter), textContent: item.letter });
+      headings.push(heading);
+      item.node.before(heading);
+    }
+    item.node.removeAttribute(LAZY_ATTR);
+  }
+  lazyMore = shownList.length > limit;
+}
 
 function ensureSentinel(): void {
   if (!container) return;
@@ -198,8 +220,7 @@ function ensureSentinel(): void {
   if (!lazyObserver && typeof IntersectionObserver === 'function') {
     lazyObserver = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting) && lazyMore) {
-        limit += LAZY_STEP;
-        apply(false);
+        showMore();
         // Still in range after the batch (a fast scroll, a tall screen): observing anew reports it again
         if (sentinel && lazyObserver) {
           lazyObserver.unobserve(sentinel);
@@ -219,6 +240,7 @@ function dropSentinel(): void {
   sentinel?.remove();
   sentinel = null;
   limit = LAZY_STEP;
+  shownList = [];
 }
 
 /** Reorders and filters the cloud. A new filter, sort or layout starts lazy rendering over (reset). */
@@ -240,8 +262,10 @@ function apply(reset = true): void {
   const frag = document.createDocumentFragment();
   let lastLetter = '';
   let shown = 0;
+  shownList = [];
   for (const item of list) {
     const visible = (prefs.script === 'all' || item.script === prefs.script) && matches(item, terms);
+    if (visible) shownList.push(item);
     if (visible) item.node.removeAttribute(HIDDEN_ATTR);
     else item.node.setAttribute(HIDDEN_ATTR, '');
     if (visible) {

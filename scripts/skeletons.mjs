@@ -6,7 +6,7 @@
 //                                              it waits 2.5 s, captures, and returns { route, bucket, snap }.
 //                                              Save each result as .skeleton-capture/<anything>.json
 //                                              (desktop window, then a phone viewport, per page kind).
-//   node scripts/skeletons.mjs inject-all [desktop|mobile]  writes .skeleton-capture/capture-<size|all>.js: evaluated on any page of the
+//   node scripts/skeletons.mjs inject-all [desktop|mobile|all] [/page,/page]  writes .skeleton-capture/capture-<size|all>.js: evaluated on any page of the
 //                                              site, it loads every page kind of PAGES in an iframe at a desktop
 //                                              and a phone size, captures each and returns them all (save it as
 //                                              .skeleton-capture/all.json). Edit PAGES for the creator/post used.
@@ -33,16 +33,18 @@ const PAGES = [
 ];
 const SIZES = { desktop: [1700, 990], mobile: [390, 844] };
 
-const [command, arg] = process.argv.slice(2);
+const [command, arg, only] = process.argv.slice(2);
 if (command === 'inject-all') {
   // One file per screen class: a run takes ~4 s per page
-  const sizes = arg ? [SIZES[arg]] : Object.values(SIZES);
+  const sizes = arg && arg !== 'all' ? [SIZES[arg]] : Object.values(SIZES);
+  // Optional: a comma-separated list of pages to re-take instead of all of PAGES
+  const pages = only ? only.split(',') : PAGES;
   const js = transpile('src/core/skeletonCapture.ts');
   fs.writeFileSync(path.join(dir, `capture-${arg ?? 'all'}.js`), `async () => {
   const code = ${JSON.stringify(js)};
   const results = [];
   for (const [width, height] of ${JSON.stringify(sizes)}) {
-    for (const page of ${JSON.stringify(PAGES)}) {
+    for (const page of ${JSON.stringify(pages)}) {
       const frame = document.createElement('iframe');
       frame.style.cssText = 'position:fixed;left:0;top:0;border:0;opacity:0.01;pointer-events:none;z-index:-1;width:' + width + 'px;height:' + height + 'px';
       const loaded = new Promise((resolve) => frame.addEventListener('load', resolve, { once: true }));
@@ -64,7 +66,7 @@ if (command === 'inject-all') {
   }
   return results;
 }`);
-  console.log(`wrote .skeleton-capture/capture-${arg ?? 'all'}.js (${PAGES.length} pages x ${sizes.length} sizes)`);
+  console.log(`wrote .skeleton-capture/capture-${arg ?? 'all'}.js (${pages.length} pages x ${sizes.length} sizes)`);
 } else if (command === 'inject') {
   const js = transpile('src/core/skeletonCapture.ts');
   fs.writeFileSync(path.join(dir, 'capture.js'), `async () => { await new Promise((r) => setTimeout(r, 2500)); window.scrollTo(0, 0); const exports = {}; ${js}; return { route: exports.skeletonRoute(), bucket: exports.skeletonBucket(), width: innerWidth, snap: exports.captureSkeleton() }; }`);

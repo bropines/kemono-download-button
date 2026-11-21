@@ -4,6 +4,16 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.0.3] - 2026-11-21
+
+### Changed
+- The page is revealed once it is actually drawn (two frames after it is set up, instead of one), so the skeleton turns into the page instead of fading to an empty screen first while the page finishes its work.
+- The tags page skeleton looks like the tag list: rows with their popularity bars, names and counts, instead of a column of buttons. The Stylus loading style (2.1.0) carries it; the settings offer the update.
+- The loading style is offered under AdGuard too (it installs userstyles), not only with Stylus.
+
+### Fixed
+- The tags page no longer re-sorts all 2000 tags when the next batch comes into view (about 100 ms each time, including right as the page appeared).
+
 ## [2.0.2] - 2026-11-21
 
 ### Fixed

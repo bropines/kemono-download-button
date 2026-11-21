@@ -27,7 +27,8 @@ export interface SkeletonSnapshot {
   grid?: { x: Lin; w: Lin; y: number; tw: number; th: number; gap: number; shapes: SnapShape[] };
 }
 
-const MAX_SHAPES = 260;
+// Dense pages (the tag list: a bar and two labels per row) fill about a screen with this
+const MAX_SHAPES = 600;
 const MAX_TILE_SHAPES = 40;
 const EDGE = 64;
 const NONE = /^(transparent|rgba\(0, 0, 0, 0\)|none)$/;
@@ -71,6 +72,13 @@ function paint(style: CSSStyleDeclaration): { f?: string; s?: string } {
   return { f, s };
 }
 
+/** The filled share of a left-to-right gradient with a hard stop (`to right, color P%, transparent 0`), or 0 */
+function barFraction(image: string): number {
+  if (!image.startsWith('linear-gradient(to right')) return 0;
+  const stop = /\)\s+([\d.]+)%,\s*(?:transparent|rgba\(0, 0, 0, 0\))\s+0(?:px|%)?\)/.exec(image);
+  return stop ? Math.min(1, Number(stop[1]) / 100) : 0;
+}
+
 /** Where a box sits inside its parent frame, as expressions of the parent's width */
 function place(parent: Frame, left: number, width: number): { x: Lin; w: Lin } {
   const L = left - parent.left;
@@ -107,6 +115,8 @@ const CONTROLS = new Set(['BUTTON', 'INPUT', 'SELECT', 'TEXTAREA']);
 function isControl(el: Element, style: CSSStyleDeclaration, rect: DOMRect): boolean {
   if (CONTROLS.has(el.tagName)) return true;
   if (rect.height > 56 || rect.width > 420) return false;
+  // A row made of parts (a tag's name and count) is drawn as its parts, not as one button with a label
+  if (Array.from(el.children).filter((child) => child.textContent?.trim()).length >= 2) return false;
   const { f, s } = paint(style);
   const boxy = !!(f || s);
   return boxy && parseFloat(style.borderTopLeftRadius) > 0 && (el.tagName === 'A' || el.getAttribute('role') === 'button' || el.classList.contains('kdl-ui-btn'));
@@ -195,6 +205,12 @@ export function captureSkeleton(root: Element | null = document.querySelector('#
       }
       const { f, s } = paint(style);
       if ((f || s) && rect.width > 8 && rect.height > 8) out.push({ k: 's', x: pos.x, w: pos.w, y, h, r, f, s });
+      // A bar drawn as a hard-stop gradient (the tag list's popularity): its filled part
+      const bar = barFraction(style.backgroundImage);
+      if (bar && rect.width * bar > 2) {
+        const filled = place(frame, rect.left, rect.width * bar);
+        out.push({ k: 'i', x: filled.x, w: filled.w, y, h, r });
+      }
       const childFrame: Frame = { x: pos.x, w: pos.w, left: rect.left, width: rect.width, clip: clipOf(style, child.getBoundingClientRect(), frame.clip) };
       textLines(child, childFrame, originTop, out, budget, limit);
       walk(child, childFrame, out, originTop, budget);

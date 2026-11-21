@@ -20,7 +20,7 @@ The link is permanent: your userscript manager checks it for updates on its own.
 
 Greasemonkey 4 is not supported: it only offers the `GM.*` API.
 
-**Optional: no flash on page load.** Userscript managers start scripts once the page is already drawn, so the site's own layout shows for a moment. With [Stylus](https://github.com/openstyles/stylus#readme) installed, **[install this tiny style](https://raw.githubusercontent.com/bropines/kemono-download-button/main/extras/kdl-preload.user.css)**: it shows a loading skeleton instead of the old layout from the first frame until the script is ready (1.5 s at most). The welcome screen shown after install offers the same button.
+**Optional: no flash on page load.** Userscript managers start scripts once the page is already drawn, so the site's own layout shows for a moment. With [Stylus](https://github.com/openstyles/stylus#readme) or AdGuard (its userstyles) installed, **[install this tiny style](https://raw.githubusercontent.com/bropines/kemono-download-button/main/extras/kdl-preload.user.css)**: it shows a loading skeleton instead of the old layout from the first frame until the script is ready (1.5 s at most). The welcome screen shown after install offers the same button.
 
 ## Supported sites
 

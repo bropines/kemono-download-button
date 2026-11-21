@@ -1,7 +1,7 @@
 // The optional "no flash on load" userstyle (extras/kdl-preload.user.css). Userscript managers inject scripts
 // late (Tampermonkey: after the page is painted), style managers apply styles from the first frame, so the
-// style hides #main until the script marks <html data-kdl-ready>. There is no Stylus API to install a style:
-// opening a *.user.css URL is enough, Stylus intercepts it and shows its own install page (and its update
+// style hides #main until the script marks <html data-kdl-ready>. There is no API to install a style:
+// opening a *.user.css URL is enough, the style manager (Stylus, AdGuard with its userstyles) intercepts it and shows its own install page (and its update
 // page for a newer version). The style sets --kdl-preload on <html> to its revision: that is how an installed
 // copy, and an outdated one, is detected.
 
@@ -13,7 +13,7 @@ export const PRELOAD_STYLE_URL = 'https://raw.githubusercontent.com/bropines/kem
 export const STYLUS_URL = 'https://github.com/openstyles/stylus#readme';
 
 /** The revision of the style this build generates (scripts/postbuild.mjs PRELOAD_STYLE_REVISION) */
-export const PRELOAD_STYLE_REVISION = 3;
+export const PRELOAD_STYLE_REVISION = 4;
 
 /** Revision of the style active on this page; 0 when it is not installed (or switched off) */
 export function installedPreloadRevision(): number {
@@ -29,11 +29,6 @@ export function isPreloadStyleInstalled(): boolean {
 export function isPreloadStyleOutdated(): boolean {
   const revision = installedPreloadRevision();
   return revision > 0 && revision < PRELOAD_STYLE_REVISION;
-}
-
-/** Style managers are desktop browser extensions: AdGuard (no GM_download, Android too) has none to offer */
-export function canOfferPreloadStyle(): boolean {
-  return typeof GM_download === 'function';
 }
 
 /** Status badge, or the install button plus a link to Stylus; re-checked when the user comes back to the tab */

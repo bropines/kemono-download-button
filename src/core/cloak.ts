@@ -19,6 +19,8 @@ const READY = 'data-kdl-ready';
 const STYLE_ID = 'kdl-cloak-style';
 const FAILSAFE_MS = 2500;
 const HOLD_MS = 150;
+// Revealed by then even if frames do not come (a throttled frame, a long task)
+const REVEAL_MAX_MS = 300;
 // A loading skeleton stands in for the hidden content: a snapshot of the page coming in (src/core/skeletonStore.ts)
 // It stays drawn while the page animates in (data-kdl-enter, set by the page transitions module), which fades it out
 const ON = `html:is([${ATTR}], [data-kdl-enter]) #main`;
@@ -124,9 +126,12 @@ export function reveal(): void {
       done = true;
       uncloak();
     };
-    // Content changed in this task paints together with the reveal; rAF never fires in background tabs
-    requestAnimationFrame(run);
-    setTimeout(run, 100);
+    // Two frames: the first lays out and paints the reworked page still under the skeleton (rows with
+    // content-visibility, observers that fire on it); what that sets off runs before the second, so the page
+    // is revealed ready to draw instead of mid-work (the skeleton, animated off the main thread, keeps
+    // shimmering meanwhile). rAF never fires in background tabs: a timer stands in there.
+    requestAnimationFrame(() => requestAnimationFrame(run));
+    setTimeout(run, document.hidden ? 0 : REVEAL_MAX_MS);
   };
   if (!pending.length) return show();
   let timer: ReturnType<typeof setTimeout> | undefined;

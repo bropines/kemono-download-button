@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 // Raise when the generated preload userstyle changes, so Stylus offers the update
-const PRELOAD_STYLE_VERSION = '2.0.0';
+const PRELOAD_STYLE_VERSION = '2.1.0';
 // What the style reports in --kdl-preload: one number, kept in src/ui/components/preloadStyle.ts (the script
 // offers an update to installs that report less)
 const PRELOAD_STYLE_REVISION = Number(fs.readFileSync(path.join(rootDir, 'src/ui/components/preloadStyle.ts'), 'utf-8').match(/PRELOAD_STYLE_REVISION = (\d+)/)?.[1]);
@@ -81,7 +81,7 @@ const preloadStyle = `/* ==UserStyle==
 @version      ${PRELOAD_STYLE_VERSION}
 @homepageURL  https://github.com/bropines/kemono-download-button
 @updateURL    https://raw.githubusercontent.com/bropines/kemono-download-button/main/extras/kdl-preload.user.css
-@description  Shows a loading skeleton of the redesigned page instead of the site's own layout from the first frame until the userscript has reworked the page (1.5 s at most). Style managers (Stylus) apply this before userscript managers inject scripts.
+@description  Shows a loading skeleton of the redesigned page instead of the site's own layout from the first frame until the userscript has reworked the page (1.5 s at most). Style managers (Stylus, AdGuard) apply this before userscript managers inject scripts.
 @author       bropines
 @license      MIT
 ==/UserStyle== */

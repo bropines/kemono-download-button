@@ -7,7 +7,7 @@ import { isModuleEnabled, setModuleEnabled } from '../../core/registry';
 import { readStored, writeStored } from '../../state/gmStorage';
 import { el } from '../../utils/dom';
 import { addKitStyles, button, dialog, field, switchControl, type DialogHandle } from '../../ui/kit';
-import { canOfferPreloadStyle, isPreloadStyleOutdated, PRELOAD_STYLE_REVISION, PRELOAD_STYLE_URL, preloadStyleControl } from '../../ui/components/preloadStyle';
+import { isPreloadStyleOutdated, PRELOAD_STYLE_REVISION, PRELOAD_STYLE_URL, preloadStyleControl } from '../../ui/components/preloadStyle';
 import { toast } from '../../ui/kit';
 import { t } from '../../i18n';
 
@@ -41,9 +41,7 @@ export function openOnboarding(): void {
   const content = el('div', { className: 'kdl-onboarding' }, [
     el('p', { className: 'kdl-onboarding__intro', textContent: t('onboarding.intro') }),
     field({ label: t('settings.interface.redesign'), description: t('settings.interface.redesignDescription'), control: redesign, orientation: 'horizontal' }),
-    canOfferPreloadStyle()
-      ? field({ label: t('preload.title'), description: t('preload.description'), control: preloadStyleControl() })
-      : null,
+    field({ label: t('preload.title'), description: t('preload.description'), control: preloadStyleControl() }),
     el('p', { className: 'kdl-onboarding__hint', textContent: t('onboarding.settingsHint') }),
   ].filter(Boolean) as HTMLElement[]);
   handle = dialog({

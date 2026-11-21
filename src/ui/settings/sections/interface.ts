@@ -13,7 +13,7 @@ import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { t, tx } from '../../../i18n';
-import { canOfferPreloadStyle, preloadStyleControl } from '../../components/preloadStyle';
+import { preloadStyleControl } from '../../components/preloadStyle';
 import { openOnboarding } from '../../../modules/onboarding';
 
 const GRID_MIN = 120;
@@ -157,7 +157,7 @@ registerSettingsSection({
             notifySaved();
           },
         }, 'ui.shadcn'),
-        canOfferPreloadStyle() ? field({ label: t('preload.title'), description: t('preload.description'), control: preloadStyleControl() }) : null,
+        field({ label: t('preload.title'), description: t('preload.description'), control: preloadStyleControl() }),
         el('div', { className: 'kdl-settings__row' }, [
           button({ label: t('onboarding.reopen'), icon: 'info', variant: 'outline', size: 'sm', onClick: () => openOnboarding() }),
         ]),
