@@ -20,6 +20,7 @@ import {
   setKitTheme,
   setProgress,
   sheet,
+  skeleton,
   slider,
   switchControl,
   tabs,
@@ -92,6 +93,7 @@ function displaySection(): HTMLElement {
     separator(),
     bar,
     progress({ value: null, ariaLabel: 'Indeterminate' }),
+    row([skeleton({ width: '120px', height: '14px' }), skeleton({ width: '92px', height: '1.875rem', pill: true })]),
     row(['Press ', kbd(['Ctrl', 'K']), ' to search, ', kbd('Esc'), ' to close.']),
     card({
       title: 'Card title',

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.0.98
+// @version      2.0.99
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -38,7 +38,7 @@ import { startRouter } from './core/router';
 import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
 import { bootEarly, isModuleEnabled } from './core/registry';
-import { cloak, reveal, setCloakFailsafeGuard } from './core/cloak';
+import { cloak, cloaksWithoutRedesign, reveal, setCloakFailsafeGuard } from './core/cloak';
 import { scheduleSkeletonCapture } from './core/skeletonStore';
 import { isPreloadStyleInstalled } from './ui/components/preloadStyle';
 import { ensureStylesInjected } from './modules/core';
@@ -60,6 +60,8 @@ if (isModuleEnabled('ui.shadcn')) {
   const preload = isPreloadStyleInstalled();
   // Under the userstyle, keep drawing its skeleton (the built-in one) rather than switching to another
   if (!document.body || preload) cloak(window.location.pathname, preload);
+} else if (!document.body && cloaksWithoutRedesign(window.location.pathname)) {
+  cloak(window.location.pathname, false, 'none');
 }
 
 // Styles injected at document-start sit before the site's own stylesheets; move them after, as they used to be,

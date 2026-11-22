@@ -7,13 +7,14 @@
 import type { KdlModule } from '../../core/types';
 import type { IconName } from '../../config/icons';
 import { fetchProfile } from '../../api/kemonoApi';
+import { getApiAdapter } from '../../api';
 import { fetchAndCachePostData } from '../../services/collectorService';
 import { el } from '../../utils/dom';
-import { badge, button, ensureKit, kitScope, type BadgeVariant } from '../../ui/kit';
+import { badge, button, collapseAway, ensureKit, kitScope, skeleton, swapIn, type BadgeVariant } from '../../ui/kit';
 import { debugLog } from '../../utils/helpers';
 import { t } from '../../i18n';
 import { originalText } from '../../i18n/site';
-import { holdCloak } from '../../core/cloak';
+import { holdCloak, isCloaked } from '../../core/cloak';
 import { getSettings } from '../../state/store';
 
 const CREATOR_ROW = 'kdl-info-creator';
@@ -53,6 +54,28 @@ function row(id: string, key: string, children: HTMLElement[]): HTMLElement {
   node.id = id;
   node.dataset.kdlKey = key;
   return node;
+}
+
+// The row's place is taken at once, while its data is on its way, so the page under it does not move when the
+// badges arrive: a badge-sized shimmer (or the badges already known), filled in place or folded away.
+const PH = 'kdlPh';
+function placeholderRow(id: string, key: string, known: HTMLElement[] = []): HTMLElement {
+  const node = row(id, key, known.length ? known : [skeleton({ className: 'kdl-info__ph' })]);
+  node.dataset[PH] = '';
+  node.setAttribute('aria-busy', 'true');
+  return node;
+}
+
+/** Puts `node` (or nothing) where the row of `id` is, after `anchor` when there is none */
+function settle(id: string, anchor: Element, node: HTMLElement | null): void {
+  const old = document.getElementById(id);
+  const animate = !isCloaked();
+  if (!node) {
+    if (old) collapseAway(old, undefined, { animate });
+    return;
+  }
+  if (old && old.parentElement) swapIn(old, node, { animate });
+  else anchor.after(node);
 }
 
 // ---- Creator ----
@@ -101,15 +124,24 @@ function syncCreator(): Promise<unknown> | void {
   const key = `${service}/${id}`;
   creatorKey = key;
   const total = paginatorTotal(key);
+  const rowKey = `${key}|${total ?? ''}`;
   const own = document.getElementById(CREATOR_ROW);
-  if (own && own.dataset.kdlKey === `${key}|${total ?? ''}` && name.nextElementSibling === own) return;
+  if (own && own.dataset.kdlKey === rowKey && name.nextElementSibling === own) return;
+  // Nothing of ours under the name yet: hold its place, with the post count already when the paginator has it.
+  // Pawchive's profile carries no counts: without the paginator's there will be no row, so none is reserved.
+  if (!own || own.parentElement !== name.parentElement) {
+    own?.remove();
+    const known = creatorRow(service, id, null, total);
+    if (known || getApiAdapter().name !== 'pawchive') {
+      name.after(placeholderRow(CREATOR_ROW, rowKey, known ? Array.from(known.children) as HTMLElement[] : []));
+    }
+  }
   return loadProfile(service, id).then((profile) => {
-    if (creatorKey !== key || !profile) return;
+    if (creatorKey !== key) return;
     const current = document.querySelector('h1.user-header__name');
     if (!current) return;
-    const node = creatorRow(service, id, profile, paginatorTotal(key));
-    document.getElementById(CREATOR_ROW)?.remove();
-    if (node) current.after(node);
+    // Without a profile the paginator's count is still worth a badge
+    settle(CREATOR_ROW, current, creatorRow(service, id, profile, paginatorTotal(key)));
   });
 }
 
@@ -181,12 +213,14 @@ function syncPost(): Promise<unknown> | void {
   }
   postData(service, userId, postId);
   const request = postRequest!;
+  title.after(placeholderRow(POST_ROW, key));
   return request.data.then((data) => {
-    if (postRequest !== request || !data) return;
+    if (postRequest !== request) return;
     const current = document.querySelector('.post__title');
-    if (!current || document.getElementById(POST_ROW)) return;
-    const node = postRow(service, userId, postId, data);
-    if (node) current.after(node);
+    const held = document.getElementById(POST_ROW);
+    // Already filled (another sync got here first), or the page went on
+    if (!current || (held && held.dataset[PH] === undefined)) return;
+    settle(POST_ROW, current, data ? postRow(service, userId, postId, data) : null);
   });
 }
 
@@ -208,6 +242,10 @@ const STYLES = `
   margin: 6px 0 8px;
   min-width: 0;
 }
+/* As tall as a badge (16px line, 2px padding, 1px border) */
+.kdl-info .kdl-info__ph { width: 96px; height: 22px; border-radius: calc(var(--kdl-radius) - 2px); }
+/* The creator's badges are links, whose line box is a little taller */
+#${CREATOR_ROW} .kdl-info__ph { height: 26px; }
 .kdl-info .kdl-info__link { text-decoration: none; color: inherit; }
 .kdl-info .kdl-info__link:hover .kdl-ui-badge { background: var(--kdl-accent); }
 .kdl-info .kdl-ui-badge--outline { color: var(--kdl-muted-foreground); }

@@ -140,22 +140,33 @@ export function onReveal(fn: () => void): void {
 let holds: Promise<unknown>[] = [];
 let generation = 0;
 
+// With the redesign off the site keeps its own layout, but some pages are still reworked in the flow (the post
+// gallery and action buttons, the creator header's buttons, the tag tools). Painted before that, they jumped once
+// it landed; they stay hidden (without a skeleton: those are pictures of the redesign) until it has.
+const REWORKED_WITHOUT_REDESIGN = /^\/[^/]+\/user\/[^/]+|^\/posts\/tags\/?$/;
+
+/** Whether the page at `path` is hidden until the modules mounted when the redesign is off (cloak 'none') */
+export function cloaksWithoutRedesign(path: string): boolean {
+  return REWORKED_WITHOUT_REDESIGN.test(path);
+}
+
 export function isCloaked(): boolean {
   return document.documentElement.hasAttribute(ATTR);
 }
 
 /** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path`.
     `builtinOnly`: the first load under the preload userstyle, whose skeleton (a built-in one) is on screen.
-    `skeleton`: drawn at once ('now', a first load) or only if the page stays hidden for a while ('late').
+    `skeleton`: drawn at once ('now', a first load), only if the page stays hidden for a while ('late'), or never
+    ('none': the redesign is off, its skeletons are not what the page will look like).
     `tail`: only the part under a creator's header and tabs row is hidden (src/core/creatorSwap.ts) */
-export function cloak(path = window.location.pathname, builtinOnly = false, skeleton: 'now' | 'late' = 'now', tail = false): void {
+export function cloak(path = window.location.pathname, builtinOnly = false, skeleton: 'now' | 'late' | 'none' = 'now', tail = false): void {
   let style = document.getElementById(STYLE_ID);
   if (!style) {
     style = keepInHead(document.createElement('style'));
     style.id = STYLE_ID;
     (document.head || document.documentElement).appendChild(style);
   }
-  const css = cloakCss(path, builtinOnly);
+  const css = skeleton === 'none' ? NO_SKELETON : cloakCss(path, builtinOnly);
   // Compared with what was last written, not with the sheet's text: reading 100 KB back on every navigation
   if (css !== shownCss || !style.firstChild) {
     style.textContent = css;
@@ -166,6 +177,7 @@ export function cloak(path = window.location.pathname, builtinOnly = false, skel
   const root = document.documentElement;
   clearTimeout(skeletonTimer);
   if (skeleton === 'now') root.setAttribute(SKELETON, '');
+  else if (skeleton === 'none') root.removeAttribute(SKELETON);
   else {
     root.removeAttribute(SKELETON);
     skeletonTimer = setTimeout(() => {

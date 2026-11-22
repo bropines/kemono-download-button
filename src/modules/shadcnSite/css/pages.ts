@@ -377,6 +377,10 @@ iframe[src*="swagger"] { height: max(850px, 100vh); min-height: 200px; }
 .site-section--file-hash-search > .site-section__header { margin-bottom: 4px; }
 .site-section--contact > div[style] > a[href^="mailto:"] { margin-left: 4px; }
 .site-section--contact > div[style] { line-height: 1.7; }
+/* Creators list (Pawchive): its script fills the empty top paginator while "Loading creators..." shows. The loading
+   line takes the paginator's box (one 46px row; two, 72px, on phones), so the cards do not move when it is swapped */
+.site-section--artists.is-loading > #loading { box-sizing: border-box; min-height: 46px; margin: 12px 0; }
+@media (max-width: 600px) { .site-section--artists.is-loading > #loading { min-height: 72px; } }
 @media (max-width: 600px) {
   .kdl-sk-panel, .site-section--home .jumbo-welcome-description { padding: 16px; }
   .site-section--file-hash-search #file-search { padding: 16px; }

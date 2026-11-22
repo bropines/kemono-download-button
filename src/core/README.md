@@ -85,7 +85,7 @@ Rules:
   the task of the swap (unmount, mount, update as usual), so the header's additions and the tabs row are back
   before the first frame; `<html data-kdl-tail>` limits the cloak, the skeleton and the page transitions to the
   part under the tabs. Anything unexpected falls back to the whole-page swap. A click on a tab marks it at once.
-- **Page cloak** (`cloak.ts`, redesign on only): the children of `#main` are hidden (opacity) from document
+- **Page cloak** (`cloak.ts`, redesign on; with it off only on the pages our modules still rework in the flow, creator/post/tag pages (`cloaksWithoutRedesign`), and without a skeleton): the children of `#main` are hidden (opacity) from document
   start, and from each page-level htmx swap or history restore, until the router has mounted and updated
   the modules; revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar
   creators, the creator overview, post info) so cached data lands in the first frame; holds delay the reveal
