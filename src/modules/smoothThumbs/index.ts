@@ -7,6 +7,7 @@
 // A cross-origin thumbnail taints the canvas, which only matters for reading pixels back: nothing does.
 
 import type { KdlModule } from '../../core/types';
+import { isCloaked } from '../../core/cloak';
 
 const IMG = '.post-card__image';
 const CANVAS = 'kdl-smooth-thumb';
@@ -46,6 +47,7 @@ async function draw(img: HTMLImageElement, entry: Entry, rect?: DOMRect): Promis
   }
   const drawWidth = Math.max(1, Math.round(img.naturalWidth * scale));
   const drawHeight = Math.max(1, Math.round(img.naturalHeight * scale));
+  inFlight++;
   try {
     const bitmap = await createImageBitmap(img, { resizeWidth: drawWidth, resizeHeight: drawHeight, resizeQuality: 'high' });
     if (entry.key !== key) return bitmap.close();
@@ -54,22 +56,65 @@ async function draw(img: HTMLImageElement, entry: Entry, rect?: DOMRect): Promis
     canvas.height = height;
     canvas.getContext('2d')?.drawImage(bitmap, Math.round((width - drawWidth) / 2), Math.round((height - drawHeight) / 2));
     bitmap.close();
-    canvas.hidden = false;
-    img.setAttribute(READY, '');
+    shown.push([img, canvas]);
   } catch {
     // No resize options here (or the image failed): the browser's own rendering stays
     entry.canvas.hidden = true;
     img.removeAttribute(READY);
+  } finally {
+    inFlight--;
+    showDrawn();
   }
+}
+
+// Canvases are swapped in together once the queue is drawn: showing one restyles the whole page (the skin's
+// card rules), and one at a time that was a 30 ms style pass per slice, all through the page's entrance
+let inFlight = 0;
+const shown: [HTMLImageElement, HTMLCanvasElement][] = [];
+function showDrawn(): void {
+  if (inFlight || work.length) return;
+  shown.splice(0).forEach(([img, canvas]) => {
+    if (!img.isConnected) return;
+    canvas.hidden = false;
+    img.setAttribute(READY, '');
+  });
 }
 
 // Images that loaded since the last frame: measured together, then drawn (one layout for the whole batch)
 const queued = new Map<HTMLImageElement, Entry>();
 let flushPending = false;
 
+// Resampling a picture that is already decoded runs on the main thread, a few milliseconds each: fifty cards in
+// one task froze the page for ~150 ms right as a new page of posts came in (the loading skeleton stood still,
+// the page showed late). They are drawn a few at a time in idle time instead, in page order, and not at all
+// while the page is still hidden: this is a refinement of pictures already on screen.
+const SLICE_MS = 6;
+const work: (() => void)[] = [];
+let pumpPending = false;
+
+function pump(): void {
+  pumpPending = false;
+  if (isCloaked()) {
+    pumpPending = true;
+    setTimeout(pump, 100);
+    return;
+  }
+  const started = performance.now();
+  while (work.length && performance.now() - started < SLICE_MS) work.shift()!();
+  if (work.length) schedulePump();
+}
+
+function schedulePump(): void {
+  if (pumpPending) return;
+  pumpPending = true;
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(pump, { timeout: 400 });
+  else setTimeout(pump, 30);
+}
+
 function drawBatch(batch: [HTMLImageElement, Entry][]): void {
   const rects = batch.map(([img]) => img.parentElement?.getBoundingClientRect());
-  batch.forEach(([img, entry], index) => void draw(img, entry, rects[index]));
+  batch.forEach(([img, entry], index) => work.push(() => void draw(img, entry, rects[index])));
+  if (work.length) schedulePump();
 }
 
 function flushQueued(): void {
@@ -167,8 +212,10 @@ img${IMG}[${READY}] { opacity: 0; }
       records.forEach((record) => {
         const img = (record.target as HTMLElement).querySelector<HTMLImageElement>(IMG);
         const entry = img && entries.get(img);
-        if (img && entry) void draw(img, entry);
+        // Also fires once for every newly observed box: through the same queue (a drawn size is skipped)
+        if (img && entry) work.push(() => void draw(img, entry));
       });
+      if (work.length) schedulePump();
     });
     mutationObserver = new MutationObserver(schedule);
     mutationObserver.observe(document.body, { childList: true, subtree: true });
@@ -180,6 +227,7 @@ img${IMG}[${READY}] { opacity: 0; }
       resizeObserver = mutationObserver = null;
       clearTimeout(scheduled);
       queued.clear();
+      work.length = 0;
       scheduled = 0;
       undo();
     });
