@@ -9,6 +9,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - **Infinite scroll** (module, off by default): post lists, popular posts, creator posts, DMs and favourites load the next page by themselves as you reach the end, with a "Load more" fallback and a limit after which it asks; Back returns to the same card. Pawchive's creator list pages in the browser and is left as it is.
 - **About** in Settings → General: version, what's new, links to GitHub, releases, changelog, bug reports, translations and the creator links dataset, and a link to support the project on Boosty.
 - **Faster navigation** (module, on by default): the next page starts loading the moment you press a link instead of when you release it; optionally also when the pointer rests on a link. The site gets the same requests.
+- **API cache**: creator profiles, posts, comments, tags, links, announcements, similar creators and searches are reused for a while (from minutes for searches to a day for posts) and refreshed in the background, so revisits make far fewer requests. Settings → General → Cache sets the lifetime (off, short, normal, long) and clears it. Favourites and account data are never cached; downloads never use a stale copy.
 
 ### Changed
 - Log out is red, sits apart at the end of the account section and asks for confirmation.
