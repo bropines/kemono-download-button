@@ -18,18 +18,25 @@ const ATTR = 'data-kdl-cloak';
 const READY = 'data-kdl-ready';
 const STYLE_ID = 'kdl-cloak-style';
 const FAILSAFE_MS = 2500;
+// Asked again this often while the guard (setCloakFailsafeGuard) says the page is not ready to be shown
+const FAILSAFE_RETRY_MS = 400;
 const HOLD_MS = 150;
 // Revealed by then even if frames do not come (a throttled frame, a long task)
 const REVEAL_MAX_MS = 300;
 // A loading skeleton stands in for the hidden content: a snapshot of the page coming in (src/core/skeletonStore.ts)
 // It stays drawn while the page animates in (data-kdl-enter, set by the page transitions module), which fades it out
-const ON = `html:is([${ATTR}], [data-kdl-enter]) #main`;
+// Only where <html data-kdl-skeleton> says so: at once on a first load, but a page htmx swapped in is hidden for a
+// few frames only, and its skeleton would be a flash between the old page and the new one. There it is drawn
+// when the wait gets long (blocks held for their data, a slow device).
+const SKELETON = 'data-kdl-skeleton';
+const SKELETON_AFTER_MS = 140;
+const ON = `html[${SKELETON}]:is([${ATTR}], [data-kdl-enter]) #main`;
 // The children, not #main itself: a descendant with its own visibility: visible showed through a hidden #main.
 // The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
 const HIDE = `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`;
 // While the page animates in (page transitions), the skeleton dissolves under it; with reduced motion, or
 // without the transitions' styles, it goes at once: never drawn over a page that is already shown
-const LEAVING = `html[data-kdl-enter]:not([${ATTR}]) #main`;
+const LEAVING = `html[${SKELETON}][data-kdl-enter]:not([${ATTR}]) #main`;
 const BASE = `${skeletonBaseCss(ON)}
 ${LEAVING}::before, ${LEAVING}::after { opacity: 0; }
 @media (prefers-reduced-motion: no-preference) {
@@ -37,20 +44,54 @@ ${LEAVING}::before, ${LEAVING}::after { opacity: 0; }
   @keyframes kdl-skeleton-out { from { opacity: 1; } to { opacity: 0; } }
 }`;
 
+// One stylesheet per snapshot: a skeleton is ~100 KB of SVG in a data: URL, built once and not on every navigation
+// (snapshotFor hands out the same object until a newer snapshot is stored)
+const cssBySnapshot = new WeakMap<object, string>();
+const NO_SKELETON = [HIDE, BASE].join('\n');
+
 function cloakCss(path: string, builtinOnly: boolean): string {
-  let skeleton = '';
   try {
     const snap = snapshotFor(path, builtinOnly);
-    if (snap) skeleton = snapshotCss(ON, snap, `html[${ATTR}] #main`);
+    if (!snap) return NO_SKELETON;
+    let css = cssBySnapshot.get(snap);
+    if (css === undefined) {
+      css = [HIDE, BASE, snapshotCss(ON, snap, `html[${ATTR}] #main`)].join('\n');
+      cssBySnapshot.set(snap, css);
+    }
+    return css;
   } catch {
     // A stored snapshot this build cannot draw: hide without a skeleton (capture replaces it later)
+    return NO_SKELETON;
   }
-  return [HIDE, BASE, skeleton].join('\n');
 }
 
 let failsafe: ReturnType<typeof setTimeout> | undefined;
+let skeletonTimer: ReturnType<typeof setTimeout> | undefined;
+let shownCss = '';
+let failsafeGuard: (() => boolean) | null = null;
+
+/** Asked when the failsafe is due: true keeps the page hidden a little longer (and it is asked again). For the
+    first load, where "2.5 s passed" may only mean the document is still coming in (src/index.ts). */
+export function setCloakFailsafeGuard(guard: (() => boolean) | null): void {
+  failsafeGuard = guard;
+}
+
+function armFailsafe(delay: number): void {
+  clearTimeout(failsafe);
+  failsafe = setTimeout(() => {
+    let wait = false;
+    try {
+      wait = !!failsafeGuard?.();
+    } catch {
+      // The guard is ours (index.ts); should it break, the page is shown
+    }
+    if (wait && isCloaked()) armFailsafe(FAILSAFE_RETRY_MS);
+    else uncloak();
+  }, delay);
+}
 const cloakListeners = new Set<() => void>();
 const revealListeners = new Set<() => void>();
+const beforeRevealListeners = new Set<() => void>();
 const notify = (listeners: Set<() => void>): void =>
   listeners.forEach((fn) => {
     try {
@@ -65,6 +106,13 @@ export function onCloak(fn: () => void): void {
   cloakListeners.add(fn);
 }
 
+/** Called one frame before a hidden page is shown, the modules mounted on it: the place to read styles the
+    reveal depends on. The page's style is being worked out in that frame anyway; reading it at the reveal itself
+    put a forced style pass between the attribute changes of the reveal, each restyling the whole page. */
+export function onBeforeReveal(fn: () => void): void {
+  beforeRevealListeners.add(fn);
+}
+
 /** Called right as a hidden page is shown (not when it was never hidden) */
 export function onReveal(fn: () => void): void {
   revealListeners.add(fn);
@@ -77,8 +125,9 @@ export function isCloaked(): boolean {
 }
 
 /** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path`.
-    `builtinOnly`: the first load under the preload userstyle, whose skeleton (a built-in one) is on screen */
-export function cloak(path = window.location.pathname, builtinOnly = false): void {
+    `builtinOnly`: the first load under the preload userstyle, whose skeleton (a built-in one) is on screen.
+    `skeleton`: drawn at once ('now', a first load) or only if the page stays hidden for a while ('late') */
+export function cloak(path = window.location.pathname, builtinOnly = false, skeleton: 'now' | 'late' = 'now'): void {
   let style = document.getElementById(STYLE_ID);
   if (!style) {
     style = keepInHead(document.createElement('style'));
@@ -86,13 +135,25 @@ export function cloak(path = window.location.pathname, builtinOnly = false): voi
     (document.head || document.documentElement).appendChild(style);
   }
   const css = cloakCss(path, builtinOnly);
-  if (style.textContent !== css) style.textContent = css;
+  // Compared with what was last written, not with the sheet's text: reading 100 KB back on every navigation
+  if (css !== shownCss || !style.firstChild) {
+    style.textContent = css;
+    shownCss = css;
+  }
   generation++;
   holds = [];
-  document.documentElement.setAttribute(ATTR, '');
+  const root = document.documentElement;
+  clearTimeout(skeletonTimer);
+  if (skeleton === 'now') root.setAttribute(SKELETON, '');
+  else {
+    root.removeAttribute(SKELETON);
+    skeletonTimer = setTimeout(() => {
+      if (isCloaked()) root.setAttribute(SKELETON, '');
+    }, SKELETON_AFTER_MS);
+  }
+  root.setAttribute(ATTR, '');
   notify(cloakListeners);
-  clearTimeout(failsafe);
-  failsafe = setTimeout(uncloak, FAILSAFE_MS);
+  armFailsafe(FAILSAFE_MS);
 }
 
 function markReady(): void {
@@ -101,6 +162,7 @@ function markReady(): void {
 
 function uncloak(): void {
   clearTimeout(failsafe);
+  clearTimeout(skeletonTimer);
   holds = [];
   const was = isCloaked();
   document.documentElement.removeAttribute(ATTR);
@@ -130,7 +192,10 @@ export function reveal(): void {
     // content-visibility, observers that fire on it); what that sets off runs before the second, so the page
     // is revealed ready to draw instead of mid-work (the skeleton, animated off the main thread, keeps
     // shimmering meanwhile). rAF never fires in background tabs: a timer stands in there.
-    requestAnimationFrame(() => requestAnimationFrame(run));
+    requestAnimationFrame(() => {
+      if (!done && current === generation) notify(beforeRevealListeners);
+      requestAnimationFrame(run);
+    });
     setTimeout(run, document.hidden ? 0 : REVEAL_MAX_MS);
   };
   if (!pending.length) return show();

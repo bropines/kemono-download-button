@@ -7,7 +7,7 @@ import { initializeComments, removeCommentsLayout } from './comments';
 import { initializePostTranslation, removeTranslateButtons } from './translateButtons';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
-import { hideEmptySections } from './embeds';
+import { hideEmptySections, restoreAttachmentButtons } from './embeds';
 import type { KdlModule, SettingDef } from '../../core/types';
 import { getModuleSetting } from '../../core/registry';
 
@@ -30,7 +30,8 @@ function syncHiddenBlocks(get: (key: string) => unknown): void {
 }
 const blockStyles = (): string =>
   BLOCKS.map(({ key, match }) => {
-    const scope = `html[${HIDE_ATTR}~="${key}"]`;
+    // Layout edit mode shows hidden blocks whole, so they can be told apart and switched back on
+    const scope = `html[${HIDE_ATTR}~="${key}"]:not([data-kdl-layout-edit])`;
     const inner = match.split(',').map((m) => m.trim());
     return [
       ...inner.map((m) => `${scope} .kui-post-section:has(${m})`),
@@ -63,6 +64,7 @@ export const postPageModule = {
     // Translations first: they are restored through buttons that live inside the comments
     removeTranslateButtons();
     removeCommentsLayout();
+    restoreAttachmentButtons();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());
 

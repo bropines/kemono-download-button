@@ -116,13 +116,14 @@ export const postActionsStyles = css({
       position: 'relative !important',
     },
     '.post__info': {
-      paddingRight: '400px !important',
+      paddingRight: '444px !important',
     },
     '.kdl-scope.kdl-actions-container': {
       position: 'absolute',
-      top: '15px',
-      right: '15px',
-      width: '380px',
+      // + the 12px top margin below
+      top: '8px',
+      right: '20px',
+      width: '420px',
     },
   },
   '.kdl-scope.kdl-actions-container': {
@@ -134,7 +135,8 @@ export const postActionsStyles = css({
     boxSizing: 'border-box',
     maxWidth: '100%',
   },
-  '.kdl-actions-container .kdl-ui-btn > span': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 },
+  // line-height: the ellipsis clip box would cut descenders (y, g, p) at the kit's tight line height
+  '.kdl-actions-container .kdl-ui-btn > span': { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0, lineHeight: '1.5' },
   '@media (max-width: 480px)': {
     '.kdl-scope.kdl-actions-container': { gridTemplateColumns: 'minmax(0, 1fr)' },
   },

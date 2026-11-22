@@ -191,12 +191,11 @@ async function start(ctx: ModuleContext): Promise<void> {
   current = key;
   aborter?.abort();
   const controller = (aborter = new AbortController());
-  // Favourites load once, alongside the list, and fail quietly without a session
-  const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
   try {
     const items = (await fetchSimilar(who.service, who.id, controller.signal)).filter((item) => !(item.service === who.service && item.id === who.id));
-    if (controller.signal.aborted || !items.length) return;
-    if (controller.signal.aborted || !anchor()) return;
+    if (controller.signal.aborted || !items.length || !anchor()) return;
+    // Favourites only when there is a strip to star; they fail quietly without a session
+    const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
     strip = build(items, ctx.settings.get<number>('limit') || 12, favourites);
     place();
   } catch (error) {
@@ -220,7 +219,10 @@ const STYLES = `
   border: 1px solid var(--kdl-border); border-radius: var(--kdl-radius);
   background: var(--kdl-card, transparent); color: var(--kdl-foreground);
 }
-.${OWN}__chip:hover { background: var(--kdl-accent); }
+.${OWN}__chip { transition: background-color 0.15s ease, border-color 0.15s ease; }
+.${OWN}__chip:hover { background: var(--kdl-accent); border-color: var(--kdl-hover-ring); }
+.${OWN}__chip:focus-within { border-color: var(--kdl-hover-ring); }
+.${OWN}__link:focus-visible { border-radius: var(--kdl-radius); outline: 2px solid var(--kdl-ring); outline-offset: -2px; }
 .${OWN}__link { display: flex; align-items: center; gap: 8px; padding: 8px 36px 8px 8px; color: inherit; text-decoration: none; }
 .${OWN}__avatar { flex: 0 0 auto; width: 36px; height: 36px; border-radius: 9999px; background: var(--kdl-muted); overflow: hidden; }
 .${OWN}__avatar > img { display: block; width: 100%; height: 100%; object-fit: cover; }

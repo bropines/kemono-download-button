@@ -5,7 +5,7 @@ export const filePickerModalStyles = css({
   '.kdl-ov-picker__status': { fontSize: '14px', color: 'var(--kdl-muted-foreground)' },
   '.kdl-ov-picker__status--error': { color: 'var(--kdl-danger)' },
   '.kdl-ov-picker__toolbar': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px', marginBottom: '12px' },
-  '.kdl-ov-picker__list': { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh' },
+  '.kdl-ov-picker__list': { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh', padding: '3px', margin: '-3px' },
   '.kdl-ov-picker__group': {
     flexShrink: 0,
     border: '1px solid var(--kdl-border)',

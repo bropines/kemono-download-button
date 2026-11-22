@@ -281,7 +281,10 @@ ${PRIMARY} {
   font-weight: 500;
   white-space: nowrap;
 }
-.tabs .tab a:hover { background: transparent; color: var(--kdl-foreground); }
+.tabs .tab a { transition: background-color 0.15s ease, color 0.15s ease; }
+.tabs .tab a:hover { background: color-mix(in srgb, var(--kdl-background) 45%, transparent); color: var(--kdl-foreground); }
+.tabs .tab a:focus-visible { outline: 2px solid var(--kdl-ring); outline-offset: -2px; }
+.tabs .tab a.active:hover { background: var(--kdl-background); }
 .tabs .tab a.active {
   border: 0;
   background: var(--kdl-background);
@@ -306,12 +309,15 @@ ${PRIMARY} {
   align-items: center;
   height: 2rem;
   padding: 0 0.75rem;
-  border: 1px dashed var(--kdl-input);
+  border: 1px solid var(--kdl-input);
   border-radius: calc(var(--kdl-radius) - 2px);
   color: var(--kdl-muted-foreground);
   opacity: 1;
+  box-shadow: var(--kdl-shadow-sm);
+  cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
+.hide-tags-filter__summary:focus-visible { outline: 2px solid var(--kdl-ring); outline-offset: 2px; }
 .hide-tags-filter__summary:hover, .hide-tags-filter[open] > .hide-tags-filter__summary { background: var(--kdl-accent); color: var(--kdl-foreground); }
 .hide-tags-filter__panel {
   padding: 4px;

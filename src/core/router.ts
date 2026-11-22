@@ -1,7 +1,7 @@
 import { PageInfo } from './types';
 import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, resolveRoot, writePageAttributes } from './page';
-import { attachRuntime, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
-import { cloak, reveal } from './cloak';
+import { attachRuntime, bootEarlyFor, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
+import { cloak, onReveal, reveal } from './cloak';
 import { scheduleSkeletonCapture } from './skeletonStore';
 import { installLinkBoost } from './boostLinks';
 
@@ -32,7 +32,43 @@ function setPage(page: PageInfo): void {
 
 // ---- Navigation ----
 
+// ---- Back/forward ----
+
+// Where htmx put the scroll of the page it restored from its history cache. It scrolls there itself, but right
+// after the swap: before the modules have reworked the page (blocks added above, the tag list still short), so
+// the position is put right again once they have, and once more as the page is shown.
+let restoreScroll: number | null = null;
+let restoreTimer: ReturnType<typeof setTimeout> | undefined;
+
+/** The scroll position a history restore is going back to, while that restore is being set up (else null) */
+export function getRestoreScroll(): number | null {
+  return restoreScroll;
+}
+
+function applyRestoreScroll(): void {
+  if (restoreScroll === null) return;
+  if (Math.abs(window.scrollY - restoreScroll) > 1) window.scrollTo(0, restoreScroll);
+}
+
+function endRestoreScroll(): void {
+  applyRestoreScroll();
+  clearTimeout(restoreTimer);
+  restoreScroll = null;
+}
+
+// Back/forward to a page htmx no longer has cached: it asks the server, and the old page stays in the DOM under
+// the new address until the answer is swapped in. Nothing is mounted on it meanwhile.
+let awaitingHistory = false;
+let historyTimer: ReturnType<typeof setTimeout> | undefined;
+const HISTORY_LOAD_MAX_MS = 10000;
+
+function historyLoadDone(): void {
+  awaitingHistory = false;
+  clearTimeout(historyTimer);
+}
+
 function reconcile(): void {
+  if (awaitingHistory) return;
   refreshRoot();
   const path = window.location.pathname;
   if (path !== lastPath) {
@@ -50,6 +86,7 @@ function reconcile(): void {
     // Modules mounted for 'any' page stay mounted across the navigation: they still need to see the new page now,
     // not on the next unrelated mutation
     updateMounted();
+    applyRestoreScroll();
     revealPage();
     return;
   }
@@ -58,13 +95,15 @@ function reconcile(): void {
   if (page.type !== current.type) setPage(page);
   syncModules();
   updateMounted();
+  applyRestoreScroll();
   // Not a new page: no new snapshot (an open panel or a typed filter is not how the page loads)
   reveal();
 }
 
 // The new page content is in the DOM but not painted yet: keep it hidden until the modules reworked it
+// (its skeleton only if that takes long: the page is in the DOM already, a few frames from being shown)
 function cloakNewPage(path: string | null = null): void {
-  if (isModuleEnabled('ui.shadcn')) cloak(path || window.location.pathname);
+  if (isModuleEnabled('ui.shadcn')) cloak(path || window.location.pathname, false, 'late');
 }
 
 // Shown: a fresh snapshot of it for the next visit's skeleton (with the redesign only)
@@ -87,6 +126,14 @@ function scheduleReconcile(delay = 50): void {
 // Unmount before the old DOM goes away, so modules can restore it (video player, gallery) while it still exists
 function leaveIfPathChanges(nextPath: string | null): void {
   if (nextPath === null || nextPath !== window.location.pathname) unmountPageScoped();
+}
+
+// The address changed and the page for it is not set up yet: let its modules get ready (registry.bootEarlyFor)
+function prepareNextPage(): void {
+  const path = window.location.pathname;
+  if (path === lastPath) return;
+  const type = pageFromUrl(path);
+  if (type !== 'other') bootEarlyFor({ type, site: detectSite(), path });
 }
 
 function pathOf(url: string | URL | null | undefined): string | null {
@@ -139,16 +186,49 @@ function installNavigationHooks(): void {
     if (swapReplacesPage(event)) leaveIfPathChanges(htmxNextPath(event));
   });
   document.addEventListener('htmx:afterSwap', (event) => {
-    if (writeEarlyPageAttributes(event)) cloakNewPage(htmxNextPath(event));
+    if (writeEarlyPageAttributes(event)) {
+      // A new page starts at the top (a history restore names its position after this, in htmx:historyRestore)
+      restoreScroll = null;
+      cloakNewPage(htmxNextPath(event));
+    }
     scheduleReconcile();
   });
-  document.addEventListener('htmx:afterSettle', () => scheduleReconcile());
-  document.addEventListener('htmx:historyRestore', () => {
+  // The last event of a swap: the page is final, nothing more to wait for (the 50 ms above only gather the
+  // events of one navigation; every one of them is spent with the new page hidden)
+  document.addEventListener('htmx:afterSettle', () => scheduleReconcile(0));
+  document.addEventListener('htmx:historyCacheMiss', () => {
+    awaitingHistory = true;
+    if (navTimer) clearTimeout(navTimer);
+    navTimer = null;
+    clearTimeout(historyTimer);
+    // The answer never came (offline, an aborted request): set up whatever is on screen
+    historyTimer = setTimeout(() => {
+      historyLoadDone();
+      scheduleReconcile(0);
+    }, HISTORY_LOAD_MAX_MS);
+  });
+  for (const failed of ['htmx:historyCacheMissError', 'htmx:historyCacheMissLoadError']) {
+    document.addEventListener(failed, () => {
+      historyLoadDone();
+      scheduleReconcile(0);
+    });
+  }
+  document.addEventListener('htmx:historyRestore', (event) => {
+    historyLoadDone();
+    const scroll = Number((event as CustomEvent).detail?.item?.scroll);
+    clearTimeout(restoreTimer);
+    restoreScroll = Number.isFinite(scroll) && scroll > 0 ? scroll : null;
+    // Without a cloak (the redesign off) nothing announces the reveal: forget the position soon anyway (and do
+    // not go back to it then: the user may be scrolling already)
+    if (restoreScroll !== null) restoreTimer = setTimeout(() => (restoreScroll = null), 1500);
     cloakNewPage();
-    scheduleReconcile();
+    // htmx scrolls in a zero timeout it set just before this event: ours runs right after it
+    scheduleReconcile(0);
   });
+  onReveal(endRestoreScroll);
   window.addEventListener('popstate', () => {
     if (window.location.pathname !== lastPath) unmountPageScoped();
+    prepareNextPage();
     scheduleReconcile();
   });
 
@@ -158,6 +238,7 @@ function installNavigationHooks(): void {
       const next = pathOf(args[2]);
       if (next !== null) leaveIfPathChanges(next);
       original.apply(this, args);
+      prepareNextPage();
       scheduleReconcile();
     };
   history.pushState = wrap(history.pushState);

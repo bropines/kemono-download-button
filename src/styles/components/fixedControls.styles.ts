@@ -23,7 +23,7 @@ export const dockStyles = css({
     flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
-    width: 'min(760px, calc(100vw - 32px))',
+    width: 'min(960px, calc(100vw - 32px))',
     pointerEvents: 'none',
   },
   '#kdl-fixed-controls [hidden]': { display: 'none !important' },
