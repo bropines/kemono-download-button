@@ -72,7 +72,8 @@ Rules:
 - **Back/forward**: htmx restores the page and its scroll position from its cache before the modules have
   reworked it; the router puts the position right again after mounting and at the reveal
   (`getRestoreScroll()` tells a module that a restore to that position is being set up: the tag list then draws
-  the rows it had). On a cache miss (`htmx:historyCacheMiss`) nothing is mounted until the server's answer is in.
+  the rows it had; `setRestoreScroll(y)` corrects it when a module put back more than htmx kept, as the infinite
+  scroll does with its appended pages). On a cache miss (`htmx:historyCacheMiss`) nothing is mounted until the server's answer is in.
 - **Mutations**: one `MutationObserver` on `<body>`; only non-own changes inside the root (`#main`, else
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
@@ -119,6 +120,7 @@ Rules:
 | `ui.pageTransitions` | any | the page leans away while the next loads and the new one slides in (opacity and transform only, so it stays on the compositor); the first 12 cards cascade; requires `ui.shadcn` |
 | `nav.prefetch` | any | htmx sites only: the next page is requested when a link is pressed (setting `hover`: when the pointer rests on it) and handed to htmx's own request in `htmx:beforeSend`; falls back to the real request on any doubt |
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
+| `lists.infiniteScroll` | list, creator, artists, search, other | off by default: appends the next pages of paginated card lists (fetched HTML, site markup) near the end of the list, "Load more" fallback and cap (settings `auto`, `maxCards`); URL stays on the first page, appended cards are stripped before snapshots and put back with the scroll position on Back |
 | `ui.shadcn` | any | the redesign, on by default (switch at the top of Settings → Interface): shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">`. `creators.similar`, `creators.overview`, `creators.xlinks`, `info.badges`, `importer.status` and `post.blockOrder` require it, `creator.blockOrder` requires `ui.shadcn.creator`, so switching it off turns them off too |
 | `ui.shadcn.cards` / `.post` / `.creator` / `.pages` | any | parts of the skin, `requires: ["ui.shadcn"]`; `.pages` also wraps importer notes in panels and turns the FAQ into an accordion (reversible, stripped before snapshots) |
 | `i18n.site` | any | translates the site chrome with the active language's `site` dictionary (`src/i18n/site.ts`); restores originals on disable and before htmx snapshots |

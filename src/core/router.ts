@@ -45,6 +45,11 @@ export function getRestoreScroll(): number | null {
   return restoreScroll;
 }
 
+/** A module that put back more of the page than htmx kept (appended list pages) names the real position */
+export function setRestoreScroll(scroll: number): void {
+  if (restoreScroll !== null) restoreScroll = scroll;
+}
+
 function applyRestoreScroll(): void {
   if (restoreScroll === null) return;
   if (Math.abs(window.scrollY - restoreScroll) > 1) window.scrollTo(0, restoreScroll);
