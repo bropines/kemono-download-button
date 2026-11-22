@@ -43,15 +43,12 @@ let routeChangedAt = 0;
 let swappedAt = 0;
 let tracking = false;
 function trackSwaps(): void {
-  if (tracking) return;
+  if (tracking || typeof window.addEventListener !== 'function') return;
   tracking = true;
   window.addEventListener('popstate', () => { routeChangedAt = Date.now(); });
   ['htmx:afterSwap', 'htmx:historyRestore'].forEach((type) => document.addEventListener(type, () => { swappedAt = Date.now(); }));
 }
 
-/** Rough shape of a snapshot: small reflows (a wrapped line more or less) do not rewrite the stored one */
-const signature = (snap: SkeletonSnapshot): string =>
-  `${Math.round(snap.shapes.length / 8)}|${snap.grid ? Math.round(snap.grid.shapes.length / 4) : '-'}`;
 
 /** The best snapshot for a path at the current screen class. `builtinOnly`: the one the preload userstyle
     draws (generated from the same built-in snapshots), so taking over from it changes nothing on screen */
@@ -99,8 +96,7 @@ export function scheduleSkeletonCapture(): void {
         const snap = captureSkeleton();
         if (!snap || !snap.shapes.length) return;
         const key = storeKey(skeletonRoute(path), skeletonBucket());
-        const stored = readStored<unknown>(key, null);
-        if (!valid(stored) || signature(stored) !== signature(snap)) {
+        if (JSON.stringify(readStored<unknown>(key, null)) !== JSON.stringify(snap)) {
           writeStored(key, snap);
           lookups.clear();
         }

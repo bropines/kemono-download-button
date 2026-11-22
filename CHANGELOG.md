@@ -4,11 +4,28 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- **Faster navigation** (module, on by default): the next page starts loading the moment you press a link instead of when you release it; optionally also when the pointer rests on a link. The site gets the same requests.
+
+### Changed
+- Much faster pages: the tags page does 0.3 s of main-thread work on load instead of 8.7 s, DMs 0.27 s instead of 1.8 s, post lists and creator pages about 0.25 s instead of up to 1.2 s.
+- Smoother navigation: the loading skeleton shows only when a page really takes a moment (from 140 ms), a page is revealed sooner after it arrives, back/forward returns to the same scroll position, transitions no longer blur and animate at most the first 12 cards.
+- A slow first load waits for the redesign to be set up (up to 10 s) instead of showing the old page at 2.5 s.
+- Polish across the site skin, desktop and mobile:
+  - **Creator pages:** strip titles and spacing match; long strips fade at the edge; tabs get hover and focus states and even spacing; announcement and DM cards no longer get squeezed; "Link another account" is a proper link; the tags page toolbar fits phones.
+  - **Post pages:** the action panel no longer cuts "Download Attachments"; comments lose the double frame; tidier content typography; the image gallery gets a framed stage; the video list no longer animates open on load; the "Downloaded" badge sits in the attachment row.
+  - **Text pages:** short pages keep the footer at the bottom without jumping (tutorial, login, contact, API page).
+  - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
+
 ### Fixed
+- An error repeated on every page after opening a post with a video and going back.
+- Phones: tapping a post card opens the post again (the download buttons row no longer catches the tap).
+- Attachment links keep the site's look again after the post page layout is switched off.
+- The API page no longer jumps while its documentation loads and no longer floods the console on phones.
 - Individual downloads no longer copy every file into the cache while you wait: the copy happens in the background, only for files up to 64 MB and only when the cache is on.
-- A download whose body takes long to convert after it arrived is no longer cut off as stalled and fetched again.
+- A download whose body takes long to convert after it arrived gets a fresh time window for it instead of being cut off as stalled and fetched again (a conversion that never finishes still times out).
 - Creator overview: an empty list of tags, links or announcements is not cached for two days (the creator may simply not be indexed yet), and a failed request is retried after 30 seconds instead of leaving the block empty until you leave the page.
-- Loading skeletons: going back to a page that was not in the browser history cache no longer stores the previous page as its skeleton; only real creator tabs get a stored skeleton, and it is rewritten only when the page layout really changed, not after nearly every visit.
+- Loading skeletons: going back to a page that was not in the browser history cache no longer stores the previous page as its skeleton, and only real creator tabs get a stored skeleton.
 - Links with href="#" (script buttons) are no longer turned into a page reload.
 - Edit page layout shows hidden post blocks whole instead of an empty heading.
 - Similar creators: favourites are requested only when there is a strip to show.

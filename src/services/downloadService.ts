@@ -234,7 +234,7 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
         await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal,
           async (data) => {
             // Kept for a later ZIP, but never in the way of the download: no wait, nothing huge, not when caching is off
-            if (data.byteLength > INDIVIDUAL_CACHE_MAX_BYTES || !(Number(state.settings.cacheDurationHours) > 0)) return;
+            if (data.byteLength > INDIVIDUAL_CACHE_MAX_BYTES || state.settings.cacheDurationHours === 0) return;
             void setCachedFile(file.data, data)
               .then(() => debugLog('[download]', 'individual-cache-stored', { bytes: data.byteLength }))
               .catch(() => debugLog('[download]', 'individual-cache-failed'));
