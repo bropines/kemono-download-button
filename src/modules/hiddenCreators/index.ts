@@ -61,9 +61,10 @@ function keyOf(card: HTMLElement): string {
   return service && id ? `${service}:${id}`.toLowerCase() : '';
 }
 
-/** The creator of the current page: /service/user/id, not a post */
+/** The creator of the current page: /service/user/id and every tab of it (the header and its button stay the
+    same from tab to tab), not a post */
 function creatorKey(): string {
-  const m = /^\/([^/]+)\/user\/([^/?#]+)\/?(?:dms|fancards|links|announcements)?\/?$/.exec(location.pathname);
+  const m = /^\/([^/]+)\/user\/([^/?#]+)(?:\/(?!post(?:\/|$))[^/?#]+)?\/?$/.exec(location.pathname);
   return m ? `${m[1]}:${m[2]}`.toLowerCase() : '';
 }
 
@@ -152,7 +153,8 @@ html[data-kdl-hide-mode="dim"] [${MARK}]::after, html[${REVEAL}] [${MARK}]::afte
   font-size: 11px; line-height: 18px; pointer-events: none;
 }
 .kdl-hide-chip { display: flex; margin: 0 0 8px; }
-.user-header__actions .kdl-scope.${OWN} { display: inline-flex; align-items: center; }
+/* Last in the row whatever the DOM order: the site puts its favourite button back at the end on every page set-up */
+.user-header__actions .kdl-scope.${OWN} { display: inline-flex; align-items: center; order: 1; }
 `;
 
 export const hiddenCreatorsModule: KdlModule = {

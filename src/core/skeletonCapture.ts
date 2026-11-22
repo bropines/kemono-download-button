@@ -25,6 +25,9 @@ export interface SkeletonSnapshot {
   shapes: SnapShape[];
   /** The card grid: its box, and one tile of shapes (absolute px inside the tile) */
   grid?: { x: Lin; w: Lin; y: number; tw: number; th: number; gap: number; shapes: SnapShape[] };
+  /** Creator pages: the bottom of the tabs row, from the top of the content box (a same-creator swap draws the
+      skeleton below it only, lined up with the live row: src/core/cloak.ts) */
+  cut?: number;
 }
 
 // Dense pages (the tag list: a bar and two labels per row) fill about a screen with this
@@ -217,7 +220,9 @@ export function captureSkeleton(root: Element | null = document.querySelector('#
     }
   };
   walk(root, base, shapes, top, MAX_SHAPES);
-  return { v: 1, pad, h: Math.round(Math.max(0, limit)), shapes, grid: gridSnap };
+  const tabs = root.querySelector(':scope > .site-section--user > .kdl-sk-tabs-row');
+  const cut = tabs ? Math.round(tabs.getBoundingClientRect().bottom - top) : undefined;
+  return { v: 1, pad, h: Math.round(Math.max(0, limit)), shapes, grid: gridSnap, ...(cut !== undefined && cut > 0 ? { cut } : {}) };
 }
 
 /** Width class a snapshot belongs to: phones lay pages out differently */
