@@ -13,21 +13,68 @@ const LIVE_SEARCH_MORE = 'kdl-live-search-more';
 let active = false;
 let suspended = false;
 let timer: ReturnType<typeof setTimeout> | undefined;
-let tracked: { root: Element; groups: OverviewSection[]; slots: Comment[]; cleanup: () => void; headings: HTMLElement[] } | null = null;
+// `slot` marks where the site put the posts group (top paginator, cards, bottom paginator), for restore()
+let tracked: { root: Element; groups: OverviewSection[]; slot: Comment | null; cleanup: () => void; headings: HTMLElement[] } | null = null;
 
 const members = (section: OverviewSection): HTMLElement[] => section.members ?? [section.node];
 
+// Puts `nodes` right before `before` (null: at the end), in order, moving only the ones that are not there yet.
+// A moved node restarts its animations, so the page visibly rebuilds: a block already in place is never touched.
+function putBefore(root: Element, nodes: HTMLElement[], before: Element | null): void {
+  let ref = before;
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const node = nodes[i];
+    if (node.parentElement !== root || node.nextElementSibling !== ref) root.insertBefore(node, ref);
+    ref = node;
+  }
+}
+
+// The posts group (the site's own nodes, fifty cards with their pictures) stays where it is: our blocks, which
+// arrive one by one from the API, are placed around it. The cards used to be taken out and put back every time
+// a block arrived, so they cascaded in a second time on a page that was already shown.
+function arrange(root: Element, sorted: OverviewSection[]): void {
+  const at = sorted.findIndex((group) => group.id === 'posts');
+  if (at < 0) {
+    // Only our blocks: in order, where the last of them stands
+    const nodes = sorted.map((group) => group.node);
+    const inDom = Array.from(root.children).filter((child) => nodes.includes(child as HTMLElement));
+    putBefore(root, nodes, inDom[inDom.length - 1]?.nextElementSibling ?? null);
+    return;
+  }
+  const posts = members(sorted[at]);
+  putBefore(root, sorted.slice(0, at).map((group) => group.node), posts[0]);
+  putBefore(root, sorted.slice(at + 1).map((group) => group.node), posts[posts.length - 1].nextElementSibling);
+}
+
+function dropControls(): void {
+  if (!tracked) return;
+  tracked.cleanup();
+  tracked.cleanup = () => {};
+  tracked.headings.forEach((heading) => heading.remove());
+  tracked.headings = [];
+}
+
 function restore(): void {
   if (!tracked) return;
+  dropControls();
   const previous = tracked;
   tracked = null;
-  previous.cleanup();
-  previous.headings.forEach((heading) => heading.remove());
-  previous.slots.forEach((slot, index) => {
-    const nodes = members(previous.groups[index]);
-    if (slot.isConnected && nodes.every((node) => node.parentElement === previous.root)) slot.after(...nodes);
-    slot.remove();
-  });
+  const { slot, root } = previous;
+  const posts = previous.groups.find((group) => group.id === 'posts');
+  if (slot?.isConnected && posts) {
+    const nodes = members(posts);
+    if (nodes.every((node) => node.parentElement === root)) {
+      // Back where the site had them (moved only if the user reordered the page), our blocks above
+      let ref: Node = slot;
+      nodes.forEach((node) => {
+        if (ref.nextSibling !== node) root.insertBefore(node, ref.nextSibling);
+        ref = node;
+      });
+      const own = previous.groups.filter((group) => group !== posts && group.node.parentElement === root).map((group) => group.node);
+      putBefore(root, own, nodes[0]);
+    }
+  }
+  slot?.remove();
 }
 
 function sync(): void {
@@ -64,12 +111,13 @@ function sync(): void {
     const a = members(old), b = next ? members(next) : [];
     return a.length === b.length && a.every((node, index) => node === b[index]);
   })) return;
-  restore();
-  if (!groups.length) return;
-  // Restoring an older arrangement may itself move the nodes. Slots must follow the
-  // resulting DOM order, including when an asynchronous block appeared or disappeared.
-  const currentChildren = Array.from(root.children);
-  groups.sort((a, b) => currentChildren.indexOf(members(a)[0]) - currentChildren.indexOf(members(b)[0]));
+  // Same page, another set of blocks (one arrived or went): only the edit controls are rebuilt
+  const slot = tracked && tracked.root === root && tracked.slot?.isConnected ? tracked.slot : null;
+  if (slot) {
+    dropControls();
+    tracked = null;
+  } else restore();
+  if (!groups.length) return void slot?.remove();
   ensureKit();
   const headings: HTMLElement[] = [];
   const heads = new Map<SectionId, HTMLElement>();
@@ -82,15 +130,20 @@ function sync(): void {
     }
     heads.set(group.id, head);
   });
-  const slots = groups.map((group) => {
-    const slot = document.createComment('kdl-creator-block-position');
-    members(group)[0].before(slot);
-    return slot;
-  });
+  const posts = groups.find((group) => group.id === 'posts');
+  let mark = slot;
+  if (mark && !posts) {
+    mark.remove();
+    mark = null;
+  }
+  if (!mark && posts) {
+    mark = document.createComment('kdl-creator-block-position');
+    members(posts)[0].before(mark);
+  }
   const sorted = orderOverviewSections(groups, { key: 'creatorBlocks.order', defaults: ORDER, heading: (group) => heads.get(group.id) ?? null });
   const byNode = new Map(groups.map((group) => [group.node, group]));
-  slots.forEach((slot, index) => slot.after(...members(byNode.get(sorted.nodes[index])!)));
-  tracked = { root, groups, slots, headings, cleanup: sorted.cleanup };
+  arrange(root, sorted.nodes.map((node) => byNode.get(node)!));
+  tracked = { root, groups, slot: mark, headings, cleanup: sorted.cleanup };
 }
 
 type SectionId = string;
