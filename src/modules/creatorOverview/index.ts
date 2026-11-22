@@ -23,7 +23,7 @@ const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
 const TAG_LIMIT = 40;
 
 interface Who { service: string; id: string }
-interface Overview { announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
+interface Overview { complete: boolean; announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
 
 let node: HTMLElement | null = null;
 let cleanupOrder = () => {};
@@ -47,14 +47,20 @@ function plain(html: string): string {
 // The three requests run side by side; each is shared with an earlier identical one (document-start prefetch)
 async function load(who: Who): Promise<Overview> {
   const want = (key: string) => getModuleSetting<boolean>(MODULE_ID, key) !== false;
+  let complete = true;
+  const failed = <T>(value: T) => (): T => {
+    complete = false;
+    return value;
+  };
   const [ann, tags, links] = await Promise.all([
-    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(() => null) : null,
-    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(() => []) : [],
-    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(() => null) : null,
+    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(failed(null)) : null,
+    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(failed([])) : [],
+    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(failed(null)) : null,
   ]);
   const annList = Array.isArray(ann) ? ann.filter((a: any) => a && typeof a.content === 'string') : [];
   const latest = annList[0];
   return {
+    complete,
     announcement: latest ? { text: plain(latest.content), added: String(latest.added || latest.published || '').slice(0, 10), count: annList.length } : null,
     tags: tags.slice(0, TAG_LIMIT),
     links: (Array.isArray(links) ? links : [])
@@ -142,21 +148,51 @@ function remove(): void {
   if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
+// What the API said about the creators seen in this tab. The block is rebuilt from it at once when the same
+// creator's page comes in again (the next page of posts, back from a tab or a post), so it is there in the
+// page's first frame. It used to wait for the requests every time, and a part the site has nothing for (an
+// answer that is not cached) meant a network round trip: the block landed on a page already shown and pushed
+// the posts down.
+const REMEMBERED = 30;
+const remembered = new Map<string, Overview>();
+
+function remember(id: string, data: Overview): void {
+  remembered.delete(id);
+  remembered.set(id, data);
+  if (remembered.size > REMEMBERED) remembered.delete(remembered.keys().next().value as string);
+}
+
+const same = (a: Overview, b: Overview): boolean => JSON.stringify({ ...a, complete: true }) === JSON.stringify({ ...b, complete: true });
+
 async function render(ctx: ModuleContext): Promise<void> {
   const who = creatorFromPath();
   if (!who) return remove();
-  const key = `${who.service}/${who.id}${location.search}`;
+  const id = `${who.service}/${who.id}`;
+  const key = `${id}${location.search}`;
   if (key === current && node?.isConnected) return place();
   if (key === pending) return;
   // Loaded already and nothing to show: page mutations must not ask the API again
   if (key === current && !node) return;
   remove();
   current = key;
+  const known = remembered.get(id);
+  if (known) {
+    node = build(who, known);
+    place();
+    if (known.complete) return;
+  }
+  // First visit, or a part failed last time: ask (again); the block is only rebuilt when the answer differs
   pending = key;
   const request = generation;
   const data = await load(who);
+  remember(id, data);
   if (request !== generation) return;
   pending = '';
+  if (known && same(known, data)) return;
+  if (known) {
+    remove();
+    current = key;
+  }
   node = build(who, data);
   place();
 }
@@ -229,6 +265,7 @@ export const creatorOverviewModule: KdlModule = {
   },
   mount(ctx) {
     const rerender = () => {
+      remembered.clear();
       remove();
       void render(ctx);
     };

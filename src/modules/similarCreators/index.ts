@@ -268,7 +268,10 @@ export const similarCreatorsModule: KdlModule = {
     else run(ctx);
   },
   beforeSnapshot() {
-    remove();
-    current = '';
+    // Only taken out of the page: the same strip goes back in with update() when this creator's page comes in
+    // again (the next page of posts), instead of being fetched and built anew after the page is shown
+    if (!strip?.isConnected) return;
+    strip.remove();
+    document.dispatchEvent(new Event('kdl:creator-sections-changed'));
   },
 };
