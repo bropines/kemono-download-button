@@ -34,6 +34,20 @@ export const postCss = (): string => `
   box-shadow: var(--kdl-shadow-sm);
 }
 .post__nav-link:is(:hover, :focus) { background: var(--kdl-accent); color: var(--kdl-accent-foreground); }
+.post__nav-link:focus-visible { outline: none; box-shadow: var(--kdl-focus-ring); }
+/* The end of the list: the same pill, muted (there is no link) */
+.post__nav-item.subtitle {
+  display: inline-flex;
+  align-items: center;
+  height: 2rem;
+  padding: 0 0.75rem;
+  border: 1px solid var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) - 2px);
+  color: var(--kdl-muted-foreground);
+  font-size: 13px;
+  font-weight: 500;
+  opacity: 0.7;
+}
 
 /* Header card */
 .post__header {
@@ -124,7 +138,20 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
 .post__content a:hover { text-decoration-color: var(--kdl-foreground); }
 .post__content img { border-radius: var(--kdl-radius); }
 .post__content blockquote { margin: 1em 0; padding-left: 1em; border-left: 2px solid var(--kdl-border); color: var(--kdl-muted-foreground); }
-.post__content pre { padding: 0.75rem 1rem; border: 1px solid var(--kdl-border); border-radius: var(--kdl-radius); background: var(--kdl-muted); }
+.post__content pre { padding: 0.75rem 1rem; border: 1px solid var(--kdl-border); border-radius: var(--kdl-radius); background: var(--kdl-muted); overflow-x: auto; }
+.post__content :is(h1, h2, h3, h4) { margin: 1.4em 0 0.5em; font-weight: 600; line-height: 1.3; letter-spacing: -0.015em; }
+.post__content h1 { font-size: 1.5em; }
+.post__content h2 { font-size: 1.3em; }
+.post__content :is(h3, h4) { font-size: 1.1em; }
+.post__content :is(ul, ol) { margin: 0 0 1em; padding-left: 1.4em; }
+.post__content li { margin: 0.25em 0; }
+.post__content hr { margin: 1.5em 0; border: 0; border-top: 1px solid var(--kdl-border); }
+.post__content img { max-width: 100%; height: auto; }
+.post__content :is(table) { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
+.post__content :is(td, th) { padding: 0.35em 0.7em; border: 1px solid var(--kdl-border); }
+.post__content a:focus-visible { outline: none; border-radius: 2px; box-shadow: var(--kdl-focus-ring); }
+.post__content > :last-child { margin-bottom: 0; }
+.post__content { overflow-wrap: anywhere; }
 .post__attachment-link--missing { color: var(--kdl-muted-foreground); }
 .post__thumbnail img { border-radius: var(--kdl-radius); }
 .post__thumbnail figcaption { background: none; color: var(--kdl-muted-foreground); font-size: 12px; }
@@ -136,7 +163,7 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
 }
 
 /* Surface panels (transparent at flat contrast): each post section, the outer one when they nest */
-.kui-post-section:not(.kui-post-section .kui-post-section), .post__footer {
+.kui-post-section:not(.kui-post-section .kui-post-section), .post__footer:not(.kui-post-section *) {
   margin-top: 16px;
   padding: var(--kdl-panel-pad);
   border: 1px solid var(--kdl-panel-border);
@@ -144,6 +171,12 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
   background: var(--kdl-panel-bg);
 }
 .kui-post-section .kui-post-section { margin-top: 0; padding: 0; }
+/* The comments footer sits in its section's panel: no second frame, no second heading rule */
+.kui-post-section > footer.post__footer { margin: 0; padding: 0; }
+.kui-post-section > footer.post__footer > h2 { margin-top: 0; }
+/* The attachment list's own margins stack on the panel padding */
+.kui-post-section > .post__attachments { margin: 0 !important; }
+.kui-post-section > :is(.post__files, .post__thumbnails, .kui-embed-container):last-child { margin-bottom: 0 !important; }
 
 /* Comments (the card layouts of the post module bring their own card look) */
 .post__comments:not(.kui-comments--grid):not(.kui-comments--carousel) > .comment {
@@ -154,7 +187,13 @@ section#post-tags #show-tag-overflow-button { color: var(--kdl-muted-foreground)
   background-color: var(--kdl-card);
 }
 .post__comments:not(.kui-comments--grid):not(.kui-comments--carousel) > .comment > * { padding: 4px 0; border: 0; }
-.comment__name { color: var(--kdl-foreground); font-weight: 600; }
+/* Card layouts: the site's rules between name, text and time go, the three parts share one left edge */
+:is(.kui-comments--grid, .kui-comments--carousel) > .comment > :is(.comment__header, .comment__body, .comment__footer) { padding: 0; border: 0; }
+:is(.kui-comments--grid, .kui-comments--carousel) > .comment > .comment__header { padding-bottom: 6px; }
+:is(.kui-comments--grid, .kui-comments--carousel) > .comment .comment__message { font-size: 14px; line-height: 1.5; }
+:is(.kui-comments--grid, .kui-comments--carousel) > .comment .timestamp { color: var(--kdl-muted-foreground); font-size: 12px; }
+.comment__name { padding: 0; color: var(--kdl-foreground); font-weight: 600; }
+.comment__header :is(.comment__name, a.comment__name) { padding: 0; margin-left: 0; }
 .comment__message { color: color-mix(in srgb, var(--kdl-foreground) 90%, transparent); }
 .comment__icon { width: 1.5rem; height: 1.5rem; border-radius: 9999px; vertical-align: middle; }
 .comment--user .comment__name::after {

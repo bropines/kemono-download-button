@@ -21,12 +21,21 @@ const STYLES = `
 .${OWN} .kdl-hist-result { color: var(--kdl-muted-foreground); font-size: 12px; line-height: 1.3; overflow-wrap: anywhere; max-width: 12rem; }
 .${OWN} .kdl-hist-result:empty { display: none; }
 .kui-post-section .post__attachment > .${OWN} { display: contents; }
-.kui-post-section .post__attachment > .${OWN} .kdl-hist-find { grid-column: 2; grid-row: 1; }
-.kui-post-section .post__attachment > .${OWN} .kdl-hist-result { grid-column: 1; grid-row: 2; max-width: none; }
-.kui-post-section .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 2; grid-row: 2; justify-self: end; }
+/* Row: [file name] [Downloaded] [find]; the answer to "find" runs under it. The badge hides until the file is known. */
+.kui-post-section .post__attachments > .post__attachment:has(> .${OWN}) { grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; }
+.kui-post-section .post__attachment > .${OWN} .kdl-hist-find { grid-column: 3; grid-row: 1; }
+.kui-post-section .post__attachment > .${OWN} .kdl-hist-result { grid-column: 1 / -1; grid-row: 2; max-width: none; margin-top: -2px; padding-left: 2px; }
+.kui-post-section .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 2; grid-row: 1; justify-self: end; }
 .${OWN} .kdl-hist-find[data-result="only"] { opacity: 0.7; }
 @media (max-width: 600px), (pointer: coarse) {
   .post__attachment > .${OWN} .kdl-hist-find { width: 44px; height: 44px; }
+}
+/* Phones: the badge drops under the name instead of squeezing it */
+@media (max-width: 600px) {
+  .kui-post-section .post__attachments > .post__attachment:has(> .${OWN}) { grid-template-columns: minmax(0, 1fr) auto; align-items: start; }
+  .kui-post-section .post__attachment > .${OWN} .kdl-hist-find { grid-column: 2; grid-row: 1; }
+  .kui-post-section .post__attachment > .${OWN} .kdl-ui-badge { grid-column: 1; grid-row: 2; justify-self: start; margin-top: -2px; }
+  .kui-post-section .post__attachment > .${OWN} .kdl-hist-result { grid-row: 3; }
 }
 `;
 

@@ -77,8 +77,12 @@ ${TOGGLES}:disabled { cursor: not-allowed; opacity: 0.5; }
 /* Login and register: a narrow card under a centred call to action */
 :is(.site-section--login, .site-section--register) .form { max-width: 26rem; }
 :is(.site-section--login, .site-section--register) .site-section__heading { text-align: center; }
-.site-section__register-cta { max-width: 26rem; margin: 8px auto 0; color: var(--kdl-muted-foreground); font-size: 14px; text-align: center; }
-.site-section__register-cta a { color: var(--kdl-primary); font-weight: 500; }
+.site-section__register-cta { max-width: 32rem; margin: 4px auto 0; color: var(--kdl-muted-foreground); font-size: 14px; line-height: 1.6; text-align: center; text-wrap: balance; }
+.site-section__register-cta a { color: var(--kdl-foreground); font-weight: 500; text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--kdl-ring) 70%, transparent); text-underline-offset: 3px; }
+.site-section__register-cta a:hover { text-decoration-color: var(--kdl-foreground); }
+.site-section__register-cta a:focus-visible, .form__subtitle a:focus-visible { outline: none; border-radius: 2px; box-shadow: var(--kdl-focus-ring); }
+.form__subtitle a { color: var(--kdl-foreground); text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--kdl-ring) 70%, transparent); text-underline-offset: 3px; }
+.form__subtitle a:hover { text-decoration-color: var(--kdl-foreground); }
 .form__hint { color: var(--kdl-muted-foreground); font-size: 12px; line-height: 1.4; }
 .form__section { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; }
 .form__section--hidden { display: none; }

@@ -195,6 +195,7 @@ export function initializeVideoGallery(): void {
     ariaLabel: t('kui.video.togglePlaylist'),
     className: "kdl-scope kui-video-playlist-toggle",
     onClick: () => {
+      videoList.classList.add("kui-anim");
       videoList.classList.toggle("kui-collapsed");
       syncToggle();
     },
