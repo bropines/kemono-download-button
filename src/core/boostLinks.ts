@@ -29,6 +29,8 @@ function pageLink(event: MouseEvent): HTMLAnchorElement | null {
   if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return null;
   const link = (event.target as Element | null)?.closest?.<HTMLAnchorElement>('a[href]');
   if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return null;
+  // href="#" and other in-page anchors are script buttons, not pages (new URL('#') has an empty hash)
+  if (link.getAttribute('href')?.startsWith('#')) return null;
   if (link.closest('[hx-boost="false"]') || link.hasAttribute('hx-get') || link.hasAttribute('hx-post')) return null;
   const url = new URL(link.href, window.location.href);
   if (url.origin !== window.location.origin || !/^https?:$/.test(url.protocol) || NOT_A_PAGE.test(url.pathname)) return null;

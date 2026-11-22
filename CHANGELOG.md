@@ -4,6 +4,15 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- Individual downloads no longer copy every file into the cache while you wait: the copy happens in the background, only for files up to 64 MB and only when the cache is on.
+- A download whose body takes long to convert after it arrived is no longer cut off as stalled and fetched again.
+- Creator overview: an empty list of tags, links or announcements is not cached for two days (the creator may simply not be indexed yet), and a failed request is retried after 30 seconds instead of leaving the block empty until you leave the page.
+- Loading skeletons: going back to a page that was not in the browser history cache no longer stores the previous page as its skeleton; only real creator tabs get a stored skeleton, and it is rewritten only when the page layout really changed, not after nearly every visit.
+- Links with href="#" (script buttons) are no longer turned into a page reload.
+- Edit page layout shows hidden post blocks whole instead of an empty heading.
+- Similar creators: favourites are requested only when there is a strip to show.
+
 ## [2.0.3] - 2026-11-21
 
 ### Changed

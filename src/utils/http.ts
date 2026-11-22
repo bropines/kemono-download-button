@@ -174,6 +174,8 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           if (trace) debugLog('[download]', 'response', { requestId, host, status: statusCode(response?.status), elapsedMs: Date.now() - startedAt, ...responseSummary(response?.response) });
           if (response.status >= 200 && response.status < 300) {
             processing = true;
+            // The bytes are here: converting a large body must not count as a stall
+            clearTimeout(timer);
             normalizeResponse(response, requestDetails.responseType).then((normalized) => {
               finish(() => {
                 if (trace) debugLog('[download]', 'normalized', { requestId, ...responseSummary(normalized?.response) });

@@ -191,12 +191,11 @@ async function start(ctx: ModuleContext): Promise<void> {
   current = key;
   aborter?.abort();
   const controller = (aborter = new AbortController());
-  // Favourites load once, alongside the list, and fail quietly without a session
-  const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
   try {
     const items = (await fetchSimilar(who.service, who.id, controller.signal)).filter((item) => !(item.service === who.service && item.id === who.id));
-    if (controller.signal.aborted || !items.length) return;
-    if (controller.signal.aborted || !anchor()) return;
+    if (controller.signal.aborted || !items.length || !anchor()) return;
+    // Favourites only when there is a strip to star; they fail quietly without a session
+    const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
     strip = build(items, ctx.settings.get<number>('limit') || 12, favourites);
     place();
   } catch (error) {

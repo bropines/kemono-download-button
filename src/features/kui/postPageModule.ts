@@ -30,7 +30,8 @@ function syncHiddenBlocks(get: (key: string) => unknown): void {
 }
 const blockStyles = (): string =>
   BLOCKS.map(({ key, match }) => {
-    const scope = `html[${HIDE_ATTR}~="${key}"]`;
+    // Layout edit mode shows hidden blocks whole, so they can be told apart and switched back on
+    const scope = `html[${HIDE_ATTR}~="${key}"]:not([data-kdl-layout-edit])`;
     const inner = match.split(',').map((m) => m.trim());
     return [
       ...inner.map((m) => `${scope} .kui-post-section:has(${m})`),

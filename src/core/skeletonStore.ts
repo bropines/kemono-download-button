@@ -33,7 +33,25 @@ function valid(snap: unknown): snap is SkeletonSnapshot {
 // Only kinds of pages the site has: a path with an id in it (a share link, a mistyped URL) would leave a stored
 // snapshot behind per address, never read again
 const KNOWN = new Set(Object.keys(BUILTIN).map((key) => key.split('|')[0]));
-const capturable = (route: string): boolean => KNOWN.has(route) || route.startsWith('creator-');
+// Creator tabs the site has; any other fourth path segment is a typo or an old link
+const CREATOR_TABS = new Set(['links', 'recommended', 'announcements', 'fancards', 'tags', 'dms', 'shares', 'community'].map((tab) => `creator-${tab}`));
+const capturable = (route: string): boolean => KNOWN.has(route) || CREATOR_TABS.has(route);
+
+// Back/forward changes the URL before the page is swapped in: until a swap follows, what is on screen is still
+// the previous page and must not be stored as this one's snapshot
+let routeChangedAt = 0;
+let swappedAt = 0;
+let tracking = false;
+function trackSwaps(): void {
+  if (tracking) return;
+  tracking = true;
+  window.addEventListener('popstate', () => { routeChangedAt = Date.now(); });
+  ['htmx:afterSwap', 'htmx:historyRestore'].forEach((type) => document.addEventListener(type, () => { swappedAt = Date.now(); }));
+}
+
+/** Rough shape of a snapshot: small reflows (a wrapped line more or less) do not rewrite the stored one */
+const signature = (snap: SkeletonSnapshot): string =>
+  `${Math.round(snap.shapes.length / 8)}|${snap.grid ? Math.round(snap.grid.shapes.length / 4) : '-'}`;
 
 /** The best snapshot for a path at the current screen class. `builtinOnly`: the one the preload userstyle
     draws (generated from the same built-in snapshots), so taking over from it changes nothing on screen */
@@ -55,18 +73,20 @@ let timer: ReturnType<typeof setTimeout> | undefined;
 /** After a page is shown: once it settles, keep a snapshot of it when it differs from the stored one */
 export function scheduleSkeletonCapture(): void {
   clearTimeout(timer);
+  trackSwaps();
   const path = window.location.pathname;
   if (!capturable(skeletonRoute(path))) return;
   timer = setTimeout(() => {
     const run = (): void => {
       // Navigated away, or a cloak is up again: this page is not what is on screen
       if (window.location.pathname !== path || document.documentElement.hasAttribute('data-kdl-cloak')) return;
+      if (routeChangedAt > swappedAt) return;
       try {
         const snap = captureSkeleton();
         if (!snap || !snap.shapes.length) return;
         const key = storeKey(skeletonRoute(path), skeletonBucket());
-        const json = JSON.stringify(snap);
-        if (JSON.stringify(readStored<unknown>(key, null)) !== json) writeStored(key, snap);
+        const stored = readStored<unknown>(key, null);
+        if (!valid(stored) || signature(stored) !== signature(snap)) writeStored(key, snap);
       } catch {
         // A skeleton is a nicety: never let it disturb the page
       }

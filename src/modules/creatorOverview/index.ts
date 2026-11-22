@@ -23,7 +23,7 @@ const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
 const TAG_LIMIT = 40;
 
 interface Who { service: string; id: string }
-interface Overview { announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
+interface Overview { failed?: boolean; announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
 
 let node: HTMLElement | null = null;
 let cleanupOrder = () => {};
@@ -47,14 +47,17 @@ function plain(html: string): string {
 // The three requests run side by side; each is shared with an earlier identical one (document-start prefetch)
 async function load(who: Who): Promise<Overview> {
   const want = (key: string) => getModuleSetting<boolean>(MODULE_ID, key) !== false;
+  let failed = false;
+  const fail = <T>(fallback: T) => (): T => { failed = true; return fallback; };
   const [ann, tags, links] = await Promise.all([
-    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(() => null) : null,
-    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(() => []) : [],
-    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(() => null) : null,
+    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(fail(null)) : null,
+    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(fail([])) : [],
+    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(fail(null)) : null,
   ]);
   const annList = Array.isArray(ann) ? ann.filter((a: any) => a && typeof a.content === 'string') : [];
   const latest = annList[0];
   return {
+    failed,
     announcement: latest ? { text: plain(latest.content), added: String(latest.added || latest.published || '').slice(0, 10), count: annList.length } : null,
     tags: tags.slice(0, TAG_LIMIT),
     links: (Array.isArray(links) ? links : [])
@@ -142,6 +145,8 @@ function remove(): void {
   if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
+const RETRY_MS = 30_000;
+
 async function render(ctx: ModuleContext): Promise<void> {
   const who = creatorFromPath();
   if (!who) return remove();
@@ -159,6 +164,8 @@ async function render(ctx: ModuleContext): Promise<void> {
   pending = '';
   node = build(who, data);
   place();
+  // A request failed and nothing could be shown: allow another try a little later instead of never
+  if (!node && data.failed) setTimeout(() => { if (current === key && !node) current = ''; }, RETRY_MS);
 }
 
 const STYLES = `
