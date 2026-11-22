@@ -105,7 +105,7 @@ export default {
   'iscroll.range': 'Showing {from}–{to} of {total}',
   'iscroll.rangeNoTotal': 'Showing {from}–{to}',
   'mod.lists.infiniteScroll.name': 'Infinite scroll',
-  'mod.lists.infiniteScroll.description': 'Lists load the next page by themselves as you reach the end (posts, popular, creator posts, creators, DMs, favourites) instead of switching pages. The address stays on the first page; Back returns to where you were.',
+  'mod.lists.infiniteScroll.description': 'Lists load the next page by themselves as you reach the end (posts, popular, creator posts, DMs, favourites) instead of switching pages. The address stays on the first page; Back returns to where you were.',
   'mod.lists.infiniteScroll.setting.auto': 'Load automatically while scrolling',
   'mod.lists.infiniteScroll.setting.auto.hint': 'Off: a “Load more” button at the end of the list.',
   'mod.lists.infiniteScroll.setting.maxCards': 'Ask before loading more than this many cards',

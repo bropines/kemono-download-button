@@ -1,4 +1,5 @@
-// Infinite scroll for the site's paginated card lists (/posts, popular, creator posts, /artists, /dms, favourites):
+// Infinite scroll for the site's paginated card lists (/posts, popular, creator posts, /dms, favourites, /artists
+// where the server pages it; Pawchive draws that paginator in the browser and is left alone):
 // near the end of the list the next page's HTML (the paginator's "next" link) is fetched and its cards are
 // appended to the current grid. The cards keep the site's own markup, so every module that works on cards
 // (download buttons, checkboxes, quick favourites, hidden creators, smooth thumbnails, viewed marks, site
@@ -11,6 +12,7 @@ import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
+import { setRestoreScroll } from '../../core/router';
 
 export const INFINITE_SCROLL_ID = 'lists.infiniteScroll';
 
@@ -62,8 +64,6 @@ interface State {
   range: Range | null;
   status: Status;
   emptyPages: number;
-  /** Offset step between pages (o=0, 50, 100…) */
-  step: number;
   controller: AbortController | null;
   seq: number;
   hidden: HTMLElement[];
@@ -80,8 +80,6 @@ let observer: IntersectionObserver | null = null;
 let styleObserver: IntersectionObserver | null = null;
 let restoreAt = 0;
 const cache = new Map<string, Saved>();
-const DBG = ((window as any).__iscrollDbg = [] as string[]); // DEBUG
-const dbg = (m: string) => DBG.push(Math.round(performance.now()) + ' ' + m); // DEBUG
 
 // ---- page reading ----
 
@@ -98,12 +96,21 @@ function sameOrigin(href: string | null | undefined): string | null {
   }
 }
 
+/**
+ * The paginator's "next" address. A paginator the site draws in the browser (`href="#"`, Pawchive's /artists)
+ * pages through a list the page already holds; the server ignores `?o=` there, so it is left alone.
+ */
+function nextHref(scope: ParentNode): string | null {
+  const href = scope.querySelector<HTMLAnchorElement>(NEXT_LINK)?.getAttribute('href') ?? '';
+  return href && !href.startsWith('#') ? sameOrigin(href) : null;
+}
+
 function findTarget(): Target | null {
   if (EXCLUDED_PATH.test(window.location.pathname)) return null;
   const list = document.querySelector<HTMLElement>('#main .card-list__items, .card-list__items');
   const cardList = list?.closest<HTMLElement>('.card-list');
   if (!list || !cardList || !list.querySelector(CARD)) return null;
-  const next = sameOrigin(document.querySelector<HTMLAnchorElement>(NEXT_LINK)?.getAttribute('href'));
+  const next = nextHref(document);
   if (!next) return null;
   return { list, cardList, next };
 }
@@ -116,24 +123,6 @@ function readRange(scope: ParentNode): Range | null {
   const numbers = text.match(/\d+/g)?.map(Number) ?? [];
   if (numbers.length < 2) return null;
   return { from: numbers[0], to: numbers[1], total: numbers.length > 2 ? numbers[2] : null };
-}
-
-function offsetOf(href: string): number {
-  try {
-    return Number(new URL(href, window.location.href).searchParams.get('o')) || 0;
-  } catch {
-    return 0;
-  }
-}
-
-/** The next page when the fetched one has no paginator of its own (drawn by the site's script): same step on */
-function steppedNext(s: State, url: string, count: number): string | null {
-  if (s.step <= 0 || count < s.step) return null;
-  const offset = offsetOf(url) + s.step;
-  if (s.range?.total != null && offset >= s.range.total) return null;
-  const next = new URL(url);
-  next.searchParams.set('o', String(offset));
-  return next.href;
 }
 
 function cardKey(card: Element): string {
@@ -354,14 +343,12 @@ async function loadNext(manual = false): Promise<void> {
     });
     const range = readRange(doc);
     if (range && s.range) s.range = { from: s.range.from, to: range.to, total: range.total ?? s.range.total };
-    s.next = sameOrigin(doc.querySelector<HTMLAnchorElement>(NEXT_LINK)?.getAttribute('href')) ?? steppedNext(s, url, sources.length);
+    s.next = nextHref(doc);
     if (s.next === url) s.next = null;
     s.emptyPages = fresh.length ? 0 : s.emptyPages + 1;
     if (s.emptyPages >= MAX_EMPTY_PAGES) s.next = null;
     await appendCards(s, fresh, seq);
     if (state !== s || s.seq !== seq) return;
-    // A page whose paginator the site draws in the browser (/artists) says nothing about the range
-    if (!range && s.range) s.range = { ...s.range, to: s.range.from - 1 + cardCount() };
     renderRange(s);
     s.controller = null;
     setStatus(s, idleStatus(s));
@@ -377,7 +364,6 @@ async function loadNext(manual = false): Promise<void> {
 // ---- lifecycle ----
 
 function attach(target: Target): void {
-  dbg('attach ' + pageKey() + ' cache=' + [...cache.keys()].join(',') + ' restoreAge=' + (Date.now() - restoreAt)); // DEBUG
   const parts = buildFooter();
   const s: State = {
     target,
@@ -389,7 +375,6 @@ function attach(target: Target): void {
     range: readRange(document),
     status: 'idle',
     emptyPages: 0,
-    step: offsetOf(target.next) - offsetOf(window.location.href),
     controller: null,
     seq: 0,
     hidden: [],
@@ -421,6 +406,8 @@ function attach(target: Target): void {
   mountUi(s);
   setStatus(s, idleStatus(s));
   if (restoring && saved) {
+    // The router puts htmx's position (taken from the first page only) back after mounting and at the reveal
+    setRestoreScroll(saved.scrollY);
     window.scrollTo(0, saved.scrollY);
     // htmx and the browser restore the position too, against the short page: have the last word
     nextFrame(() => {
@@ -436,7 +423,6 @@ function attach(target: Target): void {
 }
 
 function detach(removeCards: boolean): void {
-  dbg('detach ' + removeCards); // DEBUG
   const s = state;
   if (!s) return;
   s.seq++;
@@ -463,7 +449,6 @@ function sync(): void {
 
 /** What a Back to this page puts back */
 function remember(s: State): void {
-  dbg('remember ' + s.href + ' n=' + s.html.length + ' y=' + window.scrollY); // DEBUG
   if (!s.html.length) return;
   cache.delete(s.href);
   cache.set(s.href, { html: s.html.slice(), next: s.next, range: s.range, scrollY: window.scrollY });
@@ -500,7 +485,7 @@ export const infiniteScrollModule: KdlModule = {
   id: INFINITE_SCROLL_ID,
   name: 'Infinite scroll',
   description:
-    'Lists load the next page by themselves as you reach the end (posts, popular, creator posts, creators, DMs, favourites) instead of switching pages. The address stays on the first page; Back returns to where you were.',
+    'Lists load the next page by themselves as you reach the end (posts, popular, creator posts, DMs, favourites) instead of switching pages. The address stays on the first page; Back returns to where you were.',
   group: 'Lists',
   pages: ['list', 'creator', 'artists', 'search', 'other'],
   defaultEnabled: false,
@@ -511,7 +496,7 @@ export const infiniteScrollModule: KdlModule = {
   styles,
   setup() {
     // Only a Back/Forward brings appended cards back; a fresh visit of the same address starts at page one
-    const restoring = (e: Event) => { restoreAt = Date.now(); dbg('restore-evt ' + e.type); }; // DEBUG
+    const restoring = () => (restoreAt = Date.now());
     window.addEventListener('popstate', restoring);
     document.addEventListener('htmx:historyRestore', restoring);
     document.addEventListener('htmx:historyCacheMiss', restoring);

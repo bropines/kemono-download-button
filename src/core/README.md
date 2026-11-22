@@ -72,7 +72,8 @@ Rules:
 - **Back/forward**: htmx restores the page and its scroll position from its cache before the modules have
   reworked it; the router puts the position right again after mounting and at the reveal
   (`getRestoreScroll()` tells a module that a restore to that position is being set up: the tag list then draws
-  the rows it had). On a cache miss (`htmx:historyCacheMiss`) nothing is mounted until the server's answer is in.
+  the rows it had; `setRestoreScroll(y)` corrects it when a module put back more than htmx kept, as the infinite
+  scroll does with its appended pages). On a cache miss (`htmx:historyCacheMiss`) nothing is mounted until the server's answer is in.
 - **Mutations**: one `MutationObserver` on `<body>`; only non-own changes inside the root (`#main`, else
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
