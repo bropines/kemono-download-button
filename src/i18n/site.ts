@@ -53,6 +53,40 @@ export const SITE_SCOPES = [
   // Plain text pages without a section class (the importer's session key tutorial)
   'div#page.page',
   '#file-search',
+  // The creators search form starts with a modifier class instead of .search-form
+  '#search-form',
+  // Home page welcome text and the contact page body (plain divs inside their sections)
+  '.jumbo-welcome-description',
+  '.site-section--contact',
+  // Creator links tab: "Link another account"
+  '#add-new-link',
+  // Empty lists: runtime "no artists" line and the no-results card
+  '.card-list__item--no-results',
+  '.card--no-results',
+  '.card-list__items > .subtitle',
+  // "previews only" badge on creator cards (its title)
+  '.state-badge',
+  // Favourites: Type / Sort by / Order dropdowns outside a form
+  '.dropdowns',
+  // DMs: card dates, the review page (status filter, approve labels, redaction controls, empty text)
+  '.dm-card__footer',
+  'select#status',
+  'label[for="status"]',
+  '.no-dms',
+  '.dms__approve',
+  '[data-redact-toggle]',
+  '[data-redact-status]',
+  '[data-redact-reset]',
+  '.dms__redact-bubble',
+  // Account pages with their own section modifiers
+  '.site-section--account-keys',
+  '.site-section--account-notifications .notifications__list',
+  // Server messages (login/register errors) and the bare error/success pages
+  '.flash_messages',
+  '#main > .subtitle',
+  // Upload form: hints under the fields and the add-files button
+  '.site-section--upload small',
+  '#upload-button',
 ];
 
 /** Never translated, even inside a scope: user content and our own interface. */
@@ -64,7 +98,10 @@ export const SITE_SKIP = [
   '.user-header__name',
   '.comment',
   '.post__comments',
-  '.dm-card',
+  // DM cards: the sender and the message (the footer with the dates is chrome)
+  '.dm-card__header',
+  '.dm-card__body',
+  '.dm-card__content',
   '#tag-container',
   '.post__tags',
   '#post-tags a',
@@ -120,6 +157,9 @@ function translateText(node: Text): void {
   const trail = /\s*$/.exec(source)![0];
   const applied = lead + translated + trail;
   if (applied === source) return;
+  // An option without a value submits its text: pin the English value so filters keep working
+  const option = node.parentElement;
+  if (option instanceof HTMLOptionElement && !option.hasAttribute('value')) option.setAttribute('value', option.value);
   textChanges.set(node, { original: source, applied });
   node.data = applied;
 }
