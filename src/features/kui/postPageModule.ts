@@ -7,7 +7,7 @@ import { initializeComments, removeCommentsLayout } from './comments';
 import { initializePostTranslation, removeTranslateButtons } from './translateButtons';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
-import { hideEmptySections } from './embeds';
+import { hideEmptySections, restoreAttachmentButtons } from './embeds';
 import type { KdlModule, SettingDef } from '../../core/types';
 import { getModuleSetting } from '../../core/registry';
 
@@ -63,6 +63,7 @@ export const postPageModule = {
     // Translations first: they are restored through buttons that live inside the comments
     removeTranslateButtons();
     removeCommentsLayout();
+    restoreAttachmentButtons();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());
 

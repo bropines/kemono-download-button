@@ -67,21 +67,57 @@ function addLoopControl(player: Plyr): void {
   place();
 }
 
+// The site builds its own Plyr on every <video> with a one-shot loadedmetadata listener (it sizes the player) and,
+// when leaving the page, destroys the player and reloads the video. If the video never loaded (our hidden originals
+// are preload=none), that listener fires after the player is gone and throws on the next pages
+// ("Cannot read properties of null (reading 'container')"). Letting it fire once while the player is still alive
+// is harmless (the video has no size yet) and consumes it. Done before the site's own teardown.
+export function flushHiddenOriginalListeners(): void {
+  document.querySelectorAll<HTMLVideoElement>('.kui-hidden-original video, video.kui-hidden-original').forEach((video) => {
+    try {
+      video.dispatchEvent(new Event('loadedmetadata'));
+    } catch (e) {}
+  });
+}
+let flushHooked = false;
+function hookFlush(): void {
+  if (flushHooked) return;
+  flushHooked = true;
+  // Capture on document runs before the site's own (bubbling) htmx handlers that stop and destroy its players
+  ['htmx:beforeSwap', 'htmx:beforeHistorySave'].forEach((type) => document.addEventListener(type, flushHiddenOriginalListeners, true));
+}
+
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
 let removeDoubleTapSeek: (() => void) | null = null;
 
 export function destroyVideoGallery(): void {
+  flushHiddenOriginalListeners();
   fluidGuard?.disconnect();
   fluidGuard = null;
   removeDoubleTapSeek?.();
   removeDoubleTapSeek = null;
   if (!activePlayer) return;
-  try {
-    // Unbinds Plyr's window-level keyboard listeners, which otherwise outlive the removed layout
-    activePlayer.destroy();
-  } catch (e) {}
+  const player = activePlayer;
   activePlayer = null;
+  const media = player.media as HTMLVideoElement | null;
+  const destroy = (): void => {
+    try {
+      // Unbinds Plyr's window-level keyboard listeners, which otherwise outlive the removed layout
+      player.destroy();
+    } catch (e) {}
+  };
+  if (media && media.readyState > 0) {
+    // Plyr's destroy empties the source, and the durationchange/loadedmetadata events that causes arrive after
+    // it has nulled its own state ("Cannot read properties of null (reading 'inputs'/'container')").
+    // Empty it first so those events reach a live player, then destroy.
+    try {
+      media.pause();
+      media.removeAttribute('src');
+      media.load();
+    } catch (e) {}
+    setTimeout(destroy, 60);
+  } else destroy();
 }
 
 export function initializeVideoGallery(): void {
@@ -165,6 +201,8 @@ export function initializeVideoGallery(): void {
     el.style.setProperty("display", "none", "important");
   });
 
+  hookFlush();
+
   const galleryLayout = document.createElement("div");
   galleryLayout.className = "kui-video-gallery-layout kui-post-section";
 
@@ -227,7 +265,7 @@ export function initializeVideoGallery(): void {
 
   player.on("loadedmetadata", () => {
     const videoEl = player.media;
-    const container = player.elements.container;
+    const container = player.elements?.container;
     if (!videoEl || !container) return;
     const { videoWidth, videoHeight } = videoEl;
     if (videoWidth > 0 && videoHeight > 0) {
