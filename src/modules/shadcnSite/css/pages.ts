@@ -23,6 +23,8 @@ const BADGE = `
   font-weight: 600;
   line-height: 1;
 `;
+// Pages that are short by nature: their footer rests on the bottom edge
+const SHORT_PAGE = `.content-wrapper:has(:is(.site-section--login, .site-section--register, .site-section--contact, .site-section--file-hash-search, .site-section--importer, .site-section--faq, .site-section--account, #page.page:not(:has(.card-list))))`;
 const READABLE = 'max-width: 48rem; margin-left: auto; margin-right: auto;';
 
 export const pagesCss = (): string => `
@@ -355,13 +357,29 @@ body:has(.site-section--home) .global-sidebar {
   white-space: nowrap;
 }
 #file-search .kdl-sk-drop[data-has-file] .kdl-sk-drop__hint { display: none; }
-#file-search > span { display: flex; align-items: center; gap: 12px; color: var(--kdl-muted-foreground); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+#file-search > span { display: flex; align-items: center; gap: 0; margin: 2px 0; color: var(--kdl-muted-foreground); font-size: 0; user-select: none; }
 #file-search > span > br { display: none; }
 #file-search > span::before, #file-search > span::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--kdl-border); }
+#file-search > span > .kdl-sk-or__label { padding: 0 12px; font-size: 12px; font-style: normal; text-transform: uppercase; letter-spacing: 0.08em; }
 #file-search input[type="text"] { width: 100%; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 #file-search input[type="submit"] { width: 100%; margin-top: 6px; }
+/* The footer rests on the bottom edge of short pages: its place no longer depends on how tall the content (or the
+   skeleton standing in for it) is, so it does not jump when a page is shown */
+${SHORT_PAGE} { display: flex; flex-direction: column; }
+${SHORT_PAGE} > * { flex-shrink: 0; }
+${SHORT_PAGE} > footer.global-footer { margin-top: auto; }
+/* While the page waits behind its skeleton (whose height is a guess) the footer is not drawn: showing it would
+   move it once the real content replaces the skeleton */
+html[data-kdl-cloak] .content-wrapper > .global-footer { visibility: hidden; }
+/* The API page: Swagger's frame starts past the fold, so growing into its content moves nothing in view */
+iframe[src*="swagger"] { height: max(850px, 100vh); min-height: 200px; }
+/* Hash search and the keyed pages: the heading sits closer to its card on phones */
+.site-section--file-hash-search > .site-section__header { margin-bottom: 4px; }
+.site-section--contact > div[style] > a[href^="mailto:"] { margin-left: 4px; }
+.site-section--contact > div[style] { line-height: 1.7; }
 @media (max-width: 600px) {
   .kdl-sk-panel, .site-section--home .jumbo-welcome-description { padding: 16px; }
+  .site-section--file-hash-search #file-search { padding: 16px; }
   .site-section--home .jumbo-welcome { min-height: calc(100vh - 9rem); }
   .kdl-sk-faq-tools .kdl-sk-faq-search { flex-basis: 100%; }
   .kdl-sk-faq-tools > .kdl-ui-btn { flex: 1 1 0; }

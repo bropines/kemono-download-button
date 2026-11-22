@@ -10,7 +10,7 @@ export const authorManagerModalStyles = css({
     overflow: 'hidden',
   },
   '.kdl-ov-manager__toolbar': { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px' },
-  '.kdl-ov-manager__search.kdl-ui-input': { flex: '1 1 200px', width: 'auto' },
+  '.kdl-ov-manager__search.kdl-ui-input': { flex: '1 1 140px', width: 'auto' },
   '.kdl-ov-manager__toolbar .kdl-ui-select': { width: 'auto' },
   '.kdl-ov-manager__loading': { display: 'flex', flexDirection: 'column', gap: '8px' },
   '.kdl-ov-manager__status': { fontSize: '13px', color: 'var(--kdl-muted-foreground)' },
@@ -40,4 +40,9 @@ export const authorManagerModalStyles = css({
   '.kdl-ov-manager__title': { fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   '.kdl-ov-manager__meta': { fontSize: '12px', color: 'var(--kdl-muted-foreground)' },
   '.kdl-ov-manager__count': { marginRight: 'auto', alignSelf: 'center' },
+  '.kdl-ov-manager__open, .kdl-ov-manager__item .kdl-ui-checkbox': { flexShrink: 0 },
+  // The footer stacks in reverse on phones: order puts the counter above the buttons instead of under them
+  '@media (max-width: 640px)': {
+    '.kdl-ov-manager__count': { order: 1, alignSelf: 'flex-start' },
+  },
 });

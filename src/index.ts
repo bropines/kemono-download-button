@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.0.3
+// @version      2.0.90
 // @author       hoami_523 + Gemini + bropines
 // @description  Kemono, Coomer, and Pawchive Download Button & UI Refactor
 // @icon         https://kemono.cr/static/favicon.ico
@@ -38,7 +38,7 @@ import { startRouter } from './core/router';
 import { migrateLegacyKeys } from './core/storage';
 import { registerBuiltinModules } from './modules';
 import { bootEarly, isModuleEnabled } from './core/registry';
-import { cloak, reveal } from './core/cloak';
+import { cloak, reveal, setCloakFailsafeGuard } from './core/cloak';
 import { scheduleSkeletonCapture } from './core/skeletonStore';
 import { isPreloadStyleInstalled } from './ui/components/preloadStyle';
 import { ensureStylesInjected } from './modules/core';
@@ -69,7 +69,11 @@ function moveOwnStylesLast(): void {
   document.querySelectorAll<HTMLStyleElement>('style[id^="kdl-"], style[id^="kui-"], style[data-kdl-style]').forEach((style) => head.appendChild(style));
 }
 
+let booted = false;
+
 function init(): void {
+  if (booted) return;
+  booted = true;
   moveOwnStylesLast();
   try {
     startRouter();
@@ -79,6 +83,24 @@ function init(): void {
     if (isModuleEnabled('ui.shadcn')) scheduleSkeletonCapture();
   }
 }
+
+// A slow first load. The cloak's failsafe (2.5 s) is there so a page is never left hidden, but on a slow
+// connection that moment comes before the modules have mounted, and the page showed half-parsed and not yet
+// reworked, then jumped into place. So when it is due and we have not started yet:
+// - the document is parsed, only the site's deferred scripts are still loading: start now, without waiting
+//   for them (DOMContentLoaded), and let the page be shown as usual;
+// - the document is still coming in: the skeleton stays, up to FIRST_LOAD_MAX_MS since the script started.
+// Once started, the failsafe is what it was: whatever keeps the page hidden then, it is shown.
+const FIRST_LOAD_MAX_MS = 10000;
+const startedAt = performance.now();
+setCloakFailsafeGuard(() => {
+  if (booted) return false;
+  if (document.readyState !== 'loading') {
+    init();
+    return true;
+  }
+  return performance.now() - startedAt < FIRST_LOAD_MAX_MS;
+});
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

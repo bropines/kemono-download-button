@@ -186,18 +186,55 @@ export function restoreSite(): void {
 let mounted = false;
 const SCOPE_SELECTOR = () => SITE_SCOPES.join(', ');
 
-/** Translates the site chrome inside freshly added nodes: the scope around them, or scopes inside them. */
+/** Translates the site chrome inside freshly added nodes: the scope around them, or scopes inside them.
+    A batch can carry tens of thousands of nodes (the 2000-tag cloud being parsed, or re-sorted): every element
+    is matched against the selectors once per batch, and a subtree is searched once, not once per added node. */
 function translateAdded(mutations: MutationRecord[]): void {
   if (getLanguage() === 'en') return;
   const scopes = new Set<Element>();
   const selector = SCOPE_SELECTOR();
+  // Inside user content or our own interface: translateScope would turn every scope there down anyway
+  const skipped = new Map<Element, boolean>();
+  const isSkipped = (element: Element | null): boolean => {
+    if (!element) return false;
+    let known = skipped.get(element);
+    if (known === undefined) {
+      known = element.matches(SITE_SKIP) || isSkipped(element.parentElement);
+      skipped.set(element, known);
+    }
+    return known;
+  };
+  // The same answer as element.closest(selector), shared by everything under one parent
+  const around = new Map<Element, Element | null>();
+  const scopeOf = (element: Element | null): Element | null => {
+    if (!element) return null;
+    let known = around.get(element);
+    if (known === undefined) {
+      known = element.matches(selector) ? element : scopeOf(element.parentElement);
+      around.set(element, known);
+    }
+    return known;
+  };
+  const searched = new Set<Element>();
+  const inSearched = (element: Element): boolean => {
+    for (let up = element.parentElement; up; up = up.parentElement) if (searched.has(up)) return true;
+    return false;
+  };
+  const seen = new Set<Node>();
   for (const mutation of mutations) {
     mutation.addedNodes.forEach((node) => {
-      const element = node instanceof Element ? node : node.parentElement;
-      if (!element || !element.isConnected) return;
-      const around = element.closest(selector);
-      if (around) scopes.add(around);
-      else element.querySelectorAll(selector).forEach((scope) => scopes.add(scope));
+      const isElement = node instanceof Element;
+      const element = isElement ? node : node.parentElement;
+      if (!element || seen.has(node)) return;
+      seen.add(node);
+      if (!element.isConnected || isSkipped(element)) return;
+      const scope = scopeOf(element);
+      if (scope) scopes.add(scope);
+      // Only an added element can bring scopes with it (a text node's parent was looked at when it came)
+      else if (isElement && element.firstElementChild && !inSearched(element)) {
+        searched.add(element);
+        element.querySelectorAll(selector).forEach((found) => scopes.add(found));
+      }
     });
   }
   scopes.forEach(translateScope);

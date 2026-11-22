@@ -21,6 +21,7 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 function undo(): void {
   unpinHomeArt();
   undoDropZone();
+  undoOrDivider();
   undoFilterMove();
   undoFooter();
   undoApiFrame();
@@ -220,31 +221,41 @@ const frameObservers = new WeakMap<HTMLIFrameElement, { disconnect(): void }>();
 function fitApiFrame(): void {
   document.querySelectorAll<HTMLIFrameElement>(API_FRAME).forEach((frame) => {
     if (frameObservers.has(frame)) return;
-    let resize: ResizeObserver | null = null;
     let mutations: MutationObserver | null = null;
     // Height of the content itself: scrollHeight never drops below the frame's current height
-    const fit = () => {
+    let queued = 0;
+    const measure = () => {
+      queued = 0;
       const doc = frame.contentDocument;
       if (!doc?.documentElement || !doc.body) return;
-      doc.documentElement.style.overflow = 'hidden';
+      if (doc.documentElement.style.overflow !== 'hidden') doc.documentElement.style.overflow = 'hidden';
+      const view = doc.defaultView;
       let bottom = 0;
       Array.from(doc.body.children).forEach((child) => {
         bottom = Math.max(bottom, child.getBoundingClientRect().bottom);
       });
-      const height = Math.ceil(bottom + parseFloat(doc.defaultView?.getComputedStyle(doc.body).marginBottom || '0'));
-      if (height > 0 && frame.style.height !== `${height}px`) frame.style.height = `${height}px`;
+      const height = Math.ceil(bottom + (view?.scrollY || 0) + parseFloat(view?.getComputedStyle(doc.body).marginBottom || '0'));
+      // An empty document (Swagger not rendered yet) must not collapse the frame; sub-pixel noise is no change
+      if (height < 200 || Math.abs(height - (parseFloat(frame.style.height) || 0)) < 2) return;
+      frame.style.height = `${height}px`;
+    };
+    // One measure per frame. No ResizeObserver on the document: it sizes with the frame, so every height we set
+    // came back as a resize notification in the same frame ("ResizeObserver loop completed with undelivered
+    // notifications"); DOM changes plus the late events below cover what changes the content height.
+    const fit = () => {
+      if (!queued) queued = requestAnimationFrame(measure);
     };
     const attach = () => {
       try {
         const doc = frame.contentDocument;
         if (!doc?.body) return;
-        resize?.disconnect();
         mutations?.disconnect();
-        resize = new ResizeObserver(fit);
-        resize.observe(doc.body);
         // Swagger renders late and opens sections in place: any change inside re-measures
         mutations = new MutationObserver(fit);
         mutations.observe(doc.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['class', 'style'] });
+        // Fonts and images settle after the DOM does
+        doc.addEventListener('load', fit, true);
+        doc.fonts?.ready.then(fit, () => undefined);
         fit();
       } catch {
         // Cross-origin frame: leave it as the site made it
@@ -252,7 +263,8 @@ function fitApiFrame(): void {
     };
     frameObservers.set(frame, {
       disconnect: () => {
-        resize?.disconnect();
+        cancelAnimationFrame(queued);
+        queued = 0;
         mutations?.disconnect();
         frame.removeEventListener('load', attach);
       },
@@ -347,6 +359,24 @@ function fileDropZone(): void {
     dropSpots.set(field, { spot, onChange });
   });
 }
+// The "—or—" between the drop zone and the hash field: the site's text keeps its dashes, so it is hidden and a
+// label without them sits between two rules (a child element, removed by undo)
+const OR_DIVIDER = '#file-search > span:not([data-kdl-sk="or"])';
+function orDivider(): void {
+  document.querySelectorAll<HTMLElement>(OR_DIVIDER).forEach((span) => {
+    const raw = (span.textContent || '').trim();
+    const label = (translateSiteText(raw) ?? raw).replace(/^[\s—–-]+|[\s—–-]+$/g, '');
+    if (!label) return;
+    span.setAttribute(MARK, 'or');
+    span.append(el('em', { className: 'kdl-sk-or__label', textContent: label }));
+  });
+}
+function undoOrDivider(): void {
+  document.querySelectorAll<HTMLElement>(`#file-search > span[${MARK}="or"]`).forEach((span) => {
+    span.querySelector('.kdl-sk-or__label')?.remove();
+    span.removeAttribute(MARK);
+  });
+}
 function undoDropZone(): void {
   document.querySelectorAll<HTMLElement>(`[${MARK}="drop"]`).forEach((zone) => {
     const field = zone.querySelector<HTMLInputElement>('input[type="file"]');
@@ -425,6 +455,7 @@ export const shadcnPagesTransform = reversibleTransform(
     fitApiFrame();
     moveFilterIntoSearch();
     fileDropZone();
+    orDivider();
     pinHomeArt();
   },
   undo,

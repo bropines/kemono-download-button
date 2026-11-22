@@ -9,13 +9,19 @@ import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitIcon, select } from '../../ui/kit';
 import { t, tx, type UiKey } from '../../i18n';
-import { getModuleSetting } from '../../core/registry';
+import { getModuleSetting, isModuleEnabled } from '../../core/registry';
+import { getRestoreScroll } from '../../core/router';
 
 export const TAGS_TOOLS_ID = 'tags.tools';
 
 const CONTAINER = 'section#tag-container';
 const HIDDEN_ATTR = 'data-kdl-tag-hidden';
 const TOOLBAR_ID = 'kdl-tags-toolbar';
+// Left on the list when we let go of it (leaving the page, a history snapshot): how many rows were drawn, with
+// the list held at its height. Without us only the first batch is drawn (see the styles), so the page would
+// shrink under a scrolled-down reader right before htmx notes the scroll position for back/forward, and
+// coming back would land near the top. The next build draws that many rows again and lets go of the height.
+const HELD_ATTR = 'data-kdl-tags-held';
 
 // The layout lives on <html> (set at document start from the stored setting), so the site's cloud is drawn in
 // the chosen layout from the first paint. The toolbar's last height is remembered too and reserved above the
@@ -192,6 +198,36 @@ let sentinel: HTMLElement | null = null;
 let lazyObserver: IntersectionObserver | null = null;
 // The matching tags in their current order, as apply() last laid them out
 let shownList: TagItem[] = [];
+// Every tag in the order its node is in the DOM now (the site's until apply() moves them). Moving 2000 nodes
+// costs ~80 ms of DOM work and a full relayout, so they are only re-appended when the order really changes
+let domOrder: TagItem[] = [];
+const sameOrder = (a: TagItem[], b: TagItem[]): boolean => a.length === b.length && a.every((item, i) => item === b[i]);
+// Writes only what changes: an attribute set again still dirties the node's style
+const flag = (node: Element, name: string, on: boolean): void => {
+  if (node.hasAttribute(name) !== on) node.toggleAttribute(name, on);
+};
+
+// Jumped-to headings land below the sticky toolbar. Its height is read by a ResizeObserver, after layout:
+// asking for it inside apply() forced a layout of the whole cloud mid-script, twice
+let toolbarSize: ResizeObserver | null = null;
+let toolbarHeight = 0;
+function measureToolbar(): void {
+  if (!toolbar || !container) return;
+  const height = toolbar.offsetHeight;
+  if (!height || height === toolbarHeight) return;
+  toolbarHeight = height;
+  container.style.setProperty('--kdl-tags-toolbar-h', `${height + 12}px`);
+  saveReserve(height);
+}
+function watchToolbar(): void {
+  toolbarSize?.disconnect();
+  toolbarSize = null;
+  toolbarHeight = 0;
+  if (!toolbar) return;
+  if (typeof ResizeObserver !== 'function') return measureToolbar();
+  toolbarSize = new ResizeObserver(measureToolbar);
+  toolbarSize.observe(toolbar);
+}
 
 // The next batch: only its rows change (and their letter headings), the other 2000 stay put. A full apply()
 // re-sorted and re-appended every row, ~100 ms that the observer spent right as the page was shown.
@@ -244,10 +280,10 @@ function dropSentinel(): void {
 }
 
 /** Reorders and filters the cloud. A new filter, sort or layout starts lazy rendering over (reset). */
-function apply(reset = true): void {
+function apply(reset = true, first = LAZY_STEP): void {
   const ctx = ctxRef;
   if (!ctx || !container) return;
-  if (reset) limit = LAZY_STEP;
+  if (reset) limit = first;
   ensureSentinel();
   const mode = ctx.settings.get<string>('sort') as SortMode;
   const group = ctx.settings.get<boolean>('group');
@@ -259,31 +295,34 @@ function apply(reset = true): void {
   headings.forEach((node) => node.remove());
   headings = [];
   const shownLetters = new Map<string, number>();
-  const frag = document.createDocumentFragment();
+  // Same order as in the DOM (the first build in site order, a filter typed): nothing is moved
+  const frag = sameOrder(list, domOrder) ? null : document.createDocumentFragment();
   let lastLetter = '';
   let shown = 0;
   shownList = [];
   for (const item of list) {
     const visible = (prefs.script === 'all' || item.script === prefs.script) && matches(item, terms);
     if (visible) shownList.push(item);
-    if (visible) item.node.removeAttribute(HIDDEN_ATTR);
-    else item.node.setAttribute(HIDDEN_ATTR, '');
+    flag(item.node, HIDDEN_ATTR, !visible);
     if (visible) {
       shown++;
       shownLetters.set(item.letter, (shownLetters.get(item.letter) ?? 0) + 1);
       const rendered = shown <= limit;
-      if (rendered) item.node.removeAttribute(LAZY_ATTR);
-      else item.node.setAttribute(LAZY_ATTR, '');
+      flag(item.node, LAZY_ATTR, !rendered);
       if (rendered && group && item.letter !== lastLetter) {
         lastLetter = item.letter;
         const heading = el('h3', { className: 'kdl-tags-letter', id: headingId(item.letter), textContent: item.letter });
         headings.push(heading);
-        frag.append(heading);
+        if (frag) frag.append(heading);
+        else item.node.before(heading);
       }
     }
-    frag.append(item.node);
+    frag?.append(item.node);
   }
-  container.append(frag);
+  if (frag) {
+    container.append(frag);
+    domOrder = list;
+  }
   lazyMore = shown > limit;
 
   if (countLabel) countLabel.textContent = shown === items.length ? t('tags.count', { count: items.length }) : t('tags.countFiltered', { shown, count: items.length });
@@ -293,11 +332,6 @@ function apply(reset = true): void {
   if (shown === 0) container.setAttribute('data-kdl-tags-empty', t('tags.empty'));
   else container.removeAttribute('data-kdl-tags-empty');
   renderJumpBar(group ? shownLetters : null);
-  // Jumped-to headings land below the sticky toolbar
-  if (toolbar) {
-    container.style.setProperty('--kdl-tags-toolbar-h', `${toolbar.offsetHeight + 12}px`);
-    saveReserve(toolbar.offsetHeight);
-  }
 }
 
 function renderJumpBar(letters: Map<string, number> | null): void {
@@ -421,34 +455,52 @@ function build(ctx: ModuleContext, section: HTMLElement): void {
   // a log scale fills nearly every bar
   const top = Math.sqrt(Math.max(...items.map((item) => item.count), 1));
   items.forEach((item) => item.node.style.setProperty('--kdl-tag-p', `${((Math.sqrt(item.count) / top) * 100).toFixed(1)}%`));
+  domOrder = items;
   toolbar = buildToolbar(ctx);
   syncControls(ctx);
   section.before(toolbar);
-  apply();
+  // Back to a list that was scrolled down: the rows that were there are there to scroll to again (all of them
+  // when only the position is known; rows off screen skip rendering)
+  const held = section.getAttribute(HELD_ATTR);
+  const before = held === null ? 0 : held === 'all' ? Infinity : Number(held) || 0;
+  apply(true, before > 0 ? Math.max(LAZY_STEP, before) : (getRestoreScroll() ?? 0) > window.innerHeight ? Infinity : LAZY_STEP);
+  if (held !== null) {
+    section.removeAttribute(HELD_ATTR);
+    section.style.removeProperty('min-height');
+    if (!section.getAttribute('style')) section.removeAttribute('style');
+  }
+  watchToolbar();
 }
 
-/** Original order and visibility back, our nodes gone */
-function restore(): void {
+/** Original order and visibility back, our nodes gone. `hold`: the list keeps its height (see HELD_ATTR) */
+function restore(hold = true): void {
   clearTimeout(snapshotTimer);
+  // Before anything changes: the height it has with the rows drawn so far
+  const height = hold && container?.isConnected && limit > LAZY_STEP ? container.offsetHeight : 0;
+  const drawn = limit;
   headings.forEach((node) => node.remove());
   headings = [];
+  toolbarSize?.disconnect();
+  toolbarSize = null;
   if (container?.isConnected) {
-    const frag = document.createDocumentFragment();
-    items
-      .slice()
-      .sort((a, b) => a.index - b.index)
-      .forEach((item) => {
-        item.node.removeAttribute(HIDDEN_ATTR);
-        item.node.removeAttribute(LAZY_ATTR);
-        item.node.style.removeProperty('--kdl-tag-p');
-        if (!item.node.getAttribute('style')) item.node.removeAttribute('style');
-        frag.append(item.node);
-      });
-    container.append(frag);
+    // items is in the site's order
+    const frag = sameOrder(items, domOrder) ? null : document.createDocumentFragment();
+    items.forEach((item) => {
+      flag(item.node, HIDDEN_ATTR, false);
+      flag(item.node, LAZY_ATTR, false);
+      item.node.style.removeProperty('--kdl-tag-p');
+      if (!item.node.getAttribute('style')) item.node.removeAttribute('style');
+      frag?.append(item.node);
+    });
+    if (frag) container.append(frag);
     container.removeAttribute('data-kdl-tags-grouped');
     container.removeAttribute('data-kdl-tags-empty');
     container.style.removeProperty('--kdl-tags-toolbar-h');
     if (!container.getAttribute('style')) container.removeAttribute('style');
+    if (height > 0) {
+      container.style.minHeight = `${height}px`;
+      container.setAttribute(HELD_ATTR, Number.isFinite(drawn) ? String(drawn) : 'all');
+    }
   }
   dropSentinel();
   toolbar?.remove();
@@ -461,6 +513,7 @@ function restore(): void {
   layoutBtn = null;
   container = null;
   items = [];
+  domOrder = [];
 }
 
 function sync(ctx: ModuleContext): void {
@@ -493,7 +546,7 @@ const styles = `
 .kdl-tags-toolbar__field { position: relative; flex: 1 1 220px; min-width: 0; display: flex; align-items: center; }
 .kdl-tags-toolbar__field > .kdl-ui-icon { position: absolute; left: 10px; width: 16px; height: 16px; color: var(--kdl-muted-foreground); pointer-events: none; }
 .kdl-tags-toolbar .kdl-tags-toolbar__search { padding-left: 32px; width: 100%; }
-.kdl-tags-toolbar .kdl-ui-select { width: auto; flex: 0 1 auto; }
+.kdl-tags-toolbar .kdl-ui-select { width: auto; flex: 0 1 auto; min-width: 0; padding-right: 2rem; white-space: nowrap; text-overflow: ellipsis; }
 .kdl-tags-toolbar__count { margin-left: auto; font-size: 13px; color: var(--kdl-muted-foreground); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .kdl-tags-jump { display: flex; flex-wrap: wrap; gap: 2px; }
 .kdl-tags-jump[hidden] { display: none; }
@@ -596,7 +649,8 @@ html[data-kdl-tags-layout="grid"] section#tag-container > .kdl-tags-letter,
 html[data-kdl-tags-layout="grid"] section#tag-container[data-kdl-tags-empty]::before { grid-column: 1 / -1; }
 section#tag-container[data-kdl-tags-empty]::before { content: attr(data-kdl-tags-empty); flex: 0 0 100%; padding: 2em 0; text-align: center; opacity: 0.6; }
 @media (max-width: 640px) {
-  .kdl-tags-toolbar { width: auto; margin: 0.5em 8px 0; }
+  .kdl-tags-toolbar { width: auto; margin: 0.5em 0 0; }
+  html[data-kdl-tags-layout="grid"] section#tag-container { width: 100%; }
   .kdl-tags-toolbar__field { flex-basis: 100%; }
   .kdl-tags-toolbar .kdl-ui-select { flex: 1 1 40%; }
   .kdl-tags-toolbar__count { margin-left: 0; }
@@ -620,6 +674,12 @@ export const tagsToolsModule: KdlModule = {
     },
   ],
   styles,
+  setup(ctx) {
+    // Also while no tag page is open: the attribute stays on <html> between pages (see the cleanup in mount)
+    ctx.settings.onChange('layout', (value) => {
+      if (isModuleEnabled(TAGS_TOOLS_ID)) setLayoutAttr(layoutOf(value));
+    });
+  },
   mount(ctx) {
     ctxRef = ctx;
     const changed = () => {
@@ -634,9 +694,14 @@ export const tagsToolsModule: KdlModule = {
     if (reserve) document.documentElement.style.setProperty(RESERVE_VAR, `${reserve}px`);
     sync(ctx);
     ctx.onCleanup(() => {
-      document.documentElement.removeAttribute(LAYOUT_ATTR);
-      document.documentElement.style.removeProperty(RESERVE_VAR);
-      restore();
+      // Left in place when only the page changes: a tag page htmx swaps in later is then laid out in the chosen
+      // layout, first batch only, from its first frame (as early() arranges for a fresh load). Without them the
+      // site's cloud of all 2000 tags was styled and laid out first (~200 ms), then again in ours.
+      if (!isModuleEnabled(TAGS_TOOLS_ID)) {
+        document.documentElement.removeAttribute(LAYOUT_ATTR);
+        document.documentElement.style.removeProperty(RESERVE_VAR);
+      }
+      restore(isModuleEnabled(TAGS_TOOLS_ID));
       ctxRef = null;
       prefs.query = '';
       prefs.script = 'all';

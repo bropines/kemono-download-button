@@ -75,6 +75,9 @@ export const kuiMainStyles = css({
     maxHeight: '100%',
     overflowY: 'auto',
     paddingRight: '5px',
+  },
+  // Animated only once the user toggles it (kui-anim), never while the gallery is built
+  '.kui-gallery-thumbnails.kui-anim': {
     transition: 'width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease, padding 0.3s ease',
   },
   '.kui-gallery-thumbnails.kui-collapsed': {
@@ -90,6 +93,14 @@ export const kuiMainStyles = css({
     border: '2px solid transparent',
     borderRadius: 'calc(var(--kdl-radius) - 2px)',
     overflow: 'hidden',
+    transition: 'border-color 0.15s ease',
+  },
+  '.kui-gallery-thumbnails a:not(.kui-thumb-active):hover': {
+    borderColor: 'var(--kdl-hover-ring)',
+  },
+  '.kui-gallery-thumbnails a:focus-visible': {
+    outline: 'none',
+    boxShadow: 'var(--kdl-focus-ring)',
   },
   '.kui-gallery-thumbnails img': {
     width: '100%',
@@ -108,6 +119,10 @@ export const kuiMainStyles = css({
     width: '100%',
     minWidth: 0,
     overflow: 'hidden',
+    // A stage: the image letterboxes inside it and the overlay buttons sit on its corners
+    border: '1px solid var(--kdl-border)',
+    borderRadius: 'var(--kdl-radius)',
+    background: 'color-mix(in srgb, var(--kdl-muted) 40%, transparent)',
   },
   '.kui-gallery-preview-image': {
     maxWidth: '100%',
@@ -171,13 +186,16 @@ export const kuiMainStyles = css({
     maxHeight: '60vh',
     overflowY: 'auto',
     paddingRight: '5px',
-    transition: 'width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease',
     marginLeft: 0,
+  },
+  '.kui-video-list.kui-anim': {
+    transition: 'width 0.3s ease, opacity 0.3s ease, margin-left 0.3s ease',
   },
   '.kui-video-list.kui-collapsed': {
     width: 0,
     opacity: 0,
     marginLeft: '-10px',
+    paddingRight: 0,
     pointerEvents: 'none',
   },
   '.kui-video-list-item': {
@@ -333,9 +351,14 @@ export const kuiMainStyles = css({
       height: 'auto',
       maxHeight: 'none',
     },
+    // Fits the image instead of a fixed 60vh stage with empty bars above and below it
     '.kui-gallery-preview': {
-      height: '60vh',
+      height: 'auto',
+      minHeight: '12rem',
       order: 1,
+    },
+    '.kui-gallery-preview-image': {
+      maxHeight: '70vh',
     },
     '.kui-gallery-thumbnails': {
       order: 2,
@@ -380,6 +403,8 @@ export const kuiMainStyles = css({
       marginTop: '8px',
       marginLeft: 0,
       maxHeight: '30vh',
+    },
+    '.kui-video-gallery-layout .kui-video-list.kui-anim': {
       transition: 'max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out',
     },
     '.kui-video-gallery-layout .kui-video-player-area': {

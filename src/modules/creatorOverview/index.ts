@@ -23,7 +23,7 @@ const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
 const TAG_LIMIT = 40;
 
 interface Who { service: string; id: string }
-interface Overview { announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
+interface Overview { failed?: boolean; announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
 
 let node: HTMLElement | null = null;
 let cleanupOrder = () => {};
@@ -47,14 +47,17 @@ function plain(html: string): string {
 // The three requests run side by side; each is shared with an earlier identical one (document-start prefetch)
 async function load(who: Who): Promise<Overview> {
   const want = (key: string) => getModuleSetting<boolean>(MODULE_ID, key) !== false;
+  let failed = false;
+  const fail = <T>(fallback: T) => (): T => { failed = true; return fallback; };
   const [ann, tags, links] = await Promise.all([
-    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(() => null) : null,
-    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(() => []) : [],
-    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(() => null) : null,
+    want('announcements') ? fetchAnnouncements(who.service, who.id, true).catch(fail(null)) : null,
+    want('tags') ? fetchCreatorTags(who.service, who.id, true).catch(fail([])) : [],
+    want('links') ? fetchCreatorLinks(who.service, who.id, true).catch(fail(null)) : null,
   ]);
   const annList = Array.isArray(ann) ? ann.filter((a: any) => a && typeof a.content === 'string') : [];
   const latest = annList[0];
   return {
+    failed,
     announcement: latest ? { text: plain(latest.content), added: String(latest.added || latest.published || '').slice(0, 10), count: annList.length } : null,
     tags: tags.slice(0, TAG_LIMIT),
     links: (Array.isArray(links) ? links : [])
@@ -142,6 +145,8 @@ function remove(): void {
   if (wasConnected) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
 }
 
+const RETRY_MS = 30_000;
+
 async function render(ctx: ModuleContext): Promise<void> {
   const who = creatorFromPath();
   if (!who) return remove();
@@ -159,6 +164,8 @@ async function render(ctx: ModuleContext): Promise<void> {
   pending = '';
   node = build(who, data);
   place();
+  // A request failed and nothing could be shown: allow another try a little later instead of never
+  if (!node && data.failed) setTimeout(() => { if (current === key && !node) current = ''; }, RETRY_MS);
 }
 
 const STYLES = `
@@ -170,21 +177,25 @@ const STYLES = `
 .${OWN}__drag { cursor: grab; touch-action: none; }
 .${OWN}__drag:active { cursor: grabbing; }
 .${OWN}__section[data-kdl-dragging] { opacity: 0.65; }
-.${OWN}__title { font-size: 13px; font-weight: 600; color: var(--kdl-muted-foreground); text-decoration: none; }
-a.${OWN}__title:hover { color: var(--kdl-foreground); }
+.${OWN}__title, a.${OWN}__title { padding: 0; font-size: 13px; font-weight: 600; color: var(--kdl-muted-foreground); text-decoration: none; transition: color 0.15s ease; }
+a.${OWN}__title:is(:hover, :focus-visible) { color: var(--kdl-foreground); }
+a.${OWN}__title:focus-visible { border-radius: 4px; outline: 2px solid var(--kdl-ring); outline-offset: 2px; }
 .${OWN}__scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: thin; }
 .${OWN}__tag {
   display: inline-flex; flex: 0 0 auto; align-items: center; gap: 6px; height: 1.875rem; padding: 0 10px;
   border: 1px solid var(--kdl-border); border-radius: 9999px; background: var(--kdl-card, transparent);
   color: var(--kdl-foreground); font-size: 13px; text-decoration: none; white-space: nowrap;
 }
+.${OWN}__tag { transition: background-color 0.15s ease, border-color 0.15s ease; }
 .${OWN}__tag:hover { background: var(--kdl-accent); }
+.${OWN}__tag:focus-visible, .${OWN}__link:focus-visible { outline: 2px solid var(--kdl-ring); outline-offset: 2px; }
 .${OWN}__tag[aria-current] { border-color: var(--kdl-primary); background: color-mix(in srgb, var(--kdl-primary) 18%, transparent); }
 .${OWN}__tag-count { color: var(--kdl-muted-foreground); font-size: 11px; font-variant-numeric: tabular-nums; }
 .${OWN}__ann {
   padding: 10px 12px; border: 1px solid var(--kdl-border); border-radius: var(--kdl-radius);
-  background: var(--kdl-card, transparent); cursor: pointer;
+  background: var(--kdl-card, transparent); cursor: pointer; transition: border-color 0.15s ease;
 }
+.${OWN}__ann:hover { border-color: var(--kdl-hover-ring); }
 .${OWN}__ann-meta { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; color: var(--kdl-muted-foreground); font-size: 12px; }
 .${OWN}__ann-meta .kdl-ui-icon { width: 14px; height: 14px; }
 .${OWN}__ann-text {
