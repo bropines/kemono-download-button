@@ -49,7 +49,7 @@ function load({ failsafeMs, holdMs } = {}) {
     Promise,
   };
   vm.runInNewContext(text, context);
-  return { api: context.exports, cloaked: () => attrs.has('data-kdl-cloak'), style: () => nodes.get('kdl-cloak-style') };
+  return { api: context.exports, cloaked: () => attrs.has('data-kdl-cloak'), skeleton: () => attrs.has('data-kdl-skeleton'), style: () => nodes.get('kdl-cloak-style') };
 }
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -67,7 +67,8 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     assert.match(css, /#main::before \{[\s\S]*?data:image\/svg\+xml/, 'the snapshot is drawn on #main::before');
     assert.match(css, /calc\(50%25 - 479\.5px\)/, 'a centred box keeps to the centre at any width (its stroke inside the box)');
     assert.match(css, /#main::after \{ display: block[\s\S]*?space repeat/, 'the card grid repeats one tile');
-    assert.match(css, /html\[data-kdl-enter\]:not\(\[data-kdl-cloak\]\) #main::before, [^{]*::after \{ opacity: 0; \}/, 'a shown page never has the skeleton over it, transitions or not');
+    assert.match(css, /html\[data-kdl-skeleton\]\[data-kdl-enter\]:not\(\[data-kdl-cloak\]\) #main::before, [^{]*::after \{ opacity: 0; \}/, 'a shown page never has the skeleton over it, transitions or not');
+    assert.doesNotMatch(css.replace(/html\[data-kdl-skeleton\][^{]*\{/g, ''), /::before|::after/, 'the skeleton is only ever drawn under <html data-kdl-skeleton>');
     assert.match(css, /html\[data-kdl-cloak\] #main \{ min-height:/, 'the page is held at the skeleton height only while hidden');
     assert.doesNotMatch(css, /data-kdl-enter\]\) #main \{ min-height/, 'not while it animates in: the height would jump when the animation ends');
     api.cloak('/none');
@@ -116,6 +117,45 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
     api.reveal();
     await delay(150);
     assert.equal(cloaked(), false);
+  }
+  {
+    // A page swapped in by htmx: its skeleton is not drawn unless the page stays hidden for a while
+    const { api, cloaked, skeleton } = load();
+    api.cloak();
+    assert.equal(skeleton(), true, 'a first load shows its skeleton at once');
+    api.cloak('/fanbox/user/1', false, 'late');
+    assert.equal(skeleton(), false, 'a swapped-in page starts without one');
+    api.reveal();
+    await delay(160);
+    assert.equal(cloaked(), false);
+    assert.equal(skeleton(), false, 'shown quickly: the skeleton never appeared');
+    api.cloak('/fanbox/user/1', false, 'late');
+    await delay(200);
+    assert.equal(cloaked(), true);
+    assert.equal(skeleton(), true, 'still hidden after a while: the skeleton is drawn');
+  }
+  {
+    // The failsafe asks the guard first: a first load that is still coming in keeps its skeleton
+    const { api, cloaked } = load({ failsafeMs: 40 });
+    let ready = false;
+    let asked = 0;
+    api.setCloakFailsafeGuard(() => {
+      asked++;
+      return !ready;
+    });
+    const retry = /FAILSAFE_RETRY_MS = (\d+)/.exec(compiled);
+    assert.ok(retry, 'the guard is asked again after FAILSAFE_RETRY_MS');
+    api.cloak();
+    await delay(90);
+    assert.equal(cloaked(), true, 'the guard keeps the page hidden past the failsafe');
+    assert.equal(asked, 1);
+    ready = true;
+    await delay(Number(retry[1]) + 60);
+    assert.equal(cloaked(), false, 'and it is shown once the guard lets go');
+    api.setCloakFailsafeGuard(() => { throw new Error('broken guard'); });
+    api.cloak();
+    await delay(90);
+    assert.equal(cloaked(), false, 'a guard that throws never keeps the page hidden');
   }
   console.log('page cloak checks passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

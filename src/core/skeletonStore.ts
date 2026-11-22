@@ -58,6 +58,20 @@ const signature = (snap: SkeletonSnapshot): string =>
 export function snapshotFor(path = window.location.pathname, builtinOnly = false): SkeletonSnapshot | null {
   const route = skeletonRoute(path);
   const bucket = skeletonBucket();
+  // Looked up once per kind of page: reading (and parsing) the stored snapshot again on every navigation gave a
+  // new object each time, so nothing built from it could be kept. A snapshot stored by this tab drops the memo;
+  // one stored by another tab is picked up on the next load.
+  const memoKey = `${route}|${bucket}|${builtinOnly ? 1 : 0}`;
+  const known = lookups.get(memoKey);
+  if (known !== undefined) return known;
+  const found = lookUp(route, bucket, builtinOnly);
+  lookups.set(memoKey, found);
+  return found;
+}
+
+const lookups = new Map<string, SkeletonSnapshot | null>();
+
+function lookUp(route: string, bucket: string, builtinOnly: boolean): SkeletonSnapshot | null {
   const candidates = [route, route.startsWith('creator-') ? 'creator' : '', 'posts'].filter(Boolean);
   for (const name of candidates) {
     const own = builtinOnly ? null : readStored<unknown>(storeKey(name, bucket), null);
@@ -86,7 +100,10 @@ export function scheduleSkeletonCapture(): void {
         if (!snap || !snap.shapes.length) return;
         const key = storeKey(skeletonRoute(path), skeletonBucket());
         const stored = readStored<unknown>(key, null);
-        if (!valid(stored) || signature(stored) !== signature(snap)) writeStored(key, snap);
+        if (!valid(stored) || signature(stored) !== signature(snap)) {
+          writeStored(key, snap);
+          lookups.clear();
+        }
       } catch {
         // A skeleton is a nicety: never let it disturb the page
       }

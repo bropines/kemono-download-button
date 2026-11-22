@@ -14,6 +14,7 @@ import { postsSearchModule } from './postsSearch';
 import { importerStatusModule } from './importerStatus';
 import { smoothThumbsModule } from './smoothThumbs';
 import { pageTransitionsModule } from './pageTransitions';
+import { navPrefetchModule } from './navPrefetch';
 import { dmsViewerModule } from './dmsViewer';
 import { hiddenCreatorsModule } from './hiddenCreators';
 import { downloadByTagsModule } from './downloadByTags';
@@ -46,6 +47,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   importerStatusModule,
   smoothThumbsModule,
   pageTransitionsModule,
+  navPrefetchModule,
   dmsViewerModule,
   hiddenCreatorsModule,
   downloadByTagsModule,

@@ -65,6 +65,14 @@ Rules:
 - **Same pathname** (query/hash change, pagination, partial swap): nothing is unmounted; matching changes
   are synced and mounted modules get `update`. A creator's selection survives pagination this way.
 - **`htmx:beforeHistorySave`**: `beforeSnapshot` on mounted modules.
+- **htmx timing**: the events of one swap are gathered for 50 ms, but `htmx:afterSettle` (the last one) and
+  `htmx:historyRestore` reconcile at once: every millisecond until then the new page is hidden. As soon as the
+  address names the next page (patched `pushState`, `popstate`) the `early()` hooks of the modules that will mount
+  there run (`bootEarlyFor`), like at document start: first-frame attributes are set, requests are on their way.
+- **Back/forward**: htmx restores the page and its scroll position from its cache before the modules have
+  reworked it; the router puts the position right again after mounting and at the reveal
+  (`getRestoreScroll()` tells a module that a restore to that position is being set up: the tag list then draws
+  the rows it had). On a cache miss (`htmx:historyCacheMiss`) nothing is mounted until the server's answer is in.
 - **Mutations**: one `MutationObserver` on `<body>`; only non-own changes inside the root (`#main`, else
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
@@ -74,7 +82,13 @@ Rules:
   the modules; revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar
   creators, the creator overview, post info) so cached data lands in the first frame; holds delay the reveal
   by at most 150 ms, and a 2.5 s failsafe always reveals. `<html data-kdl-ready>` is set at the first reveal.
-- **Loading skeleton**: a picture of the page coming in, drawn on `#main::before/::after` while cloaked. It is a
+  On a first load the failsafe first asks `index.ts` (`setCloakFailsafeGuard`): when the modules have not started
+  yet, a parsed document is set up right then (not waiting for the site's deferred scripts), and one that is
+  still coming in keeps its skeleton, for 10 s at most. `onBeforeReveal` runs one frame before the reveal: read
+  styles there, not in `onReveal` (a style read between the reveal's attribute changes restyles the page twice).
+- **Loading skeleton**: a picture of the page coming in, drawn on `#main::before/::after` while cloaked and
+  `<html data-kdl-skeleton>` is set: at once on a first load, but only after 140 ms for a page htmx swapped in
+  (it is in the DOM already and shown a few frames later; a skeleton in between would be a flash). It is a
   snapshot of the real page (`skeletonCapture.ts`: boxes, controls, images and text lines of the first ~1.5
   screens, every x/width a `calc()` of the container, the card grid one repeated tile) rendered by
   `skeleton.ts`. `skeletonStore.ts` picks the user's own snapshot for the route and screen class (taken in
@@ -102,6 +116,8 @@ Rules:
 | `downloader.list` | list, search | the same card buttons on post lists (no checkboxes); the creator name is fetched from the profile API on the first download |
 | `favorites.quick` | list, search, artists | quick favourite stars |
 | `tags.tools` | list, creator | tag pages only (`section#tag-container`): filter, sort, A–Z groups with a jump bar, script filter; settings `sort`, `group` |
+| `ui.pageTransitions` | any | the page leans away while the next loads and the new one slides in (opacity and transform only, so it stays on the compositor); the first 12 cards cascade; requires `ui.shadcn` |
+| `nav.prefetch` | any | htmx sites only: the next page is requested when a link is pressed (setting `hover`: when the pointer rests on it) and handed to htmx's own request in `htmx:beforeSend`; falls back to the real request on any doubt |
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
 | `ui.shadcn` | any | the redesign, on by default (switch at the top of Settings → Interface): shadcn/ui-style skin of the site (`src/modules/shadcnSite/`); settings `accent`, `accentCustom`, `base`, `surfaces`; sets `<html data-kdl-ui~="shadcn">`. `creators.similar`, `creators.overview`, `creators.xlinks`, `info.badges`, `importer.status` and `post.blockOrder` require it, `creator.blockOrder` requires `ui.shadcn.creator`, so switching it off turns them off too |
 | `ui.shadcn.cards` / `.post` / `.creator` / `.pages` | any | parts of the skin, `requires: ["ui.shadcn"]`; `.pages` also wraps importer notes in panels and turns the FAQ into an accordion (reversible, stripped before snapshots) |
