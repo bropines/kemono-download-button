@@ -8,12 +8,13 @@
 
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
-import { ensureKit, kitIcon, kitScope } from '../../ui/kit';
+import { collapseAway, ensureKit, kitIcon, kitScope, swapIn } from '../../ui/kit';
 import { fetchAnnouncements, fetchCreatorLinks, fetchCreatorTags } from '../../api/kemonoApi';
 import { t } from '../../i18n';
 import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from './order';
-import { getModuleSetting } from '../../core/registry';
-import { holdCloak } from '../../core/cloak';
+import { getModuleSetting, isModuleEnabled } from '../../core/registry';
+import { holdCloak, isCloaked } from '../../core/cloak';
+import { originalText } from '../../i18n/site';
 import { getSettings } from '../../state/store';
 
 const MODULE_ID = 'creators.overview';
@@ -128,16 +129,18 @@ const want = (key: string): boolean => getModuleSetting<boolean>(MODULE_ID, key)
 function tabCount(suffix: string): number | null {
   const tab = document.querySelector(`.tabs a[href$="/${suffix}"]`);
   if (!tab) return null;
-  const m = /((d+))/.exec(tab.textContent || '');
+  // "Linked Accounts (3)" as the site wrote it (the label may be translated); "(✔️)" or no count: unknown (-1)
+  const m = /\((\d+)\)/.exec(originalText(tab));
   return m ? Number(m[1]) : -1;
 }
 function placeholder(): HTMLElement | null {
   const bar = (cls: string): HTMLElement => el('span', { className: `${OWN}__ph ${cls}` });
   const parts: HTMLElement[] = [];
-  if (want('announcements') && tabCount('announcements') !== null) {
+  if (isModuleEnabled('creator.blockOrder') && getModuleSetting<boolean>('creator.blockOrder', 'hideOverview') === true) return null;
+  if (want('announcements') && tabCount('announcements') !== null && tabCount('announcements') !== 0) {
     parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`), bar(`${OWN}__ph-card`)]));
   }
-  if (want('tags') && tabCount('tags') !== null) {
+  if (want('tags') && tabCount('tags') !== null && tabCount('tags') !== 0) {
     parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`),
       el('div', { className: `${OWN}__scroll` }, Array.from({ length: 10 }, () => bar(`${OWN}__ph-pill`)))]));
   }
@@ -155,11 +158,7 @@ function placeholder(): HTMLElement | null {
 
 /** The placeholder gives way to nothing: it folds its height away instead of vanishing in one frame */
 function collapse(ph: HTMLElement): void {
-  ph.style.overflow = 'hidden';
-  ph.style.height = `${ph.offsetHeight}px`;
-  ph.style.transition = 'height 0.2s ease, margin 0.2s ease, opacity 0.2s ease';
-  requestAnimationFrame(() => { ph.style.height = '0'; ph.style.margin = '0'; ph.style.opacity = '0'; });
-  setTimeout(() => { ph.remove(); document.dispatchEvent(new Event('kdl:creator-sections-changed')); }, 240);
+  collapseAway(ph, () => document.dispatchEvent(new Event('kdl:creator-sections-changed')), { animate: !isCloaked() });
 }
 
 function place(): void {
@@ -239,7 +238,8 @@ async function render(ctx: ModuleContext): Promise<void> {
   if (ph && ph.isConnected) {
     const built = build(who, data);
     if (built) {
-      ph.replaceWith(built);
+      // In the placeholder's place; when the sizes differ, the height eases over instead of jumping
+      swapIn(ph, built, { animate: !isCloaked() });
       node = built;
       document.dispatchEvent(new Event('kdl:creator-sections-changed'));
     } else {
@@ -263,8 +263,9 @@ async function render(ctx: ModuleContext): Promise<void> {
 const STYLES = `
 /* Loading placeholders (see placeholder()) */
 .${OWN}__ph { display: block; flex: 0 0 auto; border-radius: var(--kdl-radius); background: linear-gradient(90deg, var(--kdl-muted) 0%, color-mix(in srgb, var(--kdl-muted) 55%, var(--kdl-foreground) 8%) 50%, var(--kdl-muted) 100%) 0 0 / 200% 100%; animation: kdl-ov-shimmer 1.4s ease-in-out infinite; }
-.${OWN}__ph-title { width: 110px; height: 14px; margin-bottom: 8px; border-radius: 4px; }
-.${OWN}__ph-card { height: 86px; }
+.${OWN}__ph-title { width: 110px; height: 14px; margin: 3px 0 8.5px; border-radius: 4px; }
+/* A card with its text at the 3-line clamp (most announcements are longer) */
+.${OWN}__ph-card { height: 102px; }
 .${OWN}__ph-pill { width: 92px; height: 1.875rem; border-radius: 9999px; }
 .${OWN}__ph-chip { width: 200px; height: 50px; }
 @keyframes kdl-ov-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }

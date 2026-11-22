@@ -24,6 +24,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- No more jumping pages while our blocks load: on creator pages the similar creators strip, the overview and the post count badges hold their place with a shimmering placeholder of their size from the first frame and fill it in place (an empty one folds away smoothly), post pages keep room for their info badges, and Pawchive's creator lists no longer push the cards down when the page numbers replace "Loading creators...". A switched-off or hidden block reserves nothing. With the redesign switched off, creator, post and tag pages stay hidden for the moment it takes to add our buttons and gallery, instead of jumping after they are shown, and the video player keeps room for the picture before the video's size is known.
 - Post pages: the image gallery is there as soon as the page is shown, instead of the site's own layout first, then an empty block, then the gallery (it no longer waits for the API; the original-file and Lens buttons join when the answer is in).
 - Smooth thumbnails fade in over the picture instead of replacing it in one frame, so cards no longer blink when the sharper version is ready.
 - The sidebar Community section no longer blinks on every page change.

@@ -1,7 +1,7 @@
 import { PageInfo } from './types';
 import { detectPage, detectSite, keepOwnHeadNodes, pageFromDom, pageFromUrl, resolveRoot, writePageAttributes } from './page';
 import { attachRuntime, bootEarlyFor, isModuleEnabled, snapshotMounted, syncModules, unmountPageScoped, updateMounted } from './registry';
-import { cloak, onReveal, reveal } from './cloak';
+import { cloak, cloaksWithoutRedesign, onReveal, reveal } from './cloak';
 import { scheduleSkeletonCapture } from './skeletonStore';
 import { installLinkBoost } from './boostLinks';
 
@@ -108,7 +108,9 @@ function reconcile(): void {
 // The new page content is in the DOM but not painted yet: keep it hidden until the modules reworked it
 // (its skeleton only if that takes long: the page is in the DOM already, a few frames from being shown)
 function cloakNewPage(path: string | null = null): void {
-  if (isModuleEnabled('ui.shadcn')) cloak(path || window.location.pathname, false, 'late');
+  const where = path || window.location.pathname;
+  if (isModuleEnabled('ui.shadcn')) cloak(where, false, 'late');
+  else if (cloaksWithoutRedesign(where)) cloak(where, false, 'none');
 }
 
 // Shown: a fresh snapshot of it for the next visit's skeleton (with the redesign only)

@@ -12,10 +12,11 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { gmXmlhttpRequestWithRetries, isAbortError } from '../../utils/http';
 import { getApiUrl } from '../../utils/helpers';
 import { el } from '../../utils/dom';
-import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
+import { button, collapseAway, ensureKit, kitIcon, kitScope, skeleton, swapIn } from '../../ui/kit';
 import { t } from '../../i18n';
 import { cachedCreatorOverview } from '../../api/creatorOverviewCache';
-import { holdCloak } from '../../core/cloak';
+import { holdCloak, isCloaked } from '../../core/cloak';
+import { getModuleSetting, isModuleEnabled } from '../../core/registry';
 
 const OWN = 'kdl-sim';
 const COLLAPSED_KEY = 'mod.creators.similar.collapsed';
@@ -182,6 +183,26 @@ function build(items: Similar[], limit: number, favourites: Promise<unknown>): H
   return root;
 }
 
+// While the list is on its way: the strip's frame with shimmering chips, so the posts below do not move when it
+// arrives. Only where the site has a Similar creators tab (the list can exist), and not when the block is hidden.
+function placeholder(limit: number): HTMLElement | null {
+  if (!document.querySelector('.tabs a[href$="/recommended"]')) return null;
+  if (isModuleEnabled('creator.blockOrder') && getModuleSetting<boolean>('creator.blockOrder', 'hideSimilar') === true) return null;
+  ensureKit();
+  // An empty icon-sized box keeps the toggle's place: the head is as tall as the real one
+  const head = el('div', { className: `${OWN}__head` }, [
+    skeleton({ className: `${OWN}__ph-title` }),
+    el('span', { className: `${OWN}__ph-toggle` }),
+  ]);
+  const root = kitScope([head], { className: `${OWN} ${OWN}--loading` });
+  if (readStored<boolean>(COLLAPSED_KEY, false)) root.setAttribute('data-collapsed', '');
+  else root.append(el('div', { className: `${OWN}__scroll` }, Array.from({ length: Math.min(limit, 8) }, () => skeleton({ className: `${OWN}__chip ${OWN}__ph-chip` }))));
+  root.setAttribute('aria-busy', 'true');
+  return root;
+}
+
+const sectionsChanged = (): void => void document.dispatchEvent(new Event('kdl:creator-sections-changed'));
+
 async function start(ctx: ModuleContext): Promise<void> {
   const who = creatorFromPath();
   if (!who) return;
@@ -191,15 +212,37 @@ async function start(ctx: ModuleContext): Promise<void> {
   current = key;
   aborter?.abort();
   const controller = (aborter = new AbortController());
+  const limit = ctx.settings.get<number>('limit') || 12;
+  const ph = anchor() ? placeholder(limit) : null;
+  if (ph) {
+    strip = ph;
+    place();
+  }
+  // The placeholder gives way to nothing: its height folds away instead of vanishing in one frame
+  const drop = (): void => {
+    if (!ph || strip !== ph) return;
+    strip = null;
+    collapseAway(ph, sectionsChanged, { animate: !isCloaked() });
+  };
   try {
     const items = (await fetchSimilar(who.service, who.id, controller.signal)).filter((item) => !(item.service === who.service && item.id === who.id));
-    if (controller.signal.aborted || !items.length || !anchor()) return;
+    if (controller.signal.aborted) return;
+    if (!items.length || !anchor()) return drop();
     // Favourites only when there is a strip to star; they fail quietly without a session
     const favourites = getApiAdapter().fetchUserFavorites().catch(() => false);
-    strip = build(items, ctx.settings.get<number>('limit') || 12, favourites);
-    place();
+    const built = build(items, limit, favourites);
+    if (ph && strip === ph && ph.isConnected) {
+      // Filled in place: the chips take the placeholder's room
+      strip = built;
+      swapIn(ph, built, { animate: !isCloaked() });
+      sectionsChanged();
+    } else if (!ph || strip === ph) {
+      strip = built;
+      place();
+    }
   } catch (error) {
     if (!isAbortError(error)) ctx.log('similar creators failed', error);
+    if (!controller.signal.aborted) drop();
   }
 }
 
@@ -235,6 +278,10 @@ const STYLES = `
 .${OWN}__fav--on { color: var(--kdl-primary); }
 .${OWN}__fav--on svg { fill: currentColor; }
 @media (max-width: 600px) { .${OWN}__chip { width: 168px; } }
+/* Placeholder (see placeholder()): the strip's boxes, a chip as tall as a real one (avatar or two text lines, padding, border) */
+.${OWN}__head .${OWN}__ph-title { width: 120px; height: 14px; margin-right: auto; border-radius: 4px; }
+.${OWN}__head .${OWN}__ph-toggle { flex: 0 0 auto; width: 36px; height: 36px; }
+.${OWN}__chip.${OWN}__ph-chip { height: 56px; border-color: transparent; }
 `;
 
 export const similarCreatorsModule: KdlModule = {

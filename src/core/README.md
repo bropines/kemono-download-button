@@ -78,7 +78,7 @@ Rules:
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
   (kemono.cr renders late).
-- **Page cloak** (`cloak.ts`, redesign on only): the children of `#main` are hidden (opacity) from document
+- **Page cloak** (`cloak.ts`, redesign on; with it off only on the pages our modules still rework in the flow, creator/post/tag pages (`cloaksWithoutRedesign`), and without a skeleton): the children of `#main` are hidden (opacity) from document
   start, and from each page-level htmx swap or history restore, until the router has mounted and updated
   the modules; revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar
   creators, the creator overview, post info) so cached data lands in the first frame; holds delay the reveal

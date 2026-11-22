@@ -21,6 +21,7 @@ import { progressStyles } from './primitives/progress.styles';
 import { scrollAreaStyles } from './primitives/scrollArea.styles';
 import { kbdStyles } from './primitives/kbd.styles';
 import { emptyStateStyles } from './primitives/emptyState.styles';
+import { skeletonStyles } from './primitives/skeleton.styles';
 
 /** Every kit rule, tokens and reset first so component rules win at equal specificity. */
 export const kitStyles = [
@@ -47,6 +48,7 @@ export const kitStyles = [
   scrollAreaStyles,
   kbdStyles,
   emptyStateStyles,
+  skeletonStyles,
 ].join('\n');
 
 /** Splits a selector list on top-level commas (not the ones inside :is()/:where()). */

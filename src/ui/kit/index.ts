@@ -15,6 +15,7 @@ export * from './behaviors/focusTrap';
 export * from './behaviors/dismissable';
 export * from './behaviors/position';
 export * from './behaviors/modal';
+export * from './behaviors/reserve';
 
 export * from './primitives/button';
 export * from './primitives/input';
@@ -37,6 +38,7 @@ export * from './primitives/progress';
 export * from './primitives/scrollArea';
 export * from './primitives/kbd';
 export * from './primitives/emptyState';
+export * from './primitives/skeleton';
 
 const LIGHT_STYLE_ID = 'kdl-kit-styles';
 

@@ -28,12 +28,13 @@ const api = {
 };
 const imports = {
   '../../utils/dom': { el: element },
-  '../../ui/kit': { ensureKit() {}, kitIcon: () => element('i', {}), kitScope: (children, attrs) => element('div', attrs, children) },
+  '../../ui/kit': { ensureKit() {}, kitIcon: () => element('i', {}), kitScope: (children, attrs) => element('div', attrs, children), swapIn() {}, collapseAway(node, done) { node.remove(); if (done) done(); } },
   '../../api/kemonoApi': api,
   '../../i18n': { t: key => key },
   './order': { orderOverviewSections: sections => ({ nodes: sections.map(section => section.node), cleanup() {} }) },
-  '../../core/registry': { getModuleSetting: () => true },
-  '../../core/cloak': { holdCloak() {} },
+  '../../core/registry': { getModuleSetting: () => true, isModuleEnabled: () => false },
+  '../../i18n/site': { originalText: () => '' },
+  '../../core/cloak': { holdCloak() {}, isCloaked: () => false },
   '../../state/store': { getSettings: () => Promise.resolve() },
 };
 const location = { pathname: '/fanbox/user/1', search: '' };

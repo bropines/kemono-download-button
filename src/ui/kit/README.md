@@ -40,6 +40,15 @@ call-site override needs two classes too (`.post-card-download-controls .kdl-ui-
 `.kdl-tokens` carries only the variables (no reset), for markup the kit must not reset: Plyr's player
 (`kuiPlyr.styles` maps `--plyr-*` to kit tokens) and the site's comment cards.
 
+## Blocks that arrive late
+
+A block injected into the page flow whose data comes later (API, fetch) must not push the page when it lands.
+Put a placeholder of its final size in at once, built from `skeleton()` (a shimmering box; size it with a class
+or `width`/`height`), then `swapIn(placeholder, block)` fills the place, or `collapseAway(placeholder)` folds it
+when there is nothing to show. Both ease the height over 200 ms when it changes (never with reduced motion);
+pass `{ animate: !isCloaked() }` so a page that is not shown yet changes at once. Reserve only what can exist (a
+module that is off, a hidden block or a tab the site does not have reserves nothing).
+
 ## Theme
 
 Tokens are `--kdl-*` CSS variables (`--kdl-background`, `--kdl-primary`, `--kdl-radius`, `--kdl-font`...).

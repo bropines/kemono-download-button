@@ -245,6 +245,9 @@ export const kuiMainStyles = css({
     width: '100%',
     maxWidth: '100%',
     maxHeight: '85vh',
+    // Room for a 16:9 picture until the video's own size is known (set inline on loadedmetadata): the player
+    // used to start 150px tall and push the rest of the post down when the metadata came in
+    aspectRatio: '16 / 9',
   },
   /* Embeds & Attachments Buttons (kit outline buttons; the host keeps only a favicon or a dot in its colour) */
   '.kui-embed-container': {
