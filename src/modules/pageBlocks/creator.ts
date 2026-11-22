@@ -22,6 +22,8 @@ const members = (section: OverviewSection): HTMLElement[] => section.members ?? 
 // A moved node restarts its animations, so the page visibly rebuilds: a block already in place is never touched.
 function putBefore(root: Element, nodes: HTMLElement[], before: Element | null): void {
   let ref = before;
+  // One of the nodes may stand there now
+  while (ref && nodes.includes(ref as HTMLElement)) ref = ref.nextElementSibling;
   for (let i = nodes.length - 1; i >= 0; i--) {
     const node = nodes[i];
     if (node.parentElement !== root || node.nextElementSibling !== ref) root.insertBefore(node, ref);
