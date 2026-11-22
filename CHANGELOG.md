@@ -5,6 +5,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Added
+- Sidebar sections fold like tree branches: a click on a section heading hides or shows its links, the choice is remembered, and the link of the current page stays visible.
 - **Infinite scroll** (module, off by default): post lists, popular posts, creator posts, DMs and favourites load the next page by themselves as you reach the end, with a "Load more" fallback and a limit after which it asks; Back returns to the same card. Pawchive's creator list pages in the browser and is left as it is.
 - **About** in Settings → General: version, what's new, links to GitHub, releases, changelog, bug reports, translations and the creator links dataset, and a link to support the project on Boosty.
 - **Faster navigation** (module, on by default): the next page starts loading the moment you press a link instead of when you release it; optionally also when the pointer rests on a link. The site gets the same requests.
@@ -23,6 +24,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- The sidebar Community section no longer blinks on every page change.
+- Creators list: the first rows no longer animate in twice (the site draws that list again with its own script).
+- Creator overview: on a first visit, shimmering placeholders hold its place until the announcement and tags arrive, so the posts below no longer jump.
 - Creator pages: the posts grid is no longer taken out and rebuilt (with its entry animation) up to five times per page change when the overview, similar creators or other blocks arrive; the overview is present from the first frame within a creator.
 - Home page: the sidebar no longer disappears for a second behind the background art during the page transition.
 - An error repeated on every page after opening a post with a video and going back.

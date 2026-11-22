@@ -119,6 +119,7 @@ export default {
   'faq.empty': 'No answers match.',
 
   // ui.shadcn: confirmation before Logout
+  'sidebar.toggleSection': 'Show or hide this section',
   'sk.logout.title': 'Log out of {site}?',
   'sk.logout.description': 'You will need to log in again to see your favorites and imports.',
   'sk.logout.confirm': 'Log out',

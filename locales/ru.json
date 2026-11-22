@@ -981,7 +981,8 @@
     "mod.lists.infiniteScroll.setting.auto": "Подгружать автоматически при прокрутке",
     "mod.lists.infiniteScroll.setting.auto.hint": "Если выключено, в конце списка будет кнопка «Загрузить ещё».",
     "mod.lists.infiniteScroll.setting.maxCards": "Спрашивать, прежде чем загрузить больше стольких карточек",
-    "mod.lists.infiniteScroll.setting.maxCards.hint": "После этого числа — кнопка «Загрузить ещё», чтобы долгая прокрутка не тормозила."
+    "mod.lists.infiniteScroll.setting.maxCards.hint": "После этого числа — кнопка «Загрузить ещё», чтобы долгая прокрутка не тормозила.",
+    "sidebar.toggleSection": "Показать или скрыть раздел"
   },
   "site": {
     "Home": "Главная",
@@ -1354,6 +1355,7 @@
     "This needs to be set to the": "Укажите",
     "of the last device that logged into your OnlyFans account; leave it as the default value if you are on it right now.": "устройства, с которого последний раз входили в аккаунт OnlyFans; если это текущее устройство, оставьте значение по умолчанию.",
     "YYYY-MM-DD": "ГГГГ-ММ-ДД",
-    "Revisions": "Версии"
+    "Revisions": "Версии",
+    "No linked accounts found.": "Связанных аккаунтов не найдено."
   }
 }

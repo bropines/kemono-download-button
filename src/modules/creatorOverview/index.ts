@@ -121,6 +121,47 @@ function build(who: Who, data: Overview): HTMLElement | null {
   return kitScope(ordered.nodes, { className: OWN });
 }
 
+// While the first answer for a creator is on its way: shimmering placeholders where its sections will be, so the
+// posts below do not jump when they arrive. Only sections that can exist: the tabs tell which kinds the site
+// has, and the Linked accounts tab carries a count.
+const want = (key: string): boolean => getModuleSetting<boolean>(MODULE_ID, key) !== false;
+function tabCount(suffix: string): number | null {
+  const tab = document.querySelector(`.tabs a[href$="/${suffix}"]`);
+  if (!tab) return null;
+  const m = /((d+))/.exec(tab.textContent || '');
+  return m ? Number(m[1]) : -1;
+}
+function placeholder(): HTMLElement | null {
+  const bar = (cls: string): HTMLElement => el('span', { className: `${OWN}__ph ${cls}` });
+  const parts: HTMLElement[] = [];
+  if (want('announcements') && tabCount('announcements') !== null) {
+    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`), bar(`${OWN}__ph-card`)]));
+  }
+  if (want('tags') && tabCount('tags') !== null) {
+    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`),
+      el('div', { className: `${OWN}__scroll` }, Array.from({ length: 10 }, () => bar(`${OWN}__ph-pill`)))]));
+  }
+  const links = tabCount('links');
+  if (want('links') && links !== null && links !== 0) {
+    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`),
+      el('div', { className: `${OWN}__scroll` }, Array.from({ length: Math.min(Math.max(links, 1), 4) }, () => bar(`${OWN}__ph-chip`)))]));
+  }
+  if (!parts.length) return null;
+  ensureKit();
+  const node = kitScope(parts, { className: `${OWN} ${OWN}--loading` });
+  node.setAttribute('aria-busy', 'true');
+  return node;
+}
+
+/** The placeholder gives way to nothing: it folds its height away instead of vanishing in one frame */
+function collapse(ph: HTMLElement): void {
+  ph.style.overflow = 'hidden';
+  ph.style.height = `${ph.offsetHeight}px`;
+  ph.style.transition = 'height 0.2s ease, margin 0.2s ease, opacity 0.2s ease';
+  requestAnimationFrame(() => { ph.style.height = '0'; ph.style.margin = '0'; ph.style.opacity = '0'; });
+  setTimeout(() => { ph.remove(); document.dispatchEvent(new Event('kdl:creator-sections-changed')); }, 240);
+}
+
 function place(): void {
   if (!node) return;
   const where = document.querySelector('.kdl-sim') || document.querySelector('.kdl-sk-tabs-row') || document.querySelector('header.user-header');
@@ -179,6 +220,15 @@ async function render(ctx: ModuleContext): Promise<void> {
     place();
     if (!known.failed) return;
   }
+  // First visit: placeholders hold the space until the answer arrives
+  let ph: HTMLElement | null = null;
+  if (!known) {
+    ph = placeholder();
+    if (ph) {
+      node = ph;
+      place();
+    }
+  }
   // First visit, or a part failed last time: ask (again); the block is only rebuilt when the answer differs
   pending = key;
   const request = generation;
@@ -186,6 +236,19 @@ async function render(ctx: ModuleContext): Promise<void> {
   remember(id, data);
   if (request !== generation) return;
   pending = '';
+  if (ph && ph.isConnected) {
+    const built = build(who, data);
+    if (built) {
+      ph.replaceWith(built);
+      node = built;
+      document.dispatchEvent(new Event('kdl:creator-sections-changed'));
+    } else {
+      node = null;
+      collapse(ph);
+    }
+    if (!node && data.failed) setTimeout(() => { if (current === key && !node) current = ''; }, RETRY_MS);
+    return;
+  }
   if (known && same(known, data)) return;
   if (known) {
     remove();
@@ -198,6 +261,14 @@ async function render(ctx: ModuleContext): Promise<void> {
 }
 
 const STYLES = `
+/* Loading placeholders (see placeholder()) */
+.${OWN}__ph { display: block; flex: 0 0 auto; border-radius: var(--kdl-radius); background: linear-gradient(90deg, var(--kdl-muted) 0%, color-mix(in srgb, var(--kdl-muted) 55%, var(--kdl-foreground) 8%) 50%, var(--kdl-muted) 100%) 0 0 / 200% 100%; animation: kdl-ov-shimmer 1.4s ease-in-out infinite; }
+.${OWN}__ph-title { width: 110px; height: 14px; margin-bottom: 8px; border-radius: 4px; }
+.${OWN}__ph-card { height: 86px; }
+.${OWN}__ph-pill { width: 92px; height: 1.875rem; border-radius: 9999px; }
+.${OWN}__ph-chip { width: 200px; height: 50px; }
+@keyframes kdl-ov-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .${OWN}__ph { animation: none; } }
 .${OWN} { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; min-width: 0; max-width: 100%; contain: inline-size; }
 .${OWN}__head { display: flex; align-items: center; margin-bottom: 6px; }
 .${OWN}__head .${OWN}__title { margin-right: auto; }

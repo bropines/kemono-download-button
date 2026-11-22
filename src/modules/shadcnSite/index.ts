@@ -29,6 +29,7 @@ import { formsCss } from './css/forms';
 import { pagesCss } from './css/pages';
 import { shadcnCreatorTransform, shadcnPagesTransform } from './pages';
 import { communityLinks, installLogoutConfirm } from './chrome';
+import { decorateSidebarSections, installSidebarSections, sidebarSectionsCss, syncCollapsedSections } from './sidebarSections';
 import { ACCENT_OPTIONS, BASE_OPTIONS, SURFACE_OPTIONS, paletteCss } from './palette';
 
 export const SHADCN_ID = 'ui.shadcn';
@@ -241,7 +242,7 @@ export const shadcnSiteModule: KdlModule = {
       hint: 'Over the page: the sidebar starts closed, opens from the menu button and closes on a click outside it.',
     },
   ],
-  styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss()),
+  styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss() + sidebarSectionsCss()),
   mount(ctx) {
     setFlag(true);
     const get: SettingGetter = (key) => ctx.settings.get(key);
@@ -262,6 +263,7 @@ export const shadcnSiteModule: KdlModule = {
     communityLinks.mount?.(ctx);
     ctx.onCleanup(() => communityLinks.unmount?.(ctx));
     ctx.onCleanup(installLogoutConfirm());
+    ctx.onCleanup(installSidebarSections());
     ctx.onCleanup(clearLayout);
     ctx.onCleanup(() => {
       document.documentElement.style.removeProperty(WIDTH_VAR);
@@ -283,14 +285,16 @@ export const shadcnSiteModule: KdlModule = {
     labelHeaderLinks();
     syncPalette((key) => ctx.settings.get(key));
     communityLinks.update?.(ctx);
+    decorateSidebarSections();
   },
-  beforeSnapshot() {
-    communityLinks.beforeSnapshot?.();
-  },
+  // The sidebar is outside the swapped content: its entries are not taken out before an htmx snapshot (that made
+  // the Community section blink on every page change); adding them again is a no-op when they are there
+  beforeSnapshot() {},
   // A new tab is painted with the skin's flag, palette and width already in place
   early() {
     const get: SettingGetter = (key) => getModuleSetting(SHADCN_ID, key);
     setFlag(true);
+    syncCollapsedSections();
     syncPalette(get);
     syncWidth(get);
     syncLayout(get);

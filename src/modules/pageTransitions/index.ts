@@ -200,7 +200,9 @@ function styles(): string {
     .map((direction) => `${on(direction)} ${MOVED} { animation: kdl-page-in-${direction} ${ENTER_MS}ms ${EASE} backwards; }`)
     .join('\n');
   const stagger = Array.from({ length: BLOCKS - 1 }, (_, i) => `html[${ENTER}] #main > :nth-child(${i + 2}) { animation-delay: ${(i + 1) * STAGGER_MS}ms; }`).join('\n');
-  const grid = 'html[' + ENTER + '] #main :is(.card-list__items, .kui-gallery-layout)';
+  // Creator lists are left out: the site renders /artists (and its sorts and searches) again with its own script
+  // right after the page arrives, and the replaced cards would cascade in a second time
+  const grid = 'html[' + ENTER + '] #main :is(.card-list__items:not(:has(> .user-card)), .kui-gallery-layout)';
   const cards = Array.from({ length: CARDS }, (_, i) => `${grid} > :nth-child(${i + 1}) { animation-delay: ${CARD_DELAY_MS + i * CARD_STAGGER_MS}ms; }`).join('\n');
   const leaving = (Object.keys(AWAY) as Direction[])
     .map((direction) => `html[${LEAVE}="${direction}"] ${MOVED} { transform: ${AWAY[direction]}; }`)
