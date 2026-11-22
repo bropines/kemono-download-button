@@ -13,6 +13,8 @@ import type { KdlModule } from '../../core/types';
 const LEAVE = 'data-kdl-leave';
 const ENTER = 'data-kdl-enter';
 const STILL = 'data-kdl-still';
+const FIXED = 'data-kdl-fixed';
+const PART = 'data-kdl-part';
 type Direction = 'next' | 'prev' | 'in' | 'out';
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -73,17 +75,41 @@ function currentTabs(): string[] {
     .filter(Boolean);
 }
 
-// Top-level blocks of #main with a fixed-position element inside: animated by opacity only
+// A top-level block of #main with a fixed-position element inside (the home page's full-screen background art)
+// is never animated itself: an animated opacity, transform or filter makes the block a stacking context and the
+// containing block of its fixed elements, so the art, which sits behind everything (z-index: -1), was painted
+// over the sidebar for the length of the animation (the sidebar showed, went, and came back) and shrunk to the
+// block. Instead the fixed element fades on its own (it is a stacking context already, so it stays behind) and
+// the block's other parts move the way blocks do.
 const MAX_SCAN = 5000;
 function markStill(): void {
   const main = document.querySelector('#main');
   if (!main) return;
+  main.querySelectorAll(`[${FIXED}], [${PART}]`).forEach((node) => {
+    node.removeAttribute(FIXED);
+    node.removeAttribute(PART);
+  });
   let budget = MAX_SCAN;
   for (const block of Array.from(main.children)) {
-    let still = getComputedStyle(block).position === 'fixed';
-    const walker = document.createTreeWalker(block, NodeFilter.SHOW_ELEMENT);
-    while (!still && budget-- > 0 && walker.nextNode()) still = getComputedStyle(walker.currentNode as Element).position === 'fixed';
-    block.toggleAttribute(STILL, still);
+    const fixed: Element[] = [];
+    if (getComputedStyle(block).position !== 'fixed') {
+      const walker = document.createTreeWalker(block, NodeFilter.SHOW_ELEMENT);
+      while (budget-- > 0 && walker.nextNode()) {
+        const node = walker.currentNode as Element;
+        if (getComputedStyle(node).position === 'fixed' && !fixed.some((outer) => outer.contains(node))) fixed.push(node);
+      }
+    }
+    block.toggleAttribute(STILL, fixed.length > 0);
+    if (!fixed.length) continue;
+    // The parts: everything beside the fixed elements and beside their ancestors, up to the block
+    const onPath = new Set<Element>();
+    fixed.forEach((node) => {
+      node.setAttribute(FIXED, '');
+      for (let up = node.parentElement; up && up !== main; up = up.parentElement) onPath.add(up);
+    });
+    onPath.forEach((ancestor) => {
+      for (const child of Array.from(ancestor.children)) if (!onPath.has(child) && !child.hasAttribute(FIXED)) child.setAttribute(PART, '');
+    });
   }
 }
 
@@ -131,14 +157,16 @@ function styles(): string {
   const keyframes = (Object.keys(FROM) as Direction[])
     .map((direction) => `@keyframes kdl-page-in-${direction} { from { opacity: 0; transform: ${FROM[direction]}; filter: blur(3px); } }`)
     .join('\n');
+  // What moves: the top-level blocks, and inside a block that has to stay still, its parts
+  const MOVED = `:is(#main > :not([${STILL}]), #main > [${STILL}] [${PART}])`;
   const blocks = (Object.keys(FROM) as Direction[])
-    .map((direction) => `${on(direction)} #main > * { animation: kdl-page-in-${direction} ${ENTER_MS}ms ${EASE} backwards; }`)
+    .map((direction) => `${on(direction)} ${MOVED} { animation: kdl-page-in-${direction} ${ENTER_MS}ms ${EASE} backwards; }`)
     .join('\n');
   const stagger = Array.from({ length: BLOCKS - 1 }, (_, i) => `html[${ENTER}] #main > :nth-child(${i + 2}) { animation-delay: ${(i + 1) * STAGGER_MS}ms; }`).join('\n');
   const grid = 'html[' + ENTER + '] #main :is(.card-list__items, .kui-gallery-layout)';
   const cards = Array.from({ length: CARDS }, (_, i) => `${grid} > :nth-child(${i + 1}) { animation-delay: ${120 + i * CARD_STAGGER_MS}ms; }`).join('\n');
   const leaving = (Object.keys(AWAY) as Direction[])
-    .map((direction) => `html[${LEAVE}="${direction}"] #main > * { transform: ${AWAY[direction]}; }`)
+    .map((direction) => `html[${LEAVE}="${direction}"] ${MOVED} { transform: ${AWAY[direction]}; }`)
     .join('\n');
   return `
 @media (prefers-reduced-motion: no-preference) {
@@ -148,12 +176,11 @@ ${blocks}
 ${stagger}
 ${grid} > * { animation: kdl-card-in 520ms ${EASE} backwards; animation-delay: ${120 + CARDS * CARD_STAGGER_MS}ms; }
 ${cards}
-/* A block holding fixed elements (the home page's full-screen background) only fades: a transform or filter
-   on it would make it their containing block, shrinking them to the block for the length of the animation */
-html[${ENTER}] #main > [${STILL}] { animation-name: kdl-page-fade; }
-html[${LEAVE}] #main > [${STILL}] { transform: none; filter: none; }
+/* Fixed elements (the home page's full-screen background) fade on their own: see markStill */
+html[${ENTER}] #main [${FIXED}] { animation: kdl-page-fade ${ENTER_MS}ms ease-out backwards; }
+html[${LEAVE}] #main [${FIXED}] { opacity: 0.4; transition: opacity 220ms ease; }
 @keyframes kdl-page-fade { from { opacity: 0; } }
-html[${LEAVE}] #main > * { opacity: 0.4; filter: saturate(0.6); transition: opacity 220ms ease, transform 320ms ${EASE}, filter 220ms ease; }
+html[${LEAVE}] ${MOVED} { opacity: 0.4; filter: saturate(0.6); transition: opacity 220ms ease, transform 320ms ${EASE}, filter 220ms ease; }
 ${leaving}
 }
 `;
