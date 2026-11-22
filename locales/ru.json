@@ -952,7 +952,22 @@
     "mod.nav.prefetch.name": "Быстрые переходы",
     "mod.nav.prefetch.description": "Следующая страница начинает загружаться в момент нажатия на ссылку, а не когда кнопку отпускают, и готовый ответ отдаётся сайту, когда он её запросит. Число запросов к сайту не меняется.",
     "mod.nav.prefetch.setting.hover": "Ещё и при наведении на ссылку",
-    "mod.nav.prefetch.setting.hover.hint": "Страницы, на которые вы наводите курсор, начинают загружаться заранее. Быстрее, но сайт получает запросы и тех страниц, которые вы можете не открыть. Выключено в режиме экономии трафика."
+    "mod.nav.prefetch.setting.hover.hint": "Страницы, на которые вы наводите курсор, начинают загружаться заранее. Быстрее, но сайт получает запросы и тех страниц, которые вы можете не открыть. Выключено в режиме экономии трафика.",
+    "settings.about.section": "О проекте",
+    "settings.about.name": "Kemono & Pawchive Download Button",
+    "settings.about.description": "Скачивает посты, файлы и авторов целиком с Kemono, Coomer и Pawchive и переоформляет сам сайт. Бесплатно и с открытым кодом.",
+    "settings.about.whatsNew": "Что нового в {version}",
+    "settings.about.link.github": "GitHub",
+    "settings.about.link.releases": "Релизы",
+    "settings.about.link.changelog": "Список изменений",
+    "settings.about.link.bug": "Сообщить о баге",
+    "settings.about.link.translations": "Переводы",
+    "settings.about.link.creatorLinks": "База связей авторов",
+    "settings.about.donate.title": "Поддержать проект",
+    "settings.about.donate.description": "Скрипт бесплатный. Если он экономит вам время, можно поддержать разработку.",
+    "sk.logout.title": "Выйти из {site}?",
+    "sk.logout.description": "Чтобы снова видеть избранное и импорты, придётся войти заново.",
+    "sk.logout.confirm": "Выйти"
   },
   "site": {
     "Home": "Главная",
