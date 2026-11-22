@@ -345,6 +345,8 @@ export function populateManagerList(posts: any[]): void {
     const preview = mainFilePath
       ? el('img', { src: getThumbnailUrl(mainFilePath), className: 'kdl-ov-manager__thumb', loading: 'lazy', alt: '' })
       : el('div', { className: 'kdl-ov-manager__thumb' });
+    // A thumbnail that fails to load (video, deleted file) shows the muted placeholder, not the broken-image icon
+    preview.addEventListener('error', () => preview.replaceWith(el('div', { className: 'kdl-ov-manager__thumb' })), { once: true });
 
     const postUrl = getApiUrl(`/${post.service}/user/${post.user}/post/${post.id}`);
     const box = checkbox({ ariaLabel: postTitle });
