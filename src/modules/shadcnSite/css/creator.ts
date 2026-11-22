@@ -3,7 +3,11 @@
 
 export const creatorCss = (): string => `
 /* Creator tabs on their own row under the header (moved out of the paginator, see pages.ts) */
-.kdl-sk-tabs-row { display: flex; justify-content: center; margin: 12px 0 4px; }
+.kdl-sk-tabs-row { display: flex; justify-content: center; margin: 16px 0 12px; }
+/* "Link another account" on the linked accounts tab */
+#add-new-link { max-width: 768px; margin: 0 auto 12px; text-align: center; font-size: 13px; }
+#add-new-link a { color: var(--kdl-muted-foreground); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: color-mix(in srgb, currentColor 40%, transparent); transition: color 0.15s ease; }
+#add-new-link a:is(:hover, :focus-visible) { color: var(--kdl-foreground); text-decoration-color: currentColor; }
 .kdl-sk-tabs-row > .tabs { margin: 0; }
 .paginator:not(:has(> *)) { display: none; }
 .user-header {
@@ -162,10 +166,25 @@ export const creatorCss = (): string => `
   background: color-mix(in srgb, var(--kdl-danger) 12%, var(--kdl-background));
   color: var(--kdl-danger);
 }
+/* Strips under the tabs (similar creators, overview): the scrolling rows fade out at the right edge while there is
+   more to scroll, so a chip is never cut off without a hint. Scroll-driven, so without support they simply stay hard-edged */
+@property --kdl-sk-fade { syntax: '<length>'; inherits: false; initial-value: 28px; }
+@keyframes kdl-sk-fade-end { from, 92% { --kdl-sk-fade: 28px; } to { --kdl-sk-fade: 0px; } }
+@supports (animation-timeline: scroll()) {
+  .kdl-sim__scroll, .kdl-ov__scroll {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - var(--kdl-sk-fade)), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--kdl-sk-fade)), transparent);
+    animation: kdl-sk-fade-end linear both;
+    animation-timeline: scroll(self inline);
+  }
+}
+.kdl-sim__title, .kdl-ov__title { letter-spacing: 0; }
 /* Phones: the name sits beside the avatar, the actions get their own full-width row of equal buttons
    (the favourite one shows just its star) instead of a stack of wide buttons */
 @media (max-width: 600px) {
   .user-header__info { display: contents; }
+  /* The post-count badge closes the card under the buttons */
+  .user-header__info > .kdl-info { grid-column: 1 / -1; grid-row: 4; margin: -4px 0 0; padding: 0 16px 16px; }
   .user-header__name { grid-column: 2; grid-row: 2; align-self: center; min-width: 0; padding: 8px 16px 8px 12px; }
   .user-header__actions { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: nowrap; gap: 8px; padding: 0 16px 16px; }
   .user-header__actions > * { flex: 1 1 0; min-width: 0; }

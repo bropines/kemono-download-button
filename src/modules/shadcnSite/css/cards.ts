@@ -144,7 +144,9 @@ export const cardsCss = (): string => `
   letter-spacing: 0.01em;
 }
 .user-card__name { padding: 0; color: var(--kdl-foreground); font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
-.user-card__count, .user-card__updated { color: color-mix(in srgb, var(--kdl-foreground) 75%, transparent); font-size: 12px; }
+/* The site's banner image sits behind the text: a soft shadow keeps it readable on bright banners */
+.user-card__count, .user-card__updated { color: color-mix(in srgb, var(--kdl-foreground) 85%, transparent); font-size: 12px; }
+.user-card__name, .user-card__count, .user-card__updated { text-shadow: 0 1px 3px rgb(0 0 0 / 0.55); }
 
 /* Other site cards: DMs, generic cards, account cards */
 .card, .dm-card, .account-card, .desc-list, .jumbo, .navigation__list--local {
@@ -155,6 +157,9 @@ export const cardsCss = (): string => `
 }
 .card:is(:hover, :focus-within), .dm-card:is(:hover, :focus-within) { border-color: var(--kdl-hover-ring); box-shadow: 0 0 0 1px var(--kdl-hover-ring); }
 .card--no-results:hover { border-color: var(--kdl-border); box-shadow: none; }
+/* DM and announcement cards in a grid of readable columns (the DM viewer module refines them on /dms) */
+.card-list__items:has(> .dm-card) { display: grid !important; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)) !important; align-items: stretch; gap: 12px; }
+.card-list__items > .dm-card { width: auto !important; max-width: none; min-width: 0; margin: 0; }
 .dm-card > * { padding: 12px 16px; }
 .dm-card__content { color: color-mix(in srgb, var(--kdl-foreground) 90%, transparent); line-height: 1.6; }
 /* Tag clouds (site tags, creator tags) and announcements */
