@@ -268,6 +268,24 @@ export function unmountPageScoped(): void {
   });
 }
 
+/**
+ * An in-place navigation is under way: the address already names the next page, its modules are not mounted
+ * yet (the content is still loading, or was just swapped in). Runs their document-start hooks, as bootEarly does
+ * for a fresh load: attributes the first frame depends on are set, and requests the URL names are on their way
+ * (mount picks up the same promise).
+ */
+export function bootEarlyFor(page: PageInfo): void {
+  ordered().forEach((r) => {
+    const { def } = r;
+    if (!def.early || r.mounted || !isEligible(def.id) || !matchesPage(def, page)) return;
+    try {
+      def.early();
+    } catch (error) {
+      console.error(`[KDL] early setup of ${def.id} failed:`, error);
+    }
+  });
+}
+
 export function updateMounted(): void {
   ordered().forEach((r) => {
     if (!r.mounted || !r.ctx) return;
