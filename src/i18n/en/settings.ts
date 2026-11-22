@@ -32,7 +32,7 @@ export default {
   'settings.general.api.label': 'Use the site API',
   'settings.general.api.description': 'Fetch posts through the fast REST API instead of parsing HTML pages.',
   'settings.general.cacheSection': 'Cache',
-  'settings.general.cache.duration': 'Post list cache duration (hours)',
+  'settings.general.cache.duration': 'Download and creator list cache (hours)',
   'settings.general.cache.durationDescription': '0 disables caching.',
   'settings.general.cache.loading': 'Cached data: loading…',
   'settings.general.cache.stats': '{count, plural, one{Cached data: # entry ({size} MB)} other{Cached data: # entries ({size} MB)}}',
