@@ -12,6 +12,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - **API cache**: creator profiles, posts, comments, tags, links, announcements, similar creators and searches are reused for a while (from minutes for searches to a day for posts) and refreshed in the background, so revisits make far fewer requests. Settings → General → Cache sets the lifetime (off, short, normal, long) and clears it. Favourites and account data are never cached; downloads never use a stale copy.
 
 ### Changed
+- Switching a creator's tabs or pages (and Back/Forward between them) replaces only the part under the tabs: the header card and tabs stay put, keep the same height on every tab, and the clicked tab lights up at once.
 - Log out is red, sits apart at the end of the account section and asks for confirmation.
 - Contacts and API moved into the sidebar's Community section; the footer bar under every page is gone.
 - Russian translation of many more site texts: the home page welcome, contact, missing, empty lists, the creator links tab, DM card dates, and (from the site's open-source templates) favourites, DM review, keys, notifications, upload and login errors. "Missing" in the sidebar now reads "Ждут импорта".
