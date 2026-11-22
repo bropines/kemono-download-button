@@ -4,6 +4,7 @@ import { attachRuntime, bootEarlyFor, isModuleEnabled, snapshotMounted, syncModu
 import { cloak, onReveal, reveal } from './cloak';
 import { scheduleSkeletonCapture } from './skeletonStore';
 import { installLinkBoost } from './boostLinks';
+import { finishSectionSwap, installCreatorSwap, isSectionRequestSwap, isSectionSwap, planSectionSwap, takeSectionRestore } from './creatorSwap';
 
 let current: PageInfo;
 let root: Element;
@@ -128,6 +129,22 @@ function scheduleReconcile(delay = 50): void {
   }, delay);
 }
 
+// A page of the same creator swapped in under its header (src/core/creatorSwap.ts): the header and the tabs row
+// stay on screen, so the page is set up right now, in the task of the swap, not 50 ms or a settle later: the
+// modules' header additions and the skin's tabs row are back before the next frame is painted. Only the part
+// under the tabs is hidden until then (and given the skeleton if that takes long). For back/forward this runs
+// at htmx:historyRestore, in the task of the restore too, once its scroll position is known.
+function setUpSectionSwap(path: string | null): void {
+  finishSectionSwap();
+  cloak(path || window.location.pathname, false, 'late', true);
+  if (navTimer) clearTimeout(navTimer);
+  navTimer = null;
+  reconcile();
+  // Once more: blocks placed relative to the tabs row (similar creators, the overview) ran before the skin lifted
+  // the new tabs into it, which put them above the row; on screen that was the row jumping down and back
+  updateMounted();
+}
+
 // Unmount before the old DOM goes away, so modules can restore it (video player, gallery) while it still exists
 function leaveIfPathChanges(nextPath: string | null): void {
   if (nextPath === null || nextPath !== window.location.pathname) unmountPageScoped();
@@ -187,10 +204,24 @@ function installNavigationHooks(): void {
   document.addEventListener('htmx:beforeHistorySave', () => snapshotMounted());
   // Capture on window runs before the site's own beforeSwap listener on document (see keepOwnHeadNodes)
   window.addEventListener('htmx:beforeSwap', keepOwnHeadNodes, true);
+  // A page of the same creator only replaces the part under the tabs (src/core/creatorSwap.ts): decided before
+  // the other listeners look at the target. With the redesign only: its tabs row and its cloak are needed.
+  installCreatorSwap(() => isModuleEnabled('ui.shadcn') && isModuleEnabled('ui.shadcn.creator'));
+  window.addEventListener('htmx:beforeSwap', (event) => {
+    refreshRoot();
+    if (isModuleEnabled('ui.shadcn')) planSectionSwap(event, root, htmxNextPath(event));
+  }, true);
   document.addEventListener('htmx:beforeSwap', (event) => {
     if (swapReplacesPage(event)) leaveIfPathChanges(htmxNextPath(event));
   });
   document.addEventListener('htmx:afterSwap', (event) => {
+    if (isSectionSwap(event)) {
+      if (isSectionRequestSwap(event)) {
+        restoreScroll = null;
+        setUpSectionSwap(htmxNextPath(event));
+      } else finishSectionSwap();
+      return;
+    }
     if (writeEarlyPageAttributes(event)) {
       // A new page starts at the top (a history restore names its position after this, in htmx:historyRestore)
       restoreScroll = null;
@@ -226,7 +257,9 @@ function installNavigationHooks(): void {
     // Without a cloak (the redesign off) nothing announces the reveal: forget the position soon anyway (and do
     // not go back to it then: the user may be scrolling already)
     if (restoreScroll !== null) restoreTimer = setTimeout(() => (restoreScroll = null), 1500);
-    cloakNewPage();
+    // A cached page of the same creator went in under the kept header (src/core/creatorSwap.ts)
+    if (takeSectionRestore() && isModuleEnabled('ui.shadcn')) setUpSectionSwap(window.location.pathname);
+    else cloakNewPage();
     // htmx scrolls in a zero timeout it set just before this event: ours runs right after it
     scheduleReconcile(0);
   });

@@ -78,6 +78,13 @@ Rules:
   `<body>`) or top-level body changes count. Batched (120 ms debounce, 600 ms max wait, then rAF).
 - Page type comes from the URL; when the URL says `other`, the DOM is consulted, again on later mutations
   (kemono.cr renders late).
+- **Same-creator navigation** (`creatorSwap.ts`, redesign and its creator part on): a page of the same creator
+  (another tab, a page or search of the posts) replaces only what is under the header card and the tabs row.
+  In `htmx:beforeSwap` (or `htmx:historyCacheHit` for back/forward) htmx is pointed at the live section with the
+  answer's other children; the old ones go right after the history snapshot. The router then sets the page up in
+  the task of the swap (unmount, mount, update as usual), so the header's additions and the tabs row are back
+  before the first frame; `<html data-kdl-tail>` limits the cloak, the skeleton and the page transitions to the
+  part under the tabs. Anything unexpected falls back to the whole-page swap. A click on a tab marks it at once.
 - **Page cloak** (`cloak.ts`, redesign on only): the children of `#main` are hidden (opacity) from document
   start, and from each page-level htmx swap or history restore, until the router has mounted and updated
   the modules; revealed right before the next paint. A module may `holdCloak(promise)` from `mount` (similar

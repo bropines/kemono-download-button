@@ -407,6 +407,15 @@ function liftCreatorTabs(): void {
     row.setAttribute(MARK, 'tabs');
     paginator.before(row);
     row.append(tabs);
+    // The site marks no tab on some (the Tags tab): the one for this address, as the click already did
+    if (!tabs.querySelector('a.active')) {
+      const here = window.location.pathname.replace(/\/+$/, '');
+      const link = Array.from(tabs.querySelectorAll<HTMLAnchorElement>('a[href]')).find((a) => a.pathname.replace(/\/+$/, '') === here);
+      if (link) {
+        link.classList.add('active');
+        link.setAttribute(MARK, 'active');
+      }
+    }
   });
   // The creator block order waits for the tabs to leave the paginator before it moves the posts group
   if (lifted) document.dispatchEvent(new Event('kdl:creator-sections-changed'));
@@ -414,6 +423,10 @@ function liftCreatorTabs(): void {
 function undoCreatorTabs(): void {
   document.querySelectorAll(`[${MARK}="tabs"]`).forEach((row) => {
     const tabs = row.querySelector('.tabs');
+    tabs?.querySelectorAll(`a[${MARK}="active"]`).forEach((link) => {
+      link.classList.remove('active');
+      link.removeAttribute(MARK);
+    });
     const spot = tabs && tabSpots.get(tabs);
     if (tabs && spot?.isConnected) spot.replaceWith(tabs);
     if (tabs) tabSpots.delete(tabs);

@@ -57,13 +57,22 @@ function row(id: string, key: string, children: HTMLElement[]): HTMLElement {
 
 // ---- Creator ----
 
+// Post totals read from a creator's Posts tab (no search): the other tabs have no paginator count, and the row
+// under the name must not come and go (the header changing height) as the user moves between the tabs
+const totals = new Map<string, number>();
+
 /** "Showing 1 - 50 of 656" in the paginator, for sites whose profile has no counts */
-function paginatorTotal(): number | null {
+function paginatorTotal(key: string): number | null {
   // The site text may already be translated: read what the site wrote
   const text = originalText(document.querySelector('.paginator')).replace(/\s+/g, ' ');
   const match = /showing\s+[\d,.]+\s*[-–]\s*[\d,.]+\s+of\s+([\d,.]+)/i.exec(text);
   const value = match ? Number(match[1].replace(/[^\d]/g, '')) : NaN;
-  return Number.isFinite(value) && value > 0 ? value : null;
+  const postsTab = /^\/[^/]+\/user\/[^/?#]+\/?$/.test(window.location.pathname) && !new URLSearchParams(window.location.search).has('q');
+  if (Number.isFinite(value) && value > 0) {
+    if (postsTab) totals.set(key, value);
+    return value;
+  }
+  return totals.get(key) ?? null;
 }
 
 function tabHref(suffix: string): string | undefined {
@@ -91,14 +100,14 @@ function syncCreator(): Promise<unknown> | void {
   const [, service, id] = match;
   const key = `${service}/${id}`;
   creatorKey = key;
-  const total = paginatorTotal();
+  const total = paginatorTotal(key);
   const own = document.getElementById(CREATOR_ROW);
   if (own && own.dataset.kdlKey === `${key}|${total ?? ''}` && name.nextElementSibling === own) return;
   return loadProfile(service, id).then((profile) => {
     if (creatorKey !== key || !profile) return;
     const current = document.querySelector('h1.user-header__name');
     if (!current) return;
-    const node = creatorRow(service, id, profile, paginatorTotal());
+    const node = creatorRow(service, id, profile, paginatorTotal(key));
     document.getElementById(CREATOR_ROW)?.remove();
     if (node) current.after(node);
   });

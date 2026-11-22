@@ -11,7 +11,8 @@
 // keeps the animation on the main thread ("filter may move pixels"), which restyles and repaints the page every
 // frame; so does a cascade over every card of a long list, which is why only the first rows take part.
 
-import { isCloaked, onBeforeReveal, onCloak, onReveal } from '../../core/cloak';
+import { isCloaked, onBeforeReveal, onCloak, onReveal, setTail } from '../../core/cloak';
+import { canKeepHeader } from '../../core/creatorSwap';
 import type { KdlModule } from '../../core/types';
 
 const LEAVE = 'data-kdl-leave';
@@ -19,6 +20,7 @@ const ENTER = 'data-kdl-enter';
 const STILL = 'data-kdl-still';
 const FIXED = 'data-kdl-fixed';
 const PART = 'data-kdl-part';
+const KEPT = 'data-kdl-tail';
 type Direction = 'next' | 'prev' | 'in' | 'out';
 
 const EASE = 'cubic-bezier(0.16, 1, 0.3, 1)';
@@ -194,12 +196,18 @@ function styles(): string {
   const keyframes = (Object.keys(FROM) as Direction[])
     .map((direction) => `@keyframes kdl-page-in-${direction} { from { opacity: 0; transform: ${FROM[direction]}; } }`)
     .join('\n');
-  // What moves: the top-level blocks, and inside a block that has to stay still, its parts
-  const MOVED = `:is(#main > :not([${STILL}]), #main > [${STILL}] [${PART}])`;
+  // What moves: the top-level blocks, and inside a block that has to stay still, its parts. A page of the same
+  // creator (html[data-kdl-tail], src/core/creatorSwap.ts) keeps the header card and the tabs row where they
+  // are: only the blocks under them move
+  const MOVED = `:is(html:not([${KEPT}]) #main > :not([${STILL}]), html:not([${KEPT}]) #main > [${STILL}] [${PART}], html[${KEPT}] #main > :not(.site-section--user), html[${KEPT}] #main > .site-section--user > :not(.user-header, .kdl-sk-tabs-row))`;
   const blocks = (Object.keys(FROM) as Direction[])
     .map((direction) => `${on(direction)} ${MOVED} { animation: kdl-page-in-${direction} ${ENTER_MS}ms ${EASE} backwards; }`)
     .join('\n');
-  const stagger = Array.from({ length: BLOCKS - 1 }, (_, i) => `html[${ENTER}] #main > :nth-child(${i + 2}) { animation-delay: ${(i + 1) * STAGGER_MS}ms; }`).join('\n');
+  const stagger = [
+    ...Array.from({ length: BLOCKS - 1 }, (_, i) => `html[${ENTER}]:not([${KEPT}]) #main > :nth-child(${i + 2}) { animation-delay: ${(i + 1) * STAGGER_MS}ms; }`),
+    // Under the tabs row: the header and the row are the first two children
+    ...Array.from({ length: BLOCKS - 1 }, (_, i) => `html[${ENTER}][${KEPT}] #main > .site-section--user > :nth-child(${i + 4}) { animation-delay: ${(i + 1) * STAGGER_MS}ms; }`),
+  ].join('\n');
   // Creator lists are left out: the site renders /artists (and its sorts and searches) again with its own script
   // right after the page arrives, and the replaced cards would cascade in a second time
   const grid = 'html[' + ENTER + '] #main :is(.card-list__items:not(:has(> .user-card)), .kui-gallery-layout)';
@@ -240,7 +248,10 @@ export const pageTransitionsModule: KdlModule = {
       const detail = (event as CustomEvent).detail;
       if (!isPageRequest(detail)) return;
       const url = detail?.pathInfo?.finalRequestPath || detail?.pathInfo?.requestPath || detail?.requestConfig?.path;
-      if (url) leave(directionTo(String(url)));
+      if (!url) return;
+      // A page of the same creator: its header and tabs row will stay, so they do not lean away either
+      setTail(canKeepHeader(pathAndOffset(String(url))?.path ?? null));
+      leave(directionTo(String(url)));
     });
     // The page did not change after all
     const cancel = (): void => {

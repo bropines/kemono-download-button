@@ -11,6 +11,7 @@
 import { keepInHead } from './page';
 import { skeletonBaseCss, snapshotCss } from './skeleton';
 import { snapshotFor } from './skeletonStore';
+import type { SkeletonSnapshot } from './skeletonCapture';
 
 const ATTR = 'data-kdl-cloak';
 // Set once the first page is reworked (and kept): the optional preload userstyle (extras/kdl-preload.user.css),
@@ -33,7 +34,21 @@ const SKELETON_AFTER_MS = 140;
 const ON = `html[${SKELETON}]:is([${ATTR}], [data-kdl-enter]) #main`;
 // The children, not #main itself: a descendant with its own visibility: visible showed through a hidden #main.
 // The skeleton lives on #main's pseudo-elements, which `> *` does not reach.
-const HIDE = `html[${ATTR}] #main > *, html[${ATTR}] main > * { opacity: 0 !important; pointer-events: none !important; }`;
+// <html data-kdl-tail>: a page of the same creator came in under the header and tabs row, which stayed on screen
+// (src/core/creatorSwap.ts). Only what is under them is hidden, and the skeleton is cut off above the tabs row's
+// bottom edge (--kdl-sk-cut, in the skeleton's own coordinates) and moved by --kdl-sk-shift, so its content
+// lines up under the live tabs row when the snapshot's header was taller or shorter (see measureTail).
+const TAIL = 'data-kdl-tail';
+const HIDDEN = '{ opacity: 0 !important; pointer-events: none !important; }';
+const HIDE = `html[${ATTR}]:not([${TAIL}]) #main > *, html[${ATTR}]:not([${TAIL}]) main > * ${HIDDEN}
+html[${ATTR}][${TAIL}] #main > :not(.site-section--user), html[${ATTR}][${TAIL}] #main > .site-section--user > :not(.user-header, .kdl-sk-tabs-row) ${HIDDEN}`;
+const ON_TAIL = `html[${SKELETON}][${TAIL}]:is([${ATTR}], [data-kdl-enter]) #main`;
+function tailCss(snap: { grid?: { y: number } }): string {
+  const moved = 'transform: translate3d(0, var(--kdl-sk-shift, 0px), 0);';
+  const gridTop = snap.grid ? Math.round(snap.grid.y) : 0;
+  return `${ON_TAIL}::before { ${moved} clip-path: inset(max(0px, var(--kdl-sk-cut, 0px)) 0 0 0); }
+${ON_TAIL}::after { ${moved} clip-path: inset(max(0px, calc(var(--kdl-sk-cut, 0px) - ${gridTop}px)) 0 0 0); }`;
+}
 // While the page animates in (page transitions), the skeleton dissolves under it; with reduced motion, or
 // without the transitions' styles, it goes at once: never drawn over a page that is already shown
 const LEAVING = `html[${SKELETON}][data-kdl-enter]:not([${ATTR}]) #main`;
@@ -49,13 +64,18 @@ ${LEAVING}::before, ${LEAVING}::after { opacity: 0; }
 const cssBySnapshot = new WeakMap<object, string>();
 const NO_SKELETON = [HIDE, BASE].join('\n');
 
+// The snapshot the skeleton on screen is drawn from (measureTail lines it up)
+let shownSnap: SkeletonSnapshot | null = null;
+
 function cloakCss(path: string, builtinOnly: boolean): string {
+  shownSnap = null;
   try {
     const snap = snapshotFor(path, builtinOnly);
     if (!snap) return NO_SKELETON;
+    shownSnap = snap;
     let css = cssBySnapshot.get(snap);
     if (css === undefined) {
-      css = [HIDE, BASE, snapshotCss(ON, snap, `html[${ATTR}] #main`)].join('\n');
+      css = [HIDE, BASE, snapshotCss(ON, snap, `html[${ATTR}] #main`), tailCss(snap)].join('\n');
       cssBySnapshot.set(snap, css);
     }
     return css;
@@ -126,8 +146,9 @@ export function isCloaked(): boolean {
 
 /** Hides the page content until reveal() (or the failsafe), showing the skeleton of the page at `path`.
     `builtinOnly`: the first load under the preload userstyle, whose skeleton (a built-in one) is on screen.
-    `skeleton`: drawn at once ('now', a first load) or only if the page stays hidden for a while ('late') */
-export function cloak(path = window.location.pathname, builtinOnly = false, skeleton: 'now' | 'late' = 'now'): void {
+    `skeleton`: drawn at once ('now', a first load) or only if the page stays hidden for a while ('late').
+    `tail`: only the part under a creator's header and tabs row is hidden (src/core/creatorSwap.ts) */
+export function cloak(path = window.location.pathname, builtinOnly = false, skeleton: 'now' | 'late' = 'now', tail = false): void {
   let style = document.getElementById(STYLE_ID);
   if (!style) {
     style = keepInHead(document.createElement('style'));
@@ -148,12 +169,38 @@ export function cloak(path = window.location.pathname, builtinOnly = false, skel
   else {
     root.removeAttribute(SKELETON);
     skeletonTimer = setTimeout(() => {
-      if (isCloaked()) root.setAttribute(SKELETON, '');
+      if (!isCloaked()) return;
+      // Measured now, not at the swap: the header may have grown since (a row of counts from a cached request)
+      if (tail) measureTail();
+      root.setAttribute(SKELETON, '');
     }, SKELETON_AFTER_MS);
   }
+  setTail(tail);
   root.setAttribute(ATTR, '');
   notify(cloakListeners);
   armFailsafe(FAILSAFE_MS);
+}
+
+/** Whether the coming or current page change keeps the creator header and tabs row (see TAIL above). Set by the
+    cloak, and by the page transitions as the current page starts leaving. */
+export function setTail(on: boolean): void {
+  const html = document.documentElement;
+  if (on) html.setAttribute(TAIL, '');
+  else html.removeAttribute(TAIL);
+}
+
+/** Where the skeleton of a same-creator section swap is cut and how far it moves (see TAIL), as it is drawn */
+function measureTail(): void {
+  const html = document.documentElement;
+  const main = document.querySelector('#main');
+  const row = main?.querySelector(':scope > .site-section--user > .kdl-sk-tabs-row');
+  if (!html.hasAttribute(TAIL) || !main || !row) return;
+  // In the skeleton's coordinates: from the top of #main's content box as the snapshot had it
+  const live = row.getBoundingClientRect().bottom - main.getBoundingClientRect().top - main.clientTop - (shownSnap?.pad[0] ?? 0);
+  const own = shownSnap?.cut;
+  const shift = typeof own === 'number' ? live - own : 0;
+  html.style.setProperty('--kdl-sk-cut', `${Math.round(live - shift)}px`);
+  html.style.setProperty('--kdl-sk-shift', `${Math.round(shift)}px`);
 }
 
 function markReady(): void {
