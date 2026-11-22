@@ -54,7 +54,8 @@ export function aboutSection(): HTMLElement {
   const whatsNew = version
     ? button({
         label: t('settings.about.whatsNew', { version }),
-        href: `${PROJECT_REPO_URL}/releases/tag/v${version}`,
+        // Test builds count up from x.y.90 and have no release of their own: the changelog then
+        href: /^\d+\.\d+\.(9\d|\d{3,})$/.test(version) ? `${PROJECT_REPO_URL}/blob/main/CHANGELOG.md` : `${PROJECT_REPO_URL}/releases/tag/v${version}`,
         target: '_blank',
         icon: 'sparkles',
         variant: 'link',
