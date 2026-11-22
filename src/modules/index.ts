@@ -11,6 +11,7 @@ import { restyleModule } from './restyle';
 import { shadcnSiteModule, shadcnSiteParts } from './shadcnSite';
 import { tagsToolsModule } from './tagsTools';
 import { postsSearchModule } from './postsSearch';
+import { infiniteScrollModule } from './infiniteScroll';
 import { importerStatusModule } from './importerStatus';
 import { smoothThumbsModule } from './smoothThumbs';
 import { pageTransitionsModule } from './pageTransitions';
@@ -42,6 +43,8 @@ export const BUILTIN_MODULES: KdlModule[] = [
   favoritesQuickModule,
   downloadHistoryModule,
   tagsToolsModule,
+  // Before the live search: snapshot hooks run in reverse, so the search puts its stashed cards back first
+  infiniteScrollModule,
   postsSearchModule,
   importerStatusModule,
   smoothThumbsModule,
