@@ -1,4 +1,18 @@
 import { DownloaderSettings } from '../types';
+import type { IconName } from './icons';
+
+/** The project on GitHub (Settings → General → About builds its links from it). */
+export const PROJECT_REPO_URL = 'https://github.com/bropines/kemono-download-button';
+/** The creator links dataset used by the creator page's links block. */
+export const CREATOR_LINKS_REPO_URL = 'https://github.com/bropines/creator-links';
+
+export interface DonateLink {
+  label: string;
+  url: string;
+  icon?: IconName;
+}
+/** Donation links shown in Settings → General → About; the block is hidden while the list is empty. */
+export const DONATE_LINKS: readonly DonateLink[] = [];
 
 export const DEFAULT_PRESET_TEMPLATES = [
   { name: 'Default (Date + Author + Title)', template: '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}' },

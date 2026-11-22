@@ -43,6 +43,20 @@ export default {
   'settings.general.debug.description': 'Logs to the browser console and shows the on-page debugger.',
   'settings.general.debug.verbose': 'Verbose',
   'settings.general.debug.verboseDescription': 'Also logs every API request and response in the F12 console.',
+  // About card at the end of the General tab
+  'settings.about.section': 'About',
+  'settings.about.name': 'Kemono & Pawchive Download Button',
+  'settings.about.description':
+    'Downloads posts, files and whole creators from Kemono, Coomer and Pawchive, and redesigns the site. Free and open source.',
+  'settings.about.whatsNew': 'What’s new in {version}',
+  'settings.about.link.github': 'GitHub',
+  'settings.about.link.releases': 'Releases',
+  'settings.about.link.changelog': 'Changelog',
+  'settings.about.link.bug': 'Report a bug',
+  'settings.about.link.translations': 'Translations',
+  'settings.about.link.creatorLinks': 'Creator links dataset',
+  'settings.about.donate.title': 'Support the project',
+  'settings.about.donate.description': 'The script is free. If it saves you time, you can support its development.',
 
   // Downloads
   'settings.downloads.panelSection': 'Downloads panel',
