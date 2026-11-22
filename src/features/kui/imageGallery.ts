@@ -67,6 +67,7 @@ export async function initializeImageGallery(): Promise<void> {
       ariaLabel: t('kui.gallery.toggleThumbnails'),
       className: 'kui-gallery-thumb-toggle',
       onClick: () => {
+        thumbList.classList.add("kui-anim");
         const collapsed = thumbList.classList.toggle("kui-collapsed");
         thumbToggle.replaceChildren(kitIcon(collapsed ? 'panel-left-open' : 'panel-left-close'));
         thumbToggle.setAttribute('aria-expanded', String(!collapsed));
