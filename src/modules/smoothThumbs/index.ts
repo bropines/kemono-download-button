@@ -182,10 +182,11 @@ export const smoothThumbsModule: KdlModule = {
   pages: 'any',
   defaultEnabled: true,
   styles: () => `
-canvas.${CANVAS} { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: transform 0.3s ease; }
+canvas.${CANVAS} { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: transform 0.3s ease, opacity 0.2s ease; }
 /* Shown through the attribute on the <img>, not the canvas's own hidden: the site styles have :has() rules that name
    [hidden], so flipping it anywhere restyled the whole page (~20 ms) for every thumbnail drawn */
-img${IMG}[${READY}] { opacity: 0; }
+/* A crossfade, not a swap in one frame: the canvas fades in over the picture, which hides only once it is covered */
+img${IMG}[${READY}] { opacity: 0; transition: opacity 0s linear 0.2s; }
 img${IMG}[${READY}] + canvas.${CANVAS} { opacity: 1; }
 .post-card:hover canvas.${CANVAS} { transform: scale(1.03); }
 `,
