@@ -20,6 +20,29 @@ let initializingContainer: Element | null = null;
 // which an HTMX swap would otherwise leave behind until the next settings change
 let detachDisplayListener: (() => void) | null = null;
 
+/** The original-file and Lens buttons of one thumbnail, once the post's file paths are known */
+function addThumbActions(thumbLink: HTMLAnchorElement, wrapper: HTMLElement, relativePath: string | undefined, fileName: string): void {
+  if (!relativePath || wrapper.querySelector('.kui-thumb-actions')) return;
+  // The file host, not the main domain: pawchive serves /data/ only from file.<domain>
+  const fullOriginalPath = resolveMediaUrl(relativePath, fileName);
+  thumbLink.dataset.originalPath = fullOriginalPath;
+  const actionsContainer = document.createElement("div");
+  actionsContainer.className = "kui-thumb-actions";
+  const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
+  [
+    { href: fullOriginalPath, icon: 'download' as const, text: t('kui.media.downloadOriginal') },
+    { href: lensLink, icon: lensIcon(), text: t('kui.media.searchLens') },
+  ].forEach(({ href, icon, text }) => {
+    const action = tooltip(
+      button({ href, target: '_blank', icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
+      { text, side: 'left' }
+    );
+    action.addEventListener("click", (e) => e.stopPropagation());
+    actionsContainer.appendChild(action);
+  });
+  wrapper.appendChild(actionsContainer);
+}
+
 export async function initializeImageGallery(): Promise<void> {
   const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
   if (!originalFilesContainer || originalFilesContainer.classList.contains("kui-gallery-processed"))
@@ -37,12 +60,11 @@ export async function initializeImageGallery(): Promise<void> {
     const imageLinks = Array.from(originalFilesContainer.querySelectorAll<HTMLAnchorElement>("a.fileThumb"));
     if (imageLinks.length === 0) return;
 
-    const fileDataMap = await fetchPostFileData();
-
-    if (!originalFilesContainer.isConnected) {
-      debugModule.update({ warn: "[Image Gallery] Container was disconnected during API fetch. Aborting gallery insertion." });
-      return;
-    }
+    // The API only adds the per-image actions (original file, Lens): the gallery is built right away, from the
+    // page, and they join when the answer is in. Waiting for it first showed the site's own layout, then an
+    // empty block, then the gallery
+    const fileDataPromise = fetchPostFileData();
+    const pendingActions: { thumbLink: HTMLAnchorElement; wrapper: HTMLElement; fileName: string }[] = [];
 
     const targetSection = originalFilesContainer.closest(".kui-post-section") || originalFilesContainer.parentNode;
     if (!targetSection) return;
@@ -195,31 +217,14 @@ export async function initializeImageGallery(): Promise<void> {
       newThumbLink.appendChild(newThumb);
       wrapper.appendChild(newThumbLink);
       const fileName = thumbLink.getAttribute("download");
-      if (fileName) {
-        const relativePath = fileDataMap.get(fileName);
-        if (relativePath) {
-          // The file host, not the main domain: pawchive serves /data/ only from file.<domain>
-          const fullOriginalPath = resolveMediaUrl(relativePath, fileName);
-          thumbLink.dataset.originalPath = fullOriginalPath;
-          const actionsContainer = document.createElement("div");
-          actionsContainer.className = "kui-thumb-actions";
-          const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
-          [
-            { href: fullOriginalPath, icon: 'download' as const, text: t('kui.media.downloadOriginal') },
-            { href: lensLink, icon: lensIcon(), text: t('kui.media.searchLens') },
-          ].forEach(({ href, icon, text }) => {
-            const action = tooltip(
-              button({ href, target: '_blank', icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
-              { text, side: 'left' }
-            );
-            action.addEventListener("click", (e) => e.stopPropagation());
-            actionsContainer.appendChild(action);
-          });
-          wrapper.appendChild(actionsContainer);
-        }
-      }
+      if (fileName) pendingActions.push({ thumbLink, wrapper, fileName });
       thumbList.appendChild(wrapper);
       return newThumbLink;
+    });
+
+    void fileDataPromise.then((fileDataMap) => {
+      if (!galleryLayout.isConnected) return;
+      pendingActions.forEach(({ thumbLink, wrapper, fileName }) => addThumbActions(thumbLink, wrapper, fileDataMap.get(fileName), fileName));
     });
 
     if (kuiState.isPreloadEnabled) {

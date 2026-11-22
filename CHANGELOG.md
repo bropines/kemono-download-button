@@ -24,6 +24,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- Post pages: the image gallery is there as soon as the page is shown, instead of the site's own layout first, then an empty block, then the gallery (it no longer waits for the API; the original-file and Lens buttons join when the answer is in).
 - Smooth thumbnails fade in over the picture instead of replacing it in one frame, so cards no longer blink when the sharper version is ready.
 - The sidebar Community section no longer blinks on every page change.
 - Creators list: the first rows no longer animate in twice (the site draws that list again with its own script).
