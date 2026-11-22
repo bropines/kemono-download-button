@@ -60,15 +60,22 @@ function avatar(service: string, id: string, className: string): HTMLElement {
   return box;
 }
 
-function measure(card: HTMLElement): void {
-  const body = card.querySelector<HTMLElement>('.dm-card__body');
-  if (!body) return;
-  const long = body.scrollHeight > body.clientHeight + 4;
-  if (card.hasAttribute(LONG) !== long) card.toggleAttribute(LONG, long);
+// Every card is read before any is written: marking one and then measuring the next laid the whole page out
+// once per card (~500 ms for a page of messages)
+function measure(cards: HTMLElement[]): void {
+  const long = cards.map((card) => {
+    const body = card.querySelector<HTMLElement>('.dm-card__body');
+    return body ? body.scrollHeight > body.clientHeight + 4 : null;
+  });
+  cards.forEach((card, i) => {
+    const value = long[i];
+    if (value !== null && card.hasAttribute(LONG) !== value) card.toggleAttribute(LONG, value);
+  });
 }
 
 function enhance(): void {
-  document.querySelectorAll<HTMLElement>(`${CARD}:not([${MARK}])`).forEach((card) => {
+  const cards = Array.from(document.querySelectorAll<HTMLElement>(`${CARD}:not([${MARK}])`));
+  cards.forEach((card) => {
     card.setAttribute(MARK, '');
     const { service, id } = creatorOf(card);
     const header = card.querySelector('.dm-card__header');
@@ -77,8 +84,8 @@ function enhance(): void {
     const read = el('button', { type: 'button', className: `${OURS} kdl-dm-read` }, [t('dms.read')]);
     footer.append(read);
     resizeObserver?.observe(card);
-    measure(card);
   });
+  if (cards.length) measure(cards);
 }
 
 function undo(): void {
@@ -221,7 +228,7 @@ function onKeyOpen(event: KeyboardEvent): void {
 function syncLines(ctx: ModuleContext): void {
   const lines = LINES[ctx.settings.get<string>('preview')] || LINES.normal;
   document.documentElement.style.setProperty('--kdl-dm-lines', lines);
-  document.querySelectorAll<HTMLElement>(`${CARD}[${MARK}]`).forEach(measure);
+  measure(Array.from(document.querySelectorAll<HTMLElement>(`${CARD}[${MARK}]`)));
 }
 
 const STYLES = `
@@ -360,7 +367,7 @@ export const dmsViewerModule: KdlModule = {
   mount(ctx) {
     ctxRef = ctx;
     if (typeof ResizeObserver === 'function') {
-      resizeObserver = new ResizeObserver((records) => records.forEach((record) => measure(record.target as HTMLElement)));
+      resizeObserver = new ResizeObserver((records) => measure(records.map((record) => record.target as HTMLElement)));
     }
     syncLines(ctx);
     ctx.settings.onChange('preview', () => syncLines(ctx));

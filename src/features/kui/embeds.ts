@@ -183,12 +183,28 @@ export function restructureLayout(processEmbedsCallback?: () => void): void {
   hideEmptySections();
 }
 
+// What the site had in each attachment link, so switching the module off puts it back
+const attachmentOriginals = new Map<HTMLAnchorElement, { nodes: ChildNode[]; title: string | null; aria: string | null }>();
+
+export function restoreAttachmentButtons(): void {
+  attachmentOriginals.forEach((original, link) => {
+    link.classList.remove("kui-attachment-styled", "kdl-scope", "kdl-ui-btn", "kdl-ui-btn--outline", "kdl-ui-btn--size-sm");
+    link.replaceChildren(...original.nodes);
+    if (original.title === null) link.removeAttribute("title");
+    else link.title = original.title;
+    if (original.aria === null) link.removeAttribute("aria-label");
+    else link.setAttribute("aria-label", original.aria);
+  });
+  attachmentOriginals.clear();
+}
+
 export function formatAttachmentButtons(): void {
   const attachmentLinks = document.querySelectorAll<HTMLAnchorElement>(".post__attachment-link");
   if (attachmentLinks.length) ensureKit();
   attachmentLinks.forEach((link) => {
     if (link.classList.contains("kui-attachment-styled")) return;
     link.classList.add("kui-attachment-styled");
+    attachmentOriginals.set(link, { nodes: Array.from(link.childNodes), title: link.getAttribute("title"), aria: link.getAttribute("aria-label") });
 
     const rawText = link.textContent?.trim() || "";
     let rawFileName = link.getAttribute("download") || rawText.replace(/^Download\s+/i, "").trim() || "file";

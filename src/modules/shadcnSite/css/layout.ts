@@ -237,6 +237,9 @@ html[data-kdl-sk-halign="center"] .content-wrapper .header-link:first-of-type { 
 }
 .site-section__header { margin-bottom: 8px; }
 .site-section__heading { font-size: 1.875rem; font-weight: 700; letter-spacing: -0.025em; }
+/* Some list pages use a bare h2 as the page heading (popular tags) */
+.site-section--tags > h2:first-child { margin: 0 0 12px; font-size: 1.875rem; font-weight: 700; letter-spacing: -0.025em; text-align: center; }
+@media (max-width: 600px) { .site-section--tags > h2:first-child { font-size: 1.5rem; } }
 .site-section__subheading { font-size: 1.125rem; font-weight: 600; letter-spacing: -0.02em; }
 @media (max-width: 600px) {
   h1${NK}, .site-section__heading { font-size: 1.5rem; }

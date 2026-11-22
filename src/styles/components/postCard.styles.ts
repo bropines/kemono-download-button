@@ -99,6 +99,11 @@ export const postCardStyles = css({
       right: '6px',
       gap: '3px',
       padding: '3px',
+      // The row sits over the card's tappable thumbnail: only its buttons catch taps, not its padding/gaps
+      pointerEvents: 'none',
+    },
+    '.post-card .kdl-scope.post-card-download-controls > *': {
+      pointerEvents: 'auto',
     },
     '.post-card-download-controls .kdl-ui-btn--size-icon': {
       width: '28px',

@@ -15,6 +15,9 @@ import { t } from '../i18n';
 import { isPawchiveFile } from '../utils/pawchiveRateLimit';
 import { showDirectDownloadFallback, type DirectDownloadFile } from '../ui/components/directDownloadFallback';
 
+// Individually downloaded files above this are not copied into the file cache
+const INDIVIDUAL_CACHE_MAX_BYTES = 64 * 1024 * 1024;
+
 const textContentOf = (data: unknown): string => (typeof data === 'string' ? data : JSON.stringify(data ?? ''));
 const escapeHtml = (text: string): string => text.replace(/[&<>"']/g, (char) => `&#${char.charCodeAt(0)};`);
 
@@ -230,8 +233,11 @@ export async function executeIndividualDownload(type: 'Images' | 'Attachments', 
       try {
         await downloadFileWithFallback(file.data, file.name, (pct) => task.updateFileProgress(fileTaskId, pct), task.signal,
           async (data) => {
-            await setCachedFile(file.data, data);
-            debugLog('[download]', 'individual-cache-stored', { bytes: data.byteLength });
+            // Kept for a later ZIP, but never in the way of the download: no wait, nothing huge, not when caching is off
+            if (data.byteLength > INDIVIDUAL_CACHE_MAX_BYTES || state.settings.cacheDurationHours === 0) return;
+            void setCachedFile(file.data, data)
+              .then(() => debugLog('[download]', 'individual-cache-stored', { bytes: data.byteLength }))
+              .catch(() => debugLog('[download]', 'individual-cache-failed'));
           });
         recordDownloaded(file.data);
         task.markFileComplete(fileTaskId, true);

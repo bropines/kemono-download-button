@@ -126,7 +126,8 @@ export function cachedCreatorOverview<T>(kind: Kind, service: string, id: string
     const cached = await read(key, version);
     if (cached && valid(kind, cached.data)) return cached.data as T;
     const data = await fetch();
-    if (version === generation && valid(kind, data)) {
+    // Empty lists are not kept: a creator's tags or links may simply not be indexed yet
+    if (version === generation && valid(kind, data) && data.length > 0) {
       try {
         // UTF-16 is a conservative size estimate and does not require TextEncoder in older hosts.
         const size = JSON.stringify(data).length * 2;
