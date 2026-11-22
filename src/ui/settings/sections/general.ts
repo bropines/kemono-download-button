@@ -8,6 +8,7 @@ import { showMessage } from '../../toast';
 import { notifySaved, section, settingNumber, settingSwitch, showWhen, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { languageSection } from './language';
+import { aboutSection } from './about';
 import { t } from '../../../i18n';
 
 function sessionField(): HTMLElement {
@@ -105,7 +106,8 @@ registerSettingsSection({
         settingNumber('cacheDurationHours', t('settings.general.cache.duration'), t('settings.general.cache.durationDescription'), { min: 0, step: 1 }),
         cacheControls(),
       ], { icon: 'archive' }),
-      section(t('settings.general.debugSection'), [debugControls()], { icon: 'info' })
+      section(t('settings.general.debugSection'), [debugControls()], { icon: 'info' }),
+      aboutSection()
     );
   },
 });

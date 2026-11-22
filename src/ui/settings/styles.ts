@@ -86,6 +86,13 @@ export const settingsStyles = css({
   '.kdl-settings__chip-remove .kdl-ui-icon': { width: '12px', height: '12px' },
   '.kdl-settings__chip-toggle': { cursor: 'pointer', fontStyle: 'italic' },
   '.kdl-settings__footer-spacer': { flex: '1 1 auto' },
+  // About card (sections/about.ts)
+  '.kdl-settings__about-intro': { display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '6px' },
+  '.kdl-settings__about-head': { display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' },
+  '.kdl-settings__about-name': { fontSize: '15px', fontWeight: 600, color: 'var(--kdl-foreground)' },
+  '.kdl-settings__about-news': { height: 'auto', padding: 0 },
+  '.kdl-settings__about-donate': { display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '16px', borderTop: '1px solid var(--kdl-border)' },
+  '.kdl-settings__about-subtitle': { fontSize: '14px', fontWeight: 600, color: 'var(--kdl-foreground)' },
   '.kdl-settings__module-search': { position: 'relative', display: 'flex', alignItems: 'center' },
   '.kdl-settings__module-search > .kdl-ui-icon': {
     position: 'absolute',

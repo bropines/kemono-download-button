@@ -102,6 +102,11 @@ export default {
   'faq.collapseAll': 'Collapse all',
   'faq.empty': 'No answers match.',
 
+  // ui.shadcn: confirmation before Logout
+  'sk.logout.title': 'Log out of {site}?',
+  'sk.logout.description': 'You will need to log in again to see your favorites and imports.',
+  'sk.logout.confirm': 'Log out',
+
   // Import status page
   'importer.line.creator': 'Checking creator',
   'importer.line.done': 'Done:',

@@ -9,7 +9,8 @@
 // The palette (accent, base tone, surface contrast) is a second sheet, <style id="kdl-mod-ui-shadcn-palette">,
 // rewritten when one of those settings changes and kept right after the module sheet (before restyle).
 //
-// The only DOM change is a data-kdl-active marker on the sidebar link of the current page.
+// DOM changes: a data-kdl-active marker on the sidebar link of the current page, the footer links moved
+// into the sidebar's Community section and a confirmation before Logout (./chrome.ts).
 
 import type { KdlModule, SettingValue } from '../../core/types';
 import { getModuleSetting } from '../../core/registry';
@@ -27,6 +28,7 @@ import { creatorCss } from './css/creator';
 import { formsCss } from './css/forms';
 import { pagesCss } from './css/pages';
 import { shadcnCreatorTransform, shadcnPagesTransform } from './pages';
+import { communityLinks, installLogoutConfirm } from './chrome';
 import { ACCENT_OPTIONS, BASE_OPTIONS, SURFACE_OPTIONS, paletteCss } from './palette';
 
 export const SHADCN_ID = 'ui.shadcn';
@@ -257,6 +259,9 @@ export const shadcnSiteModule: KdlModule = {
       }
     });
     labelHeaderLinks();
+    communityLinks.mount?.(ctx);
+    ctx.onCleanup(() => communityLinks.unmount?.(ctx));
+    ctx.onCleanup(installLogoutConfirm());
     ctx.onCleanup(clearLayout);
     ctx.onCleanup(() => {
       document.documentElement.style.removeProperty(WIDTH_VAR);
@@ -277,6 +282,10 @@ export const shadcnSiteModule: KdlModule = {
     syncActive();
     labelHeaderLinks();
     syncPalette((key) => ctx.settings.get(key));
+    communityLinks.update?.(ctx);
+  },
+  beforeSnapshot() {
+    communityLinks.beforeSnapshot?.();
   },
   // A new tab is painted with the skin's flag, palette and width already in place
   early() {

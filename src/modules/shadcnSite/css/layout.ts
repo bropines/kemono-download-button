@@ -17,6 +17,8 @@ const HEADER_ICONS: [string, string][] = [
   ['#kdl-settings-btn-header', svg("<path d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/><circle cx='12' cy='12' r='3'/>")],
   ['[href^="/account/logout"]', svg("<path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/><path d='m16 17 5-5-5-5'/><path d='M21 12H9'/>")],
 ];
+const LOGOUT = '[href^="/account/logout"]';
+const LOGOUT_ICON = HEADER_ICONS.find(([match]) => match === LOGOUT)![1];
 // Links the site adds later get a plain link icon
 const LINK_ICON = svg("<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>");
 const headerIconsCss = (): string =>
@@ -97,6 +99,36 @@ ${ITEM_HOVER} {
 .global-sidebar-entry .close-sidebar > img { width: 1rem; height: 1rem; opacity: 0.7; }
 .global-sidebar-entry .close-sidebar:is(:hover, :focus) { background: var(--kdl-accent); }
 #kdl-settings-btn-sidebar > svg { margin-right: 0 !important; opacity: 0.7; }
+/* Logout: last in the account section, under a rule, in the danger colour (asks first, see chrome.ts) */
+.global-sidebar-entry-item${LOGOUT} { position: relative; margin-top: 9px; color: var(--kdl-danger); }
+.global-sidebar-entry-item${LOGOUT}::after {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 0.5rem;
+  right: 0.5rem;
+  height: 1px;
+  background: var(--kdl-border);
+  pointer-events: none;
+}
+.global-sidebar-entry-item${LOGOUT} > img.global-sidebar-entry-item-icon { display: none; }
+.global-sidebar-entry-item${LOGOUT}::before {
+  content: '';
+  flex: 0 0 auto;
+  width: 1rem;
+  height: 1rem;
+  background: currentColor;
+  -webkit-mask: ${LOGOUT_ICON} center / contain no-repeat;
+  mask: ${LOGOUT_ICON} center / contain no-repeat;
+}
+.global-sidebar-entry-item${LOGOUT}:is(:hover, :focus),
+.content-wrapper .header > a.header-link${LOGOUT}:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--kdl-danger) 14%, transparent);
+  color: var(--kdl-danger);
+}
+.content-wrapper .header > a.header-link${LOGOUT} { color: var(--kdl-danger); }
+/* The footer links live in the Community section (chrome.ts): no footer bar left */
+html[data-kdl-sk-footer="moved"] .content-wrapper > .global-footer { display: none; }
 
 /* Top header (shown on narrow screens, or with the sidebar retracted) */
 .content-wrapper .header {
