@@ -116,13 +116,13 @@ export const postActionsStyles = css({
       position: 'relative !important',
     },
     '.post__info': {
-      paddingRight: '400px !important',
+      paddingRight: '440px !important',
     },
     '.kdl-scope.kdl-actions-container': {
       position: 'absolute',
       top: '15px',
       right: '15px',
-      width: '380px',
+      width: '420px',
     },
   },
   '.kdl-scope.kdl-actions-container': {

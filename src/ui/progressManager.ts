@@ -378,7 +378,12 @@ class ProgressManager {
 
       addFile: (fileId: string, fileName: string) => {
         if (task.files.has(fileId)) return;
-        const label = el('div', { className: 'kdl-ov-file__label', title: fileName }, [fileName]);
+        // Middle ellipsis: names of one batch share a long prefix, the tail (index, extension) tells them apart
+        const tailAt = fileName.length > 24 ? fileName.length - 12 : fileName.length;
+        const label = el('div', { className: 'kdl-ov-file__label', title: fileName }, [
+          el('span', { className: 'kdl-ov-file__head' }, [fileName.slice(0, tailAt)]),
+          el('span', { className: 'kdl-ov-file__tail' }, [fileName.slice(tailAt)]),
+        ]);
         const fileIcon = el('span', { className: 'kdl-ov-file__icon' });
         setIcon(fileIcon, 'loader-circle', true);
         const fileBar = progress({ value: 0, ariaLabel: fileName });
