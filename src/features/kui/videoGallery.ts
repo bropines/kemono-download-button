@@ -123,6 +123,9 @@ export function destroyVideoGallery(): void {
 export function initializeVideoGallery(): void {
   const postBody = document.querySelector(SELECTORS.postBody);
   if (!postBody) return;
+  // Plyr comes from @require; when it failed to load (CDN down, a host without @require) the post keeps the
+  // site's own videos instead of the whole post layout failing on every update
+  if (typeof Plyr === 'undefined') return;
 
   if (postBody.classList.contains("kui-video-gallery-processed") || postBody.querySelector(".kui-video-gallery-layout"))
     return;

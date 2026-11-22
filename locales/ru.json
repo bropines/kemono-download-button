@@ -967,7 +967,21 @@
     "settings.about.donate.description": "Скрипт бесплатный. Если он экономит вам время, можно поддержать разработку.",
     "sk.logout.title": "Выйти из {site}?",
     "sk.logout.description": "Чтобы снова видеть избранное и импорты, придётся войти заново.",
-    "sk.logout.confirm": "Выйти"
+    "sk.logout.confirm": "Выйти",
+    "iscroll.loading": "Загружаю ещё…",
+    "iscroll.loadMore": "Загрузить ещё",
+    "iscroll.end": "Конец списка",
+    "iscroll.failed": "Не удалось загрузить следующую страницу",
+    "iscroll.retry": "Повторить",
+    "iscroll.openPage": "Открыть следующую страницу",
+    "iscroll.range": "Показаны {from}–{to} из {total}",
+    "iscroll.rangeNoTotal": "Показаны {from}–{to}",
+    "mod.lists.infiniteScroll.name": "Бесконечная прокрутка",
+    "mod.lists.infiniteScroll.description": "Списки сами подгружают следующую страницу, когда вы доходите до конца (посты, популярное, посты автора, ЛС, избранное), вместо переключения страниц. Адрес остаётся на первой странице, «Назад» возвращает туда, где вы были.",
+    "mod.lists.infiniteScroll.setting.auto": "Подгружать автоматически при прокрутке",
+    "mod.lists.infiniteScroll.setting.auto.hint": "Если выключено, в конце списка будет кнопка «Загрузить ещё».",
+    "mod.lists.infiniteScroll.setting.maxCards": "Спрашивать, прежде чем загрузить больше стольких карточек",
+    "mod.lists.infiniteScroll.setting.maxCards.hint": "После этого числа — кнопка «Загрузить ещё», чтобы долгая прокрутка не тормозила."
   },
   "site": {
     "Home": "Главная",

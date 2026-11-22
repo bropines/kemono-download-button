@@ -12,7 +12,9 @@ export interface DonateLink {
   icon?: IconName;
 }
 /** Donation links shown in Settings → General → About; the block is hidden while the list is empty. */
-export const DONATE_LINKS: readonly DonateLink[] = [];
+export const DONATE_LINKS: readonly DonateLink[] = [
+  { label: 'Boosty', url: 'https://boosty.to/pinus', icon: 'heart' },
+];
 
 export const DEFAULT_PRESET_TEMPLATES = [
   { name: 'Default (Date + Author + Title)', template: '{post_date}_{author_name}_{post_title}_{post_id}/{file_index}_{file_name}' },

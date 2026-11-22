@@ -5,9 +5,14 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Added
+- **Infinite scroll** (module, off by default): post lists, popular posts, creator posts, DMs and favourites load the next page by themselves as you reach the end, with a "Load more" fallback and a limit after which it asks; Back returns to the same card. Pawchive's creator list pages in the browser and is left as it is.
+- **About** in Settings → General: version, what's new, links to GitHub, releases, changelog, bug reports, translations and the creator links dataset, and a link to support the project on Boosty.
 - **Faster navigation** (module, on by default): the next page starts loading the moment you press a link instead of when you release it; optionally also when the pointer rests on a link. The site gets the same requests.
 
 ### Changed
+- Log out is red, sits apart at the end of the account section and asks for confirmation.
+- Contacts and API moved into the sidebar's Community section; the footer bar under every page is gone.
+- Russian translation of many more site texts: the home page welcome, contact, missing, empty lists, the creator links tab, DM card dates, and (from the site's open-source templates) favourites, DM review, keys, notifications, upload and login errors. "Missing" in the sidebar now reads "Ждут импорта".
 - Much faster pages: the tags page does 0.3 s of main-thread work on load instead of 8.7 s, DMs 0.27 s instead of 1.8 s, post lists and creator pages about 0.25 s instead of up to 1.2 s.
 - Smoother navigation: the loading skeleton shows only when a page really takes a moment (from 140 ms), a page is revealed sooner after it arrives, back/forward returns to the same scroll position, transitions no longer blur and animate at most the first 12 cards.
 - A slow first load waits for the redesign to be set up (up to 10 s) instead of showing the old page at 2.5 s.
@@ -18,6 +23,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- Creator pages: the posts grid is no longer taken out and rebuilt (with its entry animation) up to five times per page change when the overview, similar creators or other blocks arrive; the overview is present from the first frame within a creator.
+- Home page: the sidebar no longer disappears for a second behind the background art during the page transition.
 - An error repeated on every page after opening a post with a video and going back.
 - Phones: tapping a post card opens the post again (the download buttons row no longer catches the tap).
 - Attachment links keep the site's look again after the post page layout is switched off.

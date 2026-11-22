@@ -279,7 +279,9 @@ export const creatorOverviewModule: KdlModule = {
     ctx.onCleanup(remove);
   },
   update(ctx) {
-    void render(ctx);
+    // A page change keeps the page under its skeleton a moment longer (capped by the cloak) so the overview
+    // lands before the reveal instead of pushing the posts down after it
+    holdCloak(render(ctx));
   },
   beforeSnapshot() {
     remove();
