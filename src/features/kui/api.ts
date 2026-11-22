@@ -1,5 +1,6 @@
 import { kuiState } from '../../state/kuiState';
-import { gmXmlhttpRequestWithRetries } from '../../utils/http';
+import { apiGet } from '../../api/apiCache';
+import { getApiUrl } from '../../utils/helpers';
 
 export async function fetchPostFileData(): Promise<Map<string, string>> {
   const urlMatch = window.location.pathname.match(/\/(?<service>[^/]+)\/user\/(?<creator_id>[^/]+)\/post\/(?<post_id>[^/]+)/);
@@ -15,14 +16,10 @@ export async function fetchPostFileData(): Promise<Map<string, string>> {
   }
 
   try {
-    const response = await gmXmlhttpRequestWithRetries({
-      method: "GET",
-      url: `${window.location.origin}/api/v1/${service}/user/${creator_id}/post/${post_id}`,
-      headers,
-      responseType: "json"
-    });
+    // Through the API cache: the downloader asks for the same post, so this shares its request and answer
+    const data = await apiGet(getApiUrl(`/api/v1/${service}/user/${creator_id}/post/${post_id}`), { headers });
     // kemono wraps the post as { post: {...} }; pawchive returns the post itself
-    const post = response.response?.post ?? response.response;
+    const post = data?.post ?? data;
     const allFiles = [
       ...(post?.file ? [post.file] : []),
       ...(post?.attachments ?? [])

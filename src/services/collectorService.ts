@@ -1,9 +1,8 @@
 import { getApiAdapter } from '../api';
-import { getCachedPost, setCachedPost } from './cacheService';
+import { apiGet } from '../api/apiCache';
 import { getSettings, state } from '../state/store';
 import { FileItem, PostDetails } from '../types';
 import { debugLog, formatPostCommentsText, formatPostTagsText, getApiUrl, getFullUrl, resolveMediaUrl, htmlToFormattedText, sanitizeFilename, isMediaFile } from '../utils/helpers';
-import { gmXmlhttpRequestWithRetries } from '../utils/http';
 
 export function getPostDetailsFromPage(): PostDetails {
   const pathParts = window.location.pathname.split('/');
@@ -107,35 +106,15 @@ export function getWindowPageData(targetPostID?: string): any {
   return null;
 }
 
-const postRequests = new Map<string, Promise<any>>();
-
-/** Cached post data, or one shared request while it is in flight (the info badges and the downloader both ask) */
+/** Post data from the API cache (one shared request while in flight: the info badges and the downloader both ask) */
 export function fetchAndCachePostData(service: string, userID: string, postID: string): Promise<any> {
-  const cacheKey = `post_${service}_${userID}_${postID}`;
-  const running = postRequests.get(cacheKey);
-  if (running) return running;
-  const request = (async () => {
-    const cached = await getCachedPost(cacheKey);
-    if (cached) return cached;
-    const rawApiData = await getApiAdapter().fetchPostData(service, userID, postID);
-    if (rawApiData) await setCachedPost(cacheKey, rawApiData);
-    return rawApiData;
-  })();
-  postRequests.set(cacheKey, request);
-  const done = () => { if (postRequests.get(cacheKey) === request) postRequests.delete(cacheKey); };
-  void request.then(done, done);
-  return request;
+  return getApiAdapter().fetchPostData(service, userID, postID);
 }
 
 // Comments come from their own endpoint (kemono and pawchive alike); a failure only loses comments.txt
 async function fetchPostComments(postDetails: PostDetails): Promise<unknown> {
   try {
-    const response = await gmXmlhttpRequestWithRetries({
-      method: 'GET',
-      url: getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`),
-      responseType: 'json'
-    });
-    return response.response;
+    return await apiGet(getApiUrl(`/api/v1/${postDetails.service}/user/${postDetails.userID}/post/${postDetails.postID}/comments`), { allowStale: false });
   } catch {
     debugLog('[download]', 'comments-fetch-failed');
     return null;
@@ -156,21 +135,14 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
   if (state.settings.enableAPIFetch && postDetails.service !== 'unknown' && postDetails.userID !== 'unknown' && postDetails.postID !== 'unknown') {
     try {
-      const cacheKey = `post_${postDetails.service}_${postDetails.userID}_${postDetails.postID}`;
       const windowPost = getWindowPageData(postDetails.postID);
 
       if (windowPost) {
         rawApiData = windowPost;
         debugLog('[download]', 'metadata-from-page');
       } else {
-        const cached = await getCachedPost(cacheKey);
-        if (cached) {
-          rawApiData = cached;
-          debugLog('[download]', 'metadata-from-cache');
-        } else {
-          rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID);
-          if (rawApiData) await setCachedPost(cacheKey, rawApiData);
-        }
+        // A download must not use a copy older than the post TTL (API cache)
+        rawApiData = await getApiAdapter().fetchPostData(postDetails.service, postDetails.userID, postDetails.postID, { allowStale: false });
       }
 
       const post = rawApiData?.post || (Array.isArray(rawApiData) ? rawApiData[0] : rawApiData);

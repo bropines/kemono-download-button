@@ -7,7 +7,7 @@ import type { KdlModule, ModuleContext } from '../../core/types';
 import { button, badge, ensureKit, kitIcon, kitScope, setButtonLoading } from '../../ui/kit';
 import { el } from '../../utils/dom';
 import { debugLog, getApiUrl } from '../../utils/helpers';
-import { gmXmlhttpRequestWithRetries } from '../../utils/http';
+import { apiGet } from '../../api/apiCache';
 import { hashFromUrl, isUrlDownloaded, loadDownloadHistory, onDownloadHistoryChange } from '../../services/downloadHistory';
 import { t } from '../../i18n';
 
@@ -43,8 +43,7 @@ const currentPostId = (): string => /\/post\/([^/?#]+)/.exec(window.location.pat
 
 /** How many posts other than the current one contain the file; null when the response has no post list. */
 async function otherPostsWith(hash: string): Promise<number | null> {
-  const response = await gmXmlhttpRequestWithRetries({ method: 'GET', url: getApiUrl(`/api/v1/search_hash/${hash}`), responseType: 'json', timeout: 20000 });
-  const data = response.response;
+  const data = await apiGet(getApiUrl(`/api/v1/search_hash/${hash}`), { timeout: 20000 });
   const posts: unknown = Array.isArray(data) ? data : data?.posts;
   if (!Array.isArray(posts)) return null;
   const here = currentPostId();

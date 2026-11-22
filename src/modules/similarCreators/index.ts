@@ -1,7 +1,7 @@
 // "Similar creators" strip under a creator's header (Posts tab only). Kemono/Coomer return the list from
 // /api/v1/{svc}/user/{id}/recommended (with a score); Pawchive has no such API but serves the same list as the
 // HTML tab /{svc}/user/{id}/recommended, whose creator cards are read instead (also the fallback when the API
-// fails). Requested at document start (the URL names the creator), kept in the creator overview cache for 48h,
+// fails). Requested at document start (the URL names the creator), kept in the API cache (src/api/apiCache.ts),
 // and holding the page cloak briefly so it is there in the first frame; a failure renders nothing. One node of ours (.kdl-sim) after the skin's tabs row or the header; removed on unmount and
 // before htmx snapshots.
 
@@ -14,7 +14,7 @@ import { getApiUrl } from '../../utils/helpers';
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
-import { cachedCreatorOverview } from '../../api/creatorOverviewCache';
+import { cached, normalizeJson } from '../../api/apiCache';
 import { holdCloak } from '../../core/cloak';
 
 const OWN = 'kdl-sim';
@@ -30,7 +30,6 @@ interface Similar {
   score?: number;
 }
 
-const cache = new Map<string, Promise<Similar[]>>();
 let aborter: AbortController | null = null;
 let strip: HTMLElement | null = null;
 // The creator this module already started (or finished) loading for; empty after unmount / snapshot
@@ -71,25 +70,20 @@ async function load(service: string, id: string, signal?: AbortSignal): Promise<
   if (getApiAdapter().name === 'pawchive') return html();
   try {
     const response = await gmXmlhttpRequestWithRetries({ method: 'GET', url: getApiUrl(`/api/v1${base}`), responseType: 'json', timeout: 20000, signal });
-    return fromApi(response.response);
+    return fromApi(normalizeJson(response));
   } catch (error) {
     if (isAbortError(error)) throw error;
     return html();
   }
 }
 
-/** One shared request per creator; without a signal (the document-start prefetch) it is never aborted */
+const validSimilar = (data: unknown): boolean =>
+  Array.isArray(data) && data.every((item) => !!item && typeof item.service === 'string' && !!item.service && typeof item.id === 'string' && !!item.id);
+
+/** One shared request per creator through the API cache; a signal aborts only this caller's wait */
 function fetchSimilar(service: string, id: string, signal?: AbortSignal): Promise<Similar[]> {
-  const key = `${service}/${id}`;
-  let request = cache.get(key);
-  if (!request) {
-    request = cachedCreatorOverview('similar', service, id, () => load(service, id, signal)).catch((error) => {
-      cache.delete(key); // an aborted or failed request is not remembered
-      throw error;
-    });
-    cache.set(key, request);
-  }
-  return request;
+  const url = getApiUrl(`/api/v1/${service}/user/${id}/recommended`);
+  return cached({ key: `similar ${url}`, url, load: () => load(service, id), validate: validSimilar, signal });
 }
 
 const serviceName = (item: Similar): string => item.label || item.service.charAt(0).toUpperCase() + item.service.slice(1);

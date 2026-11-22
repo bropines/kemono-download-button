@@ -5,55 +5,55 @@ import { t } from '../i18n';
 import { debugLog, getApiUrl } from '../utils/helpers';
 import { gmXmlhttpRequestWithRetries } from '../utils/http';
 import { IApiAdapter, UpdateCardStateFn } from './types';
-import { cachedCreatorOverview } from './creatorOverviewCache';
+import { apiGet, invalidateApiCache } from './apiCache';
 
 // Kemono, Coomer and Pawchive share one REST layout: this module is the common implementation,
 // and each site adapter only overrides what really differs (see pawchiveApi.ts)
 
-async function getJson(path: string, timeout = 30000): Promise<any> {
-  const response = await gmXmlhttpRequestWithRetries({ method: 'GET', url: getApiUrl(path), responseType: 'json', timeout });
-  return response.response;
+// Every read goes through the API cache (apiCache.ts: TTL per endpoint, shared in-flight requests).
+// allowStale = false where the answer feeds a download and must not be older than its TTL.
+interface GetOptions { allowStale?: boolean; validate?: (data: unknown) => boolean; session?: boolean }
+function getJson(path: string, timeout = 30000, options: GetOptions = {}): Promise<any> {
+  return apiGet(getApiUrl(path), { timeout, ...options });
 }
 
-export async function fetchPostDataFromAPI(service: string, userID: string, postID: string): Promise<any> {
+const isRows = (data: unknown, row: (value: Record<string, unknown>) => boolean): boolean =>
+  Array.isArray(data) && data.every((value) => !!value && typeof value === 'object' && row(value as Record<string, unknown>));
+const validAnnouncements = (data: unknown) => isRows(data, (row) => typeof row.content === 'string');
+const validTags = (data: unknown) => isRows(data, (row) => typeof row.tag === 'string' && row.tag.length > 0);
+const validLinks = (data: unknown) => isRows(data, (row) => typeof row.service === 'string' && row.service.length > 0 &&
+  (typeof row.id === 'string' || typeof row.id === 'number') && String(row.id).length > 0);
+const validProfile = (data: unknown) => !!data && typeof data === 'object' && !Array.isArray(data);
+
+export async function fetchPostDataFromAPI(service: string, userID: string, postID: string, options: { allowStale?: boolean } = {}): Promise<any> {
   const path = `/api/v1/${service}/user/${userID}/post/${postID}`;
   debugLog('[API]', 'fetch-post');
-  return getJson(path);
+  return getJson(path, 30000, { allowStale: options.allowStale });
 }
 
 /** The raw profile object (name, and post_count/dm_count/... where the site has them) */
 export function fetchProfile(service: string, userID: string): Promise<any> {
-  return getJson(`/api/v1/${service}/user/${userID}/profile`, 15000);
+  return getJson(`/api/v1/${service}/user/${userID}/profile`, 15000, { validate: validProfile });
 }
 
-/** Linked accounts of a creator (the Linked accounts tab) */
-export function fetchCreatorLinks(service: string, userID: string, cache = false): Promise<any> {
-  const load = () => getJson(`/api/v1/${service}/user/${userID}/links`, 15000);
-  return cache ? cachedCreatorOverview('links', service, userID, load) : load();
+/** Linked accounts of a creator (the Linked accounts tab); allowStale: an outdated copy may answer at once */
+export function fetchCreatorLinks(service: string, userID: string, allowStale = false): Promise<any> {
+  return getJson(`/api/v1/${service}/user/${userID}/links`, 15000, { allowStale, validate: validLinks });
 }
 
 /** A creator's announcements (the Announcements tab), newest first as the site sends them */
-export function fetchAnnouncements(service: string, userID: string, cache = false): Promise<any> {
-  const load = () => getJson(`/api/v1/${service}/user/${userID}/announcements`, 15000);
-  return cache ? cachedCreatorOverview('announcements', service, userID, load) : load();
+export function fetchAnnouncements(service: string, userID: string, allowStale = false): Promise<any> {
+  return getJson(`/api/v1/${service}/user/${userID}/announcements`, 15000, { allowStale, validate: validAnnouncements });
 }
 
-const creatorNames = new Map<string, Promise<string | null>>();
-
-/** A creator's display name from the profile endpoint, once per page session; null when it cannot be read */
+/** A creator's display name from the profile endpoint; null when it cannot be read */
 export function fetchCreatorName(service: string, userID: string): Promise<string | null> {
-  const key = `${service}/${userID}`;
-  if (!creatorNames.has(key)) {
-    const request = getJson(`/api/v1/${service}/user/${userID}/profile`, 15000)
-      .then((profile) => (typeof profile?.name === 'string' && profile.name.trim()) || null)
-      .catch(() => {
-        debugLog('[API]', 'creator-name-failed');
-        creatorNames.delete(key);
-        return null;
-      });
-    creatorNames.set(key, request);
-  }
-  return creatorNames.get(key)!;
+  return fetchProfile(service, userID)
+    .then((profile) => (typeof profile?.name === 'string' && profile.name.trim()) || null)
+    .catch(() => {
+      debugLog('[API]', 'creator-name-failed');
+      return null;
+    });
 }
 
 type AuthorPostsPagePath = (service: string, userID: string, offset: number) => string;
@@ -67,7 +67,7 @@ export function createAuthorPostsFetcher(pagePath: AuthorPostsPagePath): IApiAda
     while (true) {
       try {
         progressTask?.updateStatus(t('common.api.fetchingPage', { page: offset / limit + 1, count: allPosts.length }));
-        const postsOnPage = await getJson(pagePath(service, userID, offset));
+        const postsOnPage = await getJson(pagePath(service, userID, offset), 30000, { allowStale: false });
         if (!Array.isArray(postsOnPage) || postsOnPage.length === 0) break;
         allPosts = allPosts.concat(postsOnPage);
         offset += limit;
@@ -98,9 +98,8 @@ export interface CreatorTag {
 }
 
 /** A creator's tags with post counts (most used first); throws when the request fails */
-export async function fetchCreatorTags(service: string, userID: string, cache = false): Promise<CreatorTag[]> {
-  const load = () => getJson(`/api/v1/${service}/user/${userID}/tags`, 20000);
-  const data = await (cache ? cachedCreatorOverview('tags', service, userID, load) : load());
+export async function fetchCreatorTags(service: string, userID: string, allowStale = false): Promise<CreatorTag[]> {
+  const data = await getJson(`/api/v1/${service}/user/${userID}/tags`, 20000, { allowStale, validate: validTags });
   if (!Array.isArray(data)) return [];
   return data
     .filter((row: any) => row && typeof row.tag === 'string' && row.tag)
@@ -111,7 +110,7 @@ export async function fetchCreatorTags(service: string, userID: string, cache = 
 /** One page (50 posts) of a creator's posts carrying a tag; Pawchive has no `/posts` suffix */
 export async function fetchTaggedPostsPage(service: string, userID: string, tag: string, offset: number): Promise<any[]> {
   const suffix = window.location.hostname.includes('pawchive') ? '' : '/posts';
-  const data = await getJson(`/api/v1/${service}/user/${userID}${suffix}?o=${offset}&tag=${encodeURIComponent(tag)}`);
+  const data = await getJson(`/api/v1/${service}/user/${userID}${suffix}?o=${offset}&tag=${encodeURIComponent(tag)}`, 30000, { allowStale: false });
   return Array.isArray(data) ? data : [];
 }
 
@@ -122,8 +121,8 @@ export async function fetchUserFavorites(): Promise<boolean> {
   debugLog('[API] Fetching user favorites...');
   try {
     const [artists, posts] = await Promise.all([
-      getJson('/api/v1/account/favorites?type=artist'),
-      getJson('/api/v1/account/favorites?type=post')
+      getJson('/api/v1/account/favorites?type=artist', 30000, { session: true }),
+      getJson('/api/v1/account/favorites?type=post', 30000, { session: true })
     ]);
     if (Array.isArray(artists)) artists.forEach((artist: any) => appState.favoritedArtists.add(`${artist.service}-${artist.id}`));
     if (Array.isArray(posts)) posts.forEach((post: any) => appState.favoritedPosts.add(post.id));
@@ -160,6 +159,10 @@ export async function toggleFavorite(
   button.disabled = true;
   try {
     await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
+    // Answers that may reflect the old favourite state: account lists, the creator's profile, the post
+    const creatorPath = `/${service}/user/${creatorId}`;
+    void invalidateApiCache((url) => url.includes('/favorites') || url.includes(`${creatorPath}/profile`) ||
+      (!!postId && url.includes(`${creatorPath}/post/${postId}`)));
     if (isFavorited) {
       if (type === 'creator') appState.favoritedArtists.delete(artistKey);
       else if (postId) appState.favoritedPosts.delete(postId);

@@ -1,11 +1,12 @@
 import { clearAllCache, getCacheStats } from '../../../services/cacheService';
+import { clearApiCache, getApiCacheStats } from '../../../api/apiCache';
 import { kuiState, setVerboseDebugMode } from '../../../state/kuiState';
 import { setDebug, setSession, state } from '../../../state/store';
 import { el } from '../../../utils/dom';
 import { debugModule } from '../../../utils/logger';
 import { button, field, input, setButtonLoading, setSwitch } from '../../kit';
 import { showMessage } from '../../toast';
-import { notifySaved, section, settingNumber, settingSwitch, showWhen, switchRow } from '../controls';
+import { notifySaved, section, settingNumber, settingSelect, settingSwitch, showWhen, switchRow } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { languageSection } from './language';
 import { aboutSection } from './about';
@@ -31,24 +32,34 @@ function sessionField(): HTMLElement {
   });
 }
 
-function cacheControls(): HTMLElement {
-  const stats = el('span', { className: 'kdl-settings__stat', id: 'kdl-cache-stats-text', textContent: t('settings.general.cache.loading') });
+interface CacheRowOptions {
+  statsId: string;
+  buttonId: string;
+  /** i18n prefix with .loading, .stats, .clear and .cleared */
+  keys: 'settings.general.cache' | 'settings.general.apiCache';
+  stats: () => Promise<{ count: number; totalSizeBytes: number }>;
+  clear: () => Promise<void>;
+}
+
+/** Entry count and size of a cache with its clear button */
+function cacheRow(options: CacheRowOptions): HTMLElement {
+  const stats = el('span', { className: 'kdl-settings__stat', id: options.statsId, textContent: t(`${options.keys}.loading`) });
   const refresh = async () => {
-    const { count, totalSizeBytes } = await getCacheStats();
-    stats.textContent = t('settings.general.cache.stats', { count, size: (totalSizeBytes / (1024 * 1024)).toFixed(1) });
+    const { count, totalSizeBytes } = await options.stats();
+    stats.textContent = t(`${options.keys}.stats`, { count, size: (totalSizeBytes / (1024 * 1024)).toFixed(1) });
   };
   const clear: HTMLButtonElement = button({
-    id: 'kdl-clear-all-cache-btn',
-    label: t('settings.general.cache.clear'),
+    id: options.buttonId,
+    label: t(`${options.keys}.clear`),
     icon: 'x',
     variant: 'outline',
     size: 'sm',
     onClick: async () => {
       setButtonLoading(clear, true);
       try {
-        await clearAllCache();
+        await options.clear();
         await refresh();
-        showMessage(t('settings.general.cache.cleared'), 'success');
+        showMessage(t(`${options.keys}.cleared`), 'success');
       } finally {
         setButtonLoading(clear, false);
       }
@@ -57,6 +68,16 @@ function cacheControls(): HTMLElement {
   refresh();
   return el('div', { className: 'kdl-settings__row' }, [stats, el('span', { className: 'kdl-settings__footer-spacer' }), clear]);
 }
+
+const cacheControls = (): HTMLElement =>
+  cacheRow({ statsId: 'kdl-cache-stats-text', buttonId: 'kdl-clear-all-cache-btn', keys: 'settings.general.cache', stats: getCacheStats, clear: clearAllCache });
+
+const apiCacheControls = (): HTMLElement =>
+  cacheRow({ statsId: 'kdl-api-cache-stats-text', buttonId: 'kdl-clear-api-cache-btn', keys: 'settings.general.apiCache', stats: getApiCacheStats, clear: clearApiCache });
+
+const apiCacheLifetime = (): HTMLElement =>
+  settingSelect('apiCacheLifetime', t('settings.general.apiCache.lifetime'), t('settings.general.apiCache.lifetimeDescription'),
+    (['off', 'short', 'normal', 'long'] as const).map((value) => ({ value, label: t(`settings.general.apiCache.${value}`) })));
 
 function debugControls(): HTMLElement {
   const verbose = switchRow({
@@ -105,6 +126,8 @@ registerSettingsSection({
       section(t('settings.general.cacheSection'), [
         settingNumber('cacheDurationHours', t('settings.general.cache.duration'), t('settings.general.cache.durationDescription'), { min: 0, step: 1 }),
         cacheControls(),
+        apiCacheLifetime(),
+        apiCacheControls(),
       ], { icon: 'archive' }),
       section(t('settings.general.debugSection'), [debugControls()], { icon: 'info' }),
       aboutSection()

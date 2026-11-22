@@ -59,6 +59,8 @@ export interface DownloaderSettings {
   bulkSingleSystemPathTemplate: string;
   bulkSingleInternalPathTemplate: string;
   cacheDurationHours: number;
+  // Scales every API cache TTL (src/api/apiCache.ts); off disables the API cache
+  apiCacheLifetime: 'off' | 'short' | 'normal' | 'long';
   bulkMultipleSystemPathTemplate: string;
   savedFileNameTemplates: SavedTemplate[];
   ignoredFileExtensions: string[];

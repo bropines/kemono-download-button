@@ -9,7 +9,8 @@
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { getApiUrl, getThumbnailUrl } from '../../utils/helpers';
-import { gmXmlhttpRequestWithRetries, isAbortError } from '../../utils/http';
+import { isAbortError } from '../../utils/http';
+import { apiGet } from '../../api/apiCache';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
 
@@ -141,19 +142,9 @@ function parsePosts(body: unknown): { posts: ApiPost[]; total: number | null } {
 }
 
 async function fetchPage(target: Target, query: string, offset: number, signal: AbortSignal): Promise<{ posts: ApiPost[]; total: number | null }> {
-  const get = async (url: string) => {
-    const response = await gmXmlhttpRequestWithRetries({
-      method: 'GET',
-      url,
-      responseType: 'json',
-      timeout: REQUEST_TIMEOUT_MS,
-      headers: { Accept: 'text/css' },
-      signal,
-    });
-    let body = response.response;
-    if (typeof body === 'string') body = JSON.parse(body);
-    return parsePosts(body);
-  };
+  // q= answers are kept briefly by the API cache: retyping a query or paging back costs no request
+  const get = async (url: string) =>
+    parsePosts(await apiGet(url, { timeout: REQUEST_TIMEOUT_MS, headers: { Accept: 'text/css' }, signal }));
   try {
     return await get(endpoint(target, query, offset));
   } catch (error) {

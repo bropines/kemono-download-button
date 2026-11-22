@@ -1,12 +1,12 @@
 import { debugLog } from '../utils/helpers';
-import { state } from '../state/store';
-import { clearCreatorOverviewCache } from '../api/creatorOverviewCache';
+import { clearApiCache } from '../api/apiCache';
 
 const DB_NAME = 'KemonoDownloaderCache';
 const DB_VERSION = 3;
 const STORE_FILES = 'files';
 // Size/age per cached file, so eviction and stats never have to load the file bodies
 const STORE_FILE_META = 'fileMeta';
+// Post metadata from before the API cache (src/api/apiCache.ts); only cleared now
 const STORE_POSTS = 'posts';
 // Content hashes of downloaded files (key = sha256, value = timestamp); lives apart from the disposable file cache
 export const STORE_HISTORY = 'downloadHistory';
@@ -24,7 +24,6 @@ interface FileMeta {
 }
 
 let dbPromise: Promise<IDBDatabase> | null = null;
-const inMemoryPostCache = new Map<string, { data: any; timestamp: number }>();
 const inMemoryFileCache = new Map<string, ArrayBuffer>();
 let inMemoryFileBytes = 0;
 let evictionTimer: ReturnType<typeof setTimeout> | null = null;
@@ -185,78 +184,11 @@ export async function setCachedFile(url: string, data: ArrayBuffer): Promise<voi
   }
 }
 
-// Post metadata is kept for cacheDurationHours (0 = not at all), so edits and new files on the site show up
-function isPostFresh(timestamp: number | undefined): boolean {
-  const hours = Number(state.settings.cacheDurationHours) || 0;
-  return hours > 0 && typeof timestamp === 'number' && Date.now() - timestamp < hours * 3600 * 1000;
-}
-
-async function deleteCachedPost(key: string, expiredTimestamp: number | undefined): Promise<void> {
-  if (inMemoryPostCache.get(key)?.timestamp === expiredTimestamp) inMemoryPostCache.delete(key);
-  try {
-    const tx = (await getDB()).transaction(STORE_POSTS, 'readwrite');
-    const store = tx.objectStore(STORE_POSTS);
-    // A fresh response may have been written while IndexedDB was opening. Compare and delete
-    // within the same transaction so an old cleanup cannot remove the replacement.
-    const request = store.get(key);
-    request.onsuccess = () => {
-      if (request.result && request.result.timestamp === expiredTimestamp) store.delete(key);
-    };
-    await awaitTransaction(tx);
-  } catch (e) {
-    debugLog('Failed to delete expired post from IndexedDB:', e);
-  }
-}
-
-export async function getCachedPost(key: string): Promise<any | null> {
-  const inMemory = inMemoryPostCache.get(key);
-  if (inMemory) {
-    if (isPostFresh(inMemory.timestamp)) return inMemory.data;
-    void deleteCachedPost(key, inMemory.timestamp);
-    return null;
-  }
-
-  try {
-    const db = await getDB();
-    const result: { data?: any; timestamp?: number } | undefined = await new Promise((resolve) => {
-      const req = db.transaction(STORE_POSTS, 'readonly').objectStore(STORE_POSTS).get(key);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(undefined);
-    });
-    if (!result?.data) return null;
-    if (!isPostFresh(result.timestamp)) {
-      void deleteCachedPost(key, result.timestamp);
-      return null;
-    }
-    inMemoryPostCache.set(key, { data: result.data, timestamp: result.timestamp! });
-    return result.data;
-  } catch (e) {
-    debugLog('Failed to get cached post from IndexedDB:', e);
-    return null;
-  }
-}
-
-export async function setCachedPost(key: string, data: any): Promise<void> {
-  if (!(Number(state.settings.cacheDurationHours) > 0)) return;
-  const timestamp = Date.now();
-  inMemoryPostCache.set(key, { data, timestamp });
-
-  try {
-    const db = await getDB();
-    const tx = db.transaction(STORE_POSTS, 'readwrite');
-    tx.objectStore(STORE_POSTS).put({ key, data, timestamp });
-    await awaitTransaction(tx);
-  } catch (e) {
-    debugLog('Failed to set cached post in IndexedDB:', e);
-  }
-}
-
 export async function clearAllCache(): Promise<void> {
-  inMemoryPostCache.clear();
   inMemoryFileCache.clear();
   inMemoryFileBytes = 0;
 
-  await clearCreatorOverviewCache();
+  await clearApiCache();
 
   try {
     const db = await getDB();

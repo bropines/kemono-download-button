@@ -3,7 +3,8 @@ export type UpdateCardStateFn = (card: HTMLElement | null, isFavorited: boolean,
 export interface IApiAdapter {
   name: 'kemono' | 'pawchive';
 
-  fetchPostData(service: string, userID: string, postID: string): Promise<any>;
+  // allowStale: false when the answer feeds a download (no copy older than its TTL)
+  fetchPostData(service: string, userID: string, postID: string, options?: { allowStale?: boolean }): Promise<any>;
   fetchAllAuthorPosts(service: string, userID: string, progressTask?: any): Promise<any[]>;
 
   fetchUserFavorites(): Promise<boolean>;

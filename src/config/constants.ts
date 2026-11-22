@@ -80,6 +80,7 @@ export const DEFAULT_SETTINGS: DownloaderSettings = {
   bulkSingleSystemPathTemplate: '{author_name}/[Kemono] {author_name} - {post_count} posts.zip',
   bulkSingleInternalPathTemplate: '{post_date}_{post_title}/{file_index}_{file_name}',
   cacheDurationHours: 24,
+  apiCacheLifetime: 'normal',
   bulkMultipleSystemPathTemplate: '{author_name}/{post_date}_{post_title}.zip',
   savedFileNameTemplates: DEFAULT_PRESET_TEMPLATES,
   ignoredFileExtensions: [],
