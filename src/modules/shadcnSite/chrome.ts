@@ -49,6 +49,19 @@ function sidebarItem(link: HTMLAnchorElement): HTMLAnchorElement {
   // The site's English text (without brackets): i18n.site translates the sidebar like the rest of it
   const label = (originalText(link) || link.textContent || '').trim().replace(/^\[\s*|\s*\]$/g, '');
   item.append(icon(name, 'global-sidebar-entry-item-icon'), document.createTextNode(label));
+  // A plain click goes through the site's own (hidden, htmx-boosted) footer link. Were this copy the request's
+  // element, the history snapshot taken before the swap would detach it (beforeSnapshot strips the copies), htmx
+  // would lose the inherited hx-select and swap the whole response into #main. Nothing else may see the click
+  // (htmx may have boosted the copy too, which would send a second request).
+  item.addEventListener('click', (event) => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || !link.isConnected) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    // What the site does for its own sidebar links: the open sidebar of narrow screens closes
+    const bar = item.closest('.global-sidebar');
+    if (window.innerWidth <= 1020 && bar?.classList.contains('expanded')) bar.querySelector<HTMLElement>('.close-sidebar')?.click();
+    link.click();
+  });
   return item;
 }
 
@@ -79,16 +92,34 @@ export const communityLinks = reversibleTransform(moveFooterLinks, restoreFooter
 
 // Logout: the sidebar entry and the top bar link. The site asks with confirm() from an inline onclick;
 // a plain click is taken first (window, capture) and asked in a kit dialog. Modified and middle clicks
-// keep the browser's behaviour.
+// keep the browser's behaviour. Confirmed, the site's own link is clicked again (its listener clears the
+// logged-in state kept in localStorage), without its inline confirm().
 const LOGOUT = 'a[href^="/account/logout"]';
 let confirmDialog: DialogHandle | null = null;
+let proceeding = false;
+
+function followLogout(link: HTMLAnchorElement): void {
+  if (!link.isConnected) {
+    window.location.assign(link.href);
+    return;
+  }
+  const inline = link.getAttribute('onclick');
+  link.removeAttribute('onclick');
+  proceeding = true;
+  try {
+    link.click();
+  } finally {
+    proceeding = false;
+    if (inline !== null) link.setAttribute('onclick', inline);
+  }
+}
 
 function siteName(): string {
   const site = detectSite();
   return site.charAt(0).toUpperCase() + site.slice(1);
 }
 
-function confirmLogout(href: string): void {
+function confirmLogout(link: HTMLAnchorElement): void {
   if (confirmDialog?.isOpen()) return;
   const confirm = button({
     label: t('sk.logout.confirm'),
@@ -96,7 +127,7 @@ function confirmLogout(href: string): void {
     variant: 'destructive',
     onClick: () => {
       handle.close();
-      window.location.assign(href);
+      followLogout(link);
     },
   });
   const handle: DialogHandle = dialog({
@@ -113,12 +144,12 @@ function confirmLogout(href: string): void {
 }
 
 function onLogoutClick(event: MouseEvent): void {
-  if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  if (proceeding || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
   const link = (event.target as Element | null)?.closest?.<HTMLAnchorElement>(LOGOUT);
   if (!link) return;
   event.preventDefault();
   event.stopImmediatePropagation();
-  confirmLogout(link.href);
+  confirmLogout(link);
 }
 
 /** Asks before logging out; returns the function that removes the interceptor */
