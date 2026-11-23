@@ -175,16 +175,9 @@ ${ACCOUNT_ICONS}
 .site-section--settings .settings__row > span { color: var(--kdl-muted-foreground); font-size: 14px; }
 .site-section--settings .settings__row .form__button { width: auto; min-width: 0; margin-left: auto; padding: 0 16px; }
 .site-section--settings .settings__note { color: var(--kdl-muted-foreground); font-size: 13px; }
-.site-section--account-notifications .notifications__list { display: flex; flex-direction: column; gap: 8px; max-width: 48rem; margin: 0 auto; }
-.site-section--account-notifications .notifications__list > li { ${PANEL} padding: 12px 16px; }
-.site-section--account-notifications .notifications__item--seen { opacity: 0.6; }
 
 /* Stored service keys: each key a card with a status badge, mono log ids and an outline Revoke toggle */
-.site-section--account-keys .card-list__items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
-  gap: 12px;
-}
+.site-section--account-keys .card-list__items { display: flex; flex-direction: column; gap: 12px; }
 .site-section--account-keys .key__view {
   display: flex;
   flex-direction: column;
@@ -273,6 +266,58 @@ ${ACCOUNT_ICONS}
   color: var(--kdl-destructive-foreground);
 }
 #revoke-service-keys .form__button--submit:hover { background: color-mix(in srgb, var(--kdl-destructive) 88%, var(--kdl-foreground)); }
+
+/* The pages under the account (notifications, keys, DM review, blocked creators, settings, password) share the
+   account page's look: one centred column, panels with rows, muted notes */
+:is(.site-section--account-notifications, .site-section--account-keys, .site-section--review-dms, .site-section--settings, .site-section--change-password) { width: 100%; max-width: 32rem; margin-left: auto; margin-right: auto; }
+.site-section--review-dms:has(.dm-card) { max-width: 48rem; }
+:is(.site-section--account-notifications, .site-section--account-keys, .site-section--review-dms, .site-section--settings, .site-section--change-password) .site-section__header, :is(.site-section--account-notifications, .site-section--account-keys, .site-section--review-dms, .site-section--settings, .site-section--change-password) > .site-section__heading { margin: 0 0 16px; text-align: center; }
+:is(.site-section--account-notifications, .site-section--account-keys, .site-section--review-dms, .site-section--settings, .site-section--change-password) .site-section__heading { font-size: 1.5rem; }
+/* Notifications: one list of rows, the date muted, read ones dimmed */
+.site-section--account-notifications .notifications__list { ${PANEL} display: flex; flex-direction: column; gap: 0; margin: 0; padding: 4px 0; list-style: none; }
+.site-section--account-notifications .notifications__item { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 12px 18px; font-size: 14px; }
+.site-section--account-notifications .notifications__item + .notifications__item { border-top: 1px solid var(--kdl-border); }
+.site-section--account-notifications .notifications__item:only-child:not(:has(*)) { padding: 20px 18px; color: var(--kdl-muted-foreground); text-align: center; }
+.site-section--account-notifications .notifications__item :is(time, .notifications__date) { color: var(--kdl-muted-foreground); font-size: 12px; }
+.site-section--account-notifications .notifications__item--seen { color: var(--kdl-muted-foreground); }
+/* Keys: one column; the card title on its own line without the site's top gap; Revoke a small toggle on the right */
+.site-section--account-keys .card-list { padding: 0; }
+.site-section--account-keys .card-list__layout:empty { display: none; }
+.site-section--account-keys .key__card .card__header :is(h2, h3) { margin: 0; font-size: 15px; font-weight: 600; }
+/* The site gives the key a fixed height and shows its Revoke checkbox above the card: the label is the control */
+.site-section--account-keys .key__view { position: relative; flex: none; height: auto; }
+.site-section--account-keys .card-list__items { height: auto; }
+.site-section--account-keys .key__revoke-check { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.site-section--account-keys .key__info, .site-section--account-keys .key__card { height: auto; overflow: visible; }
+.site-section--account-keys .key__label { align-self: flex-end; height: 2rem; min-height: 2rem; margin: 0 16px 14px; padding: 0 12px; font-size: 12px; }
+/* Revoking needs a key ticked first */
+#revoke-service-keys { max-width: none; margin-top: 16px; }
+#revoke-service-keys .form__button--submit { align-self: stretch; }
+.site-section--account-keys:not(:has(.key__revoke-check:checked)) #revoke-service-keys .form__button--submit { opacity: 0.45; pointer-events: none; }
+/* DM review: the status filter is a compact row under the heading; the empty text a muted panel */
+.site-section--review-dms .search-form { justify-content: center; max-width: none; margin: 8px 0 0; padding: 0; border: 0; background: transparent; box-shadow: none; }
+.site-section--review-dms .search-form > div { display: inline-flex; align-items: center; gap: 8px; color: var(--kdl-muted-foreground); font-size: 13px; }
+:is(.site-section--review-dms .no-dms, .site-section--settings .settings__note:only-child) { ${PANEL} margin: 0; padding: 20px 18px; color: var(--kdl-muted-foreground); font-size: 14px; text-align: center; }
+/* Settings and blocked creators: cards with a title row, rows split by a hairline */
+.site-section--settings .settings { margin: 0; }
+.site-section--settings .card { padding: 16px 18px; }
+.site-section--settings .card__header { margin: 0 0 10px; padding: 0; }
+.site-section--settings .card__body { padding: 0; }
+.site-section--settings .settings__note { margin: 10px 0 0; line-height: 1.55; }
+.site-section--settings .card__body > .settings__note:first-child { margin-top: 0; }
+.site-section--settings .card__body > .settings__note + .settings__note:last-child { margin-top: 12px; padding: 14px 0 2px; border-top: 1px solid var(--kdl-border); text-align: center; }
+.site-section--settings .settings__row + .settings__row, .site-section--settings .settings__note + .settings__row { border-top-color: var(--kdl-border); }
+.site-section--settings .settings__row > a:not(.button) { color: var(--kdl-foreground); font-size: 14px; }
+.site-section--settings .settings__service { color: var(--kdl-muted-foreground); font-size: 12px; opacity: 1; }
+.site-section--settings .settings__row .form__button { height: 2rem; font-size: 12px; }
+.site-section--settings .settings__row > .button:only-child { margin-left: auto; }
+/* Change password: the form is a panel; hints are small muted lines, not bullets */
+.site-section--change-password .form { ${PANEL} max-width: none; margin: 0; padding: 20px; }
+.site-section--change-password .form__section { margin: 0 0 14px; }
+.site-section--change-password .form__section:last-child { margin: 18px 0 0; }
+.site-section--change-password .form__section > ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.site-section--change-password .form__hint { color: var(--kdl-muted-foreground); font-size: 12px; }
+.site-section--change-password .form__button--submit { width: 100%; }
 
 /* Announcements */
 .jumbo-announcement, .announcement { ${PANEL} margin: 0 0 12px; padding: 14px 18px; }
