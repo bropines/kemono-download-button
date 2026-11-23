@@ -13,6 +13,7 @@ import { el } from '../../utils/dom';
 import { button, ensureKit, kitIcon, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
 import { setRestoreScroll } from '../../core/router';
+import { checkHead, getPage, listKeyOf, PAGE_CACHE_DAY, putPage, type PageCacheLimits } from './pageCache';
 
 export const INFINITE_SCROLL_ID = 'lists.infiniteScroll';
 
@@ -27,6 +28,12 @@ const CHUNK = 12;
 const REQUEST_TIMEOUT_MS = 20000;
 const RESTORE_WINDOW_MS = 4000;
 const CACHE_ENTRIES = 3;
+// Polite pacing: a page request starts no sooner than the "pause" setting after the previous one (in this tab), and
+// a busy answer (429 / 5xx, a dropped connection) is retried a few times with a growing wait, Retry-After first
+const RETRY_STATUS = new Set([429, 500, 502, 503, 504]);
+const MAX_RETRIES = 3;
+const MAX_BACKOFF_MS = 60000;
+let lastFetchAt = 0;
 // Pages that bring nothing new in a row (offsets shifted by new posts) before giving up
 const MAX_EMPTY_PAGES = 2;
 // Tag pages have their own tools; post pages and other creator tabs have no card pagination
@@ -56,6 +63,10 @@ interface Saved {
 interface State {
   target: Target;
   href: string;
+  /** Cached list this page belongs to (creator posts), its live first cards, and the check against them */
+  list: string | null;
+  head: string[];
+  cacheReady: Promise<void>;
   next: string | null;
   /** Server markup of every appended card, in order (what a Back restores) */
   html: string[];
@@ -138,6 +149,16 @@ function cardCount(): number {
 
 function maxCards(): number {
   return ctxRef?.settings.get<number>('maxCards') ?? 600;
+}
+
+function cacheLimits(): PageCacheLimits {
+  const mb = ctxRef?.settings.get<number>('cacheMb') ?? 4;
+  const days = ctxRef?.settings.get<number>('cacheDays') ?? 7;
+  return { maxBytes: Math.max(0, mb) * 1024 * 1024, ttlMs: Math.max(1, days) * PAGE_CACHE_DAY };
+}
+
+function pauseMs(): number {
+  return Math.max(0.5, ctxRef?.settings.get<number>('delay') ?? 2) * 1000;
 }
 
 function autoLoad(): boolean {
@@ -307,7 +328,7 @@ async function fetchDocument(url: string, signal: AbortSignal): Promise<Document
   const timer = setTimeout(() => controllerAbort(signal), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(url, { credentials: 'same-origin', signal, headers: { Accept: 'text/html' } });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) throw Object.assign(new Error(`HTTP ${response.status}`), { status: response.status, retryAfter: response.headers.get('Retry-After') });
     return new DOMParser().parseFromString(await response.text(), 'text/html');
   } finally {
     clearTimeout(timer);
@@ -319,20 +340,90 @@ function controllerAbort(signal: AbortSignal): void {
   if (state?.controller?.signal === signal) state.controller.abort();
 }
 
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Seconds or an HTTP date; null when absent or unreadable */
+function retryAfterMs(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+  const at = Date.parse(value);
+  return Number.isFinite(at) ? Math.max(0, at - Date.now()) : null;
+}
+
+/** Waits out the pause after the previous request, and a hidden tab; false when the load was dropped meanwhile */
+async function pace(s: State, seq: number): Promise<boolean> {
+  const alive = () => state === s && s.seq === seq;
+  for (;;) {
+    if (!alive()) return false;
+    if (document.hidden) {
+      await new Promise<void>((resolve) => document.addEventListener('visibilitychange', () => resolve(), { once: true }));
+      continue;
+    }
+    const wait = lastFetchAt + pauseMs() - Date.now();
+    if (wait <= 0) break;
+    await sleep(Math.min(wait, 1000));
+  }
+  lastFetchAt = Date.now();
+  return alive();
+}
+
+/** The next page from the network, paced and retried while the site is busy; null when the load was dropped */
+async function fetchPaced(s: State, seq: number, url: string): Promise<Document | null> {
+  for (let attempt = 0; ; attempt++) {
+    if (!(await pace(s, seq))) return null;
+    s.controller = new AbortController();
+    try {
+      return await fetchDocument(url, s.controller.signal);
+    } catch (error) {
+      const status = (error as { status?: number }).status;
+      const busy = status === undefined ? (error as Error)?.name !== 'AbortError' : RETRY_STATUS.has(status);
+      if (!busy || attempt >= MAX_RETRIES || state !== s || s.seq !== seq) throw error;
+      const wait = Math.min(MAX_BACKOFF_MS, retryAfterMs((error as { retryAfter?: string }).retryAfter) ?? pauseMs() * 2 ** (attempt + 1));
+      s.statusText.textContent = t('iscroll.waiting', { seconds: Math.ceil(wait / 1000) });
+      // The next pace() waits this long
+      lastFetchAt = Date.now() + wait - pauseMs();
+    }
+  }
+}
+
+function parseCards(html: string[]): Element[] {
+  const parser = document.createElement('template');
+  return html.flatMap((markup) => {
+    parser.innerHTML = markup;
+    const card = parser.content.firstElementChild;
+    return card && card.matches(CARD) ? [card] : [];
+  });
+}
+
 async function loadNext(manual = false): Promise<void> {
   const s = state;
   if (!s || !s.next || s.status === 'loading' || searchIsLive()) return;
   if (!manual && s.status !== 'idle') return;
   const seq = ++s.seq;
   const url = s.next;
-  s.controller = new AbortController();
   setStatus(s, 'loading');
   try {
-    const doc = await fetchDocument(url, s.controller.signal);
+    let sources: Element[];
+    let range: Range | null;
+    let next: string | null;
+    if (s.list) await s.cacheReady;
+    const cached = s.list ? await getPage(s.list, url, cacheLimits()) : null;
     if (state !== s || s.seq !== seq) return;
-    const sources = Array.from(doc.querySelectorAll('.card-list__items')).flatMap((list) => Array.from(list.children).filter((child) => child.matches(CARD)));
-    // An app shell (kemono.cr renders its lists in the browser) has no cards to take
-    if (!sources.length && !doc.querySelector('.card-list__items')) throw new Error('no card list');
+    if (cached) {
+      sources = parseCards(cached.html);
+      range = cached.range;
+      next = cached.next ? sameOrigin(cached.next) : null;
+    } else {
+      const doc = await fetchPaced(s, seq, url);
+      if (!doc || state !== s || s.seq !== seq) return;
+      sources = Array.from(doc.querySelectorAll('.card-list__items')).flatMap((list) => Array.from(list.children).filter((child) => child.matches(CARD)));
+      // An app shell (kemono.cr renders its lists in the browser) has no cards to take
+      if (!sources.length && !doc.querySelector('.card-list__items')) throw new Error('no card list');
+      range = readRange(doc);
+      next = nextHref(doc);
+      if (s.list) void putPage(s.list, url, { html: sources.map((source) => source.outerHTML), next, range }, s.head, cacheLimits());
+    }
     const fresh: HTMLElement[] = [];
     sources.forEach((source) => {
       const key = cardKey(source);
@@ -341,9 +432,8 @@ async function loadNext(manual = false): Promise<void> {
       s.html.push(source.outerHTML);
       fresh.push(prepareCard(source));
     });
-    const range = readRange(doc);
     if (range && s.range) s.range = { from: s.range.from, to: range.to, total: range.total ?? s.range.total };
-    s.next = nextHref(doc);
+    s.next = next;
     if (s.next === url) s.next = null;
     s.emptyPages = fresh.length ? 0 : s.emptyPages + 1;
     if (s.emptyPages >= MAX_EMPTY_PAGES) s.next = null;
@@ -365,13 +455,21 @@ async function loadNext(manual = false): Promise<void> {
 
 function attach(target: Target): void {
   const parts = buildFooter();
+  const firstCards = Array.from(target.list.querySelectorAll(CARD));
+  // Only the first page of a list vouches for its cached pages (a later page starts with other cards)
+  const onFirstPage = !new URL(window.location.href).searchParams.get('o');
+  const list = onFirstPage ? listKeyOf(window.location.href) : null;
+  const head = firstCards.slice(0, 3).map(cardKey);
   const s: State = {
     target,
     href: pageKey(),
+    list,
+    head,
+    cacheReady: list ? checkHead(list, head, cacheLimits()) : Promise.resolve(),
     next: target.next,
     html: [],
     added: [],
-    keys: new Set(Array.from(target.list.querySelectorAll(CARD)).map(cardKey)),
+    keys: new Set(firstCards.map(cardKey)),
     range: readRange(document),
     status: 'idle',
     emptyPages: 0,
@@ -491,6 +589,9 @@ export const infiniteScrollModule: KdlModule = {
   defaultEnabled: false,
   settings: [
     { key: 'auto', label: 'Load automatically while scrolling', type: 'boolean', default: true, hint: 'Off: a “Load more” button at the end of the list.' },
+    { key: 'delay', label: 'Pause between pages (seconds)', type: 'number', default: 2, min: 0.5, max: 30, hint: 'The next page is requested no sooner than this after the previous one; a busy site gets longer waits by itself.' },
+    { key: 'cacheMb', label: 'Cache of scrolled creators (MB)', type: 'number', default: 4, min: 0, max: 64, hint: 'Pages already scrolled on a creator come from the cache, without requests. Compressed: about 1 MB holds 150 pages. 0 = off.' },
+    { key: 'cacheDays', label: 'Keep cached pages (days)', type: 'number', default: 7, min: 1, max: 60, hint: 'New posts by the creator drop their cached pages at once.' },
     { key: 'maxCards', label: 'Ask before loading more than this many cards', type: 'number', default: 600, min: 100, max: 3000, hint: 'Past it, a “Load more” button keeps long sessions light.' },
   ],
   styles,
