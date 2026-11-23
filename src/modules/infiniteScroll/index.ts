@@ -5,6 +5,9 @@
 // (download buttons, checkboxes, quick favourites, hidden creators, smooth thumbnails, viewed marks, site
 // translation) picks them up through the router's mutation pass, like cards of a freshly loaded page.
 //
+// The next page is requested as soon as the user scrolls down (one page ahead, paced like every request), so
+// reaching the end appends it at once. Creator post pages come from a small persistent cache (./pageCache.ts).
+//
 // The URL stays the first page's. Appended cards never go into htmx's history snapshot; they are kept here
 // (as the markup the server sent) with the scroll position, and put back when the user returns with Back.
 
@@ -60,8 +63,18 @@ interface Saved {
   scrollY: number;
 }
 
+/** A page read and ready to append */
+interface Loaded {
+  sources: Element[];
+  range: Range | null;
+  next: string | null;
+}
+
 interface State {
   target: Target;
+  /** The next page, requested as soon as the user scrolls down, appended when they reach the end */
+  prefetch: { url: string; promise: Promise<Loaded | null> } | null;
+  lastScrollY: number;
   href: string;
   /** Cached list this page belongs to (creator posts), its live first cards, and the check against them */
   list: string | null;
@@ -352,8 +365,7 @@ function retryAfterMs(value: string | null | undefined): number | null {
 }
 
 /** Waits out the pause after the previous request, and a hidden tab; false when the load was dropped meanwhile */
-async function pace(s: State, seq: number): Promise<boolean> {
-  const alive = () => state === s && s.seq === seq;
+async function pace(alive: () => boolean): Promise<boolean> {
   for (;;) {
     if (!alive()) return false;
     if (document.hidden) {
@@ -369,16 +381,16 @@ async function pace(s: State, seq: number): Promise<boolean> {
 }
 
 /** The next page from the network, paced and retried while the site is busy; null when the load was dropped */
-async function fetchPaced(s: State, seq: number, url: string): Promise<Document | null> {
+async function fetchPaced(s: State, alive: () => boolean, url: string): Promise<Document | null> {
   for (let attempt = 0; ; attempt++) {
-    if (!(await pace(s, seq))) return null;
+    if (!(await pace(alive))) return null;
     s.controller = new AbortController();
     try {
       return await fetchDocument(url, s.controller.signal);
     } catch (error) {
       const status = (error as { status?: number }).status;
       const busy = status === undefined ? (error as Error)?.name !== 'AbortError' : RETRY_STATUS.has(status);
-      if (!busy || attempt >= MAX_RETRIES || state !== s || s.seq !== seq) throw error;
+      if (!busy || attempt >= MAX_RETRIES || !alive()) throw error;
       const wait = Math.min(MAX_BACKOFF_MS, retryAfterMs((error as { retryAfter?: string }).retryAfter) ?? pauseMs() * 2 ** (attempt + 1));
       s.statusText.textContent = t('iscroll.waiting', { seconds: Math.ceil(wait / 1000) });
       // The next pace() waits this long
@@ -396,34 +408,56 @@ function parseCards(html: string[]): Element[] {
   });
 }
 
+/** A page of the list: from the creator cache, else from the network (paced); null when dropped meanwhile */
+async function fetchPage(s: State, url: string, alive: () => boolean): Promise<Loaded | null> {
+  if (s.list) await s.cacheReady;
+  const cached = s.list ? await getPage(s.list, url, cacheLimits()) : null;
+  if (!alive()) return null;
+  if (cached) return { sources: parseCards(cached.html), range: cached.range, next: cached.next ? sameOrigin(cached.next) : null };
+  const doc = await fetchPaced(s, alive, url);
+  if (!doc || !alive()) return null;
+  const sources = Array.from(doc.querySelectorAll('.card-list__items')).flatMap((list) => Array.from(list.children).filter((child) => child.matches(CARD)));
+  // An app shell (kemono.cr renders its lists in the browser) has no cards to take
+  if (!sources.length && !doc.querySelector('.card-list__items')) throw new Error('no card list');
+  const range = readRange(doc);
+  const next = nextHref(doc);
+  if (s.list) void putPage(s.list, url, { html: sources.map((source) => source.outerHTML), next, range }, s.head, cacheLimits());
+  return { sources, range, next };
+}
+
+/** Scrolling down asks for the next page ahead of time (one page, same pacing); reaching the end appends it */
+function prefetchNext(s: State): void {
+  const url = s.next;
+  if (!url || s.prefetch?.url === url || s.status !== 'idle' || !autoLoad() || cardCount() >= maxCards() || searchIsLive()) return;
+  const alive = () => state === s && s.prefetch?.url === url;
+  const entry = { url, promise: Promise.resolve<Loaded | null>(null) };
+  s.prefetch = entry;
+  // A failed prefetch is simply not used: the load at the end tries again (and reports a failure)
+  entry.promise = fetchPage(s, url, alive).catch(() => null);
+}
+
+function onScroll(): void {
+  const s = state;
+  if (!s) return;
+  const y = window.scrollY;
+  if (y > s.lastScrollY + 40) prefetchNext(s);
+  if (Math.abs(y - s.lastScrollY) > 40) s.lastScrollY = y;
+}
+
 async function loadNext(manual = false): Promise<void> {
   const s = state;
   if (!s || !s.next || s.status === 'loading' || searchIsLive()) return;
   if (!manual && s.status !== 'idle') return;
   const seq = ++s.seq;
   const url = s.next;
+  const alive = () => state === s && s.seq === seq;
+  const ahead = s.prefetch?.url === url ? s.prefetch.promise : null;
   setStatus(s, 'loading');
   try {
-    let sources: Element[];
-    let range: Range | null;
-    let next: string | null;
-    if (s.list) await s.cacheReady;
-    const cached = s.list ? await getPage(s.list, url, cacheLimits()) : null;
-    if (state !== s || s.seq !== seq) return;
-    if (cached) {
-      sources = parseCards(cached.html);
-      range = cached.range;
-      next = cached.next ? sameOrigin(cached.next) : null;
-    } else {
-      const doc = await fetchPaced(s, seq, url);
-      if (!doc || state !== s || s.seq !== seq) return;
-      sources = Array.from(doc.querySelectorAll('.card-list__items')).flatMap((list) => Array.from(list.children).filter((child) => child.matches(CARD)));
-      // An app shell (kemono.cr renders its lists in the browser) has no cards to take
-      if (!sources.length && !doc.querySelector('.card-list__items')) throw new Error('no card list');
-      range = readRange(doc);
-      next = nextHref(doc);
-      if (s.list) void putPage(s.list, url, { html: sources.map((source) => source.outerHTML), next, range }, s.head, cacheLimits());
-    }
+    const loaded = (ahead && (await ahead)) || (alive() ? await fetchPage(s, url, alive) : null);
+    if (s.prefetch?.url === url) s.prefetch = null;
+    if (!loaded || !alive()) return;
+    const { sources, range, next } = loaded;
     const fresh: HTMLElement[] = [];
     sources.forEach((source) => {
       const key = cardKey(source);
@@ -462,6 +496,8 @@ function attach(target: Target): void {
   const head = firstCards.slice(0, 3).map(cardKey);
   const s: State = {
     target,
+    prefetch: null,
+    lastScrollY: window.scrollY,
     href: pageKey(),
     list,
     head,
@@ -612,8 +648,10 @@ export const infiniteScrollModule: KdlModule = {
     };
     ctx.settings.onChange('auto', refresh);
     ctx.settings.onChange('maxCards', refresh);
+    window.addEventListener('scroll', onScroll, { passive: true });
     ctx.onCleanup(() => {
       // Leaving the page: the router unmounts before htmx takes its snapshot, which then holds the first page only
+      window.removeEventListener('scroll', onScroll);
       if (state) remember(state);
       detach(true);
       ctxRef = null;
