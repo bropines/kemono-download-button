@@ -88,7 +88,7 @@ export const progressBarStyles = css({
   '.kdl-dl__summary': { fontSize: '12px', color: 'var(--kdl-muted-foreground)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   '.kdl-dl__clear.kdl-ui-btn': { flexShrink: 0, height: '28px', fontSize: '12px' },
   '.kdl-dl__collapse.kdl-ui-btn': { flexShrink: 0, width: '28px', height: '28px' },
-  '.kdl-dl[data-position^="top"] .kdl-dl__collapse .kdl-icon': { transform: 'rotate(180deg)' },
+  '.kdl-dl[data-position^="top"] .kdl-dl__collapse :is(.kdl-icon, .kdl-ui-icon)': { transform: 'rotate(180deg)' },
   '#kdl-progress-container': { display: 'flex', flexDirection: 'column', gap: '6px', padding: '8px', minHeight: 0, flex: '1 1 auto' },
 
   // Task card
@@ -124,8 +124,8 @@ export const progressBarStyles = css({
   '.kdl-ov-task__title': { fontSize: '13px', fontWeight: 600, lineHeight: 1.35 },
   '.kdl-ov-task__status': { fontSize: '12px', color: 'var(--kdl-muted-foreground)' },
   '.kdl-ov-task__cancel.kdl-ui-btn, .kdl-dl-task__toggle.kdl-ui-btn': { width: '28px', height: '28px', flexShrink: 0 },
-  '.kdl-dl-task__toggle .kdl-icon': { transition: 'transform 0.15s ease' },
-  '.kdl-dl-task[data-expanded] .kdl-dl-task__toggle .kdl-icon': { transform: 'rotate(180deg)' },
+  '.kdl-dl-task__toggle :is(.kdl-icon, .kdl-ui-icon)': { transition: 'transform 0.15s ease' },
+  '.kdl-dl-task[data-expanded] .kdl-dl-task__toggle :is(.kdl-icon, .kdl-ui-icon)': { transform: 'rotate(180deg)' },
   '.kdl-dl-task__progress': { display: 'flex', alignItems: 'center', gap: '8px' },
   '.kdl-dl-task__progress .kdl-ui-progress': { flex: '1 1 auto', height: '6px' },
   '.kdl-dl-task__state': { display: 'inline-flex', color: 'var(--kdl-muted-foreground)' },

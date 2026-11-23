@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- The arrow on a download in the downloads panel turns when its file list is opened or closed (and the panel's collapse arrow points the right way when the panel sits at the top).
+
 ## [2.1.7] - 2026-11-23
 
 ### Fixed
