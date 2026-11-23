@@ -100,6 +100,49 @@ const sidebarOpen = (): HTMLElement | null => {
   return bar && !bar.classList.contains('retracted') && window.matchMedia(DESKTOP).matches ? bar : null;
 };
 const closeSidebar = (): void => document.querySelector<HTMLElement>('.global-sidebar .close-sidebar')?.click();
+// Phones: the site re-applies its stored sidebar state on every resize, and a stored "true" (retracted, which the
+// overlay setting writes) toggles an open sidebar shut. A phone fires resize whenever the browser's bars slide in
+// or out, so scrolling the open sidebar closed it. Its listener was registered first and cannot be outrun; it does
+// nothing without a stored state, which only the wide layout reads: while the narrow sidebar is open, the state is
+// put aside, and back once it closes (or the page goes away).
+const SIDEBAR_STATE = 'sidebar_state';
+function keepPhoneSidebarOpen(): () => void {
+  let stash: string | null = null;
+  let bar: HTMLElement | null = null;
+  const restore = (): void => {
+    if (stash === null) return;
+    try { localStorage.setItem(SIDEBAR_STATE, stash); } catch { /* storage blocked */ }
+    stash = null;
+  };
+  const sync = (): void => {
+    const open = !!bar?.classList.contains('expanded') && !window.matchMedia(DESKTOP).matches;
+    if (open && stash === null) {
+      try {
+        stash = localStorage.getItem(SIDEBAR_STATE);
+        if (stash !== null) localStorage.removeItem(SIDEBAR_STATE);
+      } catch { stash = null; }
+    } else if (!open) restore();
+  };
+  const observer = new MutationObserver(sync);
+  const attach = (): void => {
+    const next = document.querySelector<HTMLElement>('.global-sidebar');
+    if (next === bar) return;
+    observer.disconnect();
+    bar = next;
+    if (bar) observer.observe(bar, { attributes: true, attributeFilter: ['class'] });
+    sync();
+  };
+  attach();
+  const stop = onPageChange(attach);
+  window.addEventListener('pagehide', restore);
+  return () => {
+    stop();
+    observer.disconnect();
+    window.removeEventListener('pagehide', restore);
+    restore();
+  };
+}
+
 function overlaySidebar(get: SettingGetter): () => void {
   const active = (): boolean => get<string>('sidebar') === 'overlay';
   const retract = (): void => {
@@ -254,6 +297,7 @@ export const shadcnSiteModule: KdlModule = {
     syncLayout(get);
     Object.keys(LAYOUT_ATTRS).concat('thumb').forEach((key) => ctx.settings.onChange(key, () => syncLayout(get)));
     ctx.onCleanup(overlaySidebar(get));
+    ctx.onCleanup(keepPhoneSidebarOpen());
     ctx.settings.onChange('sidebar', (value) => {
       if (value === 'overlay') {
         try { localStorage.setItem('sidebar_state', 'true'); } catch { /* storage blocked */ }

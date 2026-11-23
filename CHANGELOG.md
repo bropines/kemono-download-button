@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.3] - 2026-11-23
+
+### Fixed
+- On phones the open side menu no longer closes by itself while you scroll it: the site shut it on every resize, and phones resize the page whenever the browser's bars slide in or out.
+
 ## [2.1.2] - 2026-11-23
 
 ### Fixed
