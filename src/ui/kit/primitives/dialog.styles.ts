@@ -18,7 +18,7 @@ export const dialogStyles = css({
     gap: '16px',
     width: 'calc(100% - 32px)',
     height: 'fit-content',
-    maxHeight: 'calc(100vh - 32px)',
+    maxHeight: 'calc(calc(100 * var(--kdl-vh, 1vh)) - 32px)',
     margin: 'auto',
     padding: '24px',
     border: '1px solid var(--kdl-border)',

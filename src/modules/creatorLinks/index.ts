@@ -155,7 +155,7 @@ const STYLES = `
 
 // Kit shadow root: the menu (popovers are portalled there)
 const MENU_STYLES = `
-.kdl-ui-popover.kdl-xl__popover { width: min(320px, calc(100vw - 16px)); max-height: min(70vh, 520px); overflow-y: auto; padding: 6px; }
+.kdl-ui-popover.kdl-xl__popover { width: min(320px, calc(100vw - 16px)); max-height: min(calc(70 * var(--kdl-vh, 1vh)), 520px); overflow-y: auto; padding: 6px; }
 .kdl-xl__group + .kdl-xl__group, .kdl-xl__foot { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--kdl-border); }
 .kdl-xl__group-title { padding: 6px 8px 4px; color: var(--kdl-muted-foreground); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kdl-xl__item { display: flex; align-items: center; gap: 8px; height: 2rem; padding: 0 8px; border-radius: calc(var(--kdl-radius) - 2px); color: var(--kdl-foreground); font-size: 13px; text-decoration: none; }

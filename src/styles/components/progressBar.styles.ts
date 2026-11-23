@@ -67,7 +67,7 @@ export const progressBarStyles = css({
     display: 'none',
     flexDirection: 'column',
     width: '100%',
-    maxHeight: 'min(60vh, 560px)',
+    maxHeight: 'min(calc(60 * var(--kdl-vh, 1vh)), 560px)',
     border: '1px solid var(--kdl-border)',
     borderRadius: 'calc(var(--kdl-radius) + 4px)',
     background: 'var(--kdl-background)',
@@ -179,6 +179,6 @@ export const progressBarStyles = css({
     '.kdl-dl[data-position^="bottom"]': { bottom: '8px' },
     '.kdl-dl[data-position^="top"]': { top: '8px' },
     '.kdl-dl__launcher': { minWidth: '44px', height: '44px', padding: '0 10px 0 5px' },
-    '.kdl-dl__panel': { maxHeight: 'min(45vh, 400px)' },
+    '.kdl-dl__panel': { maxHeight: 'min(calc(45 * var(--kdl-vh, 1vh)), 400px)' },
   },
 });

@@ -6,7 +6,7 @@ import { addKitStyles, button, dialog, scrollArea } from '../kit';
 export interface DirectDownloadFile { url: string; fileName: string }
 
 const styles = css({
-  '.kdl-direct-download-list': { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '55vh' },
+  '.kdl-direct-download-list': { display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: 'calc(55 * var(--kdl-vh, 1vh))' },
   '.kdl-direct-download-link.kdl-ui-btn': { width: '100%', height: 'auto', minHeight: '44px', justifyContent: 'flex-start', whiteSpace: 'normal', overflowWrap: 'anywhere', textAlign: 'left' },
 });
 

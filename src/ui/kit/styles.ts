@@ -23,8 +23,17 @@ import { kbdStyles } from './primitives/kbd.styles';
 import { emptyStateStyles } from './primitives/emptyState.styles';
 import { skeletonStyles } from './primitives/skeleton.styles';
 
+// --kdl-vh: 1% of the visible viewport. On phones vh also counts the area under the browser's own bars, so a
+// dialog sized in vh ran past the top of the screen; dvh leaves them out (vh where it is unknown)
+const viewportStyles = `:host, :root { --kdl-vh: 1vh; }
+@supports (height: 1dvh) {
+  :host, :root { --kdl-vh: 1dvh; }
+}
+`;
+
 /** Every kit rule, tokens and reset first so component rules win at equal specificity. */
 export const kitStyles = [
+  viewportStyles,
   tokenStyles,
   baseStyles,
   buttonStyles,

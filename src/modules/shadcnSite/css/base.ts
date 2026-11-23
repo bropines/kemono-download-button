@@ -126,7 +126,7 @@ select${NK} option { color: var(--kdl-popover-foreground); background-color: var
     background: var(--kdl-popover);
     color: var(--kdl-popover-foreground);
     box-shadow: var(--kdl-shadow);
-    max-height: min(320px, 60vh);
+    max-height: min(320px, calc(60 * var(--kdl-vh, 1vh)));
     overflow-y: auto;
     scrollbar-width: thin;
   }

@@ -65,8 +65,8 @@ export const kuiMainStyles = css({
     display: 'flex',
     gap: '15px',
     alignItems: 'stretch',
-    height: '80vh',
-    maxHeight: '80vh',
+    height: 'calc(80 * var(--kdl-vh, 1vh))',
+    maxHeight: 'calc(80 * var(--kdl-vh, 1vh))',
   },
   '.kui-gallery-thumbnails': {
     width: '200px',
@@ -183,7 +183,7 @@ export const kuiMainStyles = css({
   '.kui-video-list': {
     width: '300px',
     flexShrink: 0,
-    maxHeight: '60vh',
+    maxHeight: 'calc(60 * var(--kdl-vh, 1vh))',
     overflowY: 'auto',
     paddingRight: '5px',
     marginLeft: 0,
@@ -244,7 +244,7 @@ export const kuiMainStyles = css({
   '.kui-video-player-area .plyr': {
     width: '100%',
     maxWidth: '100%',
-    maxHeight: '85vh',
+    maxHeight: 'calc(85 * var(--kdl-vh, 1vh))',
     // Room for a 16:9 picture until the video's own size is known (set inline on loadedmetadata): the player
     // used to start 150px tall and push the rest of the post down when the metadata came in
     aspectRatio: '16 / 9',
@@ -361,7 +361,7 @@ export const kuiMainStyles = css({
       order: 1,
     },
     '.kui-gallery-preview-image': {
-      maxHeight: '70vh',
+      maxHeight: 'calc(70 * var(--kdl-vh, 1vh))',
     },
     '.kui-gallery-thumbnails': {
       order: 2,
@@ -405,7 +405,7 @@ export const kuiMainStyles = css({
       order: 2,
       marginTop: '8px',
       marginLeft: 0,
-      maxHeight: '30vh',
+      maxHeight: 'calc(30 * var(--kdl-vh, 1vh))',
     },
     '.kui-video-gallery-layout .kui-video-list.kui-anim': {
       transition: 'max-height 0.3s ease-in-out, padding 0.3s ease-in-out, margin 0.3s ease-in-out',

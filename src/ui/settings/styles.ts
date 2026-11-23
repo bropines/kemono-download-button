@@ -6,7 +6,7 @@ const STYLE_ID = 'kdl-settings-styles';
 
 /** Layout of the Settings dialog; everything else comes from the kit primitives. */
 export const settingsStyles = css({
-  '.kdl-settings': { height: 'min(760px, calc(100vh - 32px))' },
+  '.kdl-settings': { height: 'min(760px, calc(calc(100 * var(--kdl-vh, 1vh)) - 32px))' },
   '.kdl-settings [hidden]': { display: 'none !important' },
   '.kdl-settings .kdl-ui-dialog__body': { display: 'flex', flexDirection: 'column' },
   '.kdl-settings .kdl-ui-tabs': { flex: '1 1 auto', minHeight: 0, gap: '12px' },
@@ -246,7 +246,7 @@ export const settingsStyles = css({
     '.kdl-settings .kdl-ui-dialog__header': { gridTemplateColumns: 'minmax(0, 1fr)' },
     // Under the title, clear of the close button: the full width
     '.kdl-settings__search': { gridColumn: '1', gridRow: 'auto', marginTop: '6px', marginRight: '-32px' },
-    '.kdl-settings': { height: 'calc(100vh - 32px)', padding: '16px' },
+    '.kdl-settings': { height: 'calc(calc(100 * var(--kdl-vh, 1vh)) - 32px)', padding: '16px' },
     '.kdl-settings__footer-spacer': { display: 'none' },
     // Export / Import / Reset share one row under a full-width Done instead of four stacked rows
     '.kdl-settings .kdl-ui-dialog__footer': { flexDirection: 'row', flexWrap: 'wrap', gap: '8px' },

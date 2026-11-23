@@ -29,7 +29,7 @@ export const selectStyles = css({
       background: 'var(--kdl-popover)',
       color: 'var(--kdl-popover-foreground)',
       boxShadow: 'var(--kdl-shadow)',
-      maxHeight: 'min(320px, 60vh)',
+      maxHeight: 'min(320px, calc(60 * var(--kdl-vh, 1vh)))',
       overflowY: 'auto',
       scrollbarWidth: 'thin',
     },

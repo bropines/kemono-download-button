@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- On phones the Settings dialog, sheets, menus, the gallery and the download panel are sized to the visible screen: the browser's own bars no longer push their top edge off the screen.
+
 ## [2.1.0] - 2026-11-23
 
 ### Added

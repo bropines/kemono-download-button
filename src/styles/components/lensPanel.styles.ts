@@ -95,7 +95,7 @@ export const lensPanelStyles = css({
       bottom: 0,
       left: 0,
       width: '100%',
-      maxHeight: '55vh',
+      maxHeight: 'calc(55 * var(--kdl-vh, 1vh))',
       borderRadius: 'var(--kdl-radius) var(--kdl-radius) 0 0',
       animation: 'kdl-ui-slide-up 0.2s ease-out',
     },

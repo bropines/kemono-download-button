@@ -27,7 +27,7 @@ export const sheetStyles = css({
     borderLeft: '1px solid var(--kdl-border)',
     animationName: 'kdl-ui-sheet-right',
   },
-  '.kdl-ui-sheet--top, .kdl-ui-sheet--bottom': { left: 0, right: 0, maxHeight: '85vh' },
+  '.kdl-ui-sheet--top, .kdl-ui-sheet--bottom': { left: 0, right: 0, maxHeight: 'calc(85 * var(--kdl-vh, 1vh))' },
   '.kdl-ui-sheet--top': { top: 0, borderBottom: '1px solid var(--kdl-border)', animationName: 'kdl-ui-sheet-top' },
   '.kdl-ui-sheet--bottom': {
     bottom: 0,
