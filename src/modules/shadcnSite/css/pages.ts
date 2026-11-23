@@ -348,6 +348,8 @@ ${ACCOUNT_ICONS}
 .site-section--home .jumbo-welcome {
   position: static;
   min-height: calc(100vh - 12rem);
+  /* The small viewport: the browser bars sliding in and out on phones no longer re-centre the card */
+  min-height: calc(var(--kdl-home-view-h, 100svh) - 12rem);
   justify-content: center;
   align-items: center;
   padding: 24px 0;
@@ -363,9 +365,10 @@ ${ACCOUNT_ICONS}
   right: 0;
   height: 100vh;
   height: var(--kdl-home-art-h, 100lvh);
+  /* No bottom edge and no auto height (the site's), or the art follows the viewport and rescales anyway */
+  bottom: auto;
   z-index: -1;
   width: auto;
-  height: auto;
   background-size: cover;
   background-position: center;
   pointer-events: none;
@@ -499,7 +502,7 @@ iframe[src*="swagger"] { height: max(850px, 100vh); min-height: 200px; }
 @media (max-width: 600px) {
   .kdl-sk-panel, .site-section--home .jumbo-welcome-description { padding: 16px; }
   .site-section--file-hash-search #file-search { padding: 16px; }
-  .site-section--home .jumbo-welcome { min-height: calc(100vh - 9rem); }
+  .site-section--home .jumbo-welcome { min-height: calc(100vh - 9rem); min-height: calc(var(--kdl-home-view-h, 100svh) - 9rem); }
   .kdl-sk-faq-tools .kdl-sk-faq-search { flex-basis: 100%; }
   .kdl-sk-faq-tools > .kdl-ui-btn { flex: 1 1 0; }
 }

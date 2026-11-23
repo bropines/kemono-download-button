@@ -486,10 +486,13 @@ function pinHomeArt(): void {
   artWidth = window.innerWidth;
   const tallest = Math.max(window.innerHeight, document.documentElement.clientHeight, window.screen?.height || 0);
   document.documentElement.style.setProperty('--kdl-home-art-h', `${tallest}px`);
+  // The card is centred in the screen as it is now (bars shown): a pixel height, so their sliding never moves it
+  document.documentElement.style.setProperty('--kdl-home-view-h', `${window.innerHeight}px`);
 }
 function unpinHomeArt(): void {
   artWidth = 0;
   document.documentElement.style.removeProperty('--kdl-home-art-h');
+  document.documentElement.style.removeProperty('--kdl-home-view-h');
 }
 
 export const shadcnPagesTransform = reversibleTransform(
