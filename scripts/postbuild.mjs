@@ -111,6 +111,21 @@ ${indent(both('posts'))}
 
 ${sections}
 `;
+// Installed copies only update (and the script only offers it) when the revision rises: a style that changed
+// under the same revision would stay old for everyone. Compared with the file this build replaces.
+{
+  const previous = fs.existsSync(preloadPath) ? fs.readFileSync(preloadPath, 'utf-8') : '';
+  const body = (css) => css.replace(/^[\s\S]*?==\/UserStyle== \*\//, '').replace(/--kdl-preload: \d+;/, '');
+  const oldRevision = Number(previous.match(/--kdl-preload: (\d+);/)?.[1] || 0);
+  const oldVersion = previous.match(/@version\s+(\S+)/)?.[1];
+  if (previous && body(previous) !== body(preloadStyle) && (PRELOAD_STYLE_REVISION <= oldRevision || PRELOAD_STYLE_VERSION === oldVersion)) {
+    console.warn(
+      `\n!!! extras/kdl-preload.user.css changed, but its revision (${PRELOAD_STYLE_REVISION}) or @version (${PRELOAD_STYLE_VERSION}) did not.\n` +
+        '!!! Raise PRELOAD_STYLE_REVISION in src/ui/components/preloadStyle.ts and PRELOAD_STYLE_VERSION in scripts/postbuild.mjs,\n' +
+        '!!! then build again: otherwise Stylus keeps the old style and the script does not offer the update.\n'
+    );
+  }
+}
 fs.writeFileSync(preloadPath, preloadStyle, 'utf-8');
 
 console.log(`Successfully generated:\n - ${permanentUserJs}\n - ${preloadPath}`);
