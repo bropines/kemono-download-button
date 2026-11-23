@@ -10,6 +10,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - **About** in Settings → General: version, what's new, links to GitHub, releases, changelog, bug reports, translations and the creator links dataset, and a link to support the project on Boosty.
 - **Faster navigation** (module, on by default): the next page starts loading the moment you press a link instead of when you release it; optionally also when the pointer rests on a link. The site gets the same requests.
 - **API cache**: creator profiles, posts, comments, tags, links, announcements, similar creators and searches are reused for a while (from minutes for searches to a day for posts) and refreshed in the background, so revisits make far fewer requests. Settings → General → Cache sets the lifetime (off, short, normal, long) and clears it. Favourites and account data are never cached; downloads never use a stale copy.
+- Post pages: a long post text is cut to 12 lines with a fade, with "Show more" to open it in place and a button that shows the whole text in a dialog. The "Post page layout" module settings set the number of lines (0 shows everything). The Russian heading of the block is now "Текст поста".
 
 ### Changed
 - **Hide site ads** is now off by default. If you switched it on or off yourself, your choice is kept.
@@ -28,6 +29,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- Post pages: the image gallery now also works on posts whose files the archive keeps only as previews (the site shows them without a link to an original); such pictures open at the preview size. A post text that holds only a blank filler character no longer shows an empty block.
 - No more jumping pages while our blocks load: on creator pages the similar creators strip, the overview and the post count badges hold their place with a shimmering placeholder of their size from the first frame and fill it in place (an empty one folds away smoothly), post pages keep room for their info badges, and Pawchive's creator lists no longer push the cards down when the page numbers replace "Loading creators...". A switched-off or hidden block reserves nothing. With the redesign switched off, creator, post and tag pages stay hidden for the moment it takes to add our buttons and gallery, instead of jumping after they are shown, and the video player keeps room for the picture before the video's size is known.
 - Post pages: the image gallery is there as soon as the page is shown, instead of the site's own layout first, then an empty block, then the gallery (it no longer waits for the API; the original-file and Lens buttons join when the answer is in).
 - Smooth thumbnails fade in over the picture instead of replacing it in one frame, so cards no longer blink when the sharper version is ready.

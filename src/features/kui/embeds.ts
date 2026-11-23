@@ -422,7 +422,8 @@ export function hideEmptySections(): void {
     if (title === "content") {
       const content = section.querySelector(SELECTORS.postContent);
       if (content) {
-        const text = content.textContent?.trim() || "";
+        // Blank-looking fillers count as empty too: Patreon posts often carry a lone braille blank (U+2800)
+        const text = (content.textContent || "").replace(/[\s⠀​-‍⁠﻿]+/g, "");
         const hasImgs = content.querySelector("img, video, iframe, canvas") !== null;
         const hasEmbeds = content.querySelector(".kui-embed-button, a[href]") !== null;
         if (!text && !hasImgs && !hasEmbeds) {

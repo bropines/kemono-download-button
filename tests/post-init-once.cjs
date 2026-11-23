@@ -17,6 +17,7 @@ const imports = {
   './translateButtons': { initializePostTranslation: () => calls.translation++, removeTranslateButtons: noop },
   './lightbox': { lightboxModule: {} },
   '../../core/registry': { getModuleSetting: noop },
+  './contentClamp': { contentClampStyles: '', initializeContentClamp: noop, removeContentClamp: noop, setContentClampLines: noop },
 };
 const source = fs.readFileSync('src/features/kui/postPageModule.ts', 'utf8');
 const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;

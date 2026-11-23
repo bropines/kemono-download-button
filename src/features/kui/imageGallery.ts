@@ -43,6 +43,30 @@ function addThumbActions(thumbLink: HTMLAnchorElement, wrapper: HTMLElement, rel
   wrapper.appendChild(actionsContainer);
 }
 
+/**
+ * One link per image of the Files block. A file the archive keeps only as a preview (`preview_only` in the API)
+ * is rendered by the site as a bare `figure > img`, without the `a.fileThumb` around it; the thumbnail is all
+ * there is (the original answers 403), so a detached link to it stands in for the site's own.
+ */
+function collectImageLinks(container: Element): HTMLAnchorElement[] {
+  const links: HTMLAnchorElement[] = [];
+  container.querySelectorAll<HTMLImageElement>('img').forEach((img) => {
+    const siteLink = img.closest<HTMLAnchorElement>('a.fileThumb');
+    if (siteLink) {
+      if (!links.includes(siteLink)) links.push(siteLink);
+      return;
+    }
+    if (!img.closest('.post__thumbnail') || img.closest('a')) return;
+    const src = img.getAttribute('src') || img.dataset.src;
+    if (!src) return;
+    const standIn = document.createElement('a');
+    standIn.href = src;
+    standIn.appendChild(img.cloneNode(true));
+    links.push(standIn);
+  });
+  return links;
+}
+
 export async function initializeImageGallery(): Promise<void> {
   const originalFilesContainer = document.querySelector(SELECTORS.postFilesContainer);
   if (!originalFilesContainer || originalFilesContainer.classList.contains("kui-gallery-processed"))
@@ -57,7 +81,7 @@ export async function initializeImageGallery(): Promise<void> {
   originalFilesContainer.classList.add("kui-gallery-processed");
 
   try {
-    const imageLinks = Array.from(originalFilesContainer.querySelectorAll<HTMLAnchorElement>("a.fileThumb"));
+    const imageLinks = collectImageLinks(originalFilesContainer);
     if (imageLinks.length === 0) return;
 
     // The API only adds the per-image actions (original file, Lens): the gallery is built right away, from the
