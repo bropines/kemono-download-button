@@ -6,6 +6,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ### Fixed
 - In AdGuard, Pawchive files are read by the browser's own fetch as a stream: progress shows, and a slow download is no longer cut off as stalled and started over (AdGuard's request reports no progress).
+- The same now holds for any userscript manager that reports no download progress, found out while it works, and for Kemono and Coomer files where their file servers let the page read them. Where they do not, the file gets a four times longer wait before it is given up as stalled.
+- A download that came back empty or shorter than the server announced is retried instead of being saved, zipped or cached as the file.
+- HTML attachments download in AdGuard again (they were taken for an error page), a page behind a byte order mark is recognised as a page, a file refused on the page's own fetch is retried through the userscript manager, and a redirect loop on a file server ends at once.
 - The download buttons on post cards keep their size while a download is queued or running (a spinner, the words in the tooltip): the label pushed the row out of the card on phones.
 
 ## [2.1.6] - 2026-11-23

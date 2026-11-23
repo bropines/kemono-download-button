@@ -215,6 +215,8 @@ export async function getCachedFile(url: string): Promise<ArrayBuffer | null> {
 
 // Only finished downloads are cached; `completed` stays in the record for entries older versions wrote
 export async function setCachedFile(url: string, data: ArrayBuffer): Promise<void> {
+  // Nothing is not a file either
+  if (!data || data.byteLength === 0) return;
   if (isPage(data)) {
     debugLog('[download]', 'cache-refused-page', { bytes: data.byteLength });
     return;

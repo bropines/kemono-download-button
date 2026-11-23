@@ -1,7 +1,8 @@
 // A response or cached "file" that is in fact a web page: a redirect page a host handed back unfollowed (nginx's
 // "302 Found", 138 bytes: AdGuard's request engine did that) or an error page. Never to be saved or cached as a file.
 
-const PAGE_START = /^\s*<(?:!doctype\s+html|html|head|body|center|h1)\b/i;
+// A UTF-8 byte order mark may come first (as bytes here; as text it is whitespace to \s)
+const PAGE_START = /^(?:\xef\xbb\xbf)?\s*<(?:!doctype\s+html|html|head|body|center|h1)\b/i;
 
 /** The first bytes are an HTML document's */
 export function bytesLookLikePage(data: ArrayBuffer | ArrayBufferView | null | undefined): boolean {
