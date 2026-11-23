@@ -60,8 +60,13 @@ function settingControl(mod: KdlModule, def: SettingDef, scope: string): { node:
     setModuleSetting(mod.id, def.key, next);
     notifySaved();
   };
-  const labelled = (control: HTMLElement, horizontal = false) =>
-    field({ label: tx(`mod.${mod.id}.setting.${def.key}`, def.label), description: def.hint ? tx(`mod.${mod.id}.setting.${def.key}.hint`, def.hint) : undefined, control, orientation: horizontal ? 'horizontal' : 'vertical' });
+  const labelled = (control: HTMLElement, horizontal = false, group = false) =>
+    field({ label: tx(`mod.${mod.id}.setting.${def.key}`, def.label), description: def.hint ? tx(`mod.${mod.id}.setting.${def.key}.hint`, def.hint) : undefined, control, orientation: horizontal ? 'horizontal' : 'vertical', group });
+
+  if (def.editor) {
+    const editor = def.editor({ id, value, save });
+    return { node: labelled(editor.control, false, true), sync: (v) => editor.sync(v as boolean | number | string) };
+  }
 
   switch (def.type) {
     case 'boolean': {

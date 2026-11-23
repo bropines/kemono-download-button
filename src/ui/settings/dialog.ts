@@ -1,4 +1,4 @@
-import { setAdBlockEnabled } from '../../features/adblock';
+import { adblockModule, setAdBlockEnabled } from '../../features/adblock';
 import { exportSettings, getSettings, importSettings, resetSettings } from '../../state/store';
 import { el } from '../../utils/dom';
 import { button, dialog, kitIcon, tabs, type DialogHandle } from '../kit';
@@ -63,7 +63,7 @@ function confirmReset(): void {
         onClick: async () => {
           confirm.close();
           await resetSettings();
-          setAdBlockEnabled(true);
+          setAdBlockEnabled(adblockModule.defaultEnabled);
           setModuleSetting('gridSize', 'size', 180);
           refreshSettings();
           showMessage(t('settings.reset.done'), 'success');

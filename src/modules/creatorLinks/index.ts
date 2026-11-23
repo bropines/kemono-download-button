@@ -15,25 +15,12 @@ import { addKitStyles, button, ensureKit, kitIcon, kitScope, popover, type Popov
 import type { IconName } from '../../config/icons';
 import { t } from '../../i18n';
 import { REPO, isStale, linksFor, refreshIndex, type CreatorLink } from './data';
+import { DEFAULT_SEARCHES, fillSearchUrl, parseSearchSites } from './searchSites';
+import { searchSitesEditor } from './searchSitesEditor';
 
 const OWN_ID = 'kdl-xlinks';
 const NAME = '.user-header__name';
 const PROFILE = '.user-header__profile';
-
-// {name}: the name as typed, URL-encoded. {tag}: lower case, spaces as underscores (booru tag style).
-const DEFAULT_SEARCHES = [
-  'E-Hentai | https://e-hentai.org/?f_search=artist%3A%22{name}%24%22',
-  'nhentai | https://nhentai.net/search/?q=artist%3A%22{name}%22',
-  'Hitomi | https://hitomi.la/search.html?artist%3A{tag}',
-  'Danbooru | https://danbooru.donmai.us/posts?tags={tag}',
-  'Gelbooru | https://gelbooru.com/index.php?page=post&s=list&tags={tag}',
-  'Rule34 | https://rule34.xxx/index.php?page=post&s=list&tags={tag}',
-  'Yande.re | https://yande.re/post?tags={tag}',
-  'Pixiv | https://www.pixiv.net/search_user.php?nick={name}',
-  'Kemono | https://kemono.cr/artists?q={name}',
-  'Coomer | https://coomer.st/artists?q={name}',
-  'Pawchive | https://pawchive.pw/artists?q={name}',
-].join('\n');
 
 interface Creator { service: string; id: string; path: string }
 
@@ -80,17 +67,13 @@ function suggestUrl(creator: Creator, name: string): string {
 /** "Label | https://...{name}..." lines; sites pointing at the current host are left out */
 function searches(name: string): { label: string; url: string }[] {
   const clean = name.replace(/["$]/g, ' ').replace(/\s+/g, ' ').trim();
+  // {name}: the name as typed, URL-encoded. {tag}: lower case, spaces as underscores (booru tag style).
   const values = { name: encodeURIComponent(clean), tag: encodeURIComponent(clean.toLowerCase().replace(/ /g, '_')) };
   const source = ctxRef?.settings.get<string>('searches') || DEFAULT_SEARCHES;
-  return source.split(/\r?\n/).flatMap((line) => {
-    const [label, template] = line.split('|').map((part) => part.trim());
-    if (!label || !template || !/^https?:\/\//i.test(template)) return [];
-    try {
-      if (new URL(template.replace(/\{(name|tag)\}/g, 'x')).host === location.host) return [];
-    } catch {
-      return [];
-    }
-    return [{ label, url: template.replace(/\{name\}/g, values.name).replace(/\{tag\}/g, values.tag) }];
+  return parseSearchSites(source).flatMap(({ label, url: template }) => {
+    const probe = label ? fillSearchUrl(template, { name: 'x', tag: 'x' }) : null;
+    if (!probe || new URL(probe).host === location.host) return [];
+    return [{ label, url: fillSearchUrl(template, values)! }];
   });
 }
 
@@ -196,7 +179,7 @@ export const creatorLinksModule: KdlModule = {
   requires: ['ui.shadcn'],
   settings: [
     { key: 'nameOpensMenu', label: 'Clicking the name opens the menu', type: 'boolean', default: true, hint: 'Otherwise the name keeps going to the original site and the menu opens from the link icon. Ctrl+click always goes to the site.' },
-    { key: 'searches', label: 'Search sites', type: 'textarea', default: DEFAULT_SEARCHES, hint: 'One per line: "Label | URL". {name} is the creator name, {tag} the same in lower case with underscores (booru tags).' },
+    { key: 'searches', label: 'Search sites', type: 'textarea', default: DEFAULT_SEARCHES, editor: searchSitesEditor, hint: 'Sites the menu searches for the creator. In the URL, {name} is the creator name and {tag} the same in lower case with underscores (booru tags).' },
   ],
   styles: STYLES,
   mount(ctx) {

@@ -19,7 +19,19 @@ export interface SettingDef {
   min?: number;
   max?: number;
   hint?: string;
+  /** Replaces the default control in the settings UI; the stored value keeps its declared type */
+  editor?: SettingEditor;
 }
+
+export interface SettingEditorContext {
+  /** Unique per rendered copy of the setting */
+  id: string;
+  value: SettingValue;
+  save(value: SettingValue): void;
+}
+
+/** Builds a custom control; `sync` pushes a value changed elsewhere (import, another copy) into it */
+export type SettingEditor = (ctx: SettingEditorContext) => { control: HTMLElement; sync(value: SettingValue): void };
 
 export interface ModuleSettings {
   get<T extends SettingValue = SettingValue>(key: string): T;

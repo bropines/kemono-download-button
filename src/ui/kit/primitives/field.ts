@@ -24,6 +24,8 @@ export interface FieldOptions {
   /** "horizontal" puts the control before the label (checkbox / switch rows). */
   orientation?: 'vertical' | 'horizontal';
   required?: boolean;
+  /** The control is a composite widget (a list with its own buttons): the label names it as a group instead of pointing at its first input */
+  group?: boolean;
   className?: string;
 }
 
@@ -36,13 +38,20 @@ function focusTarget(control: HTMLElement): HTMLElement {
 
 /** Label + control + description + error, with ids linked. */
 export function field(options: FieldOptions): HTMLDivElement {
-  const target = focusTarget(options.control);
+  const target = options.group ? options.control : focusTarget(options.control);
   if (!target.id) target.id = uid('kdl-ui-field');
   const descId = `${target.id}-desc`;
   const errId = `${target.id}-err`;
-  const lbl = options.label ? label({ text: options.label, htmlFor: target.id, required: options.required }) : null;
+  const lbl = options.label ? label({ text: options.label, htmlFor: options.group ? undefined : target.id, required: options.required }) : null;
+  if (options.group) {
+    target.setAttribute('role', target.getAttribute('role') || 'group');
+    if (lbl) {
+      lbl.id = `${target.id}-label`;
+      target.setAttribute('aria-labelledby', lbl.id);
+    }
+  }
   // buttons are labelable (a click on the label toggles a switch), but name them explicitly too
-  if (lbl && target.tagName === 'BUTTON') {
+  else if (lbl && target.tagName === 'BUTTON') {
     lbl.id = `${target.id}-label`;
     target.setAttribute('aria-labelledby', lbl.id);
   }

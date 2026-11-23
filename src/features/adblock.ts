@@ -28,7 +28,7 @@ export const adblockModule: KdlModule = {
   description: 'Hides the ad slots the sites render and blocks the pawchive popunder.',
   group: 'General',
   pages: 'any',
-  defaultEnabled: true,
+  defaultEnabled: false,
   styles: () => css({ [AD_SELECTORS]: { display: 'none !important' } }),
   mount() {
     setPopunderBlocked(true);

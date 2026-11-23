@@ -12,6 +12,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - **API cache**: creator profiles, posts, comments, tags, links, announcements, similar creators and searches are reused for a while (from minutes for searches to a day for posts) and refreshed in the background, so revisits make far fewer requests. Settings → General → Cache sets the lifetime (off, short, normal, long) and clears it. Favourites and account data are never cached; downloads never use a stale copy.
 
 ### Changed
+- **Hide site ads** is now off by default. If you switched it on or off yourself, your choice is kept.
+- The creator menu's **Search sites** (Modules → Creator on other sites) are edited as a list instead of a text box: each site shows its name and search URL with `{name}`/`{tag}` highlighted, and can be added, edited, moved up or down and removed (with undo); the URL is checked before saving (http(s), a valid address, `{name}` or `{tag}` in it), and "Reset to defaults" brings back the built-in sites. Your existing list and exported settings keep working unchanged.
 - Switching a creator's tabs or pages (and Back/Forward between them) replaces only the part under the tabs: the header card and tabs stay put, keep the same height on every tab, and the clicked tab lights up at once.
 - Log out is red, sits apart at the end of the account section and asks for confirmation.
 - Contacts and API moved into the sidebar's Community section; the footer bar under every page is gone.
