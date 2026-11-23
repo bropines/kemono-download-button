@@ -185,8 +185,9 @@ export const smoothThumbsModule: KdlModule = {
 canvas.${CANVAS} { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; opacity: 0; transition: transform 0.3s ease, opacity 0.2s ease; }
 /* Shown through the attribute on the <img>, not the canvas's own hidden: the site styles have :has() rules that name
    [hidden], so flipping it anywhere restyled the whole page (~20 ms) for every thumbnail drawn */
-/* A crossfade, not a swap in one frame: the canvas fades in over the picture, which hides only once it is covered */
-img${IMG}[${READY}] { opacity: 0; transition: opacity 0s linear 0.2s; }
+/* The canvas fades in over the picture, which stays as it is underneath: the canvas is drawn to cover the whole box,
+   so once opaque it hides the picture. Hiding the picture itself (even after a delay) left the card empty for a
+   few frames: the skin's own transition on card images overrides any delay set here */
 img${IMG}[${READY}] + canvas.${CANVAS} { opacity: 1; }
 .post-card:hover canvas.${CANVAS} { transform: scale(1.03); }
 `,
