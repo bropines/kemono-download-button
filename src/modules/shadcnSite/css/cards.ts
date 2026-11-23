@@ -32,7 +32,8 @@ export const cardsCss = (): string => `
   border-color: var(--kdl-hover-ring);
   box-shadow: 0 0 0 1px var(--kdl-hover-ring), var(--kdl-shadow);
 }
-.post-card--fav { border-color: color-mix(in srgb, var(--kdl-warning) 60%, var(--kdl-border)); }
+/* The site marks favourites after load with a 2px border: kept at 1px (plus a ring, which takes no room), so the card does not change size */
+.post-card.post-card--fav { border-width: 1px; border-style: solid; border-color: color-mix(in srgb, var(--kdl-warning) 60%, var(--kdl-border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--kdl-warning) 35%, transparent); }
 .post-card > a {
   display: flex;
   flex-direction: column;
@@ -126,7 +127,8 @@ export const cardsCss = (): string => `
   border-color: var(--kdl-hover-ring);
   box-shadow: 0 0 0 1px var(--kdl-hover-ring), var(--kdl-shadow);
 }
-.user-card--fav { border-color: color-mix(in srgb, var(--kdl-warning) 60%, var(--kdl-border)); }
+/* The site marks favourites after load with a 2px border: kept at 1px (plus a ring, which takes no room), so the card does not change size */
+.user-card.user-card--fav { border-width: 1px; border-style: solid; border-color: color-mix(in srgb, var(--kdl-warning) 60%, var(--kdl-border)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--kdl-warning) 35%, transparent); }
 .user-card__icon { flex: 0 0 auto; width: 64px; height: 64px; overflow: hidden; border-radius: var(--kdl-radius); box-shadow: 0 0 0 1px var(--kdl-border); }
 /* The avatar inside keeps the site's own size and offset otherwise, and slides out of the frame */
 .user-card__icon :is(.user-card__user-icon, .fancy-image, .fancy-image__picture) {

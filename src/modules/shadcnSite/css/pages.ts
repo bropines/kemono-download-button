@@ -378,8 +378,19 @@ iframe[src*="swagger"] { height: max(850px, 100vh); min-height: 200px; }
 .site-section--contact > div[style] > a[href^="mailto:"] { margin-left: 4px; }
 .site-section--contact > div[style] { line-height: 1.7; }
 /* Creators list (Pawchive): its script fills the empty top paginator while "Loading creators..." shows. The loading
-   line takes the paginator's box (one 46px row; two, 72px, on phones), so the cards do not move when it is swapped */
-.site-section--artists.is-loading > #loading { box-sizing: border-box; min-height: 46px; margin: 12px 0; }
+   line is drawn as the paginator's empty frame (same box: one 46px row; two, 72px, on phones) with a muted label, so
+   the paginator simply appears in it and the cards do not move */
+.site-section--artists.is-loading > #loading {
+  box-sizing: border-box; width: 100%; max-width: 768px; min-height: 46px; margin: 12px auto;
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 6px 12px;
+  border: 1px solid var(--kdl-panel-border); border-radius: calc(var(--kdl-radius) + 4px); background: var(--kdl-panel-bg);
+  color: var(--kdl-muted-foreground); font-size: 12px;
+}
+.site-section--artists.is-loading > #loading > .subtitle { margin: 0; color: inherit; font-size: inherit; font-weight: 400; }
+.site-section--artists.is-loading > #loading > .loading__spinner { width: 12px; height: 12px; opacity: 0.6; }
+/* The site draws the cards a second time once the list arrives, adding a "N favorites" (or "updated") line: the
+   first cards keep an empty line of that size, so every card does not grow by a row then */
+.site-section--artists .user-card__info:not(:has(> .user-card__count, > .user-card__updated))::after { content: '\\a0'; font-size: 12px; }
 @media (max-width: 600px) { .site-section--artists.is-loading > #loading { min-height: 72px; } }
 @media (max-width: 600px) {
   .kdl-sk-panel, .site-section--home .jumbo-welcome-description { padding: 16px; }

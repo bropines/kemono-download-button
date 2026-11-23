@@ -40,6 +40,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
   - **Script UI:** the selection bar keeps "Download" on one row; download panel file names keep their number and extension visible; the post manager toolbar fits; the file picker's focus ring is no longer clipped.
 
 ### Fixed
+- Creator cards on the creators list no longer grow by a row when the site adds the "N favorites" line after loading, and post and creator cards marked as favourites keep their size (the site's thicker border is drawn as a ring). The "Loading creators..." line is a muted label in the empty frame where the paginator then appears.
 - The loading skeleton of post lists has as many card columns as the real grid at the current window width and card size (it could show 7 columns fading into 8).
 - Card thumbnails no longer blink empty for a few frames when the smoothed copy replaces the picture: the picture stays underneath until the copy covers it.
 - Post pages: the image gallery now also works on posts whose files the archive keeps only as previews (the site shows them without a link to an original); such pictures open at the preview size. A post text that holds only a blank filler character no longer shows an empty block.
