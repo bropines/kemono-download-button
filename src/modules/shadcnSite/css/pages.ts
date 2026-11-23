@@ -390,6 +390,15 @@ iframe[src*="swagger"] { height: max(850px, 100vh); min-height: 200px; }
 .site-section--artists.is-loading > #loading > .loading__spinner { width: 12px; height: 12px; opacity: 0.6; }
 /* The site draws the cards a second time once the list arrives, adding a "N favorites" (or "updated") line: the
    first cards keep an empty line of that size, so every card does not grow by a row then */
+/* Sorted other than by popularity (Recent: Date Updated), or filtered, the cards the server sends are not the ones the
+   site's script then puts there (it lists imported creators first): until it has, they are blank placeholders of the
+   same size instead of a list that is about to be replaced */
+.site-section--artists.is-loading:is(:has(#sort_by option:checked:not([value="favorited"], [value=""])), :has(#service option:checked:not([value=""])), :has(input[name="q"][value]:not([value=""]))) .card-list__items > .user-card {
+  background: var(--kdl-muted) !important; border-color: var(--kdl-border); box-shadow: none; animation: kdl-artists-wait 1.4s ease-in-out infinite;
+}
+.site-section--artists.is-loading:is(:has(#sort_by option:checked:not([value="favorited"], [value=""])), :has(#service option:checked:not([value=""])), :has(input[name="q"][value]:not([value=""]))) .card-list__items > .user-card > * { visibility: hidden; }
+@keyframes kdl-artists-wait { 50% { opacity: 0.55; } }
+@media (prefers-reduced-motion: reduce) { .site-section--artists.is-loading .card-list__items > .user-card { animation: none !important; } }
 .site-section--artists .user-card__info:not(:has(> .user-card__count, > .user-card__updated))::after { content: '\\a0'; font-size: 12px; }
 @media (max-width: 600px) { .site-section--artists.is-loading > #loading { min-height: 72px; } }
 @media (max-width: 600px) {
