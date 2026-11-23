@@ -42,7 +42,7 @@ const ACCOUNT_ICON_LIST: [string, string][] = [
   ['favorites', accSvg("<path d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'/>")],
   ['administrator', accSvg("<path d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/>")],
 ];
-const ACCOUNT_ICONS = ACCOUNT_ICON_LIST.map(([part, icon]) => `.site-section--account .account-view :is(ul, ol) > li:has(> a[href*="${part}"]) { --kdl-acc-icon: ${icon}; }`).join('\n');
+const ACCOUNT_ICONS = ACCOUNT_ICON_LIST.map(([part, icon]) => `.site-section--account .account-view > .def-list__section:has(a[href*="${part}"]) { --kdl-acc-icon: ${icon}; }`).join('\n');
 
 export const pagesCss = (): string => `
 /* Panels */
@@ -139,34 +139,42 @@ export const pagesCss = (): string => `
 
 /* Account pages */
 .site-section--account .account-view { ${PANEL} max-width: 32rem; margin: 16px auto; padding: 24px; text-align: left; }
-.site-section--account .account-view > :is(h1, h2, header, .account-view__header):first-child { margin: 0; text-align: center; }
+.site-section--account .account-view__header { margin: 0; text-align: center; }
+.site-section--account .account-view__greeting { display: block; }
 .site-section--account .account-view__greeting { color: var(--kdl-muted-foreground); font-size: 1.5rem; font-weight: 400; }
 .site-section--account .account-view__identity { color: var(--kdl-foreground); font-weight: 600; }
 .site-section--account .account-view__info { margin: 6px 0 0; color: var(--kdl-muted-foreground); font-size: 13px; text-align: center; }
 .site-section--account .account-view__info a { color: var(--kdl-foreground); }
-/* The links under the greeting: a menu, one row per link, with its icon and a chevron */
-.site-section--account .account-view :is(ul, ol) {
-  display: flex; flex-direction: column; gap: 2px; margin: 20px 0 0; padding: 6px;
-  border: 1px solid var(--kdl-border); border-radius: calc(var(--kdl-radius) + 2px); background: var(--kdl-background);
-  list-style: none;
+/* The links under the greeting (one p.def-list__section each, no wrapper): one menu, a full-width row per link with
+   its icon and a chevron; the whole row opens the link */
+.site-section--account .account-view > .def-list__section {
+  position: relative; display: flex; align-items: center; gap: 6px; min-height: 42px; margin: 0; padding: 0 14px;
+  border: 1px solid var(--kdl-border); border-top-width: 0; background: var(--kdl-background);
+  color: var(--kdl-foreground); font-size: 14px; transition: background-color 0.15s ease;
 }
-.site-section--account .account-view :is(ul, ol) > li {
-  position: relative; display: flex; align-items: center; gap: 6px; min-height: 40px; margin: 0; padding: 0 12px;
-  border-radius: calc(var(--kdl-radius) - 2px); color: var(--kdl-muted-foreground); font-size: 14px;
-  transition: background-color 0.15s ease;
-}
-.site-section--account .account-view :is(ul, ol) > li:hover { background: var(--kdl-accent); }
-.site-section--account .account-view :is(ul, ol) > li > a { color: var(--kdl-foreground); text-decoration: none; }
-/* The whole row opens the link */
-.site-section--account .account-view :is(ul, ol) > li > a:first-of-type::after { content: ""; position: absolute; inset: 0; }
-.site-section--account .account-view :is(ul, ol) > li::before {
-  content: ""; flex: none; width: 16px; height: 16px; margin-right: 4px; background: var(--kdl-foreground); opacity: 0.7;
+.site-section--account .account-view > :not(.def-list__section) + .def-list__section { margin-top: 20px; border-top-width: 1px; border-top-left-radius: calc(var(--kdl-radius) + 2px); border-top-right-radius: calc(var(--kdl-radius) + 2px); }
+.site-section--account .account-view > .def-list__section:not(:has(+ .def-list__section)) { border-bottom-left-radius: calc(var(--kdl-radius) + 2px); border-bottom-right-radius: calc(var(--kdl-radius) + 2px); }
+.site-section--account .account-view > .def-list__section:hover { background: var(--kdl-accent); }
+.site-section--account .account-view > .def-list__section a { color: inherit; text-decoration: none; }
+.site-section--account .account-view > .def-list__section a::after { content: ""; position: absolute; inset: 0; }
+/* Notifications: the count is the link; shown as a small badge */
+.site-section--account .account-view > .def-list__section > span > a { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--kdl-secondary); color: var(--kdl-secondary-foreground); font-size: 12px; font-weight: 600; }
+.site-section--account .account-view > .def-list__section::before {
+  content: ""; flex: none; width: 16px; height: 16px; margin-right: 6px; background: currentColor; opacity: 0.7;
   -webkit-mask: var(--kdl-acc-icon, ${ACCOUNT_LINK}) center / contain no-repeat; mask: var(--kdl-acc-icon, ${ACCOUNT_LINK}) center / contain no-repeat;
-.site-section--account .account-view :is(ul, ol) > li::after {
-  content: ""; flex: none; width: 14px; height: 14px; margin-left: auto; background: currentColor; opacity: 0.5;
+}
+.site-section--account .account-view > .def-list__section::after {
+  content: ""; flex: none; width: 14px; height: 14px; margin-left: auto; background: currentColor; opacity: 0.45;
   -webkit-mask: ${ACCOUNT_CHEVRON} center / contain no-repeat; mask: ${ACCOUNT_CHEVRON} center / contain no-repeat;
 }
 ${ACCOUNT_ICONS}
+.site-section--settings { margin-left: auto; margin-right: auto; }
+.site-section--settings .settings { gap: 12px; }
+.site-section--settings .card__header h2 { margin: 0; font-size: 1rem; font-weight: 600; }
+.site-section--settings .settings__row { justify-content: space-between; }
+.site-section--settings .settings__row > span { color: var(--kdl-muted-foreground); font-size: 14px; }
+.site-section--settings .settings__row .form__button { width: auto; min-width: 0; margin-left: auto; padding: 0 16px; }
+.site-section--settings .settings__note { color: var(--kdl-muted-foreground); font-size: 13px; }
 .site-section--account-notifications .notifications__list { display: flex; flex-direction: column; gap: 8px; max-width: 48rem; margin: 0 auto; }
 .site-section--account-notifications .notifications__list > li { ${PANEL} padding: 12px 16px; }
 .site-section--account-notifications .notifications__item--seen { opacity: 0.6; }

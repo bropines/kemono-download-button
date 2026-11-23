@@ -48,6 +48,9 @@ export const SITE_SCOPES = [
   '.site-section--faq h2',
   '.site-section--faq h3',
   '.site-section--account',
+  // Account settings (ads, password): card titles and the status / button row, not the note
+  '.site-section--settings .card__header',
+  '.site-section--settings .settings__row',
   '.site-section--login',
   '.site-section--register',
   // Plain text pages without a section class (the importer's session key tutorial)
