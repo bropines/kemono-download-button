@@ -5,6 +5,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ## [Unreleased]
 
 ### Added
+- The account page is a profile card with a menu: each link (notifications, keys, review DMs, blocked creators, settings) is a full-width row with its icon and a chevron. Signed in, the Account entry of the sidebar gets a user icon like the other links. "Blocked creators" and the site's ad settings are translated.
 - **Infinite scroll** goes easy on the site: the next page is requested no sooner than a set pause after the previous one (2 s by default), a busy site (429, 5xx, a dropped connection) gets a few retries with growing waits (its Retry-After first), and a background tab loads nothing. Pages already scrolled on a creator are kept in a small compressed cache (4 MB by default, about 600 pages), so scrolling that creator again sends no requests; new posts by the creator drop their cached pages at once. Pause, cache size and lifetime are in the module settings.
 - Infinite scroll requests the next page as soon as you scroll down, so reaching the end shows it at once instead of starting the wait there.
 - **Export** in Settings now offers a choice: a **full backup** (everything, marked as holding your session cookie and API keys) or a copy **without secrets** that is safe to share (the keys are left out, and importing it keeps the keys you have). Files carry a format and script version; settings files from older versions still import.
@@ -21,6 +22,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Post pages: a long post text is cut to 12 lines with a fade, with "Show more" to open it in place and a button that shows the whole text in a dialog. The "Post page layout" module settings set the number of lines (0 shows everything). The Russian heading of the block is now "Текст поста".
 
 ### Changed
+- The script's own ad hiding is no longer listed in Settings: the sites now have their own ad switch (Pawchive: account settings). Typing /adblock in the Settings search still shows it; no search word finds it.
 - Post cards no longer split into a first group that rises in and the rest that just appear: every card rises, the first rows one after another.
 - The Community section at the bottom of the sidebar opens upwards: its heading stays in place and the links appear above it; folded, its chevron points up. The page layout button in the header now has a label ("Layout"), folded to an icon on phones; the same switch is in the sidebar next to Settings and, on phones, in the top bar, on the pages where blocks can be moved.
 - **Hide site ads** is now off by default. If you switched it on or off yourself, your choice is kept.

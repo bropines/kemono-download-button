@@ -22,6 +22,9 @@ function setPopunderBlocked(blocked: boolean): void {
   } catch (e) {}
 }
 
+/** What the Settings search takes to show the hidden switch (typed exactly; no word finds it) */
+export const ADBLOCK_COMMAND = '/adblock';
+
 export const adblockModule: KdlModule = {
   id: 'adblock',
   name: 'Hide ads',
@@ -29,6 +32,9 @@ export const adblockModule: KdlModule = {
   group: 'General',
   pages: 'any',
   defaultEnabled: false,
+  // The sites have their own ad switch (Pawchive: account settings); this one stays out of sight. Typing the
+  // command from ADBLOCK_COMMAND into the Settings search shows its switch (see ui/settings/dialog.ts)
+  hidden: true,
   styles: () => css({ [AD_SELECTORS]: { display: 'none !important' } }),
   mount() {
     setPopunderBlocked(true);

@@ -175,7 +175,7 @@ function moduleCard(mod: KdlModule, extra: SettingsSection | undefined, scope = 
 
 /** Modules are also available next to the settings they affect; all copies use the same registry. */
 export function renderTopicModules(container: HTMLElement, topic: string): void {
-  const modules = getModules().filter((mod) => moduleTopic(mod) === topic);
+  const modules = getModules().filter((mod) => !mod.hidden && moduleTopic(mod) === topic);
   if (!modules.length) return;
   const extras = new Map(getSettingsSections('modules').filter((s) => getModule(s.id)).map((s) => [s.id, s]));
   const list = el('div', { className: 'kdl-settings__module-group' }, modules.map((mod) => moduleCard(mod, extras.get(mod.id), topic)));
@@ -194,7 +194,7 @@ function groupBlock(title: string, cards: HTMLElement[]): HTMLElement {
 }
 
 function renderModules(container: HTMLElement): void {
-  const modules = getModules();
+  const modules = getModules().filter((mod) => !mod.hidden);
   const sections = getSettingsSections('modules');
   const byModule = new Map(sections.filter((s) => getModule(s.id)).map((s) => [s.id, s]));
   const loose = sections.filter((s) => !getModule(s.id));

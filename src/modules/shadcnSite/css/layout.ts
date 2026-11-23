@@ -19,6 +19,7 @@ const HEADER_ICONS: [string, string][] = [
   ['[href^="/account/logout"]', svg("<path d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/><path d='m16 17 5-5-5-5'/><path d='M21 12H9'/>")],
 ];
 const LOGOUT = '[href^="/account/logout"]';
+const ACCOUNT_ICON = svg("<circle cx='12' cy='8' r='5'/><path d='M20 21a8 8 0 0 0-16 0'/>");
 const LOGOUT_ICON = HEADER_ICONS.find(([match]) => match === LOGOUT)![1];
 // Links the site adds later get a plain link icon
 const LINK_ICON = svg("<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>");
@@ -74,6 +75,12 @@ export const layoutCss = (): string => `
 .global-sidebar-entry-item.home-button > .global-sidebar-entry-item-icon { opacity: 1; }
 .global-sidebar-entry-item.account-header { color: var(--kdl-muted-foreground); font-size: 12px; font-weight: 500; }
 .global-sidebar-entry-item.account-header > .global-sidebar-entry-item-icon { display: none; }
+/* Signed in, it links to the account page: a row like the others, with a user icon */
+a.global-sidebar-entry-item.account-header { color: color-mix(in srgb, var(--kdl-foreground) 82%, transparent); font-size: 14px; font-weight: 400; }
+a.global-sidebar-entry-item.account-header::before {
+  content: ""; flex: 0 0 auto; width: 1rem; height: 1rem; background: currentColor; opacity: 0.7;
+  -webkit-mask: ${ACCOUNT_ICON} center / contain no-repeat; mask: ${ACCOUNT_ICON} center / contain no-repeat;
+}
 ${ITEM_HOVER} {
   background: var(--kdl-accent);
   color: var(--kdl-accent-foreground);

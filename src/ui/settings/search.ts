@@ -39,6 +39,11 @@ interface Options {
   body: HTMLElement;
   /** Renders the panels of tabs never opened yet, keeping the current tab. */
   renderAll(tabs: HTMLElement): void;
+  /**
+   * Settings kept out of the index: shown alone when the query is exactly their command (a returned node), never
+   * found by words.
+   */
+  secret?(query: string): HTMLElement | null;
 }
 
 function visibleText(node: Element): string {
@@ -126,6 +131,8 @@ export function createSettingsSearch(options: Options): SettingsSearch {
   field.setAttribute('role', 'search');
   const status = el('p', { className: 'kdl-settings__search-status' });
   status.setAttribute('aria-live', 'polite');
+  const secretHost = el('div', { className: 'kdl-settings__search-secret' });
+  secretHost.hidden = true;
   const empty = emptyState({ icon: 'search', title: '', description: t('settings.search.emptyHint'), className: 'kdl-settings__search-empty' });
 
   const panels = (): HTMLElement[] => (tabs ? Array.from(tabs.querySelectorAll<HTMLElement>(':scope > .kdl-ui-tabs__panel')) : []);
@@ -148,12 +155,27 @@ export function createSettingsSearch(options: Options): SettingsSearch {
     unmark();
     status.textContent = '';
     empty.hidden = true;
+    secretHost.hidden = true;
+    secretHost.replaceChildren();
   }
 
   function apply(): void {
     if (!tabs) return;
     const terms = queryTerms(box.value);
     if (!terms.length) return reset();
+    const secret = options.secret?.(box.value.trim().toLowerCase()) ?? null;
+    secretHost.replaceChildren(...(secret ? [secret] : []));
+    secretHost.hidden = !secret;
+    if (secret) {
+      // Only the hidden setting: every panel stays out of view
+      unmark();
+      dialog.setAttribute('data-searching', '');
+      panels().forEach((panel) => mark(panel, false));
+      status.textContent = '';
+      empty.hidden = true;
+      body.scrollTop = 0;
+      return;
+    }
     options.renderAll(tabs);
     // The Modules tab's own filter would hide cards behind the global one
     const local = dialog.querySelector<HTMLInputElement>('#kdl-modules-search');
@@ -244,6 +266,7 @@ export function createSettingsSearch(options: Options): SettingsSearch {
       tabs = next;
       last = null;
       body.prepend(status);
+      status.after(secretHost);
       body.append(empty);
       if (box.value.trim()) apply();
       else reset();

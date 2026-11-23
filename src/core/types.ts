@@ -62,6 +62,8 @@ export interface KdlModule {
   defaultEnabled: boolean;
   /** Always enabled; setModuleEnabled ignores it and a settings UI should not offer a toggle */
   locked?: boolean;
+  /** Not listed in Settings (modules tab, related modules): switched only by its own hidden way */
+  hidden?: boolean;
   settings?: SettingDef[];
   /** Injected into <style id="kdl-mod-<id>"> in <head> while the module is enabled */
   styles?: string | (() => string);

@@ -27,6 +27,23 @@ const BADGE = `
 const SHORT_PAGE = `.content-wrapper:has(:is(.site-section--login, .site-section--register, .site-section--contact, .site-section--file-hash-search, .site-section--importer, .site-section--faq, .site-section--account, #page.page:not(:has(.card-list))))`;
 const READABLE = 'max-width: 48rem; margin-left: auto; margin-right: auto;';
 
+// Account page menu icons (Lucide), matched by link address
+const accSvg = (paths: string): string =>
+  `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${paths}</svg>`)}")`;
+const ACCOUNT_LINK = accSvg("<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>");
+const ACCOUNT_CHEVRON = accSvg("<path d='m9 18 6-6-6-6'/>");
+const ACCOUNT_ICON_LIST: [string, string][] = [
+  ['notifications', accSvg("<path d='M10.268 21a2 2 0 0 0 3.464 0'/><path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'/>")],
+  ['keys', accSvg("<path d='m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4'/><path d='m21 2-9.6 9.6'/><circle cx='7.5' cy='15.5' r='5.5'/>")],
+  ['dms', accSvg("<rect width='20' height='16' x='2' y='4' rx='2'/><path d='m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7'/>")],
+  ['block', accSvg("<circle cx='12' cy='12' r='10'/><path d='m4.9 4.9 14.2 14.2'/>")],
+  ['settings', accSvg("<path d='M20 7h-9'/><path d='M14 17H5'/><circle cx='17' cy='17' r='3'/><circle cx='7' cy='7' r='3'/>")],
+  ['password', accSvg("<rect width='18' height='11' x='3' y='11' rx='2' ry='2'/><path d='M7 11V7a5 5 0 0 1 10 0v4'/>")],
+  ['favorites', accSvg("<path d='M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.595 1.16l5.166.756a.53.53 0 0 1 .294.904l-3.736 3.638a2.123 2.123 0 0 0-.611 1.878l.882 5.14a.53.53 0 0 1-.771.56l-4.618-2.428a2.122 2.122 0 0 0-1.973 0L6.396 21.01a.53.53 0 0 1-.77-.56l.881-5.139a2.122 2.122 0 0 0-.611-1.879L2.16 9.795a.53.53 0 0 1 .294-.906l5.165-.755a2.122 2.122 0 0 0 1.597-1.16z'/>")],
+  ['administrator', accSvg("<path d='M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z'/>")],
+];
+const ACCOUNT_ICONS = ACCOUNT_ICON_LIST.map(([part, icon]) => `.site-section--account .account-view :is(ul, ol) > li:has(> a[href*="${part}"]) { --kdl-acc-icon: ${icon}; }`).join('\n');
+
 export const pagesCss = (): string => `
 /* Panels */
 .kdl-sk-panel { ${PANEL} ${READABLE} margin-top: 16px; margin-bottom: 16px; }
@@ -121,10 +138,35 @@ export const pagesCss = (): string => `
 .site-section--contact > div[style] { ${PANEL} max-width: 48rem; margin-top: 8px; }
 
 /* Account pages */
-.site-section--account .account-view { ${PANEL} max-width: 40rem; margin: 16px auto; }
+.site-section--account .account-view { ${PANEL} max-width: 32rem; margin: 16px auto; padding: 24px; text-align: left; }
+.site-section--account .account-view > :is(h1, h2, header, .account-view__header):first-child { margin: 0; text-align: center; }
 .site-section--account .account-view__greeting { color: var(--kdl-muted-foreground); font-size: 1.5rem; font-weight: 400; }
 .site-section--account .account-view__identity { color: var(--kdl-foreground); font-weight: 600; }
-.site-section--account .account-view__info { color: var(--kdl-muted-foreground); font-size: 13px; }
+.site-section--account .account-view__info { margin: 6px 0 0; color: var(--kdl-muted-foreground); font-size: 13px; text-align: center; }
+.site-section--account .account-view__info a { color: var(--kdl-foreground); }
+/* The links under the greeting: a menu, one row per link, with its icon and a chevron */
+.site-section--account .account-view :is(ul, ol) {
+  display: flex; flex-direction: column; gap: 2px; margin: 20px 0 0; padding: 6px;
+  border: 1px solid var(--kdl-border); border-radius: calc(var(--kdl-radius) + 2px); background: var(--kdl-background);
+  list-style: none;
+}
+.site-section--account .account-view :is(ul, ol) > li {
+  position: relative; display: flex; align-items: center; gap: 6px; min-height: 40px; margin: 0; padding: 0 12px;
+  border-radius: calc(var(--kdl-radius) - 2px); color: var(--kdl-muted-foreground); font-size: 14px;
+  transition: background-color 0.15s ease;
+}
+.site-section--account .account-view :is(ul, ol) > li:hover { background: var(--kdl-accent); }
+.site-section--account .account-view :is(ul, ol) > li > a { color: var(--kdl-foreground); text-decoration: none; }
+/* The whole row opens the link */
+.site-section--account .account-view :is(ul, ol) > li > a:first-of-type::after { content: ""; position: absolute; inset: 0; }
+.site-section--account .account-view :is(ul, ol) > li::before {
+  content: ""; flex: none; width: 16px; height: 16px; margin-right: 4px; background: var(--kdl-foreground); opacity: 0.7;
+  -webkit-mask: var(--kdl-acc-icon, ${ACCOUNT_LINK}) center / contain no-repeat; mask: var(--kdl-acc-icon, ${ACCOUNT_LINK}) center / contain no-repeat;
+.site-section--account .account-view :is(ul, ol) > li::after {
+  content: ""; flex: none; width: 14px; height: 14px; margin-left: auto; background: currentColor; opacity: 0.5;
+  -webkit-mask: ${ACCOUNT_CHEVRON} center / contain no-repeat; mask: ${ACCOUNT_CHEVRON} center / contain no-repeat;
+}
+${ACCOUNT_ICONS}
 .site-section--account-notifications .notifications__list { display: flex; flex-direction: column; gap: 8px; max-width: 48rem; margin: 0 auto; }
 .site-section--account-notifications .notifications__list > li { ${PANEL} padding: 12px 16px; }
 .site-section--account-notifications .notifications__item--seen { opacity: 0.6; }

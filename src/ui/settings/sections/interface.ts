@@ -1,5 +1,4 @@
 import { KUI_STORAGE_KEYS } from '../../../config/storage';
-import { isAdBlockEnabled, setAdBlockEnabled } from '../../../features/adblock';
 import { hideEmptySections } from '../../../features/kui/embeds';
 import { postPageModule } from '../../../features/kui/postPageModule';
 import { clearViewedPosts, getViewedPostsCount } from '../../../features/kui/viewedPosts';
@@ -196,18 +195,6 @@ registerSettingsSection({
         embedRulesField(),
         aiPackActions(embedRulesPack),
       ], { icon: 'file' }),
-      section(t('settings.interface.siteSection'), [
-        syncedSwitch({
-          id: 'hideAdsToggle',
-          label: t('settings.interface.hideAds'),
-          description: t('settings.interface.hideAdsDescription'),
-          checked: isAdBlockEnabled(),
-          onChange: (checked) => {
-            setAdBlockEnabled(checked);
-            notifySaved();
-          },
-        }, 'adblock'),
-      ], { icon: 'eye' }),
       section(t('settings.interface.buttonsSection'), [
         grid([
           settingSwitch('showZipButton', t('settings.interface.buttons.zip')),

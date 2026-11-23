@@ -1,4 +1,5 @@
-import { adblockModule, setAdBlockEnabled } from '../../features/adblock';
+import { adblockModule, isAdBlockEnabled, setAdBlockEnabled, ADBLOCK_COMMAND } from '../../features/adblock';
+import { notifySaved, section, syncedSwitch } from './controls';
 import { getSettings, resetSettings } from '../../state/store';
 import { importSettingsFile, openExportDialog } from './transfer';
 import { el } from '../../utils/dom';
@@ -166,7 +167,7 @@ export async function openSettings(tab?: SettingsTab): Promise<void> {
   };
   handle = dialog(options);
   handle.element.id = 'kdl-settings-modal';
-  search = createSettingsSearch({ dialog: handle.element, body: handle.body, renderAll: renderAllPanels });
+  search = createSettingsSearch({ dialog: handle.element, body: handle.body, renderAll: renderAllPanels, secret: secretSetting });
   handle.element.querySelector('.kdl-ui-dialog__header')?.append(search.field);
   search.attach(tabsNode);
   // The search box comes first in the dialog now; opening still focuses the current tab (a focused box would
@@ -174,6 +175,23 @@ export async function openSettings(tab?: SettingsTab): Promise<void> {
   options.initialFocus = tabsNode.querySelector<HTMLElement>('.kdl-ui-tabs__trigger[aria-selected="true"]');
   document.addEventListener('keydown', onKeyDown);
   handle.open();
+}
+
+/** The hidden ad switch: only the exact command shows it */
+function secretSetting(query: string): HTMLElement | null {
+  if (query !== ADBLOCK_COMMAND) return null;
+  return section(t('settings.interface.siteSection'), [
+    syncedSwitch({
+      id: 'hideAdsToggle',
+      label: t('settings.interface.hideAds'),
+      description: t('settings.interface.hideAdsDescription'),
+      checked: isAdBlockEnabled(),
+      onChange: (checked) => {
+        setAdBlockEnabled(checked);
+        notifySaved();
+      },
+    }, adblockModule.id),
+  ], { icon: 'eye' });
 }
 
 export function closeSettings(): void {
