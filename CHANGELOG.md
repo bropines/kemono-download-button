@@ -4,7 +4,10 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.7] - 2026-11-23
+
 ### Fixed
+- Drop-down lists keep their value on one line: a long one ("-- Load a saved template --") spilled out of its box on phones.
 - In AdGuard, Pawchive files are read by the browser's own fetch as a stream: progress shows, and a slow download is no longer cut off as stalled and started over (AdGuard's request reports no progress).
 - The same now holds for any userscript manager that reports no download progress, found out while it works, and for Kemono and Coomer files where their file servers let the page read them. Where they do not, the file gets a four times longer wait before it is given up as stalled.
 - A download that came back empty or shorter than the server announced is retried instead of being saved, zipped or cached as the file.

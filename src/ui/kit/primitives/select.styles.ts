@@ -13,6 +13,10 @@ export const selectStyles = css({
     backgroundSize: '16px',
     cursor: 'pointer',
     textOverflow: 'ellipsis',
+    // One line: a long choice ("-- Load a saved template --") wrapped onto three and spilled out of the box
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    minWidth: 0,
   },
   ...controlStates('.kdl-ui-select'),
   '.kdl-ui-select option': { background: 'var(--kdl-popover)', color: 'var(--kdl-popover-foreground)' },
@@ -20,6 +24,8 @@ export const selectStyles = css({
   '@supports (appearance: base-select)': {
     '.kdl-ui-select, .kdl-ui-select::picker(select)': { appearance: 'base-select' },
     '.kdl-ui-select': { display: 'flex', alignItems: 'center' },
+    // The shown value is the select's own content here: kept to one line, cut with an ellipsis
+    '.kdl-ui-select selectedcontent, .kdl-ui-select > button': { display: 'block', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
     '.kdl-ui-select::picker-icon': { display: 'none' },
     '.kdl-ui-select::picker(select)': {
       marginBlock: '4px',
