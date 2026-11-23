@@ -37,6 +37,20 @@ function toggle(heading: HTMLElement): void {
   writeStored(STORE_KEY, [...set].join(' '));
   syncCollapsedSections();
   heading.setAttribute('aria-expanded', String(!set.has(key)));
+  if (!set.has(key)) revealOpened(heading.parentElement);
+}
+
+// A section pinned to the bottom of the sidebar (Community) opens upwards: when its links would land below the
+// visible part of the sidebar, the sidebar scrolls so the whole section shows, its heading moving up
+function revealOpened(entry: Element | null): void {
+  const bar = entry?.parentElement;
+  if (!entry || !bar) return;
+  requestAnimationFrame(() => {
+    const overflow = entry.getBoundingClientRect().bottom - bar.getBoundingClientRect().bottom;
+    if (overflow <= 1) return;
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    bar.scrollBy({ top: Math.ceil(overflow) + 8, behavior: smooth ? 'smooth' : 'auto' });
+  });
 }
 
 /** Marks the headings (role, chevron); idempotent, so it can run on every update */
@@ -109,6 +123,8 @@ export const sidebarSectionsCss = (): string => {
     const scope = `html[${HTML_ATTR}~="s${n}"] .global-sidebar > .global-sidebar-entry:nth-child(${n})`;
     rules.push(`${scope} > .global-sidebar-entry-item:not(.header):not([data-kdl-active]) { display: none !important; }`);
     rules.push(`${scope} > .global-sidebar-entry-item.header .${CHEVRON} { transform: rotate(-90deg); }`);
+    // The section pinned to the bottom opens upwards: folded, its chevron points up
+    rules.push(`${scope}.stuck-bottom > .global-sidebar-entry-item.header .${CHEVRON} { transform: rotate(180deg); }`);
   }
   return `
 .global-sidebar-entry-item.header[${KEY_ATTR}] { cursor: pointer; user-select: none; border-radius: calc(var(--kdl-radius) - 2px); transition: color 0.15s ease, background-color 0.15s ease; }

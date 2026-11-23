@@ -36,7 +36,8 @@ function paint(btn: HTMLButtonElement, editing: boolean): void {
   btn.classList.toggle('kdl-ui-btn--outline', !editing);
   btn.setAttribute('aria-label', label);
   btn.setAttribute('aria-pressed', String(editing));
-  btn.replaceChildren(kitIcon(editing ? 'check' : 'layout-dashboard'));
+  // A labelled button (the label folds away on phones), so it reads as a page action and not as one more icon
+  btn.replaceChildren(kitIcon(editing ? 'check' : 'layout-dashboard'), el('span', { className: 'kdl-layout-btn__label', textContent: t(editing ? 'layout.edit.done' : 'layout.edit.short') }));
   setTooltip(btn, t(editing ? 'layout.edit.doneHint' : 'layout.edit.buttonHint'));
 }
 
@@ -51,7 +52,7 @@ function syncButton(show: boolean, editing: boolean): void {
   }
   old?.remove();
   ensureKit();
-  const btn = button({ variant: 'outline', size: 'icon', icon: 'layout-dashboard', ariaLabel: t('layout.edit.button'), onClick: () => setLayoutEditing(!isLayoutEditing()) });
+  const btn = button({ variant: 'outline', size: 'sm', icon: 'layout-dashboard', ariaLabel: t('layout.edit.button'), onClick: () => setLayoutEditing(!isLayoutEditing()) });
   tooltip(btn, { text: t('layout.edit.buttonHint') });
   paint(btn, editing);
   const scope = kitScope([btn], { tag: 'span' });
@@ -116,8 +117,12 @@ export const layoutEditButtonModule: KdlModule = {
   after: ['post.blockOrder', 'creator.blockOrder', 'creators.overview', 'downloader.post', 'downloader.creator'],
   styles: `
 :is(.user-header__actions, .post__actions) > #${BUTTON_ID} { display: inline-flex; order: 1; }
-#${BUTTON_ID} > .kdl-ui-btn { width: 2rem; height: 2rem; }
-@media (max-width: 600px) { .user-header__actions > #${BUTTON_ID} > .kdl-ui-btn { width: 2.25rem; height: 2.25rem; } }
+#${BUTTON_ID} > .kdl-ui-btn { height: 2rem; gap: 6px; }
+@media (max-width: 600px) {
+  #${BUTTON_ID} > .kdl-ui-btn { width: 2rem; padding: 0; justify-content: center; }
+  .user-header__actions > #${BUTTON_ID} > .kdl-ui-btn { width: 2.25rem; height: 2.25rem; }
+  .kdl-layout-btn__label { display: none; }
+}
 `,
   mount(ctx) {
     active = true;

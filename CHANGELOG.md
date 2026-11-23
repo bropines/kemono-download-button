@@ -15,6 +15,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Post pages: a long post text is cut to 12 lines with a fade, with "Show more" to open it in place and a button that shows the whole text in a dialog. The "Post page layout" module settings set the number of lines (0 shows everything). The Russian heading of the block is now "Текст поста".
 
 ### Changed
+- The Community section at the bottom of the sidebar opens upwards: the sidebar scrolls so its links show, and its folded chevron points up. The page layout button in the header now has a label ("Layout"), folded to an icon on phones.
 - **Hide site ads** is now off by default. If you switched it on or off yourself, your choice is kept.
 - The creator menu's **Search sites** (Modules → Creator on other sites) are edited as a list instead of a text box: each site shows its name and search URL with `{name}`/`{tag}` highlighted, and can be added, edited, moved up or down and removed (with undo); the URL is checked before saving (http(s), a valid address, `{name}` or `{tag}` in it), and "Reset to defaults" brings back the built-in sites. Your existing list and exported settings keep working unchanged.
 - Switching a creator's tabs or pages (and Back/Forward between them) replaces only the part under the tabs: the header card and tabs stay put, keep the same height on every tab, and the clicked tab lights up at once.

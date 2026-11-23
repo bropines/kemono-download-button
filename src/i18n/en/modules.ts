@@ -188,6 +188,7 @@ export default {
   'mod.layout.editButton.name': 'Edit layout button',
   'mod.layout.editButton.description': 'A button in the creator and post page headers that turns "Edit page layout" on and off, with a Done bar while editing.',
   'layout.edit.button': 'Edit page layout',
+  'layout.edit.short': 'Layout',
   'layout.edit.buttonHint': 'Edit page layout: move and hide blocks',
   'layout.edit.done': 'Done',
   'layout.edit.doneHint': 'Finish editing the layout',
