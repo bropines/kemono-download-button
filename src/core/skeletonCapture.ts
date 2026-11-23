@@ -24,7 +24,9 @@ export interface SkeletonSnapshot {
   h: number;
   shapes: SnapShape[];
   /** The card grid: its box, and one tile of shapes (absolute px inside the tile) */
-  grid?: { x: Lin; w: Lin; y: number; tw: number; th: number; gap: number; shapes: SnapShape[] };
+  // `fit`: a post card grid, whose columns come from --card-size (auto-fill): the skeleton recomputes its tile
+  // width at show time, so a snapshot taken at another width or card size gets the real column count
+  grid?: { x: Lin; w: Lin; y: number; tw: number; th: number; gap: number; shapes: SnapShape[]; fit?: 1 };
   /** Creator pages: the bottom of the tabs row, from the top of the content box (a same-creator swap draws the
       skeleton below it only, lined up with the live row: src/core/cloak.ts) */
   cut?: number;
@@ -182,7 +184,7 @@ export function captureSkeleton(root: Element | null = document.querySelector('#
           const itemPaint = paint(itemStyle);
           tile.push({ k: 's', x: [0, 0], w: [0, Math.round(itemRect.width)], y: 0, h: Math.round(itemRect.height), r: Math.round(parseFloat(itemStyle.borderTopLeftRadius) || 0), ...itemPaint });
           walk(first, tileFrame, tile, itemRect.top, MAX_TILE_SHAPES);
-          gridSnap = { x: pos.x, w: pos.w, y: Math.round(rect.top - top), tw: Math.floor(itemRect.width + colGap), th: Math.floor(itemRect.height + rowGap), gap: Math.round(colGap), shapes: tile };
+          gridSnap = { x: pos.x, w: pos.w, y: Math.round(rect.top - top), tw: Math.floor(itemRect.width + colGap), th: Math.floor(itemRect.height + rowGap), gap: Math.round(colGap), shapes: tile, ...(first.classList.contains('post-card') ? { fit: 1 as const } : {}) };
         }
         continue;
       }

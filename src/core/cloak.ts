@@ -85,6 +85,27 @@ function cloakCss(path: string, builtinOnly: boolean): string {
   }
 }
 
+// A post card grid has as many columns as fit at the current --card-size (repeat(auto-fill, minmax(size, 1fr))),
+// each stretched to share the row. The snapshot's tile is one card at the width it had when taken: at another
+// window width or card size its plain repeat gave a different column count (7 skeleton columns over 8 real ones,
+// visibly crossing as one faded into the other). The tile is scaled to the width a real card will have.
+// Snapshots stored before `fit` was recorded: the pages whose grid is the post card one
+const POST_GRID_PAGE = /^\/posts(\/popular)?\/?$|^\/[^/]+\/user\/[^/?#]+\/?$/;
+function fitSkeletonGrid(path: string): void {
+  const root = document.documentElement;
+  const grid = shownSnap?.grid;
+  const main = document.getElementById('main');
+  if (!grid || !(grid.fit ?? POST_GRID_PAGE.test(path)) || !main) return void root.style.removeProperty('--kdl-sk-tw');
+  const style = getComputedStyle(main);
+  const content = main.clientWidth - (parseFloat(style.paddingLeft) || 0) - (parseFloat(style.paddingRight) || 0);
+  const width = content * grid.w[0] + grid.w[1];
+  const min = Math.min(parseFloat(getComputedStyle(root).getPropertyValue('--card-size')) || 180, width);
+  const gap = grid.gap || 0;
+  if (!(width > 0) || !(min > 0)) return void root.style.removeProperty('--kdl-sk-tw');
+  const columns = Math.max(1, Math.floor((width + gap) / (min + gap)));
+  root.style.setProperty('--kdl-sk-tw', `${Math.floor(((width + gap) / columns) * 10) / 10}px`);
+}
+
 let failsafe: ReturnType<typeof setTimeout> | undefined;
 let skeletonTimer: ReturnType<typeof setTimeout> | undefined;
 let shownCss = '';
@@ -172,6 +193,8 @@ export function cloak(path = window.location.pathname, builtinOnly = false, skel
     style.textContent = css;
     shownCss = css;
   }
+  // A measurement for the skeleton only: never in the way of hiding the page
+  if (skeleton !== 'none') try { fitSkeletonGrid(path); } catch { /* the snapshot's own tile width stays */ }
   generation++;
   holds = [];
   const root = document.documentElement;

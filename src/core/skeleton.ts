@@ -95,7 +95,7 @@ export function snapshotCss(scope: string, snap: SkeletonSnapshot, sizeScope = s
     // A tile is a card plus the gap after it, the last column has none: the box grows by one gap
     const gridRight = offset([1 - grid.x[0] - grid.w[0], -(grid.x[1] + grid.w[1]) - (grid.gap ?? 0)]);
     const tile = image(grid.shapes, `width='${grid.tw}' height='${grid.th}'`);
-    rules.push(`${scope}::after { display: block; top: ${px(top + grid.y)}; left: calc(${px(left)} + ${gridLeft}); right: calc(${px(right)} + ${gridRight}); bottom: 0; ${layers(tile, `${grid.tw}px ${grid.th}px`, 'space repeat')} }`);
+    rules.push(`${scope}::after { display: block; top: ${px(top + grid.y)}; left: calc(${px(left)} + ${gridLeft}); right: calc(${px(right)} + ${gridRight}); bottom: 0; ${layers(tile, `var(--kdl-sk-tw, ${grid.tw}px) auto`, 'space repeat')} }`);
   } else {
     rules.push(`${scope}::after { display: none; }`);
   }
