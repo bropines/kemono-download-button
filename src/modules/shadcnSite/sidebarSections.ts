@@ -34,23 +34,17 @@ function toggle(heading: HTMLElement): void {
   const set = new Set(stored());
   if (set.has(key)) set.delete(key);
   else set.add(key);
+  // The section pinned to the bottom (Community) opens upwards: its links come above the heading, which stays
+  // where it was on screen (when the sidebar has to grow, it scrolls by the same amount)
+  const bar = heading.closest('.global-sidebar');
+  const before = heading.getBoundingClientRect().top;
   writeStored(STORE_KEY, [...set].join(' '));
   syncCollapsedSections();
   heading.setAttribute('aria-expanded', String(!set.has(key)));
-  if (!set.has(key)) revealOpened(heading.parentElement);
-}
-
-// A section pinned to the bottom of the sidebar (Community) opens upwards: when its links would land below the
-// visible part of the sidebar, the sidebar scrolls so the whole section shows, its heading moving up
-function revealOpened(entry: Element | null): void {
-  const bar = entry?.parentElement;
-  if (!entry || !bar) return;
-  requestAnimationFrame(() => {
-    const overflow = entry.getBoundingClientRect().bottom - bar.getBoundingClientRect().bottom;
-    if (overflow <= 1) return;
-    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    bar.scrollBy({ top: Math.ceil(overflow) + 8, behavior: smooth ? 'smooth' : 'auto' });
-  });
+  if (bar && heading.parentElement?.classList.contains('stuck-bottom')) {
+    const shift = heading.getBoundingClientRect().top - before;
+    if (Math.abs(shift) > 0.5) bar.scrollTop += shift;
+  }
 }
 
 /** Marks the headings (role, chevron); idempotent, so it can run on every update */
@@ -123,7 +117,6 @@ export const sidebarSectionsCss = (): string => {
     const scope = `html[${HTML_ATTR}~="s${n}"] .global-sidebar > .global-sidebar-entry:nth-child(${n})`;
     rules.push(`${scope} > .global-sidebar-entry-item:not(.header):not([data-kdl-active]) { display: none !important; }`);
     rules.push(`${scope} > .global-sidebar-entry-item.header .${CHEVRON} { transform: rotate(-90deg); }`);
-    // The section pinned to the bottom opens upwards: folded, its chevron points up
     rules.push(`${scope}.stuck-bottom > .global-sidebar-entry-item.header .${CHEVRON} { transform: rotate(180deg); }`);
   }
   return `
@@ -131,6 +124,9 @@ export const sidebarSectionsCss = (): string => {
 .global-sidebar-entry-item.header[${KEY_ATTR}]:hover { color: var(--kdl-foreground); background: color-mix(in srgb, var(--kdl-accent) 60%, transparent); }
 .global-sidebar-entry-item.header[${KEY_ATTR}]:focus-visible { outline: 2px solid var(--kdl-ring); outline-offset: -2px; }
 .${CHEVRON} { flex: 0 0 auto; width: 14px; height: 14px; margin-left: auto; background: currentColor; opacity: 0.7; -webkit-mask: ${chevronMask} center / contain no-repeat; mask: ${chevronMask} center / contain no-repeat; transition: transform 0.15s ease; }
+/* The section pinned to the bottom (Community) opens upwards: its links sit above its heading */
+.global-sidebar > .global-sidebar-entry.stuck-bottom:has(> [${KEY_ATTR}]) { display: flex; flex-direction: column; }
+.global-sidebar > .global-sidebar-entry.stuck-bottom > .global-sidebar-entry-item.header[${KEY_ATTR}] { order: 1; }
 ${rules.join('\n')}
 `;
 };
