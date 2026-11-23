@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 32,
+  "version": 33,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
