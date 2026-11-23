@@ -1,7 +1,20 @@
 // Creator header as a profile card: banner strip on top, the avatar overlapping it, name and actions
 // beside the avatar. Grid instead of the site's flex row; the markup is untouched.
 
+/** The site's other controls in the actions row (Block / Unblock for a logged-in user), matched as "any other site
+    control in the row" since their classes may change; a form around one (a POST button) counts too. Shared with
+    pages.ts, which gives them a tooltip. */
+export const SITE_CONTROL_SELECTOR =
+  ':is(.user-header__actions > :is(button, a), .user-header__actions > form > button):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"])';
+const SITE_CONTROL = SITE_CONTROL_SELECTOR;
+// lucide "ban": the icon the Block button shows when it has no room for its label
+const BAN_ICON = "url(\"data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m4.9 4.9 14.2 14.2'/%3E%3C/svg%3E\") center / contain no-repeat";
+// Visually hidden, still named for screen readers
+const SR_ONLY = 'position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;';
+
 export const creatorCss = (): string => `
+/* The header is the container of its own narrow layouts (see the end): how many buttons fit depends on its width */
+.user-header { container: kdl-user-header / inline-size; }
 /* Creator tabs on their own row under the header (moved out of the paginator, see pages.ts) */
 .kdl-sk-tabs-row { display: flex; justify-content: center; margin: 16px 0 12px; }
 /* "Link another account" on the linked accounts tab */
@@ -138,7 +151,7 @@ export const creatorCss = (): string => `
 .user-header__favourite--unfav { border-color: color-mix(in srgb, var(--kdl-warning) 45%, var(--kdl-input)); }
 /* Buttons the site adds later (Block, for logged-in users) get the same outline look, with a red tint on hover.
    Matched as "any other site control in the row", since their classes may change */
-.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) {
+${SITE_CONTROL} {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -159,9 +172,14 @@ export const creatorCss = (): string => `
   box-shadow: var(--kdl-shadow-sm);
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  /* A destructive action: last in the row, after our hide button (order 1) */
+  order: 2;
 }
-.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) * { color: inherit; font: inherit; }
-.user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]):is(:hover, :focus-visible) {
+.user-header__actions > form { display: contents; }
+/* Our hide button is as tall as the buttons beside it */
+.user-header__actions > .kdl-hide-own > .kdl-ui-btn { width: 2rem; height: 2rem; }
+${SITE_CONTROL} * { color: inherit; font: inherit; }
+${SITE_CONTROL}:is(:hover, :focus-visible) {
   border-color: color-mix(in srgb, var(--kdl-danger) 55%, var(--kdl-input));
   background: color-mix(in srgb, var(--kdl-danger) 12%, var(--kdl-background));
   color: var(--kdl-danger);
@@ -179,26 +197,43 @@ export const creatorCss = (): string => `
   }
 }
 .kdl-sim__title, .kdl-ov__title { letter-spacing: 0; }
-/* Phones: the name sits beside the avatar, the actions get their own full-width row of equal buttons
-   (the favourite one shows just its star) instead of a stack of wide buttons */
+/* Phones, two rows under the banner: the avatar with the name and the post-count badge beside it, then one row of
+   buttons. Every button but "Post manager" is a 36px square with a tooltip (the Block button too: its label is
+   kept for screen readers, see pages.ts); the manager keeps its label while it fits and turns into a square
+   when the row is crowded (container queries below) */
 @media (max-width: 600px) {
   .user-header__info { display: contents; }
-  /* The post-count badge closes the card under the buttons */
-  .user-header__info > .kdl-info { grid-column: 1 / -1; grid-row: 4; margin: -4px 0 0; padding: 0 16px 16px; }
-  .user-header__name { grid-column: 2; grid-row: 2; align-self: center; min-width: 0; padding: 8px 16px 8px 12px; }
-  .user-header__actions { grid-column: 1 / -1; grid-row: 3; display: flex; flex-wrap: nowrap; gap: 8px; padding: 0 16px 16px; }
-  .user-header__actions > * { flex: 1 1 0; min-width: 0; }
-  .user-header__actions > #kdl-author-manager-btn { display: flex; }
-  .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn { flex: 1 1 auto; width: 100%; height: 2.25rem; }
-  .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
+  .user-header__avatar { grid-row: 2 / span 2; }
+  .user-header__name { grid-column: 2; grid-row: 2; align-self: end; min-width: 0; padding: 10px 16px 4px 12px; }
+  .user-header__info > .kdl-info { grid-column: 2; grid-row: 3; align-self: start; min-width: 0; margin: 0; padding: 0 16px 12px 12px; }
+  .user-header__actions { grid-column: 1 / -1; grid-row: 4; display: flex; flex-wrap: nowrap; gap: 6px; padding: 0 16px 16px; }
+  .user-header__actions > * { flex: 0 0 auto; min-width: 0; }
+  .user-header__actions > #kdl-author-manager-btn { display: flex; flex: 1 1 auto; min-width: 2.25rem; }
+  .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn { flex: 1 1 auto; width: 100%; min-width: 0; height: 2.25rem; padding: 0 8px; }
   .user-header__actions .kdl-ui-btn > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-header__upload, .user-header__favourite { justify-content: center; height: 2.25rem; padding: 0 0.625rem; }
   .user-header__actions > :is(.user-header__favourite, .user-header__upload) { flex: 0 0 2.25rem; width: 2.25rem; padding: 0; }
-  .user-header__actions > :is(button, a):not(.user-header__upload, .user-header__favourite, [id^="kdl-"], [class*="kdl-"]) { flex: 0 0 auto; height: 2.25rem; }
-  /* The script's extra header buttons (tags, hide) stay icon-sized so "All posts" keeps its label */
-  .user-header__actions > :is(#kdl-tags-btn, .kdl-hide-own) { flex: 0 0 auto; }
+  ${SITE_CONTROL} { flex: 0 0 2.25rem; width: 2.25rem; height: 2.25rem; padding: 0; gap: 0; font-size: 0; }
+  ${SITE_CONTROL}::before { content: ''; flex: 0 0 auto; width: 16px; height: 16px; background: currentColor; -webkit-mask: ${BAN_ICON}; mask: ${BAN_ICON}; }
   .user-header__actions > #kdl-tags-btn .kdl-ui-btn { width: 2.25rem; height: 2.25rem; padding: 0; gap: 0; }
   .user-header__actions > #kdl-tags-btn .kdl-ui-btn > span { display: none; }
+  .user-header__actions > .kdl-hide-own > .kdl-ui-btn { width: 2.25rem; height: 2.25rem; }
   .user-header__favourite .user-header__fav-icon { font-size: 16px; }
+}
+/* A crowded row: the manager's label goes too (it keeps its tooltip). Five buttons (anonymous) leave it room down
+   to a ~350px card, six (signed in: Block) down to ~400px */
+@container kdl-user-header (max-width: 349px) {
+  .user-header__actions { justify-content: space-between; }
+  .user-header__actions > #kdl-author-manager-btn { flex: 0 0 auto; }
+  .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn { width: 2.25rem; padding: 0; gap: 0; }
+  .user-header__actions > #kdl-author-manager-btn > .kdl-ui-btn > span { ${SR_ONLY} }
+}
+@container kdl-user-header (max-width: 399px) {
+  /* A row of equal squares, spread over the card instead of bunched up on the left */
+  .user-header__actions:has(> :nth-child(6)) { justify-content: space-between; }
+  .user-header__actions:has(> :nth-child(6)) > #kdl-author-manager-btn { flex: 0 0 auto; }
+  .user-header__actions:has(> :nth-child(6)) > #kdl-author-manager-btn > .kdl-ui-btn { width: 2.25rem; padding: 0; gap: 0; }
+  .user-header__actions:has(> :nth-child(6)) > #kdl-author-manager-btn > .kdl-ui-btn > span { ${SR_ONLY} }
 }
 @media (max-width: 480px) {
   .user-header__background { height: 88px; }

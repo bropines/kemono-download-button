@@ -37,7 +37,7 @@ const imports = {
   '../../ui/kit': { ensureKit() {} },
   '../../i18n': { t: key => key },
   '../../core/registry': { getModuleSetting: () => false, onRegistryChange: () => () => {} },
-  '../creatorOverview/order': { orderOverviewSections: groups => ({ nodes: [...groups].sort((a, b) => ['posts', 'overview', 'similar'].indexOf(a.id) - ['posts', 'overview', 'similar'].indexOf(b.id)).map(group => group.node), cleanup: () => cleanups++ }) },
+  '../creatorOverview/order': { orderOverviewSections: groups => ({ nodes: [...groups].sort((a, b) => ['posts', 'overview', 'similar'].indexOf(a.id) - ['posts', 'overview', 'similar'].indexOf(b.id)).map(group => group.node), cleanup: () => cleanups++ }), normalizeOrder: (value, defaults) => defaults, orderOptions: () => [], settingOrder: () => ({ read: () => [], write() {} }) },
 };
 const location = { pathname: '/fanbox/user/1' };
 const context = { exports: {}, require: id => imports[id], document: doc, location,

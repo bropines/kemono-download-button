@@ -124,7 +124,7 @@ Rules:
 | `downloader.list` | list, search | the same card buttons on post lists (no checkboxes); the creator name is fetched from the profile API on the first download |
 | `favorites.quick` | list, search, artists | quick favourite stars |
 | `tags.tools` | list, creator | tag pages only (`section#tag-container`): filter, sort, A–Z groups with a jump bar, script filter; settings `sort`, `group` |
-| `ui.pageTransitions` | any | the page leans away while the next loads and the new one slides in (opacity and transform only, so it stays on the compositor); the first 12 cards cascade; requires `ui.shadcn` |
+| `ui.pageTransitions` | any | the page leans away while the next loads and the new one slides in (opacity and transform only, so it stays on the compositor); the first 12 cards cascade (a move only: they fade in with their block, in step with the skeleton); requires `ui.shadcn` |
 | `nav.prefetch` | any | htmx sites only: the next page is requested when a link is pressed (setting `hover`: when the pointer rests on it) and handed to htmx's own request in `htmx:beforeSend`; falls back to the real request on any doubt |
 | `posts.search` | creator, list | live results for the site's post search box (creator page, `/posts`), Load more, Esc/Clear; setting `delay` |
 | `lists.infiniteScroll` | list, creator, artists, search, other | off by default: appends the next pages of paginated card lists (fetched HTML, site markup) near the end of the list, "Load more" fallback and cap (settings `auto`, `maxCards`); URL stays on the first page, appended cards are stripped before snapshots and put back with the scroll position on Back |
