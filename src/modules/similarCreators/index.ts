@@ -8,11 +8,11 @@
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { getApiAdapter } from '../../api';
 import { appState, getSettings } from '../../state/store';
-import { readStored, writeStored } from '../../state/gmStorage';
 import { gmXmlhttpRequestWithRetries, isAbortError } from '../../utils/http';
 import { getApiUrl } from '../../utils/helpers';
 import { el } from '../../utils/dom';
-import { button, collapseAway, ensureKit, kitIcon, kitScope, skeleton, swapIn } from '../../ui/kit';
+import { button, collapseAway, ensureKit, kitScope, skeleton, swapIn } from '../../ui/kit';
+import { collapseToggle, COLLAPSED_ATTR, isCollapsed } from '../creatorOverview/collapse';
 import { t } from '../../i18n';
 import { cached, normalizeJson } from '../../api/apiCache';
 import { holdCloak, isCloaked } from '../../core/cloak';
@@ -154,26 +154,11 @@ function build(items: Similar[], limit: number, favourites: Promise<unknown>): H
     if (signedIn) chips.forEach((node, index) => node.isConnected && !node.querySelector(`.${OWN}__fav`) && node.append(star(shown[index])));
   });
   const root = kitScope([], { className: OWN });
-  const toggle = button({ variant: 'ghost', size: 'icon' });
-  const apply = (collapsed: boolean) => {
-    root.toggleAttribute('data-collapsed', collapsed);
-    toggle.replaceChildren(kitIcon(collapsed ? 'chevron-down' : 'chevron-up'));
-    const label = t(collapsed ? 'similar.expand' : 'similar.collapse');
-    toggle.setAttribute('aria-label', label);
-    toggle.setAttribute('aria-expanded', String(!collapsed));
-    toggle.title = label;
-  };
-  toggle.addEventListener('click', () => {
-    const next = !root.hasAttribute('data-collapsed');
-    writeStored(COLLAPSED_KEY, next);
-    apply(next);
-  });
   const head = el('div', { className: `${OWN}__head` }, [
     el('span', { className: `${OWN}__title` }, [t('similar.title')]),
-    toggle,
+    collapseToggle(root, COLLAPSED_KEY, t('similar.title')),
   ]);
   root.append(head, body);
-  apply(!!readStored<boolean>(COLLAPSED_KEY, false));
   return root;
 }
 
@@ -189,7 +174,7 @@ function placeholder(limit: number): HTMLElement | null {
     el('span', { className: `${OWN}__ph-toggle` }),
   ]);
   const root = kitScope([head], { className: `${OWN} ${OWN}--loading` });
-  if (readStored<boolean>(COLLAPSED_KEY, false)) root.setAttribute('data-collapsed', '');
+  if (isCollapsed(COLLAPSED_KEY)) root.setAttribute(COLLAPSED_ATTR, '');
   else root.append(el('div', { className: `${OWN}__scroll` }, Array.from({ length: Math.min(limit, 8) }, () => skeleton({ className: `${OWN}__chip ${OWN}__ph-chip` }))));
   root.setAttribute('aria-busy', 'true');
   return root;

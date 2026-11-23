@@ -11,6 +11,7 @@ import { el } from '../../utils/dom';
 import { button, ensureKit, input, kitScope } from '../../ui/kit';
 import { t, translateSiteText } from '../../i18n';
 import { reversibleTransform } from './reversibleTransform';
+import { SITE_CONTROL_SELECTOR } from './css/creator';
 
 const MARK = 'data-kdl-sk';
 const HEADINGS = 'h1, h2, h3, h4';
@@ -434,8 +435,40 @@ function undoCreatorTabs(): void {
   });
 }
 
+// The site's Block / Unblock button is an icon on phones (css/creator.ts): its label becomes its tooltip and its
+// accessible name, read from the text as it is shown (the site translation may have changed it). Only attributes
+// the button did not have are set, and taken off again.
+const TITLED = 'data-kdl-sk-titled';
+function titleSiteControls(): void {
+  document.querySelectorAll<HTMLElement>(SITE_CONTROL_SELECTOR).forEach((control) => {
+    const label = (control.textContent || '').replace(/^[\s⊘⦸]+/, '').replace(/\s+/g, ' ').trim();
+    const owned = control.getAttribute(TITLED);
+    if (owned === null && (control.hasAttribute('title') || control.hasAttribute('aria-label'))) return;
+    if (!label || owned === label) return;
+    control.title = label;
+    control.setAttribute('aria-label', label);
+    control.setAttribute(TITLED, label);
+  });
+}
+function untitleSiteControls(): void {
+  document.querySelectorAll(`[${TITLED}]`).forEach((control) => {
+    control.removeAttribute('title');
+    control.removeAttribute('aria-label');
+    control.removeAttribute(TITLED);
+  });
+}
+
 /** The creator part's DOM change (its CSS is in css/creator.ts) */
-export const shadcnCreatorTransform = reversibleTransform(liftCreatorTabs, undoCreatorTabs);
+export const shadcnCreatorTransform = reversibleTransform(
+  () => {
+    liftCreatorTabs();
+    titleSiteControls();
+  },
+  () => {
+    untitleSiteControls();
+    undoCreatorTabs();
+  },
+);
 
 // The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
 // phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,

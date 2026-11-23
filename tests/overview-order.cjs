@@ -99,4 +99,18 @@ eye.options.onClick();
 assert.equal(visibility.get('hideContent'), false, 'a hidden block can be restored');
 visibleController.cleanup();
 assert.equal(registryListeners.size, 0, 'cleanup removes edit mode subscriptions');
+// The order as a select setting: every arrangement, and a store that reads the older array until the setting is set
+const { orderOptions, orderValue, settingOrder } = context.exports;
+const options = orderOptions(['a', 'b', 'c'], { a: 'A', b: 'B', c: 'C' });
+assert.equal(options.length, 6, 'one option per arrangement');
+assert.deepEqual(plain(options.map(option => option.value)), ['a-b-c', 'a-c-b', 'b-a-c', 'b-c-a', 'c-a-b', 'c-b-a']);
+assert.equal(options[3].label, 'B, C, A');
+assert.equal(orderValue(['c', 'a', 'b']), 'c-a-b');
+storage.set('legacy.order', ['links', 'tags', 'announcements']);
+const settingStore = settingOrder('creators.overview', 'order', 'legacy.order');
+assert.deepEqual(plain(settingStore.read()), ['links', 'tags', 'announcements'], 'an untouched setting falls back to the older order');
+settingStore.write(['tags', 'links', 'announcements']);
+assert.equal(visibility.get('order'), 'tags-links-announcements', 'the store writes the setting');
+storage.set('mod.creators.overview.order', 'tags-links-announcements');
+assert.deepEqual(plain(settingStore.read()), ['tags', 'links', 'announcements'], 'a set setting wins over the older order');
 console.log('overview block ordering checks passed');

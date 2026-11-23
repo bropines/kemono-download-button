@@ -4,10 +4,12 @@ import type { KdlModule } from '../../core/types';
 import { el } from '../../utils/dom';
 import { ensureKit } from '../../ui/kit';
 import { t } from '../../i18n';
-import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from '../creatorOverview/order';
+import { normalizeOrder, ORDER_CONTROLS_STYLE, orderOptions, orderOverviewSections, settingOrder, type OverviewSection } from '../creatorOverview/order';
 import { getModuleSetting, onRegistryChange } from '../../core/registry';
 
 const ORDER = ['similar', 'overview', 'posts'];
+// The order is the select setting "order" (Settings → Modules), also changed by the edit mode's move buttons
+const orderStore = () => settingOrder('creator.blockOrder', 'order', 'creatorBlocks.order');
 const CHANGE = 'kdl:creator-sections-changed';
 const LIVE_SEARCH_MORE = 'kdl-live-search-more';
 let active = false;
@@ -142,13 +144,27 @@ function sync(): void {
     mark = document.createComment('kdl-creator-block-position');
     members(posts)[0].before(mark);
   }
-  const sorted = orderOverviewSections(groups, { key: 'creatorBlocks.order', defaults: ORDER, heading: (group) => heads.get(group.id) ?? null });
+  const sorted = orderOverviewSections(groups, { key: 'creatorBlocks.order', defaults: ORDER, heading: (group) => heads.get(group.id) ?? null, store: orderStore() });
   const byNode = new Map(groups.map((group) => [group.node, group]));
   arrange(root, sorted.nodes.map((node) => byNode.get(node)!));
   tracked = { root, groups, slot: mark, headings, cleanup: sorted.cleanup };
 }
 
 type SectionId = string;
+
+// The order was chosen in the settings: the blocks move to it. A move made on the page stored the order the page
+// already shows, which is left alone (rebuilding the controls would take the focus off the button just pressed).
+function resort(): void {
+  if (!tracked) return;
+  const shown = [...tracked.groups]
+    .sort((a, b) => (a.node.compareDocumentPosition(b.node) & 4 ? -1 : 1))
+    .map((group) => group.id);
+  const wanted = normalizeOrder(orderStore().read(), ORDER).filter((id) => shown.includes(id));
+  if (shown.join('|') === wanted.join('|')) return;
+  // Another set of groups than the tracked one: sync() takes the in-place path and arranges them anew
+  tracked.groups = [];
+  sync();
+}
 
 export const creatorBlocksModule: KdlModule = {
   id: 'creator.blockOrder',
@@ -165,6 +181,14 @@ export const creatorBlocksModule: KdlModule = {
     { key: 'hideSimilar', label: 'Hide similar creators', type: 'boolean', default: false },
     { key: 'hideOverview', label: 'Hide creator overview', type: 'boolean', default: false },
     { key: 'hidePosts', label: 'Hide posts', type: 'boolean', default: false },
+    {
+      key: 'order',
+      label: 'Order of the blocks',
+      type: 'select',
+      default: ORDER.join('-'),
+      options: orderOptions(ORDER, { similar: 'Similar creators', overview: 'Creator overview', posts: 'Posts' }),
+      hint: 'Also with the move buttons of "Edit page layout".',
+    },
   ],
   styles: `
 .kdl-creator-order__head { display: flex; align-items: center; gap: 4px; color: var(--kdl-muted-foreground); font-size: 13px; font-weight: 600; }
@@ -185,7 +209,11 @@ ${ORDER_CONTROLS_STYLE}
     suspended = false;
     const syncEdit = () => document.documentElement.toggleAttribute('data-kdl-layout-edit', getModuleSetting<boolean>('creator.blockOrder', 'editMode') === true);
     syncEdit();
-    const off = onRegistryChange((event) => { if (event.type === 'setting' && event.id === 'creator.blockOrder' && event.key === 'editMode') syncEdit(); });
+    const off = onRegistryChange((event) => {
+      if (event.type !== 'setting' || event.id !== 'creator.blockOrder') return;
+      if (event.key === 'editMode') syncEdit();
+      if (event.key === 'order') resort();
+    });
     document.addEventListener(CHANGE, sync);
     ctx.onCleanup(() => { off(); document.documentElement.removeAttribute('data-kdl-layout-edit'); document.removeEventListener(CHANGE, sync); active = false; clearTimeout(timer); restore(); });
     sync();

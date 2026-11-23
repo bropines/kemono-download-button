@@ -8,6 +8,39 @@ export interface OverviewSection { id: SectionId; node: HTMLElement; title: stri
 
 const ORDER_KEY = 'creatorOverview.order';
 const DEFAULT_ORDER: SectionId[] = ['announcements', 'tags', 'links'];
+/** The class of a block head's collapse toggle (./collapse.ts): the move buttons go in before it */
+export const COLLAPSE_CLASS = 'kdl-sk-collapse';
+
+/** Where an order is kept: by default an array in GM storage under `key`; see settingOrder for one kept as a setting */
+export interface OrderStore { read(): unknown; write(order: SectionId[]): void }
+
+// An order as a select setting (Settings → Modules): every arrangement of the blocks, the ids joined with "-"
+const SEPARATOR = '-';
+export const orderValue = (order: SectionId[]): string => order.join(SEPARATOR);
+const permutations = (ids: SectionId[]): SectionId[][] =>
+  ids.length <= 1 ? [ids] : ids.flatMap((id) => permutations(ids.filter((other) => other !== id)).map((rest) => [id, ...rest]));
+/** The options of an order setting, labelled like "Tags, Announcements, Linked accounts" */
+export function orderOptions(ids: SectionId[], names: Record<SectionId, string>): { value: string; label: string }[] {
+  return permutations(ids).map((order) => ({ value: orderValue(order), label: order.map((id) => names[id] ?? id).join(', ') }));
+}
+
+/** An order kept as the select setting `key` of module `id`. A user who never touched it gets the order an older
+    version stored under `legacyKey` (moved with the edit mode's buttons). */
+export function settingOrder(id: string, key: string, legacyKey: string): OrderStore {
+  return {
+    read() {
+      const own = readStored<string>(`mod.${id}.${key}`, '');
+      if (own === '' || own == null) {
+        const legacy = readStored<unknown>(legacyKey, []);
+        if (Array.isArray(legacy) && legacy.length) return legacy;
+      }
+      return String(getModuleSetting<string>(id, key) || '').split(SEPARATOR).filter(Boolean);
+    },
+    write(order) {
+      setModuleSetting(id, key, orderValue(order));
+    },
+  };
+}
 
 // Larger hit areas on phones and other touch devices; headings may shrink instead of
 // forcing the control row wider than the page.
@@ -43,11 +76,12 @@ export function moveSection(order: SectionId[], source: SectionId, target: Secti
 }
 
 /** Add pointer drag handles and keyboard/touch-friendly move buttons, saving one global order. */
-export function orderOverviewSections(sections: OverviewSection[], options?: { key: string; defaults: SectionId[]; heading: string | ((section: OverviewSection) => HTMLElement | null) }): { nodes: HTMLElement[]; cleanup: () => void } {
+export function orderOverviewSections(sections: OverviewSection[], options?: { key: string; defaults: SectionId[]; heading?: string | ((section: OverviewSection) => HTMLElement | null); store?: OrderStore }): { nodes: HTMLElement[]; cleanup: () => void } {
   const key = options?.key ?? ORDER_KEY;
   const defaults = options?.defaults ?? DEFAULT_ORDER;
+  const store: OrderStore = options?.store ?? { read: () => readStored<unknown>(key, []), write: (next) => writeStored(key, next) };
   let order: SectionId[];
-  try { order = normalizeOrder(readStored<unknown>(key, []), defaults); }
+  try { order = normalizeOrder(store.read(), defaults); }
   catch { order = [...defaults]; }
   const byId = new Map(sections.map((section) => [section.id, section]));
   const sorted = () => order.flatMap((id) => byId.has(id) ? [byId.get(id)!] : []);
@@ -80,7 +114,7 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
       control.up.disabled = index === 0;
       control.down.disabled = index === visible.length - 1;
     });
-    try { writeStored(key, order); } catch { /* Sorting still works for this page. */ }
+    try { store.write(order); } catch { /* Sorting still works for this page. */ }
   };
 
   const syncVisibility: Array<() => void> = [];
@@ -127,7 +161,10 @@ export function orderOverviewSections(sections: OverviewSection[], options?: { k
     const buttons = kitScope(items, { className: 'kdl-ov__order' });
     buttons.hidden = !editing;
     controlNodes.push(buttons);
-    head.append(buttons);
+    // Before the head's collapse toggle, which stays last
+    const toggle = head.querySelector?.(`:scope > .${COLLAPSE_CLASS}`) ?? null;
+    if (toggle) head.insertBefore(buttons, toggle);
+    else head.append(buttons);
     handle.addEventListener('pointerdown', (event) => {
       if (!editing || event.button !== 0) return;
       event.preventDefault();

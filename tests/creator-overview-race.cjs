@@ -14,7 +14,7 @@ const anchor = { after(node) { node.remove(); node.isConnected = true; node.prev
 function element(tag, attrs, children = []) {
   return { tag, attrs, children, isConnected: false, previousElementSibling: null,
     remove() { const index = blocks.indexOf(this); if (index >= 0) blocks.splice(index, 1); this.isConnected = false; },
-    setAttribute() {}, toggleAttribute() {}, addEventListener() {} };
+    setAttribute() {}, toggleAttribute() {}, addEventListener() {}, append(...nodes) { this.children.push(...nodes); } };
 }
 const api = {
   fetchAnnouncements: () => Promise.resolve([]),
@@ -31,7 +31,8 @@ const imports = {
   '../../ui/kit': { ensureKit() {}, kitIcon: () => element('i', {}), kitScope: (children, attrs) => element('div', attrs, children), swapIn() {}, collapseAway(node, done) { node.remove(); if (done) done(); } },
   '../../api/kemonoApi': api,
   '../../i18n': { t: key => key },
-  './order': { orderOverviewSections: sections => ({ nodes: sections.map(section => section.node), cleanup() {} }) },
+  './order': { orderOverviewSections: sections => ({ nodes: sections.map(section => section.node), cleanup() {} }), normalizeOrder: (value, defaults) => defaults, orderOptions: () => [], settingOrder: () => ({ read: () => [], write() {} }) },
+  './collapse': { collapseToggle: () => element('button', {}), COLLAPSED_ATTR: 'data-collapsed', isCollapsed: () => false },
   '../../core/registry': { getModuleSetting: () => true, isModuleEnabled: () => false },
   '../../i18n/site': { originalText: () => '' },
   '../../core/cloak': { holdCloak() {}, isCloaked: () => false },

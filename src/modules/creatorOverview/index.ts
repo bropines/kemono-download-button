@@ -4,14 +4,16 @@
 // - the creator's tags as a scrollable chip strip; a chip filters the posts by that tag (?tag=),
 // - linked accounts as chips (avatar, name, service).
 // One node of ours (.kdl-ov) placed after the similar creators strip, the skin's tabs row or the header;
-// removed on unmount and before htmx snapshots.
+// removed on unmount and before htmx snapshots. Each section folds with the chevron in its head (./collapse.ts);
+// their order is the select setting "order" (Settings → Modules), also changed by the edit mode's move buttons.
 
 import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { collapseAway, ensureKit, kitIcon, kitScope, swapIn } from '../../ui/kit';
 import { fetchAnnouncements, fetchCreatorLinks, fetchCreatorTags } from '../../api/kemonoApi';
 import { t } from '../../i18n';
-import { ORDER_CONTROLS_STYLE, orderOverviewSections, type OverviewSection } from './order';
+import { ORDER_CONTROLS_STYLE, normalizeOrder, orderOptions, orderOverviewSections, settingOrder, type OverviewSection } from './order';
+import { collapseToggle, COLLAPSED_ATTR, isCollapsed } from './collapse';
 import { getModuleSetting, isModuleEnabled } from '../../core/registry';
 import { holdCloak, isCloaked } from '../../core/cloak';
 import { originalText } from '../../i18n/site';
@@ -22,6 +24,13 @@ const MODULE_ID = 'creators.overview';
 const OWN = 'kdl-ov';
 const POSTS_TAB = /^\/([^/]+)\/user\/([^/?#]+)\/?$/;
 const TAG_LIMIT = 40;
+const SECTIONS = ['announcements', 'tags', 'links'];
+const SECTION_ATTR = 'data-kdl-ov-section';
+/** Where a section's folded state is kept (a boolean per section) */
+const collapsedKey = (id: string): string => `mod.${MODULE_ID}.collapsed.${id}`;
+const orderStore = () => settingOrder(MODULE_ID, 'order', 'creatorOverview.order');
+/** The sections in the order the user chose */
+const sectionOrder = (): string[] => normalizeOrder(orderStore().read(), SECTIONS);
 
 interface Who { service: string; id: string }
 interface Overview { failed?: boolean; announcement: { text: string; added: string; count: number } | null; tags: { tag: string; count: number }[]; links: (Who & { name: string })[] }
@@ -67,13 +76,17 @@ async function load(who: Who): Promise<Overview> {
   } as Overview;
 }
 
-function section(title: string, href: string | null, body: HTMLElement): HTMLElement {
-  return el('div', { className: `${OWN}__section` }, [
+function section(id: string, title: string, href: string | null, body: HTMLElement): HTMLElement {
+  const node = el('div', { className: `${OWN}__section` });
+  node.setAttribute(SECTION_ATTR, id);
+  node.append(
     el('div', { className: `${OWN}__head` }, [
       href ? el('a', { className: `${OWN}__title`, href }, [title]) : el('span', { className: `${OWN}__title` }, [title]),
+      collapseToggle(node, collapsedKey(id), title),
     ]),
     body,
-  ]);
+  );
+  return node;
 }
 
 function build(who: Who, data: Overview): HTMLElement | null {
@@ -88,7 +101,7 @@ function build(who: Who, data: Overview): HTMLElement | null {
     card.title = t('overview.expand');
     card.addEventListener('click', () => card.toggleAttribute('data-open'));
     const title = t('overview.announcements', { count: data.announcement.count });
-    parts.push({ id: 'announcements', title, node: section(title, `${base}/announcements`, card) });
+    parts.push({ id: 'announcements', title, node: section('announcements', title, `${base}/announcements`, card) });
   }
   if (data.tags.length) {
     const active = new URLSearchParams(location.search).get('tag');
@@ -101,7 +114,7 @@ function build(who: Who, data: Overview): HTMLElement | null {
       return chip;
     }));
     const title = t('overview.tags');
-    parts.push({ id: 'tags', title, node: section(title, `${base}/tags`, strip) });
+    parts.push({ id: 'tags', title, node: section('tags', title, `${base}/tags`, strip) });
   }
   if (data.links.length) {
     const strip = el('div', { className: `${OWN}__scroll` }, data.links.map((l) =>
@@ -113,11 +126,11 @@ function build(who: Who, data: Overview): HTMLElement | null {
         ]),
       ])));
     const title = t('overview.links');
-    parts.push({ id: 'links', title, node: section(title, `${base}/links`, strip) });
+    parts.push({ id: 'links', title, node: section('links', title, `${base}/links`, strip) });
   }
   if (!parts.length) return null;
   ensureKit();
-  const ordered = orderOverviewSections(parts);
+  const ordered = orderOverviewSections(parts, { key: 'creatorOverview.order', defaults: SECTIONS, store: orderStore() });
   cleanupOrder = ordered.cleanup;
   return kitScope(ordered.nodes, { className: OWN });
 }
@@ -133,22 +146,30 @@ function tabCount(suffix: string): number | null {
   const m = /\((\d+)\)/.exec(originalText(tab));
   return m ? Number(m[1]) : -1;
 }
+// In the user's order, a folded section as just its head, so nothing moves when the real ones replace them.
 function placeholder(): HTMLElement | null {
   const bar = (cls: string): HTMLElement => el('span', { className: `${OWN}__ph ${cls}` });
-  const parts: HTMLElement[] = [];
+  const sections = new Map<string, HTMLElement>();
+  const add = (id: string, body: () => HTMLElement): void => {
+    const collapsed = isCollapsed(collapsedKey(id));
+    // The head as tall as a real one: the title's bar and the toggle's box
+    const head = el('div', { className: `${OWN}__head` }, [bar(`${OWN}__ph-title`), el('span', { className: `${OWN}__ph-toggle` })]);
+    const node = el('div', { className: `${OWN}__section` }, collapsed ? [head] : [head, body()]);
+    if (collapsed) node.setAttribute(COLLAPSED_ATTR, '');
+    sections.set(id, node);
+  };
   if (isModuleEnabled('creator.blockOrder') && getModuleSetting<boolean>('creator.blockOrder', 'hideOverview') === true) return null;
   if (want('announcements') && tabCount('announcements') !== null && tabCount('announcements') !== 0) {
-    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`), bar(`${OWN}__ph-card`)]));
+    add('announcements', () => bar(`${OWN}__ph-card`));
   }
   if (want('tags') && tabCount('tags') !== null && tabCount('tags') !== 0) {
-    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`),
-      el('div', { className: `${OWN}__scroll` }, Array.from({ length: 10 }, () => bar(`${OWN}__ph-pill`)))]));
+    add('tags', () => el('div', { className: `${OWN}__scroll` }, Array.from({ length: 10 }, () => bar(`${OWN}__ph-pill`))));
   }
   const links = tabCount('links');
   if (want('links') && links !== null && links !== 0) {
-    parts.push(el('div', { className: `${OWN}__section` }, [bar(`${OWN}__ph-title`),
-      el('div', { className: `${OWN}__scroll` }, Array.from({ length: Math.min(Math.max(links, 1), 4) }, () => bar(`${OWN}__ph-chip`)))]));
+    add('links', () => el('div', { className: `${OWN}__scroll` }, Array.from({ length: Math.min(Math.max(links, 1), 4) }, () => bar(`${OWN}__ph-chip`))));
   }
+  const parts = sectionOrder().flatMap((id) => (sections.has(id) ? [sections.get(id)!] : []));
   if (!parts.length) return null;
   ensureKit();
   const node = kitScope(parts, { className: `${OWN} ${OWN}--loading` });
@@ -263,7 +284,8 @@ async function render(ctx: ModuleContext): Promise<void> {
 const STYLES = `
 /* Loading placeholders (see placeholder()) */
 .${OWN}__ph { display: block; flex: 0 0 auto; border-radius: var(--kdl-radius); background: linear-gradient(90deg, var(--kdl-muted) 0%, color-mix(in srgb, var(--kdl-muted) 55%, var(--kdl-foreground) 8%) 50%, var(--kdl-muted) 100%) 0 0 / 200% 100%; animation: kdl-ov-shimmer 1.4s ease-in-out infinite; }
-.${OWN}__ph-title { width: 110px; height: 14px; margin: 3px 0 8.5px; border-radius: 4px; }
+.${OWN}__ph-title { width: 110px; height: 14px; margin-right: auto; border-radius: 4px; }
+.${OWN}__ph-toggle { flex: 0 0 auto; width: 36px; height: 36px; margin: -8px 0 -8px 4px; }
 /* A card with its text at the 3-line clamp (most announcements are longer) */
 .${OWN}__ph-card { height: 102px; }
 .${OWN}__ph-pill { width: 92px; height: 1.875rem; border-radius: 9999px; }
@@ -272,6 +294,11 @@ const STYLES = `
 @media (prefers-reduced-motion: reduce) { .${OWN}__ph { animation: none; } }
 .${OWN} { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 12px; min-width: 0; max-width: 100%; contain: inline-size; }
 .${OWN}__head { display: flex; align-items: center; margin-bottom: 6px; }
+/* The section's chevron, the same button as Similar creators has (in line with it), taking no more height than the
+   title's line */
+.${OWN}__head .kdl-ui-btn.kdl-sk-collapse { flex: 0 0 auto; margin: -8px 0 -8px 4px; }
+.${OWN}__section[${COLLAPSED_ATTR}] > .${OWN}__head { margin-bottom: 0; }
+.${OWN}__section[${COLLAPSED_ATTR}] > :not(.${OWN}__head) { display: none; }
 .${OWN}__head .${OWN}__title { margin-right: auto; }
 .${OWN}__order { display: inline-flex; align-items: center; flex: 0 0 auto; }
 .${OWN}__head .kdl-ui-btn.${OWN}__move, .${OWN}__head .kdl-ui-btn.${OWN}__drag { width: 28px; height: 28px; padding: 4px; color: var(--kdl-muted-foreground); }
@@ -332,6 +359,14 @@ export const creatorOverviewModule: KdlModule = {
     { key: 'announcements', label: 'Latest announcement', type: 'boolean', default: true },
     { key: 'tags', label: 'Tags strip', type: 'boolean', default: true },
     { key: 'links', label: 'Linked accounts', type: 'boolean', default: true },
+    {
+      key: 'order',
+      label: 'Order of the sections',
+      type: 'select',
+      default: SECTIONS.join('-'),
+      options: orderOptions(SECTIONS, { announcements: 'Announcement', tags: 'Tags', links: 'Linked accounts' }),
+      hint: 'Also with the move buttons of "Edit page layout".',
+    },
   ],
   styles: STYLES,
   // The URL already names the creator: the requests start while the page is still loading
@@ -345,7 +380,18 @@ export const creatorOverviewModule: KdlModule = {
       remove();
       void render(ctx);
     };
-    ['announcements', 'tags', 'links'].forEach((key) => ctx.settings.onChange(key, rerender));
+    SECTIONS.forEach((key) => ctx.settings.onChange(key, rerender));
+    // Chosen in the settings: the block is rebuilt in the new order. A move on the page itself stored the order
+    // the block already shows, and leaves it alone.
+    ctx.settings.onChange('order', () => {
+      const shown = node ? Array.from(node.querySelectorAll(`[${SECTION_ATTR}]`)).map((part) => part.getAttribute(SECTION_ATTR)) : [];
+      const wanted = sectionOrder().filter((id) => shown.includes(id));
+      // Rebuilt from what the API said (remembered), without asking again
+      if (shown.join('|') !== wanted.join('|')) {
+        remove();
+        void render(ctx);
+      }
+    });
     // The similar creators strip goes right after the tabs, so it lands above this block whenever it arrives
     holdCloak(render(ctx));
     ctx.onCleanup(remove);

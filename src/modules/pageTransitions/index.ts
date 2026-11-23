@@ -28,10 +28,13 @@ const ENTER_MS = 420;
 const STAGGER_MS = 40;
 const BLOCKS = 6;
 // Only the cards of the first rows cascade: the animation of every card is re-styled on the main thread each
-// frame (~5 ms a frame on a desktop for a page of 50), and the rest are below the fold or come in with the block
+// frame (~5 ms a frame on a desktop for a page of 50), and the rest are below the fold or come in with the block.
+// The cascade only moves them (kdl-card-in has no opacity): they fade in with their block, in step with the
+// skeleton dissolving under them. A fade of their own, held back by its delay, kept the first 12 transparent
+// after the skeleton had gone while the cards after them were already in: the first rows blinked out and back.
 const CARDS = 12;
 const CARD_MS = 520;
-const CARD_DELAY_MS = 120;
+const CARD_DELAY_MS = 0;
 const CARD_STAGGER_MS = 18;
 // Long enough for the last staggered card; a hidden or slow page must not keep the attribute
 const ENTER_TOTAL_MS = CARD_DELAY_MS + CARDS * CARD_STAGGER_MS + CARD_MS + 60;
@@ -218,7 +221,7 @@ function styles(): string {
   return `
 @media (prefers-reduced-motion: no-preference) {
 ${keyframes}
-@keyframes kdl-card-in { from { opacity: 0; transform: translate3d(0, 14px, 0); } }
+@keyframes kdl-card-in { from { transform: translate3d(0, 10px, 0); } }
 ${blocks}
 ${stagger}
 ${grid} > :nth-child(-n+${CARDS}) { animation: kdl-card-in ${CARD_MS}ms ${EASE} backwards; }
