@@ -4,6 +4,8 @@ import { debugLog, sanitizeFilename } from './helpers';
 import { isPawchiveFile, withPawchiveFileLimit } from './pawchiveRateLimit';
 import { bytesLookLikePage, textLooksLikePage } from './pageBody';
 
+declare const GM_info: { scriptHandler?: string } | undefined;
+
 // The session cookie belongs to the archive site only (incl. its file/cN subdomains)
 function isSiteUrl(url: string): boolean {
   try {
@@ -139,18 +141,97 @@ async function fetchFileInPage(url: string, signal?: AbortSignal): Promise<any |
   }
 }
 
+// AdGuard's GM_xmlhttpRequest reports no progress: a file arrives whole or not at all. The inactivity deadline
+// only hears about progress, so on a slow link a big file looked stalled, was cut off and started over, forever.
+// There the archive's file nodes (which allow the page to read them, CORS) are read by the page's own fetch, as a
+// stream: real progress, and a deadline that only fires when no bytes come at all.
+function hostReportsNoProgress(): boolean {
+  try {
+    return typeof GM_info !== 'undefined' && /adguard/i.test(String(GM_info?.scriptHandler || ''));
+  } catch {
+    return false;
+  }
+}
+
+async function fetchFileStreaming(url: string, signal: AbortSignal | undefined, inactivityMs: number, onprogress?: (event: any) => void): Promise<any> {
+  const controller = new AbortController();
+  const onAbort = (): void => controller.abort();
+  signal?.addEventListener('abort', onAbort, { once: true });
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stalled = false;
+  const arm = (): void => {
+    if (!(inactivityMs > 0)) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => { stalled = true; controller.abort(); }, inactivityMs);
+  };
+  try {
+    arm();
+    const response = await fetch(url, { credentials: 'omit', cache: 'no-store', signal: controller.signal });
+    if (!response.ok) {
+      const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
+      err.status = response.status;
+      throw err;
+    }
+    if (/^text\/html\b/i.test(response.headers.get('content-type') || '')) {
+      const err: any = new Error('The server sent a page instead of the file');
+      err.pageInsteadOfFile = true;
+      throw err;
+    }
+    const total = Number(response.headers.get('content-length')) || 0;
+    const reader = response.body?.getReader();
+    if (!reader) {
+      const body = await response.arrayBuffer();
+      return { status: response.status, statusText: response.statusText, finalUrl: response.url, responseHeaders: '', responseText: '', response: body };
+    }
+    const chunks: Uint8Array[] = [];
+    let loaded = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      loaded += value.byteLength;
+      arm();
+      onprogress?.({ loaded, total, lengthComputable: total > 0 });
+    }
+    const body = new Uint8Array(loaded);
+    let offset = 0;
+    for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.byteLength; }
+    if (bytesLookLikePage(body.buffer)) {
+      const err: any = new Error('The server sent a page instead of the file');
+      err.pageInsteadOfFile = true;
+      throw err;
+    }
+    return { status: response.status, statusText: response.statusText, finalUrl: response.url, responseHeaders: '', responseText: '', response: body.buffer };
+  } catch (error) {
+    if (signal?.aborted) throw abortError();
+    if (stalled) throw new Error('Request Timeout');
+    throw error;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
+  }
+}
+
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
   const retryDelay = state.settings.downloadRetryDelay;
   let retries = 0;
   let redirects = 0;
+  let streamFailed = false;
+  let usingStream = false;
   let currentUrl = details.url;
   // The signal is ours, not a GM_xmlhttpRequest option (and it can't be cloned into the extension)
   const { signal, ...requestDetails } = details as { signal?: AbortSignal; [key: string]: any };
 
   while (true) {
     if (signal?.aborted) throw abortError();
+    usingStream = !streamFailed && requestDetails.responseType === 'arraybuffer' && isPawchiveFile(currentUrl) && hostReportsNoProgress();
     try {
+      if (usingStream) {
+        const inactivity = Number(requestDetails.timeout) > 0 ? Number(requestDetails.timeout) : 0;
+        debugLog('[download]', 'request-start', { host: downloadHost(currentUrl), transport: 'page-fetch-stream', attempt: retries + 1 });
+        return await withPawchiveFileLimit(currentUrl, signal, () => fetchFileStreaming(currentUrl, signal, inactivity, requestDetails.onprogress));
+      }
       return await withPawchiveFileLimit(currentUrl, signal, () => new Promise((resolve, reject) => {
         const headers = { ...(details.headers || {}) };
         if (isPawchiveFile(currentUrl) && !Object.keys(headers).some((key) => key.toLowerCase() === 'user-agent')) {
@@ -293,6 +374,12 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
         debugLog('[download]', 'request-failed', { host: downloadHost(currentUrl), status: statusCode(error?.status), aborted: !!signal?.aborted });
       }
       if (signal?.aborted) throw abortError();
+      // The page could not read the file (network or CORS refusal, a TypeError): the GM request takes over
+      if (usingStream && error instanceof TypeError) {
+        streamFailed = true;
+        debugLog('[download]', 'stream-fallback-gm', { host: downloadHost(currentUrl) });
+        continue;
+      }
       // A redirect the host handed back unfollowed: follow it (doesn't use up a retry)
       if (error?.location && redirects < MAX_REDIRECTS) {
         redirects++;

@@ -28,8 +28,9 @@ export const postCardStyles = css({
     width: 'clamp(26px, 16cqw, 32px)',
     height: 'clamp(26px, 16cqw, 32px)',
   },
-  // The queue writes "Queued..." / "Processing..." as the label: let the button grow for it
-  '.post-card-download-controls .kdl-ui-btn[data-is-queued], .post-card-download-controls .kdl-ui-btn[data-is-downloading]': {
+  // A labelled (non-icon) button the queue writes "Queued..." / "Processing..." into grows for it; icon buttons keep
+  // their size and show a status icon (services/queueService.ts)
+  '.post-card-download-controls .kdl-ui-btn:not(.kdl-ui-btn--size-icon)[data-is-queued], .post-card-download-controls .kdl-ui-btn:not(.kdl-ui-btn--size-icon)[data-is-downloading]': {
     width: 'auto',
     padding: '0 8px',
     fontSize: '12px',

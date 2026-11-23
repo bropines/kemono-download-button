@@ -1,9 +1,34 @@
 import { appState, getSettings, state } from '../state/store';
 import { updateQueueIndicator } from '../ui/components/fixedControls';
 import { t } from '../i18n';
+import { kitIcon } from '../ui/kit';
 
 // Buttons hold icons, so their original markup (not just the text) is restored when the task ends
 const originalButtonHtml = new WeakMap<HTMLElement, string>();
+const originalButtonTitle = new WeakMap<HTMLElement, string | null>();
+
+// An icon-only button (post cards) keeps its size and shows a status icon, the words go to its tooltip: a label
+// widened it out of the card on phones. Other buttons show the words.
+function showButtonState(button: HTMLElement, label: string, icon: 'clock' | 'loader-circle'): void {
+  if (!button.classList.contains('kdl-ui-btn--size-icon')) {
+    button.textContent = label;
+    return;
+  }
+  if (!originalButtonTitle.has(button)) originalButtonTitle.set(button, button.getAttribute('title'));
+  button.replaceChildren(kitIcon(icon, icon === 'loader-circle' ? 'kdl-ui-spin' : undefined));
+  button.title = label;
+  button.setAttribute('aria-label', label);
+}
+
+function restoreButtonTitle(button: HTMLElement): void {
+  if (!originalButtonTitle.has(button)) return;
+  const title = originalButtonTitle.get(button);
+  if (title === null || title === undefined) button.removeAttribute('title');
+  else button.title = title;
+  button.setAttribute('aria-label', title || '');
+  if (!title) button.removeAttribute('aria-label');
+  originalButtonTitle.delete(button);
+}
 
 export function addTaskToQueue(
   type: string,
@@ -18,7 +43,7 @@ export function addTaskToQueue(
   if (buttonElement) {
     if (!originalButtonHtml.has(buttonElement)) originalButtonHtml.set(buttonElement, buttonElement.innerHTML);
     buttonElement.dataset.isQueued = 'true';
-    buttonElement.textContent = t('dl.queue.queued');
+    showButtonState(buttonElement, t('dl.queue.queued'), 'clock');
     (buttonElement as HTMLButtonElement).disabled = true;
   }
   updateQueueIndicator();
@@ -48,7 +73,7 @@ export async function processQueue(): Promise<void> {
     if (task.buttonElement) {
       delete task.buttonElement.dataset.isQueued;
       task.buttonElement.dataset.isDownloading = 'true';
-      task.buttonElement.textContent = t('dl.queue.processing');
+      showButtonState(task.buttonElement, t('dl.queue.processing'), 'loader-circle');
     }
 
     (async () => {
@@ -59,6 +84,7 @@ export async function processQueue(): Promise<void> {
       } finally {
         if (task.buttonElement) {
           delete task.buttonElement.dataset.isDownloading;
+          restoreButtonTitle(task.buttonElement);
           const html = originalButtonHtml.get(task.buttonElement);
           if (html !== undefined) {
             task.buttonElement.innerHTML = html;

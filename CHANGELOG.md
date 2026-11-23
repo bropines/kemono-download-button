@@ -4,6 +4,10 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Fixed
+- In AdGuard, Pawchive files are read by the browser's own fetch as a stream: progress shows, and a slow download is no longer cut off as stalled and started over (AdGuard's request reports no progress).
+- The download buttons on post cards keep their size while a download is queued or running (a spinner, the words in the tooltip): the label pushed the row out of the card on phones.
+
 ## [2.1.6] - 2026-11-23
 
 ### Fixed
