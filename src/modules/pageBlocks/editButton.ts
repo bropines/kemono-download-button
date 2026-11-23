@@ -6,10 +6,14 @@ import { el } from '../../utils/dom';
 import { addKitStyles, button, ensureKit, getKitRoot, kitIcon, kitScope, setTooltip, tooltip } from '../../ui/kit';
 import { getDockSlot } from '../../ui/components/fixedControls';
 import { t } from '../../i18n';
+import { icon } from '../../config/icons';
 
 export const LAYOUT_BUTTON_MODULE = 'layout.editButton';
 const BUTTON_ID = 'kdl-layout-edit-btn';
 const DONE_ID = 'kdl-layout-done';
+// The same switch in the global sidebar (next to Settings) and the top bar (phones)
+const NAV_SIDEBAR_ID = 'kdl-layout-btn-sidebar';
+const NAV_HEADER_ID = 'kdl-layout-btn-header';
 const CREATOR_POSTS = /^\/[^/]+\/user\/[^/?#]+\/?$/;
 
 /** The edit mode itself is a setting of the creator block order module; the post blocks and the overview read it too */
@@ -60,6 +64,52 @@ function syncButton(show: boolean, editing: boolean): void {
   row.append(scope);
 }
 
+function navLink(id: string, className: string, withIcon: boolean, editing: boolean): HTMLAnchorElement {
+  const link = document.createElement('a');
+  link.id = id;
+  link.className = className;
+  link.href = '#';
+  link.title = t(editing ? 'layout.edit.doneHint' : 'layout.edit.buttonHint');
+  link.setAttribute('role', 'button');
+  link.setAttribute('aria-pressed', String(editing));
+  if (withIcon) link.append(icon(editing ? 'check' : 'layout-dashboard', 'global-sidebar-entry-item-icon'));
+  link.append(t(editing ? 'layout.edit.done' : 'layout.edit.nav'));
+  return link;
+}
+
+function syncNavLink(id: string, show: boolean, editing: boolean, place: () => ((link: HTMLAnchorElement) => void) | null, make: () => HTMLAnchorElement): void {
+  const old = document.getElementById(id);
+  const put = show ? place() : null;
+  if (!put) return void old?.remove();
+  if (old && old.getAttribute('aria-pressed') === String(editing)) return;
+  old?.remove();
+  put(make());
+}
+
+function syncNav(show: boolean, editing: boolean): void {
+  syncNavLink(NAV_SIDEBAR_ID, show, editing, () => {
+    const settings = document.querySelector('.global-sidebar .kdl-settings-sidebar-entry #kdl-settings-btn-sidebar');
+    return settings ? (link) => settings.before(link) : null;
+  }, () => navLink(NAV_SIDEBAR_ID, 'global-sidebar-entry-item', true, editing));
+  syncNavLink(NAV_HEADER_ID, show, editing, () => {
+    const settings = document.getElementById('kdl-settings-btn-header');
+    return settings && !settings.closest('.global-sidebar') ? (link) => settings.before(link) : null;
+  }, () => navLink(NAV_HEADER_ID, 'header-link kdl-layout-header-link', false, editing));
+}
+
+// Delegated: htmx history snapshots bring the links back as plain markup without listeners
+let delegated = false;
+function delegateNavClicks(): void {
+  if (delegated) return;
+  delegated = true;
+  document.addEventListener('click', (e: MouseEvent) => {
+    const target = e.target as Element | null;
+    if (!active || !target || typeof target.closest !== 'function' || !target.closest(`#${NAV_SIDEBAR_ID}, #${NAV_HEADER_ID}`)) return;
+    e.preventDefault();
+    setLayoutEditing(!isLayoutEditing());
+  });
+}
+
 const DONE_STYLES = `
 #${DONE_ID} {
   pointer-events: auto; display: flex; align-items: center; gap: 10px; max-width: 100%; box-sizing: border-box;
@@ -98,11 +148,14 @@ function sync(): void {
   const show = applies();
   const editing = isLayoutEditing();
   syncButton(show, editing);
+  syncNav(show, editing);
   syncDone(show && editing);
 }
 
 function strip(): void {
   document.getElementById(BUTTON_ID)?.remove();
+  document.getElementById(NAV_SIDEBAR_ID)?.remove();
+  document.getElementById(NAV_HEADER_ID)?.remove();
 }
 
 export const layoutEditButtonModule: KdlModule = {
@@ -118,6 +171,8 @@ export const layoutEditButtonModule: KdlModule = {
   styles: `
 :is(.user-header__actions, .post__actions) > #${BUTTON_ID} { display: inline-flex; order: 1; }
 #${BUTTON_ID} > .kdl-ui-btn { height: 2rem; gap: 6px; }
+#${NAV_SIDEBAR_ID} > svg { margin-right: 0 !important; opacity: 0.7; }
+#${NAV_SIDEBAR_ID}[aria-pressed="true"], #${NAV_HEADER_ID}[aria-pressed="true"] { color: var(--kdl-primary, currentColor); }
 @media (max-width: 600px) {
   #${BUTTON_ID} > .kdl-ui-btn { width: 2rem; padding: 0; justify-content: center; }
   .user-header__actions > #${BUTTON_ID} > .kdl-ui-btn { width: 2.25rem; height: 2.25rem; }
@@ -126,6 +181,7 @@ export const layoutEditButtonModule: KdlModule = {
 `,
   mount(ctx) {
     active = true;
+    delegateNavClicks();
     const off = onRegistryChange((event) => {
       if (event.type === 'setting' ? event.id === 'creator.blockOrder' && event.key === 'editMode' : event.type === 'mounted' || event.type === 'unmounted') sync();
     });

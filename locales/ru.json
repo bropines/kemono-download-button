@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 29,
+  "version": 30,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -960,6 +960,7 @@
     "mod.layout.editButton.description": "Кнопка в шапке страницы автора и поста, которая включает и выключает настройку расположения блоков, и панель «Готово» во время настройки.",
     "layout.edit.button": "Настроить расположение блоков",
     "layout.edit.short": "Блоки",
+    "layout.edit.nav": "Расположение блоков",
     "layout.edit.buttonHint": "Настроить расположение: перемещайте и скрывайте блоки",
     "layout.edit.done": "Готово",
     "layout.edit.doneHint": "Закончить настройку расположения",
