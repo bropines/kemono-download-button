@@ -15,6 +15,9 @@ import type { IconName } from '../../config/icons';
  *
  * render() runs each time the section is shown in a freshly opened dialog, so read current
  * values there. Build controls with the helpers in ./controls (save-on-change + "Saved" toast).
+ *
+ * The dialog's search (./search.ts) reads what a section renders: field() labels and descriptions, section()
+ * titles and descriptions, other blocks by their text. Use those and a new setting is found with nothing to register.
  */
 export interface SettingsSection {
   /** Unique id; also the tab value for openSettings(id). Re-registering an id replaces it. */

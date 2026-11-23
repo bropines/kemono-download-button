@@ -9,6 +9,7 @@ import {
   input,
   kitIcon,
   select,
+  setSwitch,
   switchControl,
   toast,
   type Child,
@@ -71,6 +72,17 @@ export function switchRow(options: SwitchRowOptions): HTMLDivElement {
     orientation: 'horizontal',
     control: switchControl({ id: options.id, checked: options.checked, onChange: options.onChange }),
   });
+}
+
+/** Switch row that follows a module setting (`key`) or, without a key, the module's on/off state when they change elsewhere. */
+export function syncedSwitch(options: SwitchRowOptions, moduleId: string, key?: string): HTMLDivElement {
+  const row = switchRow(options);
+  const control = row.querySelector<HTMLElement>('[role="switch"]')!;
+  whileConnected(row, (event) => {
+    if (key && event.type === 'setting' && event.id === moduleId && event.key === key) setSwitch(control, Boolean(event.value));
+    if (!key && (event.type === 'enabled' || event.type === 'disabled') && event.id === moduleId) setSwitch(control, event.type === 'enabled');
+  });
+  return row;
 }
 
 /** Switch bound to a boolean downloader setting. */

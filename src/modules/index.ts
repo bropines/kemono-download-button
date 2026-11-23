@@ -26,6 +26,7 @@ import { creatorLinksModule } from './creatorLinks';
 import { creatorOverviewModule } from './creatorOverview';
 import { postBlocksModule } from './pageBlocks/post';
 import { creatorBlocksModule } from './pageBlocks/creator';
+import { layoutEditButtonModule } from './pageBlocks/editButton';
 import { siteTranslationModule } from '../i18n/site';
 import { onboardingModule } from './onboarding';
 
@@ -59,6 +60,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   creatorLinksModule,
   creatorOverviewModule,
   creatorBlocksModule,
+  layoutEditButtonModule,
   siteTranslationModule,
   onboardingModule,
   // Before restyle, so user themes keep the last word

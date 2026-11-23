@@ -7,10 +7,10 @@ import { readStored, writeStored } from '../../../state/gmStorage';
 import { kuiState, setEmbedRules, setHideEmptySections, setPreloadImages } from '../../../state/kuiState';
 import type { EmbedRules } from '../../../types';
 import { el } from '../../../utils/dom';
-import { badge, button, field, input, kitIcon, select, setSliderValue, setSwitch, slider } from '../../kit';
+import { badge, button, field, input, kitIcon, select, setSliderValue, slider } from '../../kit';
 import { getModuleSetting, isModuleEnabled, setModuleEnabled, setModuleSetting } from '../../../core/registry';
 import { showMessage } from '../../toast';
-import { grid, notifySaved, section, settingSwitch, switchRow, whileConnected } from '../controls';
+import { grid, notifySaved, section, settingSwitch, syncedSwitch, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { t, tx } from '../../../i18n';
 import { preloadStyleControl } from '../../components/preloadStyle';
@@ -18,16 +18,6 @@ import { openOnboarding } from '../../../modules/onboarding';
 
 const GRID_MIN = 120;
 const GRID_MAX = 400;
-
-function syncedSwitch(options: Parameters<typeof switchRow>[0], moduleId: string, key?: string): HTMLElement {
-  const row = switchRow(options);
-  const control = row.querySelector<HTMLElement>('[role="switch"]')!;
-  whileConnected(row, (event) => {
-    if (key && event.type === 'setting' && event.id === moduleId && event.key === key) setSwitch(control, Boolean(event.value));
-    if (!key && (event.type === 'enabled' || event.type === 'disabled') && event.id === moduleId) setSwitch(control, event.type === 'enabled');
-  });
-  return row;
-}
 
 function gridSizeField(): HTMLElement {
   const saved = Math.max(GRID_MIN, Math.min(GRID_MAX, Number(getModuleSetting<number>('gridSize', 'size')) || 180));

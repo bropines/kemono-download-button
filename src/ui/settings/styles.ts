@@ -1,5 +1,6 @@
 import { css } from '../../utils/cssBuilder';
 import { addKitStyles, LAYERS } from '../kit';
+import { iconMaskUrl } from '../../config/icons';
 
 const STYLE_ID = 'kdl-settings-styles';
 
@@ -123,7 +124,95 @@ export const settingsStyles = css({
   },
   '.kdl-settings__module-notice .kdl-ui-icon': { width: '14px', height: '14px' },
   '.kdl-settings__module[data-state="off"] .kdl-settings__module-settings': { opacity: 0.6 },
+  // Search (./search.ts): the box sits beside the title on desktop and under it on phones
+  '.kdl-settings .kdl-ui-dialog__header': {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(200px, 260px)',
+    columnGap: '16px',
+    rowGap: '6px',
+    alignItems: 'center',
+    paddingRight: '32px',
+  },
+  '.kdl-settings .kdl-ui-dialog__header > :not(.kdl-settings__search)': { gridColumn: '1' },
+  '.kdl-settings__search': { position: 'relative', display: 'flex', alignItems: 'center', gridColumn: '2', gridRow: '1 / span 2' },
+  '.kdl-settings__search > .kdl-ui-icon': {
+    position: 'absolute',
+    left: '10px',
+    width: '14px',
+    height: '14px',
+    color: 'var(--kdl-muted-foreground)',
+    pointerEvents: 'none',
+  },
+  '.kdl-settings__search > .kdl-ui-input': { paddingLeft: '32px', paddingRight: '32px' },
+  '.kdl-settings__search-kbd': { position: 'absolute', right: '8px', pointerEvents: 'none' },
+  // The browser's clear button, drawn like the kit's icons
+  '.kdl-settings__search > .kdl-ui-input::-webkit-search-cancel-button': {
+    WebkitAppearance: 'none',
+    width: '14px',
+    height: '14px',
+    background: 'var(--kdl-muted-foreground)',
+    WebkitMask: `${iconMaskUrl('x')} center / contain no-repeat`,
+    mask: `${iconMaskUrl('x')} center / contain no-repeat`,
+    cursor: 'pointer',
+  },
+  '.kdl-settings__search > .kdl-ui-input::-webkit-search-cancel-button:hover': { background: 'var(--kdl-foreground)' },
+  '.kdl-settings__search:has(> .kdl-ui-input:not(:placeholder-shown)) > .kdl-settings__search-kbd': { display: 'none' },
+  '@media (hover: none), (pointer: coarse)': { '.kdl-settings__search-kbd': { display: 'none' } },
+  '.kdl-settings__search-status': { fontSize: '13px', color: 'var(--kdl-muted-foreground)', marginBottom: '8px' },
+  '.kdl-settings:not([data-searching]) .kdl-settings__search-status, .kdl-settings:not([data-searching]) .kdl-settings__search-empty, .kdl-settings:not([data-searching]) .kdl-settings__search-tab': { display: 'none' },
+  '.kdl-settings__search-status:empty': { display: 'none' },
+  // While searching: no tab row, every panel under its tab name, the rows that do not match hidden
+  '.kdl-settings[data-searching] .kdl-ui-tabs__list': { display: 'none' },
+  '.kdl-settings[data-searching] .kdl-ui-tabs__panel:not([data-kdl-miss])': { display: 'flex !important', flexDirection: 'column', gap: '12px' },
+  '.kdl-settings[data-searching] [data-kdl-miss]': { display: 'none !important' },
+  '.kdl-settings[data-searching] .kdl-ui-tabs': { gap: '20px', flex: '0 0 auto' },
+  '.kdl-settings__search-tab': {
+    fontSize: '12px',
+    fontWeight: 600,
+    letterSpacing: '0.04em',
+    textTransform: 'uppercase',
+    color: 'var(--kdl-muted-foreground)',
+  },
+  '.kdl-settings__search-empty': { marginTop: '8px' },
+  // A result's name opens it in its tab: it reacts like a link
+  '.kdl-settings[data-searching] .kdl-ui-field[data-kdl-hit]': {
+    position: 'relative',
+    margin: '-6px -8px',
+    padding: '6px 32px 6px 8px',
+    borderRadius: 'calc(var(--kdl-radius) - 2px)',
+    cursor: 'pointer',
+    transition: 'background-color 0.15s',
+  },
+  '.kdl-settings[data-searching] .kdl-ui-field[data-kdl-hit]::after': {
+    content: '""',
+    position: 'absolute',
+    top: '8px',
+    right: '8px',
+    width: '14px',
+    height: '14px',
+    background: 'var(--kdl-muted-foreground)',
+    mask: `${iconMaskUrl('corner-down-right')} center / contain no-repeat`,
+    WebkitMask: `${iconMaskUrl('corner-down-right')} center / contain no-repeat`,
+    opacity: 0.5,
+  },
+  '.kdl-settings[data-searching] .kdl-ui-field[data-kdl-hit] .kdl-ui-label': { cursor: 'pointer' },
+  '@media (hover: hover)': {
+    '.kdl-settings[data-searching] .kdl-ui-field[data-kdl-hit]:hover': { background: 'var(--kdl-accent)' },
+    '.kdl-settings[data-searching] .kdl-ui-field[data-kdl-hit]:hover::after': { opacity: 1 },
+  },
+  // Where a jump landed
+  '[data-kdl-flash]': { animation: 'kdl-settings-flash 1.8s ease-out', borderRadius: 'calc(var(--kdl-radius) - 2px)' },
+  '@keyframes kdl-settings-flash': {
+    '0%, 35%': { boxShadow: '0 0 0 2px var(--kdl-ring)', backgroundColor: 'color-mix(in srgb, var(--kdl-primary) 10%, transparent)' },
+    '100%': { boxShadow: '0 0 0 2px transparent', backgroundColor: 'transparent' },
+  },
+  '@media (prefers-reduced-motion: reduce)': {
+    '[data-kdl-flash]': { animation: 'none', outline: '2px solid var(--kdl-ring)', outlineOffset: '2px' },
+  },
   '@media (max-width: 640px)': {
+    '.kdl-settings .kdl-ui-dialog__header': { gridTemplateColumns: 'minmax(0, 1fr)' },
+    // Under the title, clear of the close button: the full width
+    '.kdl-settings__search': { gridColumn: '1', gridRow: 'auto', marginTop: '6px', marginRight: '-32px' },
     '.kdl-settings': { height: 'calc(100vh - 32px)', padding: '16px' },
     '.kdl-settings__footer-spacer': { display: 'none' },
     // Export / Import / Reset share one row under a full-width Done instead of four stacked rows

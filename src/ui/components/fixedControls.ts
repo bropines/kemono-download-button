@@ -4,12 +4,12 @@ import { addKitStyles, badge } from '../kit';
 import { dockStyles } from '../../styles/components/fixedControls.styles';
 import { t } from '../../i18n';
 
-export type DockSlot = 'progress' | 'queue' | 'bulk';
-const SLOTS: DockSlot[] = ['progress', 'queue', 'bulk'];
+export type DockSlot = 'layout' | 'progress' | 'queue' | 'bulk';
+const SLOTS: DockSlot[] = ['layout', 'progress', 'queue', 'bulk'];
 
 /**
  * The bottom dock in the kit shadow root (a child of body, outside #main, so HTMX swaps keep it).
- * It stacks progress tasks, the queue badge and the bulk bar top to bottom, so they never overlap.
+ * It stacks the layout editor's Done bar, progress tasks, the queue badge and the bulk bar top to bottom, so they never overlap.
  */
 export function getDockSlot(slot: DockSlot): HTMLElement {
   const root = addKitStyles('kdl-dock-styles', dockStyles);

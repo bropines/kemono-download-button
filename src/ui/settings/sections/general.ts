@@ -6,11 +6,13 @@ import { el } from '../../../utils/dom';
 import { debugModule } from '../../../utils/logger';
 import { button, field, input, setButtonLoading, setSwitch } from '../../kit';
 import { showMessage } from '../../toast';
-import { notifySaved, section, settingNumber, settingSelect, settingSwitch, showWhen, switchRow } from '../controls';
+import { notifySaved, section, settingNumber, settingSelect, settingSwitch, showWhen, switchRow, syncedSwitch, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
 import { languageSection } from './language';
 import { aboutSection } from './about';
-import { t } from '../../../i18n';
+import { t, tx } from '../../../i18n';
+import { isModuleEnabled, setModuleEnabled } from '../../../core/registry';
+import { isLayoutEditing, LAYOUT_BUTTON_MODULE, setLayoutEditing } from '../../../modules/pageBlocks/editButton';
 
 function sessionField(): HTMLElement {
   const control = input({
@@ -111,6 +113,39 @@ function debugControls(): HTMLElement {
   return el('div', { className: 'kdl-settings__group' }, [main, nested]);
 }
 
+/** Page layout editing, first in the dialog so it is always at hand; the movable blocks exist only with the redesign */
+function layoutSection(): HTMLElement {
+  const node = section(t('settings.general.layoutSection'), [
+    syncedSwitch({
+      id: 'kdl-layout-edit-quick',
+      label: tx('mod.creator.blockOrder.setting.editMode', 'Edit page layout'),
+      description: tx('mod.creator.blockOrder.setting.editMode.hint', 'Show drag handles and move buttons for creator and post blocks.'),
+      checked: isLayoutEditing(),
+      onChange: (checked) => {
+        setLayoutEditing(checked);
+        notifySaved();
+      },
+    }, 'creator.blockOrder', 'editMode'),
+    syncedSwitch({
+      id: 'kdl-layout-button-toggle',
+      label: t('settings.general.layout.button'),
+      description: t('settings.general.layout.buttonDescription'),
+      checked: isModuleEnabled(LAYOUT_BUTTON_MODULE),
+      onChange: (checked) => {
+        setModuleEnabled(LAYOUT_BUTTON_MODULE, checked);
+        notifySaved();
+      },
+    }, LAYOUT_BUTTON_MODULE),
+  ], { icon: 'layout-dashboard' });
+  node.id = 'kdl-settings-layout';
+  const sync = () => showWhen(node, isModuleEnabled('ui.shadcn'));
+  sync();
+  whileConnected(node, (event) => {
+    if ((event.type === 'enabled' || event.type === 'disabled') && event.id === 'ui.shadcn') sync();
+  });
+  return node;
+}
+
 registerSettingsSection({
   id: 'general',
   title: 'General',
@@ -118,6 +153,7 @@ registerSettingsSection({
   order: 10,
   render(container) {
     container.append(
+      layoutSection(),
       languageSection(),
       section(t('settings.general.sessionSection'), [
         sessionField(),
