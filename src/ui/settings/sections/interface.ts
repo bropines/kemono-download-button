@@ -12,6 +12,8 @@ import { getModuleSetting, isModuleEnabled, setModuleEnabled, setModuleSetting }
 import { showMessage } from '../../toast';
 import { grid, notifySaved, section, settingSwitch, syncedSwitch, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { aiPackActions } from '../transfer';
+import { embedRulesPack } from '../../../state/aiPacks';
 import { t, tx } from '../../../i18n';
 import { preloadStyleControl } from '../../components/preloadStyle';
 import { openOnboarding } from '../../../modules/onboarding';
@@ -192,6 +194,7 @@ registerSettingsSection({
           },
         }, 'kui.post', 'preloadImages'),
         embedRulesField(),
+        aiPackActions(embedRulesPack),
       ], { icon: 'file' }),
       section(t('settings.interface.siteSection'), [
         syncedSwitch({

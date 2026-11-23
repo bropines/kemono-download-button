@@ -1,5 +1,6 @@
 import { adblockModule, setAdBlockEnabled } from '../../features/adblock';
-import { exportSettings, getSettings, importSettings, resetSettings } from '../../state/store';
+import { getSettings, resetSettings } from '../../state/store';
+import { importSettingsFile, openExportDialog } from './transfer';
 import { el } from '../../utils/dom';
 import { button, dialog, kitIcon, tabs, type DialogHandle, type DialogOptions } from '../kit';
 import { createSettingsSearch, type SettingsSearch } from './search';
@@ -119,24 +120,11 @@ function confirmReset(): void {
 }
 
 function buildFooter(): HTMLElement[] {
-  const file = el('input', { type: 'file', id: 'kdl-import-file-input', accept: '.json,application/json', hidden: true });
-  file.addEventListener('change', async () => {
-    const chosen = file.files?.[0];
-    file.value = '';
-    if (!chosen) return;
-    try {
-      const count = await importSettings(await chosen.text());
-      refreshSettings();
-      showMessage(t('settings.import.done', { count }), 'success');
-    } catch (e) {
-      showMessage(t('settings.import.failed', { error: (e as Error).message }), 'error');
-    }
-  });
   return [
-    button({ id: 'kdl-export-btn', label: t('settings.footer.export'), icon: 'download', variant: 'outline', onClick: () => exportSettings() }),
-    button({ id: 'kdl-import-btn', label: t('settings.footer.import'), icon: 'folder-open', variant: 'outline', onClick: () => file.click() }),
+    // Export opens a choice (full backup, without secrets, AI packs); Import works out the file type itself
+    button({ id: 'kdl-export-btn', label: t('settings.footer.export'), icon: 'download', variant: 'outline', onClick: openExportDialog }),
+    button({ id: 'kdl-import-btn', label: t('settings.footer.import'), icon: 'folder-open', variant: 'outline', onClick: importSettingsFile }),
     button({ id: 'kdl-reset-btn', label: t('settings.footer.reset'), icon: 'rotate-ccw', variant: 'ghost', onClick: confirmReset }),
-    file,
     el('span', { className: 'kdl-settings__footer-spacer' }),
     button({ label: t('settings.footer.done'), onClick: () => closeSettings() }),
   ];

@@ -4,6 +4,8 @@ import { button, setButtonLoading } from '../../kit';
 import { showMessage } from '../../toast';
 import { section, settingSwitch } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { aiPackActions } from '../transfer';
+import { imageTranslationPack } from '../../../state/aiPacks';
 import { t } from '../../../i18n';
 
 registerSettingsSection({
@@ -43,6 +45,7 @@ registerSettingsSection({
           textContent: t('settings.images.note'),
         }),
         el('div', { className: 'kdl-settings__row' }, [clear]),
+        aiPackActions(imageTranslationPack),
       ], { icon: 'image' })
     );
   },

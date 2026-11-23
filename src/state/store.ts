@@ -6,6 +6,9 @@ import { debugLog } from '../utils/helpers';
 import { KUI_STORAGE_KEYS } from '../config/storage';
 import { kuiState, setDebugMode, setSessionKey, setVerboseDebugMode } from './kuiState';
 import { exportExtraSettings, importExtraSettings } from './settingsTransfer';
+import { isSecretSetting, isValidSetting, SECRET_SETTING_KEYS } from './settingsSchema';
+import { isAiPackData } from './aiPack';
+import { scriptVersion } from '../utils/version';
 import { t } from '../i18n';
 
 export const state = {
@@ -63,33 +66,139 @@ export async function saveSetting<K extends keyof DownloaderSettings>(key: K, va
   state.settings[key] = value;
 }
 
-/** Downloader settings, plus interface settings and module switches/settings (mod.* keys), in one flat object. */
-export async function exportSettings(): Promise<void> {
-  await getSettings();
-  const settingsJson = JSON.stringify({ ...state.settings, ...exportExtraSettings() }, null, 2);
-  const blob = new Blob([settingsJson], { type: 'application/json;charset=utf-8' });
-  saveBlob(blob, `kemono-downloader-settings-${new Date().toISOString().split('T')[0]}.json`, true);
+// ---- Backups -----------------------------------------------------------------------------------
+// A backup is `{format: 'kdl-settings', version, kind, script, exportedAt, settings: {...}}`; `settings` is the
+// flat object older versions exported as the whole file (downloader keys plus interface and mod.* keys), so
+// those files still import. "full" carries everything; "safe" has every secret key removed (not blanked), so
+// importing it leaves the secrets of this browser as they are.
+
+export const SETTINGS_FORMAT = 'kdl-settings';
+export const SETTINGS_FORMAT_VERSION = 2;
+
+export type BackupKind = 'full' | 'safe';
+
+export interface SettingsBackup {
+  format: typeof SETTINGS_FORMAT;
+  version: number;
+  kind: BackupKind;
+  script: string;
+  exportedAt: string;
+  containsSecrets: boolean;
+  note: string;
+  settings: Record<string, unknown>;
 }
 
-/** Imports a file from exportSettings (older downloader-only files too). Wrong types and unknown keys are skipped. */
-export async function importSettings(jsonString: string): Promise<number> {
-  const newSettings = JSON.parse(jsonString);
-  if (!newSettings || typeof newSettings !== 'object' || Array.isArray(newSettings)) throw new Error(t('settings.import.notSettings'));
+/** What an imported file is: a backup (new or pre-format), an AI pack, a theme file */
+export type ImportKind = BackupKind | 'legacy' | 'ai' | 'theme';
+
+export interface ImportPlan {
+  kind: ImportKind;
+  data: Record<string, unknown>;
+  /** Backups: the settings to apply */
+  values: Record<string, unknown>;
+  script?: string;
+  exportedAt?: string;
+  /** Backups: how many keys this version knows, and how many of them are secrets */
+  known: number;
+  secrets: number;
+}
+
+export interface ImportResult {
+  applied: string[];
+  skipped: string[];
+}
+
+export async function buildBackup(kind: BackupKind): Promise<SettingsBackup> {
   await getSettings();
-  let importCount = 0;
-  for (const key in DEFAULT_SETTINGS) {
-    const k = key as keyof DownloaderSettings;
-    if (Object.prototype.hasOwnProperty.call(newSettings, k)) {
-      if (typeof newSettings[k] === typeof DEFAULT_SETTINGS[k]) {
-        await saveSetting(k, newSettings[k]);
-        importCount++;
-      }
+  const settings: Record<string, unknown> = JSON.parse(JSON.stringify({ ...state.settings, ...exportExtraSettings() }));
+  if (kind === 'safe') SECRET_SETTING_KEYS.forEach((key) => delete settings[key]);
+  const containsSecrets = kind === 'full';
+  return {
+    format: SETTINGS_FORMAT,
+    version: SETTINGS_FORMAT_VERSION,
+    kind,
+    script: scriptVersion(),
+    exportedAt: new Date().toISOString(),
+    containsSecrets,
+    note: containsSecrets
+      ? 'FULL BACKUP: contains your site session cookie and translation API keys. Keep it private; do not share it.'
+      : 'Shareable: session cookie and API keys are removed. Importing it keeps the keys already set in the browser.',
+    settings,
+  };
+}
+
+export async function exportBackup(kind: BackupKind): Promise<void> {
+  const json = JSON.stringify(await buildBackup(kind), null, 2);
+  const name = kind === 'full' ? 'kemono-downloader-backup-PRIVATE' : 'kemono-downloader-settings-shareable';
+  saveBlob(new Blob([json], { type: 'application/json;charset=utf-8' }), `${name}-${new Date().toISOString().split('T')[0]}.json`, true);
+}
+
+/** The full backup (the old "Export") */
+export const exportSettings = (): Promise<void> => exportBackup('full');
+
+const isObject = (value: unknown): value is Record<string, unknown> => !!value && typeof value === 'object' && !Array.isArray(value);
+
+/** Reads a file and says what it is, without applying anything. Throws on anything that is not ours. */
+export function inspectImport(jsonString: string): ImportPlan {
+  let data: unknown;
+  try {
+    data = JSON.parse(jsonString);
+  } catch {
+    throw new Error(t('settings.import.notJson'));
+  }
+  if (!isObject(data)) throw new Error(t('settings.import.notSettings'));
+  const plan = (kind: ImportKind, values: Record<string, unknown> = {}): ImportPlan => {
+    const knownKeys = new Set([...Object.keys(DEFAULT_SETTINGS), ...Object.keys(exportExtraSettings())]);
+    const known = Object.keys(values).filter((key) => knownKeys.has(key));
+    return {
+      kind, data, values,
+      script: typeof data.script === 'string' ? data.script : undefined,
+      exportedAt: typeof data.exportedAt === 'string' ? data.exportedAt : undefined,
+      known: known.length,
+      secrets: kind === 'safe' ? 0 : known.filter(isSecretSetting).length,
+    };
+  };
+  if (data.format === SETTINGS_FORMAT) {
+    if (typeof data.version !== 'number' || data.version > SETTINGS_FORMAT_VERSION) throw new Error(t('settings.import.newerVersion'));
+    if (!isObject(data.settings)) throw new Error(t('settings.import.notSettings'));
+    return plan(data.kind === 'safe' ? 'safe' : 'full', data.settings);
+  }
+  if (isAiPackData(data)) return plan('ai');
+  if (data.format === 'kdl-theme') return plan('theme');
+  // A pre-format export: the flat object itself. It must hold at least one key we know
+  const legacy = plan('legacy', data);
+  if (!legacy.known) throw new Error(t('settings.import.notSettings'));
+  return legacy;
+}
+
+/** Applies a backup plan. Wrong types and unknown keys are skipped; a "safe" file never touches a secret. */
+export async function applyBackup(plan: ImportPlan): Promise<ImportResult> {
+  if (plan.kind === 'ai' || plan.kind === 'theme') throw new Error(t('settings.import.notSettings'));
+  await getSettings();
+  const values = plan.values;
+  const applied: string[] = [];
+  for (const key of Object.keys(DEFAULT_SETTINGS) as Array<keyof DownloaderSettings>) {
+    if (!Object.prototype.hasOwnProperty.call(values, key)) continue;
+    if (plan.kind === 'safe' && isSecretSetting(key)) continue;
+    // Older exports could carry a blank template; loading falls back to the default as it always did
+    const value = values[key];
+    if (isValidSetting(key, value) || (key === 'fileNameTemplate' && value === '')) {
+      await saveSetting(key, value as DownloaderSettings[typeof key]);
+      applied.push(key);
     }
   }
   settingsLoadPromise = null;
   await getSettings();
   syncSessionKey();
-  return importCount + importExtraSettings(newSettings);
+  setDebugMode(state.settings.enableDebugLogging);
+  applied.push(...importExtraSettings(values));
+  const skipped = Object.keys(values).filter((key) => !applied.includes(key) && !(plan.kind === 'safe' && isSecretSetting(key)));
+  return { applied, skipped };
+}
+
+/** Imports a backup file (older flat files too); returns how many settings were applied. */
+export async function importSettings(jsonString: string): Promise<number> {
+  return (await applyBackup(inspectImport(jsonString))).applied.length;
 }
 
 // ---- Merged settings -------------------------------------------------------------------------

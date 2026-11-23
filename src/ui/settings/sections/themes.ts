@@ -24,6 +24,8 @@ import { css } from '../../../utils/cssBuilder';
 import { badge, button, checkbox, emptyState, field, getKitRoot, input, select, setSwitch, switchControl, textarea, toast } from '../../kit';
 import { notifySaved, section, switchRow, whileConnected } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { aiPackActions } from '../transfer';
+import { themesPack } from '../../../state/aiPacks';
 import { peekButton, themeDescription, themeName, themePreviewStyles, themeThumbnail } from '../themePreview';
 import { t, tx, type UiKey } from '../../../i18n';
 import './shadcnSwatches';
@@ -270,7 +272,7 @@ function listView(open: (id: string | null) => void): HTMLElement[] {
   });
 
   return [
-    section(t('themes.own.title'), [toolbar, ownList], {
+    section(t('themes.own.title'), [toolbar, ownList, aiPackActions(themesPack)], {
       icon: 'sliders-horizontal',
       description: t('themes.own.description'),
     }),

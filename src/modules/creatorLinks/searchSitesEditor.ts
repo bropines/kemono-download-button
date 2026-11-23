@@ -6,6 +6,8 @@ import type { SettingEditor, SettingValue } from '../../core/types';
 import { el } from '../../utils/dom';
 import { addKitStyles, button, dismissable, emptyState, field, input, kitIcon, setFieldError, toast } from '../../ui/kit';
 import { css } from '../../utils/cssBuilder';
+import { aiPackActions } from '../../ui/settings/transfer';
+import { searchSitesPack } from '../../state/aiPacks';
 import { t, type UiKey } from '../../i18n';
 import {
   DEFAULT_SEARCHES,
@@ -105,7 +107,7 @@ export const searchSitesEditor: SettingEditor = ({ id, value, save }) => {
   const count = el('span', { className: 'kdl-sse__count' });
   const add = button({ label: t('xlinks.editor.add'), icon: 'plus', variant: 'outline', size: 'sm', onClick: () => openForm(sites.length) });
   const reset = button({ label: t('xlinks.editor.reset'), icon: 'rotate-ccw', variant: 'ghost', size: 'sm', onClick: resetToDefaults });
-  const root = el('div', { className: 'kdl-sse', id }, [list, empty, el('div', { className: 'kdl-sse__foot' }, [add, reset, count])]);
+  const root = el('div', { className: 'kdl-sse', id }, [list, empty, el('div', { className: 'kdl-sse__foot' }, [add, reset, count]), aiPackActions(searchSitesPack)]);
 
   function commit(next: SearchSite[], undo?: { title: string; previous: SearchSite[] }): void {
     sites = next;

@@ -14,6 +14,8 @@ import {
   showWhen,
 } from '../controls';
 import { registerSettingsSection } from '../registry';
+import { aiPackActions } from '../transfer';
+import { packagingPack } from '../../../state/aiPacks';
 import { progressManager } from '../../progressManager';
 import { clearDownloadHistory, downloadedCount, onDownloadHistoryChange } from '../../../services/downloadHistory';
 import { t } from '../../../i18n';
@@ -280,7 +282,7 @@ registerSettingsSection({
         settingSwitch('downloadPanelAutoOpen', t('settings.downloads.panelAutoOpen'), t('settings.downloads.panelAutoOpenDescription')),
         settingSwitch('downloadPanelAutoClear', t('settings.downloads.panelAutoClear'), t('settings.downloads.panelAutoClearDescription')),
       ], { icon: 'download' }),
-      section(t('settings.downloads.namingSection'), templateControls(), { icon: 'folder' }),
+      section(t('settings.downloads.namingSection'), [...templateControls(), aiPackActions(packagingPack)], { icon: 'folder' }),
       section(t('settings.downloads.bulkSection'), bulkControls(), { icon: 'folders' }),
       section(t('settings.downloads.performanceSection'), [
         grid([
