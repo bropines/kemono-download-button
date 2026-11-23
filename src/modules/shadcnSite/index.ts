@@ -30,6 +30,7 @@ import { pagesCss } from './css/pages';
 import { shadcnCreatorTransform, shadcnPagesTransform } from './pages';
 import { communityLinks, installLogoutConfirm } from './chrome';
 import { decorateSidebarSections, installSidebarSections, sidebarSectionsCss, syncCollapsedSections } from './sidebarSections';
+import { centerTailCss, clearCenterTail, installCenterTail, syncCenterTail } from './centerTail';
 import { ACCENT_OPTIONS, BASE_OPTIONS, SURFACE_OPTIONS, paletteCss } from './palette';
 
 export const SHADCN_ID = 'ui.shadcn';
@@ -242,7 +243,7 @@ export const shadcnSiteModule: KdlModule = {
       hint: 'Over the page: the sidebar starts closed, opens from the menu button and closes on a click outside it.',
     },
   ],
-  styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss() + sidebarSectionsCss()),
+  styles: scoped(() => tokensCss() + baseCss() + formsCss() + layoutCss() + sidebarSectionsCss() + centerTailCss),
   mount(ctx) {
     setFlag(true);
     const get: SettingGetter = (key) => ctx.settings.get(key);
@@ -264,6 +265,7 @@ export const shadcnSiteModule: KdlModule = {
     ctx.onCleanup(() => communityLinks.unmount?.(ctx));
     ctx.onCleanup(installLogoutConfirm());
     ctx.onCleanup(installSidebarSections());
+    ctx.onCleanup(installCenterTail());
     ctx.onCleanup(clearLayout);
     ctx.onCleanup(() => {
       document.documentElement.style.removeProperty(WIDTH_VAR);
@@ -286,10 +288,12 @@ export const shadcnSiteModule: KdlModule = {
     syncPalette((key) => ctx.settings.get(key));
     communityLinks.update?.(ctx);
     decorateSidebarSections();
+    syncCenterTail();
   },
   // The sidebar is outside the swapped content: its entries are not taken out before an htmx snapshot (that made
   // the Community section blink on every page change); adding them again is a no-op when they are there
-  beforeSnapshot() {},
+  // Centred last rows are measured again on the restored page
+  beforeSnapshot: () => clearCenterTail(),
   // A new tab is painted with the skin's flag, palette and width already in place
   early() {
     const get: SettingGetter = (key) => getModuleSetting(SHADCN_ID, key);

@@ -4,7 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-11-23
+
 ### Added
+- The last, incomplete row of post and creator card grids is centred instead of hugging the left edge.
+- Links inside text (posts, comments, notes, the account line) are drawn in the accent colour, or a soft blue on the grey accents, and underlined on hover; a pressed link no longer turns black.
 - The account page is a profile card with a menu: each link (notifications, keys, review DMs, blocked creators, settings) is a full-width row with its icon and a chevron. Signed in, the Account entry of the sidebar gets a user icon like the other links. "Blocked creators" and the site's ad settings are translated. The account settings page (ads, password) puts the status and its button on one row. The other account pages (notifications, stored keys, DM review, blocked creators, settings, change password) share its look: one centred column, panels with rows, muted notes; stored keys are listed one per row with a small Revoke toggle, and Revoke selected keys stays inactive until a key is ticked. The join date ("4 months ago"), the ads note, the password form and the blocked creators page are translated.
 - **Infinite scroll** goes easy on the site: the next page is requested no sooner than a set pause after the previous one (2 s by default), a busy site (429, 5xx, a dropped connection) gets a few retries with growing waits (its Retry-After first), and a background tab loads nothing. Pages already scrolled on a creator are kept in a small compressed cache (4 MB by default, about 600 pages), so scrolling that creator again sends no requests; new posts by the creator drop their cached pages at once. Pause, cache size and lifetime are in the module settings.
 - Infinite scroll requests the next page as soon as you scroll down, so reaching the end shows it at once instead of starting the wait there.

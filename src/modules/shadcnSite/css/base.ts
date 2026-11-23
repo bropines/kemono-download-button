@@ -2,6 +2,9 @@
 // NK keeps generic element rules off the script's own kit widgets and third-party markup (Plyr).
 
 export const NK = ':where(:not(.kdl-scope, .kdl-scope *, .kdl-tokens, .kdl-tokens *))';
+// A link inside running text (not a button, a card or a picture)
+const TEXT_SCOPES = '.post__content, .post__body .kui-post-section, .comment__body, .comment-text, .settings__note, .account-view__info, .jumbo-welcome-description, .site-section--contact, .dm-card__content, .dms__content, .card__body > p, .import__card p, div#page.page';
+const TEXT_LINK = `:is(${TEXT_SCOPES}) a${NK}:not(.button, .form__button, .fancy-link--button, [class*="kdl-"], :has(> img))`;
 
 const TEXT_INPUTS =
   'input[type=text], input[type=search], input[type=password], input[type=email], input[type=number], input[type=url], textarea, select';
@@ -67,6 +70,18 @@ a${NK}:focus-visible {
   border-radius: calc(var(--kdl-radius) - 4px);
 }
 .fancy-link--button:is(:focus, :hover) { background-color: var(--kdl-accent); }
+/* Pressing a link: the site swaps its colours (light background, its second colour as text), which the skin's
+   transparent second colour turned into black or vanishing text. A pressed link keeps its own colour */
+a${NK}:active { background-color: transparent; color: var(--local-colour1-primary, currentColor); }
+.fancy-link--button:active { background-color: var(--kdl-accent); color: var(--local-colour1-primary, currentColor); }
+/* Links inside text (post and comment bodies, notes, the account line...) are coloured, underlined on hover */
+${TEXT_LINK} {
+  --local-colour1-primary: var(--kdl-link);
+  --local-colour1-secondary: var(--kdl-link);
+  color: var(--kdl-link);
+  text-decoration: none;
+}
+${TEXT_LINK}:hover { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--kdl-link) 55%, transparent); }
 .timestamp { color: var(--kdl-muted-foreground); }
 .subtitle, .form__subtitle { color: var(--kdl-muted-foreground); }
 

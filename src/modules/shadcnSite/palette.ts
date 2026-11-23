@@ -114,6 +114,8 @@ export function paletteTokens(options: PaletteOptions): Record<string, string> {
     '--kdl-border': border,
     '--kdl-input': border,
     '--kdl-ring': coloured ? primary : mix(base.muted, base.foreground, 60),
+    // Links inside text: the accent, or a soft blue on the grey accents (white links read as plain text)
+    '--kdl-link': coloured ? mix(primary, base.foreground, 75) : '#7cb4ff',
     ...kitIconTokens(onPrimary, base.muted),
     '--kdl-sidebar': surface.panels ? card : mix(base.secondary, base.background, 30),
     '--kdl-panel-bg': surface.panels ? card : 'transparent',
