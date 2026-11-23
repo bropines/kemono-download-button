@@ -103,10 +103,50 @@ async function normalizeResponse(response: any, responseType?: string): Promise<
   };
 }
 
+// A file request answered with a page instead of the file: a redirect the host did not follow (AdGuard's request
+// engine hands back nginx's "302 Found" page, 138 bytes, as if it were the image) or an error page. Saving that
+// would leave a broken file behind; the request follows the redirect itself, or fetches the file another way.
+const MAX_REDIRECTS = 5;
+function headerValue(headers: unknown, name: string): string {
+  const line = String(headers || '').split(/\r?\n/).find((row) => row.toLowerCase().startsWith(`${name.toLowerCase()}:`));
+  return line ? line.slice(name.length + 1).trim() : '';
+}
+function redirectTarget(response: any, from: string): string | null {
+  const location = headerValue(response?.responseHeaders, 'location');
+  if (!location) return null;
+  try { return new URL(location, from).href; } catch { return null; }
+}
+/** The body of a file request is a web page (text/html, or bytes starting with an HTML tag) */
+function isPageInsteadOfFile(response: any, url: string): boolean {
+  if (/\.html?(?:[?#]|$)/i.test(url)) return false;
+  if (/^text\/html\b/i.test(headerValue(response?.responseHeaders, 'content-type'))) return true;
+  const body = response?.response;
+  let head = '';
+  if (isKind(body, 'ArrayBuffer')) {
+    const bytes = new Uint8Array(body as ArrayBuffer, 0, Math.min(64, (body as ArrayBuffer).byteLength));
+    head = String.fromCharCode(...bytes);
+  } else if (typeof body === 'string') head = body.slice(0, 64);
+  return /^\s*<(?:!doctype\s+html|html|head|body|center|h1)\b/i.test(head);
+}
+/** The page's own fetch: it follows redirects; the archives' file hosts allow it (CORS) */
+async function fetchFileInPage(url: string, signal?: AbortSignal): Promise<any | null> {
+  if (typeof fetch !== 'function') return null;
+  try {
+    const response = await fetch(url, { credentials: 'omit', cache: 'no-store', signal });
+    if (!response.ok || /^text\/html\b/i.test(response.headers.get('content-type') || '')) return null;
+    const body = await response.arrayBuffer();
+    return { status: response.status, statusText: response.statusText, finalUrl: response.url, responseHeaders: '', responseText: '', response: body };
+  } catch {
+    if (signal?.aborted) throw abortError();
+    return null;
+  }
+}
+
 export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
   const maxRetries = state.settings.enableDownloadRetries ? Number(state.settings.downloadRetryCount) || 0 : 0;
   const retryDelay = state.settings.downloadRetryDelay;
   let retries = 0;
+  let redirects = 0;
   let currentUrl = details.url;
   // The signal is ours, not a GM_xmlhttpRequest option (and it can't be cloned into the extension)
   const { signal, ...requestDetails } = details as { signal?: AbortSignal; [key: string]: any };
@@ -178,6 +218,14 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
             // still times out), instead of whatever was left of the transfer's
             arm();
             normalizeResponse(response, requestDetails.responseType).then((normalized) => {
+              if (isFile && isPageInsteadOfFile(normalized, currentUrl)) {
+                const err: any = new Error('The server sent a page instead of the file');
+                err.pageInsteadOfFile = true;
+                err.location = redirectTarget(response, currentUrl);
+                if (trace) debugLog('[download]', 'page-instead-of-file', { requestId, host, redirect: !!err.location });
+                finish(() => reject(err));
+                return;
+              }
               finish(() => {
                 if (trace) debugLog('[download]', 'normalized', { requestId, ...responseSummary(normalized?.response) });
                 resolve(normalized);
@@ -191,6 +239,7 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
           } else {
             const err: any = new Error(`HTTP Status ${response.status}: ${response.statusText}`);
             err.status = response.status;
+            if (response.status >= 300 && response.status < 400) err.location = redirectTarget(response, currentUrl);
             finish(() => reject(err));
           }
         };
@@ -247,6 +296,21 @@ export async function gmXmlhttpRequestWithRetries(details: any): Promise<any> {
         debugLog('[download]', 'request-failed', { host: downloadHost(currentUrl), status: statusCode(error?.status), aborted: !!signal?.aborted });
       }
       if (signal?.aborted) throw abortError();
+      // A redirect the host handed back unfollowed: follow it (doesn't use up a retry)
+      if (error?.location && redirects < MAX_REDIRECTS) {
+        redirects++;
+        currentUrl = error.location;
+        debugLog('[download]', 'redirect-followed', { host: downloadHost(currentUrl) });
+        continue;
+      }
+      // A page instead of the file and nowhere to go: the page's own fetch follows redirects itself
+      if (error?.pageInsteadOfFile || (error?.status >= 300 && error?.status < 400)) {
+        const fetched = await fetchFileInPage(currentUrl, signal);
+        if (fetched) {
+          debugLog('[download]', 'page-fetch-fallback', { host: downloadHost(currentUrl) });
+          return fetched;
+        }
+      }
       // pawchive serves /data/ only from file.<domain> (its main domain 404s, while kemono/coomer redirect
       // to the right n1-n4 node themselves). Switching hosts doesn't use up a retry.
       const mainDataMatch = currentUrl.match(/^https:\/\/([^/]+)(\/data\/.*)$/);

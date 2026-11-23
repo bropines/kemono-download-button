@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.5] - 2026-11-23
+
+### Fixed
+- Downloads no longer save a tiny web page (nginx's "302 Found", 138 bytes) in place of an image. Some hosts, such as AdGuard on Android, hand back a redirect from the file servers without following it: the script now follows it itself, or fetches the file through the page, and fails the file instead of saving the page when neither works.
+
 ## [2.1.4] - 2026-11-23
 
 ### Fixed
