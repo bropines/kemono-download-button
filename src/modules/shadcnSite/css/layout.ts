@@ -234,6 +234,8 @@ html[data-kdl-sk-halign="center"] .content-wrapper .header-link:first-of-type { 
   }
 }
 .content-wrapper .backdrop { background: var(--kdl-overlay); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); }
+/* The site sizes the dimming to the page wrapper, which left an undimmed strip at the bottom of a phone screen */
+@media (max-width: 1020px) { .content-wrapper .backdrop { position: fixed; inset: 0; width: auto; height: auto; } }
 
 /* Content */
 /* The wrapper is a flex item: without min-width 0 its widest row (the top bar's labelled links, a strip of cards)

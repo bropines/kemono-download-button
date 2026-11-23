@@ -100,28 +100,53 @@ const sidebarOpen = (): HTMLElement | null => {
   return bar && !bar.classList.contains('retracted') && window.matchMedia(DESKTOP).matches ? bar : null;
 };
 const closeSidebar = (): void => document.querySelector<HTMLElement>('.global-sidebar .close-sidebar')?.click();
-// Phones: the site re-applies its stored sidebar state on every resize, and a stored "true" (retracted, which the
-// overlay setting writes) toggles an open sidebar shut. A phone fires resize whenever the browser's bars slide in
-// or out, so scrolling the open sidebar closed it. Its listener was registered first and cannot be outrun; it does
-// nothing without a stored state, which only the wide layout reads: while the narrow sidebar is open, the state is
-// put aside, and back once it closes (or the page goes away).
+// Phones: the open sidebar (drawer) has two problems of the site's.
+// 1. The site re-applies its stored sidebar state on every resize, and a stored "true" (retracted, which the
+//    overlay setting writes) toggles an open drawer shut. A phone fires resize whenever the browser's bars slide in
+//    or out, so scrolling the drawer closed it. That listener was registered first and cannot be outrun; it does
+//    nothing without a stored state, which only the wide layout reads: while the drawer is open, the state is put
+//    aside, and back once it closes (or the page goes away).
+// 2. To keep the page still under the drawer, the site makes .content-wrapper position: fixed. The document loses
+//    its height, so the page jumped to its top and stayed there after closing. The scroll position is taken just
+//    before the burger's own click handler, the fixed page is offset by it, and it is scrolled back on close.
 const SIDEBAR_STATE = 'sidebar_state';
 function keepPhoneSidebarOpen(): () => void {
   let stash: string | null = null;
+  let open = false;
+  let scrollY = 0;
   let bar: HTMLElement | null = null;
-  const restore = (): void => {
+  const wrapper = (): HTMLElement | null => document.querySelector<HTMLElement>('.content-wrapper');
+  const restoreState = (): void => {
     if (stash === null) return;
     try { localStorage.setItem(SIDEBAR_STATE, stash); } catch { /* storage blocked */ }
     stash = null;
   };
   const sync = (): void => {
-    const open = !!bar?.classList.contains('expanded') && !window.matchMedia(DESKTOP).matches;
-    if (open && stash === null) {
+    const now = !!bar?.classList.contains('expanded') && !window.matchMedia(DESKTOP).matches;
+    if (now === open) return;
+    open = now;
+    if (open) {
       try {
         stash = localStorage.getItem(SIDEBAR_STATE);
         if (stash !== null) localStorage.removeItem(SIDEBAR_STATE);
       } catch { stash = null; }
-    } else if (!open) restore();
+      if (scrollY > 0) wrapper()?.style.setProperty('top', `${-scrollY}px`);
+      // The drawer scrolls with the document: it opens at its top, not wherever the page was
+      requestAnimationFrame(() => window.scrollTo(0, 0));
+      return;
+    }
+    restoreState();
+    const page = wrapper();
+    if (page?.style.top) {
+      page.style.removeProperty('top');
+      const y = scrollY;
+      // The wrapper is static again once the site has swapped its class: scroll on the next frame
+      requestAnimationFrame(() => window.scrollTo(0, y));
+    }
+  };
+  // Before the site's handler on the burger (a capturing listener on the document runs first)
+  const onClick = (event: MouseEvent): void => {
+    if (!open && (event.target as Element | null)?.closest?.('#burgor')) scrollY = window.scrollY;
   };
   const observer = new MutationObserver(sync);
   const attach = (): void => {
@@ -134,12 +159,15 @@ function keepPhoneSidebarOpen(): () => void {
   };
   attach();
   const stop = onPageChange(attach);
-  window.addEventListener('pagehide', restore);
+  document.addEventListener('click', onClick, true);
+  window.addEventListener('pagehide', restoreState);
   return () => {
     stop();
     observer.disconnect();
-    window.removeEventListener('pagehide', restore);
-    restore();
+    document.removeEventListener('click', onClick, true);
+    window.removeEventListener('pagehide', restoreState);
+    restoreState();
+    wrapper()?.style.removeProperty('top');
   };
 }
 

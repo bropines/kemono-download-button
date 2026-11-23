@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.4] - 2026-11-23
+
+### Fixed
+- On phones opening the side menu no longer throws the page back to its top: the page stays where it was under the menu and you are back at the same place after closing it. The menu opens at its top, and the dimming covers the whole screen.
+
 ## [2.1.3] - 2026-11-23
 
 ### Fixed
