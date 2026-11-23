@@ -10,6 +10,7 @@ import { GalleryLayoutElement } from '../../types';
 import { hideEmptySections, restoreAttachmentButtons } from './embeds';
 import type { KdlModule, SettingDef } from '../../core/types';
 import { getModuleSetting } from '../../core/registry';
+import { contentClampStyles, initializeContentClamp, removeContentClamp, setContentClampLines } from './contentClamp';
 
 // Post blocks the user can switch off. Hidden with CSS from an attribute on <html> (set at document start too,
 // so a hidden block never flashes); each block matches both the site's markup and the gallery's wrapped one.
@@ -64,6 +65,7 @@ export const postPageModule = {
     // Translations first: they are restored through buttons that live inside the comments
     removeTranslateButtons();
     removeCommentsLayout();
+    removeContentClamp();
     restoreAttachmentButtons();
 
     document.querySelectorAll(".kui-gallery-layout, .kui-video-gallery-layout, .kui-embed-container, .kui-thumb-wrapper, .kui-gallery-preview").forEach((el) => el.remove());
@@ -143,6 +145,7 @@ function syncPostPage(): void {
     initializeComments();
     initializePostTranslation();
     hideEmptySections();
+    initializeContentClamp();
   } else if (kuiState.isPostPageModuleActive) {
     postPageModule.cleanup();
   }
@@ -159,11 +162,13 @@ export const kuiPostModule: KdlModule = {
   settings: [
     { key: 'preloadImages', label: 'Preload gallery images', type: 'boolean', default: false, hint: 'Loads every post image in the background when the gallery opens.' },
     { key: 'hideEmptySections', label: 'Hide empty post sections', type: 'boolean', default: true },
+    { key: 'contentLines', label: 'Post text: lines shown before “Show more”', type: 'number', default: 12, min: 0, max: 200, hint: '0 always shows the whole text.' },
     ...blockSettings,
   ],
-  styles: blockStyles,
+  styles: () => blockStyles() + contentClampStyles,
   setup(ctx) {
     BLOCKS.forEach(({ key }) => ctx.settings.onChange(blockKey(key), () => syncHiddenBlocks((k) => ctx.settings.get(k))));
+    ctx.settings.onChange('contentLines', setContentClampLines);
     ctx.settings.onChange('preloadImages', (value) => {
       kuiState.isPreloadEnabled = Boolean(value);
     });
@@ -174,11 +179,16 @@ export const kuiPostModule: KdlModule = {
   },
   mount(ctx) {
     syncHiddenBlocks((k) => ctx.settings.get(k));
-    ctx.onCleanup(() => document.documentElement.removeAttribute(HIDE_ATTR));
+    setContentClampLines(ctx.settings.get('contentLines'));
+    ctx.onCleanup(() => {
+      document.documentElement.removeAttribute(HIDE_ATTR);
+      setContentClampLines(0);
+    });
     syncPostPage();
   },
   early() {
     syncHiddenBlocks((k) => getModuleSetting('kui.post', k));
+    setContentClampLines(getModuleSetting('kui.post', 'contentLines'));
   },
   update: syncPostPage,
   unmount: () => postPageModule.cleanup(),

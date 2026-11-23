@@ -73,6 +73,10 @@ export default {
 
   // Post gallery and videos
   'kui.gallery.toggleThumbnails': 'Toggle thumbnails',
+  'kui.content.showMore': 'Show more',
+  'kui.content.showLess': 'Show less',
+  'kui.content.openFull': 'Open full text',
+  'kui.content.dialogTitle': 'Post text',
   'kui.video.togglePlaylist': 'Toggle playlist',
   'kui.video.loopOn': 'Loop video (L)',
   'kui.video.loopOff': 'Stop looping (L)',
