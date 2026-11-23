@@ -9,7 +9,7 @@
 //
 // Only opacity and transform are animated: those run on the compositor. A blur on the page's blocks (tried: 3px)
 // keeps the animation on the main thread ("filter may move pixels"), which restyles and repaints the page every
-// frame; so does a cascade over every card of a long list, which is why only the first rows take part.
+// frame; the card cascade only moves the cards (no fade of their own) and staggers just the first rows.
 
 import { isCloaked, onBeforeReveal, onCloak, onReveal, setTail } from '../../core/cloak';
 import { canKeepHeader } from '../../core/creatorSwap';
@@ -32,10 +32,12 @@ const BLOCKS = 6;
 // The cascade only moves them (kdl-card-in has no opacity): they fade in with their block, in step with the
 // skeleton dissolving under them. A fade of their own, held back by its delay, kept the first 12 transparent
 // after the skeleton had gone while the cards after them were already in: the first rows blinked out and back.
-const CARDS = 12;
+// Every card rises, so none just pops in next to moving ones (cascading only the first 12 made the cards after them
+// look like they blinked); the first CARDS step in one after another, the rest come with the last of those.
+const CARDS = 24;
 const CARD_MS = 520;
 const CARD_DELAY_MS = 0;
-const CARD_STAGGER_MS = 18;
+const CARD_STAGGER_MS = 14;
 // Long enough for the last staggered card; a hidden or slow page must not keep the attribute
 const ENTER_TOTAL_MS = CARD_DELAY_MS + CARDS * CARD_STAGGER_MS + CARD_MS + 60;
 const LEAVE_MAX_MS = 4000;
@@ -224,8 +226,9 @@ ${keyframes}
 @keyframes kdl-card-in { from { transform: translate3d(0, 10px, 0); } }
 ${blocks}
 ${stagger}
-${grid} > :nth-child(-n+${CARDS}) { animation: kdl-card-in ${CARD_MS}ms ${EASE} backwards; }
+${grid} > * { animation: kdl-card-in ${CARD_MS}ms ${EASE} backwards; }
 ${cards}
+${grid} > :nth-child(n+${CARDS + 1}) { animation-delay: ${CARD_DELAY_MS + (CARDS - 1) * CARD_STAGGER_MS}ms; }
 /* Fixed elements (the home page's full-screen background) fade on their own: see markStill */
 html[${ENTER}] #main [${FIXED}] { animation: kdl-page-fade ${ENTER_MS}ms ease-out backwards; }
 html[${LEAVE}] #main [${FIXED}] { opacity: 0.4; transition: opacity 220ms ease; }
