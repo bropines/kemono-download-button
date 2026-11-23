@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
+// The real page-body detector (src/utils/pageBody.ts): http.ts imports it
+const pageBody = (() => { const js = require('typescript').transpileModule(require('node:fs').readFileSync('src/utils/pageBody.ts', 'utf8'), { compilerOptions: { module: 1 } }).outputText; const m = { exports: {} }; new Function('exports', 'module', js)(m.exports, m); return m.exports; })();
 
 // A host that does not follow redirects (AdGuard) answers a file request with nginx's "302 Found" page as if it
 // were the file. The request must follow the Location itself, or fetch the file through the page, and never
@@ -18,7 +20,7 @@ const imports = {
   './pawchiveRateLimit': { isPawchiveFile: () => true, withPawchiveFileLimit: async (_url, _signal, run) => run() },
 };
 const sandbox = {
-  exports: {}, require: (id) => { if (!(id in imports)) throw Error(id); return imports[id]; },
+  exports: {}, require: (id) => { if (id === './pageBody') return pageBody; if (!(id in imports)) throw Error(id); return imports[id]; },
   window: { location: { hostname: 'pawchive.pw', href: 'https://pawchive.pw/' } },
   URL, Blob, ArrayBuffer, Uint8Array, DOMException, AbortController, setTimeout, clearTimeout, Date, performance, String,
   GM_xmlhttpRequest: (options) => xhrHandler(options),

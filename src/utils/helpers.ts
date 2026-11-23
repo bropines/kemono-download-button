@@ -10,7 +10,12 @@ export function getFullUrl(path: string): string {
   return path.startsWith('/') ? window.location.origin + path : path;
 }
 
-export function resolveMediaUrl(path: string, originalFileName?: string): string {
+/**
+ * `server`: the node the API names for the file (pawchive: https://n2.pawchive.pw). Downloading from it directly
+ * skips file.<domain>, a balancer that sometimes answers with a redirect to that node, which some hosts (AdGuard)
+ * do not follow. Only a node of the site's own domain is taken.
+ */
+export function resolveMediaUrl(path: string, originalFileName?: string, server?: string): string {
   if (!path) return '';
   if (path.startsWith('http://') || path.startsWith('https://')) {
     return path;
@@ -32,6 +37,8 @@ export function resolveMediaUrl(path: string, originalFileName?: string): string
     querySuffix = `?f=${encodeURIComponent(originalFileName)}`;
   }
 
+  const node = siteNode(server, baseDomain);
+  if (node) return `${node}${cleanPath}${querySuffix}`;
   if (hostname.match(/^(c\d+|file)\./)) {
     return `${window.location.origin}${cleanPath}${querySuffix}`;
   }
@@ -40,6 +47,17 @@ export function resolveMediaUrl(path: string, originalFileName?: string): string
   }
   // kemono/coomer: cN./file. hosts no longer resolve; the main domain redirects /data/ to the node holding the file
   return `https://${baseDomain}${cleanPath}${querySuffix}`;
+}
+
+function siteNode(server: string | undefined, baseDomain: string): string | null {
+  if (!server) return null;
+  try {
+    const url = new URL(server);
+    const own = url.hostname === baseDomain || url.hostname.endsWith(`.${baseDomain}`);
+    return url.protocol === 'https:' && own ? url.origin : null;
+  } catch {
+    return null;
+  }
 }
 
 export function getApiUrl(path: string): string {

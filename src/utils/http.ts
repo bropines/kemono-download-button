@@ -2,6 +2,7 @@ import { state } from '../state/store';
 import { saveBlobViaAnchor } from './saveFile';
 import { debugLog, sanitizeFilename } from './helpers';
 import { isPawchiveFile, withPawchiveFileLimit } from './pawchiveRateLimit';
+import { bytesLookLikePage, textLooksLikePage } from './pageBody';
 
 // The session cookie belongs to the archive site only (incl. its file/cN subdomains)
 function isSiteUrl(url: string): boolean {
@@ -121,12 +122,8 @@ function isPageInsteadOfFile(response: any, url: string): boolean {
   if (/\.html?(?:[?#]|$)/i.test(url)) return false;
   if (/^text\/html\b/i.test(headerValue(response?.responseHeaders, 'content-type'))) return true;
   const body = response?.response;
-  let head = '';
-  if (isKind(body, 'ArrayBuffer')) {
-    const bytes = new Uint8Array(body as ArrayBuffer, 0, Math.min(64, (body as ArrayBuffer).byteLength));
-    head = String.fromCharCode(...bytes);
-  } else if (typeof body === 'string') head = body.slice(0, 64);
-  return /^\s*<(?:!doctype\s+html|html|head|body|center|h1)\b/i.test(head);
+  if (isKind(body, 'ArrayBuffer') || ArrayBuffer.isView(body)) return bytesLookLikePage(body as ArrayBuffer);
+  return typeof body === 'string' && textLooksLikePage(body);
 }
 /** The page's own fetch: it follows redirects; the archives' file hosts allow it (CORS) */
 async function fetchFileInPage(url: string, signal?: AbortSignal): Promise<any | null> {

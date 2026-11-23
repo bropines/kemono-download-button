@@ -164,19 +164,19 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
   if (isApiSuccess && postDetails.rawApiData) {
     const post = postDetails.rawApiData;
-    const allMediaFiles: Array<{ name: string; path: string; isAttachment: boolean }> = [];
+    const allMediaFiles: Array<{ name: string; path: string; isAttachment: boolean; server?: string }> = [];
 
     const seenPaths = new Set<string>();
 
     if (post.file?.path) {
       seenPaths.add(post.file.path);
-      allMediaFiles.push({ name: post.file.name || post.file.path.split('/').pop(), path: post.file.path, isAttachment: false });
+      allMediaFiles.push({ name: post.file.name || post.file.path.split('/').pop(), path: post.file.path, isAttachment: false, server: post.file.server });
     }
     if (Array.isArray(post.attachments)) {
       post.attachments.forEach((att: any) => {
         if (att.path && !seenPaths.has(att.path)) {
           seenPaths.add(att.path);
-          allMediaFiles.push({ name: att.name || att.path.split('/').pop(), path: att.path, isAttachment: true });
+          allMediaFiles.push({ name: att.name || att.path.split('/').pop(), path: att.path, isAttachment: true, server: att.server });
         }
       });
     }
@@ -201,7 +201,7 @@ export async function collectFilesForPost(postDetails: PostDetails, options: Rec
 
       const finalPath = generateFilePath(templateToUse, pathData, postDetails);
       const isMedia = isMediaFile(fileObj.name);
-      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name), source: 'url', isMedia, isAttachment: fileObj.isAttachment });
+      files.push({ name: finalPath, data: resolveMediaUrl(fileObj.path, fileObj.name, fileObj.server), source: 'url', isMedia, isAttachment: fileObj.isAttachment });
     });
 
     if (state.settings.savePostContentAsText && post.content) {

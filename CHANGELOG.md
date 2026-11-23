@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-11-23
+
+### Fixed
+- ZIPs from Pawchive no longer contain 138-byte "302 Found" pages instead of images. The files were requested from file.pawchive.pw, a balancer that sometimes answers with a redirect to the node holding the file; AdGuard handed that redirect page back as the file, and the script cached it, so every later ZIP of the post reused it. Files are now downloaded straight from the node the site's API names for them, a page is never cached as a file, and pages already in the cache are removed once on update.
+
 ## [2.1.5] - 2026-11-23
 
 ### Fixed

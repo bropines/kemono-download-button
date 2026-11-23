@@ -1,8 +1,12 @@
 import { debugLog } from '../utils/helpers';
 import { clearApiCache } from '../api/apiCache';
+import { bytesLookLikePage } from '../utils/pageBody';
 
 const DB_NAME = 'KemonoDownloaderCache';
-const DB_VERSION = 3;
+// v4: drops cached "files" that are web pages (see utils/pageBody.ts)
+const DB_VERSION = 4;
+// A page saved in place of a file is small; real files this small are rare and only get downloaded again
+const PAGE_CHECK_BYTES = 4096;
 const STORE_FILES = 'files';
 // Size/age per cached file, so eviction and stats never have to load the file bodies
 const STORE_FILE_META = 'fileMeta';
@@ -51,6 +55,23 @@ export function getDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_HISTORY)) db.createObjectStore(STORE_HISTORY);
       if (!db.objectStoreNames.contains(STORE_POSTS)) {
         db.createObjectStore(STORE_POSTS, { keyPath: 'key' });
+      }
+      // Older versions cached redirect pages a host handed back as files ("302 Found", 138 bytes): every ZIP of
+      // those posts was then built from them. Gone once, here; reads and writes refuse them from now on.
+      if (event.oldVersion >= 2 && event.oldVersion < 4) {
+        const tx: IDBTransaction = event.target.transaction;
+        const files = tx.objectStore(STORE_FILES);
+        const meta = tx.objectStore(STORE_FILE_META);
+        files.openCursor().onsuccess = (cursorEvent: any) => {
+          const cursor: IDBCursorWithValue | null = cursorEvent.target.result;
+          if (!cursor) return;
+          const record = cursor.value;
+          if (record?.data && record.data.byteLength < PAGE_CHECK_BYTES && bytesLookLikePage(record.data)) {
+            cursor.delete();
+            meta.delete(record.url);
+          }
+          cursor.continue();
+        };
       }
     };
     request.onsuccess = (event: any) => resolve(event.target.result);
@@ -137,8 +158,29 @@ function scheduleEviction(): void {
   }, EVICTION_DELAY_MS);
 }
 
+const isPage = (data: ArrayBuffer): boolean => data.byteLength < PAGE_CHECK_BYTES && bytesLookLikePage(data);
+
+async function dropCachedFile(url: string): Promise<void> {
+  const inMemory = inMemoryFileCache.get(url);
+  if (inMemory) {
+    inMemoryFileCache.delete(url);
+    inMemoryFileBytes -= inMemory.byteLength;
+  }
+  try {
+    const db = await getDB();
+    const tx = db.transaction([STORE_FILES, STORE_FILE_META], 'readwrite');
+    tx.objectStore(STORE_FILES).delete(url);
+    tx.objectStore(STORE_FILE_META).delete(url);
+    await awaitTransaction(tx);
+  } catch { /* not cached */ }
+}
+
 export async function getCachedFile(url: string): Promise<ArrayBuffer | null> {
   const inMemory = inMemoryFileCache.get(url);
+  if (inMemory && isPage(inMemory)) {
+    await dropCachedFile(url);
+    return null;
+  }
   if (inMemory) {
     rememberInMemory(url, inMemory);
     return inMemory;
@@ -152,7 +194,11 @@ export async function getCachedFile(url: string): Promise<ArrayBuffer | null> {
       const req = store.get(url);
       req.onsuccess = () => {
         const result = req.result;
-        if (result && result.completed && result.data) {
+        if (result && result.completed && result.data && isPage(result.data)) {
+          debugLog('[download]', 'cache-dropped-page', { bytes: result.data.byteLength });
+          void dropCachedFile(url);
+          resolve(null);
+        } else if (result && result.completed && result.data) {
           rememberInMemory(url, result.data);
           resolve(result.data);
         } else {
@@ -169,6 +215,10 @@ export async function getCachedFile(url: string): Promise<ArrayBuffer | null> {
 
 // Only finished downloads are cached; `completed` stays in the record for entries older versions wrote
 export async function setCachedFile(url: string, data: ArrayBuffer): Promise<void> {
+  if (isPage(data)) {
+    debugLog('[download]', 'cache-refused-page', { bytes: data.byteLength });
+    return;
+  }
   rememberInMemory(url, data);
 
   try {

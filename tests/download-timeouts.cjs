@@ -2,6 +2,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const ts = require('typescript');
+// The real page-body detector (src/utils/pageBody.ts): http.ts imports it
+const pageBody = (() => { const js = require('typescript').transpileModule(require('node:fs').readFileSync('src/utils/pageBody.ts', 'utf8'), { compilerOptions: { module: 1 } }).outputText; const m = { exports: {} }; new Function('exports', 'module', js)(m.exports, m); return m.exports; })();
 
 const source = fs.readFileSync('src/utils/http.ts', 'utf8');
 const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
@@ -22,7 +24,7 @@ const imports = {
   } },
 };
 const sandbox = {
-  exports: {}, require: id => { if (!(id in imports)) throw Error(id); return imports[id]; },
+  exports: {}, require: id => { if (id === './pageBody') return pageBody; if (!(id in imports)) throw Error(id); return imports[id]; },
   window: { location: { hostname: 'pawchive.pw', href: 'https://pawchive.pw/' } },
   URL, Blob, ArrayBuffer, Uint8Array, DOMException, AbortController, setTimeout, clearTimeout, Date, performance,
   GM_xmlhttpRequest: options => xhrHandler(options),
