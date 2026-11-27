@@ -284,19 +284,23 @@ function loadFavoritesOnce(): Promise<boolean> {
   return favoritesLoad;
 }
 
+// Its own marker: the download modules mark the same post cards with PROCESSED_ATTR (on a creator's page too)
+const FAV_ATTR = 'data-kdl-fav';
+const NO_FAV = `:not([${FAV_ATTR}])`;
+
 const injectFavorites = serialRunner(
   () => favoritesActive,
   async () => {
-    if (!document.querySelector(`${ARTIST_CARDS}${UNPROCESSED}, ${LIST_POST_CARDS}${UNPROCESSED}`)) return;
+    if (!document.querySelector(`${ARTIST_CARDS}${NO_FAV}, ${LIST_POST_CARDS}${NO_FAV}`)) return;
     await getSettings();
-    await loadFavoritesOnce();
-    if (!favoritesActive) return;
-    document.querySelectorAll<HTMLElement>(ARTIST_CARDS + UNPROCESSED).forEach((card) => {
-      card.setAttribute(PROCESSED_ATTR, 'true');
+    // Not logged in (no favourites to read): no stars
+    if (!(await loadFavoritesOnce()) || !favoritesActive) return;
+    document.querySelectorAll<HTMLElement>(ARTIST_CARDS + NO_FAV).forEach((card) => {
+      card.setAttribute(FAV_ATTR, 'true');
       injectArtistFavoriteButton(card);
     });
-    document.querySelectorAll<HTMLElement>(LIST_POST_CARDS + UNPROCESSED).forEach((card) => {
-      card.setAttribute(PROCESSED_ATTR, 'true');
+    document.querySelectorAll<HTMLElement>(LIST_POST_CARDS + NO_FAV).forEach((card) => {
+      card.setAttribute(FAV_ATTR, 'true');
       injectPostFavoriteButton(card);
     });
   }
@@ -304,7 +308,7 @@ const injectFavorites = serialRunner(
 
 function stripFavoriteInjections(): void {
   document.querySelectorAll(FAVORITE_NODES).forEach((node) => node.remove());
-  clearMarkers(`${ARTIST_CARDS}, ${LIST_POST_CARDS}`);
+  document.querySelectorAll(`[${FAV_ATTR}]`).forEach((node) => node.removeAttribute(FAV_ATTR));
 }
 
 export const favoritesQuickModule: KdlModule = {
@@ -312,7 +316,7 @@ export const favoritesQuickModule: KdlModule = {
   name: 'Quick favourites',
   description: 'A star button on artist and post cards in lists to favourite without opening them.',
   group: 'Lists',
-  pages: ['list', 'search', 'artists'],
+  pages: ['list', 'search', 'artists', 'creator'],
   defaultEnabled: true,
   setup: installRestoreGuard,
   mount() {

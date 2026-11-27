@@ -4,6 +4,15 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- Home page: a button on the welcome card hides the interface to look at the background art, whole. A click or tap anywhere, Esc or Back brings the page back.
+- Import status: three log views (list, compact, cards with post thumbnails); in the list views, hovering a post line shows its thumbnail and title.
+- Quick favourites: the star is on a creator's posts too, and works while you are logged in on the site, without a session cookie in the settings. Logged out, no stars are shown.
+
+### Changed
+- Stored keys: a key is selected with a click anywhere on its card (a checkbox in the corner), and the revoke button counts the selected keys. With no keys, the page shows an empty state with a link to the importer.
+- The "Hey!" notice on an import that includes DMs is an info callout in the skin's colours instead of a bright blue box.
+
 ## [2.1.8] - 2026-11-23
 
 ### Fixed

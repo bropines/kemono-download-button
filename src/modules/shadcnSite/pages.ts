@@ -12,6 +12,7 @@ import { button, ensureKit, input, kitScope } from '../../ui/kit';
 import { t, translateSiteText } from '../../i18n';
 import { reversibleTransform } from './reversibleTransform';
 import { SITE_CONTROL_SELECTOR } from './css/creator';
+import { installArtView, uninstallArtView } from './artView';
 
 const MARK = 'data-kdl-sk';
 const HEADINGS = 'h1, h2, h3, h4';
@@ -21,12 +22,13 @@ const isHeading = (node: Element | null): node is HTMLElement => !!node && node.
 /** Puts every node we wrapped back where it was */
 function undo(): void {
   unpinHomeArt();
+  uninstallArtView();
   undoDropZone();
   undoOrDivider();
   undoFilterMove();
   undoFooter();
   undoApiFrame();
-  document.querySelectorAll(`[${MARK}="tools"], [${MARK}="seg"]`).forEach((node) => node.remove());
+  document.querySelectorAll(`[${MARK}="tools"], [${MARK}="seg"], [${MARK}="keys-cta"]`).forEach((node) => node.remove());
   document.querySelectorAll('.kdl-sk-seg-source').forEach((node) => node.classList.remove('kdl-sk-seg-source'));
   document.querySelectorAll<HTMLElement>(`[${MARK}="acc"]`).forEach((details) => {
     const heading = details.querySelector(':scope > summary > :is(h1, h2, h3, h4, h5, h6)');
@@ -470,6 +472,16 @@ export const shadcnCreatorTransform = reversibleTransform(
   },
 );
 
+// Keys page with no key: the empty card points to the importer, where a key is saved with an import
+function keysEmptyCta(): void {
+  const card = document.querySelector('.site-section--account-keys .card--no-results');
+  if (!card || card.querySelector(`[${MARK}="keys-cta"]`)) return;
+  ensureKit();
+  const scope = kitScope([button({ href: '/importer', label: t('keys.empty.import'), icon: 'key-round', variant: 'outline', size: 'sm' })], { className: 'kdl-sk-keys-cta' });
+  scope.setAttribute(MARK, 'keys-cta');
+  card.append(scope);
+}
+
 // The home art is fixed behind the page: a height that follows the viewport rescales it ("cover") every time a
 // phone's address bar slides in or out. It gets one height in pixels instead, the tallest the screen can be,
 // and only a width change (rotation) recomputes it.
@@ -506,6 +518,8 @@ export const shadcnPagesTransform = reversibleTransform(
     fileDropZone();
     orDivider();
     pinHomeArt();
+    installArtView();
+    keysEmptyCta();
   },
   undo,
 );

@@ -31,6 +31,9 @@ const READABLE = 'max-width: 48rem; margin-left: auto; margin-right: auto;';
 const accSvg = (paths: string): string =>
   `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>${paths}</svg>`)}")`;
 const ACCOUNT_LINK = accSvg("<path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/><path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>");
+const KEY_CHECK = `url("data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><path d='M20 6 9 17l-5-5'/></svg>`)}")`;
+const KEY_ICON = accSvg("<path d='M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z'/><circle cx='16.5' cy='7.5' r='.5' fill='black'/>");
+const INFO_ICON = accSvg("<circle cx='12' cy='12' r='10'/><path d='M12 16v-4'/><path d='M12 8h.01'/>");
 const ACCOUNT_CHEVRON = accSvg("<path d='m9 18 6-6-6-6'/>");
 const ACCOUNT_ICON_LIST: [string, string][] = [
   ['notifications', accSvg("<path d='M10.268 21a2 2 0 0 0 3.464 0'/><path d='M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326'/>")],
@@ -229,34 +232,95 @@ ${ACCOUNT_ICONS}
   background: color-mix(in srgb, var(--kdl-destructive) 15%, transparent);
   color: color-mix(in srgb, var(--kdl-destructive) 70%, var(--kdl-foreground));
 }
-.site-section--account-keys .key__label {
-  position: static;
-  display: inline-flex;
+/* No keys yet: an empty state (key icon, the site's title and text centred, a link to the importer) instead of a
+   tall card with the title in one corner and the text in the middle */
+.site-section--account-keys .card-list .card.card--no-results {
+  /* The site gives it a 480px flex basis: in this column list that is its height */
+  flex: none;
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  align-self: stretch;
-  height: 2.25rem;
-  margin: 0 16px 14px;
-  padding: 0 1rem;
-  border: 1px solid var(--kdl-input);
-  border-radius: calc(var(--kdl-radius) - 2px);
-  background: var(--kdl-background);
-  color: var(--kdl-foreground);
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 32px 24px 28px;
+  border: 1px dashed var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) + 4px);
+  background: var(--kdl-card);
+  text-align: center;
+  box-sizing: border-box;
+}
+.site-section--account-keys .card-list .card.card--no-results::before {
+  content: '';
+  width: 44px;
+  height: 44px;
+  margin-bottom: 6px;
+  border-radius: 9999px;
+  background: var(--kdl-muted);
+  box-shadow: inset 0 0 0 1px var(--kdl-border);
+}
+.site-section--account-keys .card-list .card.card--no-results::after {
+  content: '';
+  position: absolute;
+  top: 44px;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translateX(-50%);
+  background: var(--kdl-muted-foreground);
+  -webkit-mask: ${KEY_ICON} center / contain no-repeat;
+  mask: ${KEY_ICON} center / contain no-repeat;
+}
+.site-section--account-keys .card-list .card.card--no-results { position: relative; }
+.site-section--account-keys .card-list .card.card--no-results > * { display: flex; justify-content: center; width: 100%; height: auto; padding: 0; text-align: center; }
+.site-section--account-keys .card-list .card.card--no-results .card__header h2 { margin: 0; color: var(--kdl-foreground); font-size: 16px; font-weight: 600; }
+.site-section--account-keys .card-list .card.card--no-results .card__body { color: var(--kdl-muted-foreground); font-size: 14px; }
+.site-section--account-keys .kdl-sk-keys-cta { margin-top: 12px; }
+/* Selecting a key:the site's "Revoke" label was a button that only ticked a hidden box, next to the real revoke
+   button. It now covers the whole card (a click anywhere selects it) and draws a checkbox in the top right corner;
+   its text stays for screen readers. Links in the card sit above it and keep working. */
+.site-section--account-keys .key__label {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: transparent;
+  font-size: 0;
   cursor: pointer;
   user-select: none;
-  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
-.site-section--account-keys .key__label:hover {
-  border-color: color-mix(in srgb, var(--kdl-destructive) 60%, var(--kdl-input));
-  background: color-mix(in srgb, var(--kdl-destructive) 12%, var(--kdl-background));
+.site-section--account-keys .key__label::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--kdl-input);
+  border-radius: 4px;
+  background: var(--kdl-background) center / 14px no-repeat;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
-.site-section--account-keys .key__revoke-check:checked ~ .key__label {
+.site-section--account-keys .key__label:hover::before { border-color: color-mix(in srgb, var(--kdl-destructive) 60%, var(--kdl-input)); }
+.site-section--account-keys .key__revoke-check:checked ~ .key__label::before {
   border-color: var(--kdl-destructive);
-  background: var(--kdl-destructive);
-  color: var(--kdl-destructive-foreground);
+  background-color: var(--kdl-destructive);
+  background-image: ${KEY_CHECK};
 }
+.site-section--account-keys .key__card :is(a, button, time) { position: relative; z-index: 2; }
+.site-section--account-keys .key__card .card__header { padding-right: 48px; }
+/* The revoke button counts the ticked keys (a CSS counter) and waits for at least one */
+.site-section--account-keys { counter-reset: kdl-revoke; }
+.site-section--account-keys .key__revoke-check:checked { counter-increment: kdl-revoke; }
+#revoke-service-keys .form__button--submit::after { content: '(' counter(kdl-revoke) ')'; margin-left: 0.35em; font-variant-numeric: tabular-nums; }
 #revoke-service-keys { display: flex; flex-direction: column; gap: 16px; width: 100%; max-width: 64rem; margin: 0 auto; padding: 0; }
 #revoke-service-keys .form__button--submit {
   align-self: center;
@@ -289,7 +353,6 @@ ${ACCOUNT_ICONS}
 .site-section--account-keys .card-list__items { height: auto; }
 .site-section--account-keys .key__revoke-check { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .site-section--account-keys .key__info, .site-section--account-keys .key__card { height: auto; overflow: visible; }
-.site-section--account-keys .key__label { align-self: flex-end; height: 2rem; min-height: 2rem; margin: 0 16px 14px; padding: 0 12px; font-size: 12px; }
 /* Revoking needs a key ticked first */
 #revoke-service-keys { max-width: none; margin-top: 16px; }
 #revoke-service-keys .form__button--submit { align-self: stretch; }
@@ -321,6 +384,53 @@ ${ACCOUNT_ICONS}
 
 /* Announcements */
 .jumbo-announcement, .announcement { ${PANEL} margin: 0 0 12px; padding: 14px 18px; }
+/* Import status with DMs (?dms=1): the site's bright blue "Hey!" box becomes an info callout */
+.site-section--importer-status > .jumbo.no-posts {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 12px;
+  padding: 12px 16px 12px 44px;
+  border: 1px solid color-mix(in srgb, var(--kdl-link) 45%, var(--kdl-border));
+  border-radius: calc(var(--kdl-radius) + 4px);
+  position: relative;
+  background: color-mix(in srgb, var(--kdl-link) 10%, var(--kdl-card));
+  color: var(--kdl-foreground);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.55;
+  text-align: left;
+  box-shadow: none;
+}
+.site-section--importer-status > .jumbo.no-posts::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  width: 18px;
+  height: 18px;
+  background: var(--kdl-link);
+  -webkit-mask: ${INFO_ICON} center / contain no-repeat;
+  mask: ${INFO_ICON} center / contain no-repeat;
+}
+.site-section--importer-status > .jumbo.no-posts > strong { font-size: 14px; font-weight: 600; }
+.site-section--importer-status > .jumbo.no-posts > p { margin: 0; color: var(--kdl-muted-foreground); font-size: 14px; line-height: 1.55; }
+.site-section--importer-status > .jumbo.no-posts code {
+  padding: 1px 6px;
+  border: 1px solid var(--kdl-border);
+  border-radius: calc(var(--kdl-radius) - 4px);
+  background: var(--kdl-muted);
+  color: var(--kdl-foreground);
+  font-family: var(--kdl-font-mono);
+  font-size: 12.5px;
+}
+.site-section--importer-status > .jumbo.no-posts a${NK} {
+  padding: 0;
+  background: transparent;
+  color: var(--kdl-link);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
 .jumbo-announcement :is(h2, h3) { font-size: 1rem; }
 .announcement-title-container .date { font-size: 12px; }
 
@@ -373,6 +483,63 @@ ${ACCOUNT_ICONS}
   background-position: center;
   pointer-events: none;
 }
+/* The art view (artView.ts): only the art, whole, over a blurred copy of itself */
+.site-section--home .kdl-sk-art-toggle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+.site-section--home .kdl-sk-art-toggle .kdl-ui-btn { color: var(--kdl-muted-foreground); }
+.site-section--home .kdl-sk-art-toggle .kdl-ui-btn:hover { color: var(--kdl-foreground); }
+html.kdl-art-view,
+html.kdl-art-view body { overflow: hidden; }
+html.kdl-art-view :is(.global-sidebar, .header, .backdrop, .global-footer, .jumbo-welcome-description, #kdl-fixed-controls, #kdl-progress-container) {
+  visibility: hidden;
+}
+html.kdl-art-view .site-section--home .jumbo-welcome-background {
+  inset: 0;
+  height: auto;
+  z-index: 1;
+  overflow: hidden;
+  background-color: var(--kdl-background);
+  cursor: zoom-out;
+}
+/* Pseudo-elements paint over the element's own background: the blurred copy first, the whole art over it */
+html.kdl-art-view .site-section--home .jumbo-welcome-background::before,
+html.kdl-art-view .site-section--home .jumbo-welcome-background::after {
+  content: '';
+  position: absolute;
+  background-image: inherit;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+html.kdl-art-view .site-section--home .jumbo-welcome-background::before {
+  inset: -48px;
+  background-size: cover;
+  filter: blur(32px) brightness(0.55);
+}
+html.kdl-art-view .site-section--home .jumbo-welcome-background::after {
+  inset: 0;
+  background-size: contain;
+}
+.kdl-sk-art-hint {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 2;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border: 1px solid var(--kdl-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kdl-card) 80%, transparent);
+  color: var(--kdl-muted-foreground);
+  font-size: 13px;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.kdl-sk-art-hint.is-faded { opacity: 0; }
 .site-section--home .jumbo-welcome-description {
   position: relative;
   width: min(40rem, 100%);

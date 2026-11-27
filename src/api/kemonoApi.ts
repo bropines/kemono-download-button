@@ -114,16 +114,40 @@ export async function fetchTaggedPostsPage(service: string, userID: string, tag:
   return Array.isArray(data) ? data : [];
 }
 
+// The site's own login: its pages mark <html> with is-logged-in (and keep logged_in in localStorage)
+function siteLoggedIn(): boolean {
+  if (document.documentElement.classList.contains('is-logged-in')) return true;
+  try {
+    return localStorage.getItem('logged_in') === 'yes';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Account requests (favourites): with a session cookie pasted in the settings they go through the userscript
+ * host; without one, from the page itself, same origin, carrying the browser's own login.
+ */
+async function pageAccountRequest(method: string, path: string): Promise<any> {
+  const response = await fetch(getApiUrl(path), { method, credentials: 'include', headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(`HTTP Status ${response.status}`);
+  if (method !== 'GET') return null;
+  return JSON.parse(await response.text());
+}
+const canUseAccount = (): boolean => !!state.settings.sessionCookie || siteLoggedIn();
+
 export async function fetchUserFavorites(): Promise<boolean> {
   if (appState.favoritesFetched) return true;
   await getSettings();
-  if (!state.settings.sessionCookie) return false;
+  if (!canUseAccount()) return false;
   debugLog('[API] Fetching user favorites...');
+  const viaPage = !state.settings.sessionCookie;
+  const list = (type: string) => {
+    const path = `/api/v1/account/favorites?type=${type}`;
+    return viaPage ? pageAccountRequest('GET', path) : getJson(path, 30000, { session: true });
+  };
   try {
-    const [artists, posts] = await Promise.all([
-      getJson('/api/v1/account/favorites?type=artist', 30000, { session: true }),
-      getJson('/api/v1/account/favorites?type=post', 30000, { session: true })
-    ]);
+    const [artists, posts] = await Promise.all([list('artist'), list('post')]);
     if (Array.isArray(artists)) artists.forEach((artist: any) => appState.favoritedArtists.add(`${artist.service}-${artist.id}`));
     if (Array.isArray(posts)) posts.forEach((post: any) => appState.favoritedPosts.add(post.id));
     appState.favoritesFetched = true;
@@ -146,7 +170,7 @@ export async function toggleFavorite(
   updateCardStateFn?: UpdateCardStateFn
 ): Promise<void> {
   await getSettings();
-  if (!state.settings.sessionCookie) {
+  if (!canUseAccount()) {
     showMessage(t('common.api.favNeedsSession'), 'error');
     return;
   }
@@ -158,7 +182,8 @@ export async function toggleFavorite(
   button.innerHTML = iconSvg('loader-circle', 'kdl-icon kdl-spin');
   button.disabled = true;
   try {
-    await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
+    if (state.settings.sessionCookie) await gmXmlhttpRequestWithRetries({ method, url: getApiUrl(apiUrl) });
+    else await pageAccountRequest(method, apiUrl);
     // Answers that may reflect the old favourite state: account lists, the creator's profile, the post
     const creatorPath = `/${service}/user/${creatorId}`;
     void invalidateApiCache((url) => url.includes('/favorites') || url.includes(`${creatorPath}/profile`) ||

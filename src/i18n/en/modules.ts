@@ -152,6 +152,9 @@ export default {
   'faq.expandAll': 'Expand all',
   'faq.collapseAll': 'Collapse all',
   'faq.empty': 'No answers match.',
+  'keys.empty.import': 'Add a key with an import',
+  'home.artView.show': 'Hide the interface and view the art',
+  'home.artView.hint': 'Tap anywhere or press Esc to return',
 
   // ui.shadcn: confirmation before Logout
   'sidebar.toggleSection': 'Show or hide this section',
@@ -170,6 +173,11 @@ export default {
   'importer.follow': 'Follow',
   'importer.copy': 'Copy log',
   'importer.copied': 'Log copied',
+  'importer.view.label': 'Log view',
+  'importer.view.list': 'List',
+  'importer.view.compact': 'Compact',
+  'importer.view.cards': 'Cards with thumbnails',
+  'importer.preview.noImage': 'No image in this post',
   'importer.stat.creators': 'creators',
   'importer.stat.posts': 'posts added',
   'importer.stat.skipped': 'unchanged',

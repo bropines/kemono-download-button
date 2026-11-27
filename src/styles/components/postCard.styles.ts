@@ -84,6 +84,10 @@ export const postCardStyles = css({
     right: 'auto',
     left: '6px',
   },
+  // A creator's page also puts the selection checkbox in that corner: the star goes right after it
+  '.post-card:has(> .kdl-post-checkbox-scope) > .kdl-scope.kdl-quick-fav-btn': {
+    left: 'calc(6px + clamp(16px, 10cqw, 22px) + 8px + 4px)',
+  },
   // Touch screens have no hover: keep the star and the download buttons visible, as a row
   '@media (hover: none)': {
     '.user-card .kdl-scope.kdl-quick-fav-btn, .post-card .kdl-scope.kdl-quick-fav-btn': {
