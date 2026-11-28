@@ -766,7 +766,8 @@ export const kuiPlyrStyles = css({
     background: 'var(--plyr-video-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))',
     border: 0,
     borderRadius: '100%',
-    color: 'var(--plyr-video-control-color,#fff)',
+    // The hover colour pair: the circle is the main colour, so the icon must be its foreground, not the bar's
+    color: 'var(--plyr-video-control-color-hover,var(--kdl-primary-foreground,#fff))',
     display: 'none',
     left: '50%',
     opacity: 0.9,

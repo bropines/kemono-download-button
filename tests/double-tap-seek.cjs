@@ -38,6 +38,27 @@ tap(6400); tap(6600); assert.equal(media.currentTime, 0, 'seek clamps to the beg
 media.currentTime = 58; tap(7000, 250); tap(7200, 250); assert.equal(media.currentTime, 60, 'seek clamps to duration');
 media = { currentTime: 102, duration: Infinity, seekable: { length: 1, start: () => 100, end: () => 120 } };
 tap(7600); tap(7800); assert.equal(media.currentTime, 100, 'live video clamps to its seekable window');
+// The middle third is Plyr's (fullscreen): a double tap there does not seek
+media = { currentTime: 30, duration: 60, seekable: { length: 0 } };
+tap(8000, 150); tap(8200, 150); assert.equal(media.currentTime, 30, 'a double tap in the middle does not seek');
+// A double click on a side seeks and keeps Plyr from also toggling fullscreen; in the middle it passes through
+const dbl = (time, x) => {
+  const event = { type: 'dblclick', timeStamp: time, clientX: x, clientY: 50, target: video, stopped: false, prevented: false,
+    stopPropagation() { this.stopped = true; }, preventDefault() { this.prevented = true; } };
+  listeners.get('dblclick')(event);
+  return event;
+};
+let ev = dbl(9000, 25);
+assert.equal(media.currentTime, 20, 'a double click on the left seeks back');
+assert.ok(ev.stopped && ev.prevented, 'and Plyr does not see it (no fullscreen)');
+ev = dbl(9500, 150);
+assert.equal(media.currentTime, 20, 'a double click in the middle does not seek');
+assert.ok(!ev.stopped, 'and reaches Plyr (fullscreen)');
+// The dblclick a browser fires after a touch double tap does not seek a second time
+tap(10000, 250); tap(10200, 250); assert.equal(media.currentTime, 30, 'touch double tap seeks forward');
+ev = dbl(10260, 250);
+assert.equal(media.currentTime, 30, 'the dblclick after it does not seek again');
+assert.ok(ev.stopped, 'nor toggles fullscreen');
 cleanup(); assert.equal(listeners.size, 0, 'listeners are removed on unmount');
-tap(8200); tap(8400); assert.equal(media.currentTime, 100);
+tap(11000); tap(11200); assert.equal(media.currentTime, 30, "nothing seeks after unmount");
 console.log('double-tap video seek checks passed');

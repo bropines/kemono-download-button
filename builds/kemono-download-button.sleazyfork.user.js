@@ -3091,7 +3091,8 @@ ${LEAVING}::before, ${LEAVING}::after { opacity: 0; }
       background: "var(--plyr-video-control-background-hover,var(--plyr-color-main,var(--plyr-color-main,#00b2ff)))",
       border: 0,
       borderRadius: "100%",
-      color: "var(--plyr-video-control-color,#fff)",
+      // The hover colour pair: the circle is the main colour, so the icon must be its foreground, not the bar's
+      color: "var(--plyr-video-control-color-hover,var(--kdl-primary-foreground,#fff))",
       display: "none",
       left: "50%",
       opacity: 0.9,
@@ -17168,6 +17169,12 @@ ${t("kui.embeds.passwordTitle", { password })}`;
   const MAX_TAP_MS = 300;
   const MAX_MOVEMENT_PX = 24;
   const SEEK_SECONDS = 10;
+  const SIDE_SHARE = 0.35;
+  function sideOf(rect, x) {
+    if (x < rect.left + rect.width * SIDE_SHARE) return -1;
+    if (x > rect.right - rect.width * SIDE_SHARE) return 1;
+    return 0;
+  }
   function seek(media, side) {
     const current2 = media.currentTime;
     if (!Number.isFinite(current2)) return;
@@ -17188,6 +17195,7 @@ ${t("kui.embeds.passwordTitle", { password })}`;
   function installDoubleTapSeek(host2, getMedia) {
     const active2 = /* @__PURE__ */ new Map();
     let last2 = null;
+    let touchSeekAt = -Infinity;
     const interactive = 'button, a, input, select, textarea, [role="button"], .plyr__controls, .plyr__menu';
     const surface = (target2) => {
       const element = target2;
@@ -17226,19 +17234,36 @@ ${t("kui.embeds.passwordTitle", { password })}`;
         last2 = null;
         return;
       }
-      const side = event.clientX < rect.left + rect.width / 2 ? -1 : 1;
+      const side = sideOf(rect, event.clientX);
+      if (side === 0) {
+        last2 = null;
+        return;
+      }
       if (last2 && last2.media === media && last2.side === side && event.timeStamp - last2.time <= DOUBLE_TAP_MS && event.timeStamp >= last2.time && Math.hypot(event.clientX - last2.x, event.clientY - last2.y) <= MAX_MOVEMENT_PX * 2) {
         last2 = null;
+        touchSeekAt = event.timeStamp;
         seek(media, side);
       } else {
         last2 = { x: event.clientX, y: event.clientY, time: event.timeStamp, side, media };
       }
     };
+    const dbl = (event) => {
+      const wrapper = surface(event.target);
+      if (!wrapper) return;
+      const side = sideOf(wrapper.getBoundingClientRect(), event.clientX);
+      if (side === 0) return;
+      event.stopPropagation();
+      event.preventDefault();
+      const media = getMedia();
+      if (media && event.timeStamp - touchSeekAt > 600) seek(media, side);
+    };
+    host2.addEventListener("dblclick", dbl, true);
     host2.addEventListener("pointerdown", down, { passive: true });
     host2.addEventListener("pointermove", move2, { passive: true });
     host2.addEventListener("pointerup", end, { passive: true });
     host2.addEventListener("pointercancel", end, { passive: true });
     return () => {
+      host2.removeEventListener("dblclick", dbl, true);
       host2.removeEventListener("pointerdown", down);
       host2.removeEventListener("pointermove", move2);
       host2.removeEventListener("pointerup", end);
