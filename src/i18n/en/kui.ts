@@ -86,6 +86,7 @@ export default {
   'kui.content.openFull': 'Open full text',
   'kui.content.dialogTitle': 'Post text',
   'kui.video.togglePlaylist': 'Toggle playlist',
+  'kui.video.seekSeconds': '{n} s',
   'kui.video.loopOn': 'Loop video (L)',
   'kui.video.loopOff': 'Stop looping (L)',
   'kui.video.untitled': 'Video {n}',

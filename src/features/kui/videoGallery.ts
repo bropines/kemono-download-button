@@ -5,7 +5,7 @@ import { t } from '../../i18n';
 import { plyrI18n } from '../../i18n/plyr';
 import { icon } from '../../config/icons';
 import { readStored, writeStored } from '../../state/gmStorage';
-import { installDoubleTapSeek } from './doubleTapSeek';
+import { installPlayerGestures, type GesturePlayer } from './playerGestures';
 
 // Loop toggle in Plyr's control bar. Plyr has the L key and player.loop but no button, and it swaps the <video>
 // on every source change, so the choice is kept here (and stored) and put back on each new video.
@@ -89,14 +89,14 @@ function hookFlush(): void {
 
 let activePlayer: Plyr | null = null;
 let fluidGuard: MutationObserver | null = null;
-let removeDoubleTapSeek: (() => void) | null = null;
+let removeGestures: (() => void) | null = null;
 
 export function destroyVideoGallery(): void {
   flushHiddenOriginalListeners();
   fluidGuard?.disconnect();
   fluidGuard = null;
-  removeDoubleTapSeek?.();
-  removeDoubleTapSeek = null;
+  removeGestures?.();
+  removeGestures = null;
   if (!activePlayer) return;
   const player = activePlayer;
   activePlayer = null;
@@ -260,11 +260,14 @@ export function initializeVideoGallery(): void {
   const player = new Plyr(mainPlayerElement, {
     tooltips: { controls: true, seek: true },
     keyboard: { focused: true, global: true },
+    // Clicks and taps on the video are playerGestures.ts's (play/pause, controls, seek, fullscreen)
+    clickToPlay: false,
     storage: { enabled: true, key: "kui_plyr" },
     i18n: plyrI18n()
   });
   activePlayer = player;
-  removeDoubleTapSeek = installDoubleTapSeek(playerContainer, () => player.media);
+  // Plyr's own typings here are partial: the methods the gestures use exist on every Plyr 3 player
+  removeGestures = installPlayerGestures(playerContainer, () => player as unknown as GesturePlayer);
   addLoopControl(player);
 
   player.on("loadedmetadata", () => {

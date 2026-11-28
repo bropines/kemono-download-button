@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- Video player gestures, the same with a mouse and a finger: a click or tap in the middle plays or pauses (the icon flashes), a double one there goes full screen; a click or tap on the left or right shows or hides the controls, a double one seeks 10 seconds back or forward with an animated arrow and a counter, and each further tap right after adds 10 more (+20, +30...).
+
 ## [2.2.3] - 2026-11-28
 
 ### Fixed

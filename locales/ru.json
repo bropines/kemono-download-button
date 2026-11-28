@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 39,
+  "version": 40,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -794,6 +794,7 @@
     "kui.content.openFull": "Открыть весь текст",
     "kui.content.dialogTitle": "Текст поста",
     "kui.video.togglePlaylist": "Показать/скрыть плейлист",
+    "kui.video.seekSeconds": "{n} с",
     "kui.video.loopOn": "Зациклить видео (L)",
     "kui.video.loopOff": "Выключить повтор (L)",
     "kui.video.untitled": "Видео {n}",
