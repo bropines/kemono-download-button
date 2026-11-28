@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.2.3] - 2026-11-28
+
 ### Fixed
 - Video player: the play icon on the big round button shows without hovering it (it was white on white).
 - Video player: a double click or double tap on the left or right third of the video seeks 10 seconds and no longer also switches to full screen; in the middle third it switches to full screen and does not seek.
