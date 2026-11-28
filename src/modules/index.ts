@@ -13,6 +13,7 @@ import { tagsToolsModule } from './tagsTools';
 import { postsSearchModule } from './postsSearch';
 import { infiniteScrollModule } from './infiniteScroll';
 import { importerStatusModule } from './importerStatus';
+import { favoritesSearchModule } from './favoritesSearch';
 import { smoothThumbsModule } from './smoothThumbs';
 import { pageTransitionsModule } from './pageTransitions';
 import { navPrefetchModule } from './navPrefetch';
@@ -43,6 +44,7 @@ export const BUILTIN_MODULES: KdlModule[] = [
   downloaderCreatorModule,
   downloaderListModule,
   favoritesQuickModule,
+  favoritesSearchModule,
   downloadHistoryModule,
   tagsToolsModule,
   // Before the live search: snapshot hooks run in reverse, so the search puts its stashed cards back first

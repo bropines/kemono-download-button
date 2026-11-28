@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- Favourites page: a search box looks through all your favourite creators or posts (not only the 50 on the page) and shows the matches as cards; Esc or clearing it brings the page back.
+
 ### Changed
 - Home art view: the interface fades out over the art as it is, instead of opening the picture whole over a blurred copy.
 
