@@ -7,7 +7,16 @@ import {
   GM_xmlhttpRequest,
   unsafeWindow,
 } from './monkey';
+import type {
+  BinaryRequest,
+  BinaryResponse,
+  GetOptions,
+  TextAlternative,
+  Transport as EngineTransport,
+} from './transport';
 import type { Bytes } from './types';
+
+export type { BinaryResponse };
 
 /**
  * Everything that differs between userscript hosts.
@@ -137,12 +146,6 @@ const request: typeof GM_xmlhttpRequest | undefined =
     ? GM_xmlhttpRequest
     : (GM?.xmlHttpRequest as unknown as typeof GM_xmlhttpRequest | undefined);
 
-/** A response reduced to the three things this script ever reads. */
-export interface BinaryResponse {
-  status: number;
-  bytes: Bytes;
-  contentType: string;
-}
 
 /**
  * Ask for bytes, and be ready to be given text instead.
@@ -191,6 +194,14 @@ function contentTypeOf(headers: string | undefined): string {
   return match?.[1]?.trim() ?? '';
 }
 
+function locationOf(headers: string | undefined): string {
+  const match = /^location:\s*(.+)$/im.exec(headers ?? '');
+  return match?.[1]?.trim() ?? '';
+}
+
+/** A response, plus the one header a redirect needs. Never leaves this file. */
+type HostResponse = BinaryResponse & { location?: string };
+
 /**
  * A timeout, marked so the retry below can tell it apart.
  *
@@ -205,7 +216,7 @@ function timedOut(): Error {
 }
 
 /** How the body goes on the wire. Not a preference - a host capability. */
-type BodyEncoding = 'typed' | 'binary-string';
+type BodyEncoding = 'typed' | 'binary-string' | 'text';
 
 /** As much of a GM response as this script reads, from either callback. */
 interface RawResponse {
@@ -219,12 +230,38 @@ interface Attempt {
   method: 'GET' | 'POST';
   url: string;
   headers: Record<string, string>;
+  /**
+   * Whether to send the host's cookies, for the host's transport only.
+   *
+   * `false` is a browser's own default for an <img>, and hotlink protection
+   * that keys on a session needs it. Hosts without the option ignore it.
+   */
+  withCookies?: boolean;
   body: Bytes | null;
   encoding: BodyEncoding;
   timeoutMs: number;
+  /** The request as text both ways, where the caller can make one. */
+  text?: TextAlternative;
 }
 
-function sendViaGm(attempt: Attempt): Promise<BinaryResponse> {
+/**
+ * The most a text body may grow to here. AdGuard for Android's local API
+ * refuses a request over 64 kB, and it URL-encodes the body into a form along
+ * with the address, the headers and two tokens; 60 kB of encoded body leaves
+ * room for those. Measured on the device: 64,347 bytes passed, 70,347 did not.
+ */
+const TEXT_BODY_LIMIT = 60_000;
+const fitsTextChannel = (body: string): boolean => encodeURIComponent(body).length <= TEXT_BODY_LIMIT;
+
+async function sendViaGm(attempt: Attempt): Promise<HostResponse> {
+  if (attempt.encoding !== 'text' || !attempt.text) return sendBodyViaGm(attempt);
+  const alternative = attempt.text;
+  const textual = await alternative.build(fitsTextChannel);
+  const response = await sendBodyViaGm({ ...attempt, ...textual, body: null, textBody: textual.body });
+  return { ...response, bytes: alternative.decode(response.bytes) };
+}
+
+function sendBodyViaGm(attempt: Attempt & { textBody?: string }): Promise<HostResponse> {
   return new Promise((resolve, reject) => {
     if (!request) {
       reject(new Error(`${hostName()} has no GM_xmlhttpRequest`));
@@ -239,26 +276,32 @@ function sendViaGm(attempt: Attempt): Promise<BinaryResponse> {
           reject(new Error(`${hostName()} returned a response this script cannot read`));
           return;
         }
+        const location = locationOf(response.responseHeaders);
         resolve({
           status: response.status,
           bytes,
           contentType: contentTypeOf(response.responseHeaders),
+          ...(location ? { location } : {}),
         });
       })();
     };
 
     const data =
-      attempt.body === null
-        ? undefined
-        : attempt.encoding === 'typed'
-          ? attempt.body
-          : toLatin1(attempt.body);
+      attempt.textBody !== undefined
+        ? attempt.textBody
+        : attempt.body === null
+          ? undefined
+          : attempt.encoding === 'typed'
+            ? attempt.body
+            : toLatin1(attempt.body);
+    const binary = attempt.textBody === undefined;
 
     request({
       method: attempt.method,
       url: attempt.url,
       headers: attempt.headers,
-      ...(data === undefined ? {} : { data, binary: true }),
+      ...(attempt.withCookies === undefined ? {} : { anonymous: !attempt.withCookies }),
+      ...(data === undefined ? {} : binary ? { data, binary: true } : { data }),
       responseType: 'arraybuffer',
       overrideMimeType: BINARY_MIME,
       timeout: attempt.timeoutMs,
@@ -343,16 +386,26 @@ interface Rung {
   encoding: BodyEncoding;
 }
 
-function ladder(hasBody: boolean, remember: boolean): Rung[] {
+function ladder(hasBody: boolean, remember: boolean, allowFetch: boolean, hasText = false): Rung[] {
   const latchedEncoding = remember ? workingEncoding : null;
   const encodings: BodyEncoding[] = !hasBody
     ? ['typed']
-    : latchedEncoding
+    : latchedEncoding && (latchedEncoding !== 'text' || hasText)
       ? [latchedEncoding]
-      : ['typed', 'binary-string'];
+      : hasText
+        ? ['typed', 'binary-string', 'text']
+        : ['typed', 'binary-string'];
 
   const rungs: Rung[] = encodings.map((encoding) => ({ transport: 'gm' as const, encoding }));
-  rungs.push({ transport: 'fetch', encoding: 'typed' });
+  if (allowFetch) rungs.push({ transport: 'fetch', encoding: 'typed' });
+
+  // Local to this copy (not upstream): the host is known to refuse a binary
+  // body, and this request has no text form - a search, which upstream sends
+  // as binary only. Repeating the two shapes that were refused is pointless,
+  // and the latch below would drop the one rung left, so it goes to that one.
+  if (hasBody && latchedEncoding === 'text' && !hasText && allowFetch) {
+    return [{ transport: 'fetch', encoding: 'typed' }];
+  }
 
   const latchedTransport = remember ? workingTransport : null;
   return latchedTransport ? rungs.filter((rung) => rung.transport === latchedTransport) : rungs;
@@ -361,12 +414,12 @@ function ladder(hasBody: boolean, remember: boolean): Rung[] {
 /** The status a mangled body produces, and the only one worth another rung. */
 const BAD_REQUEST = 400;
 
-async function climb(attempt: Attempt, remember: boolean): Promise<BinaryResponse> {
+async function climb(attempt: Attempt, remember: boolean, allowFetch = true): Promise<HostResponse> {
   const failures: string[] = [];
 
-  for (const rung of ladder(attempt.body !== null, remember)) {
+  for (const rung of ladder(attempt.body !== null, remember, allowFetch, Boolean(attempt.text))) {
     const next = { ...attempt, encoding: rung.encoding };
-    let response: BinaryResponse;
+    let response: HostResponse;
     try {
       response = rung.transport === 'fetch' ? await sendViaFetch(next) : await sendViaGm(next);
     } catch (error) {
@@ -394,21 +447,114 @@ async function climb(attempt: Attempt, remember: boolean): Promise<BinaryRespons
   throw new Error(failures.join('; ') || 'the request was never sent');
 }
 
-export function postBinary(options: {
-  url: string;
-  headers: Record<string, string>;
-  body: Bytes;
-  timeoutMs: number;
-}): Promise<BinaryResponse> {
-  return climb({ ...options, method: 'POST', encoding: 'typed' }, true);
+/**
+ * A POST to Lens. It carries no cookies: the API key is the whole of its
+ * authentication, and a host left to its default (Tampermonkey's sends them)
+ * would hand Google the user's session with every picture.
+ */
+export function postBinary(options: BinaryRequest): Promise<BinaryResponse> {
+  return climb({ ...options, method: 'POST', encoding: 'typed', withCookies: false }, true);
 }
 
-export function getBinary(url: string, timeoutMs: number): Promise<BinaryResponse> {
+/** Enough hops for a CDN's chain; more than that is a loop. */
+const MAX_REDIRECTS = 5;
+
+/** An HTML page where a picture was asked for: an error or a redirect page. */
+function isWebPage(response: BinaryResponse): boolean {
+  // An SVG starts with '<' too, and says what it is.
+  if (/^image\//i.test(response.contentType)) return false;
+  if (/text\/html/i.test(response.contentType)) return true;
+  for (const byte of response.bytes) {
+    if (byte === 0x20 || byte === 0x09 || byte === 0x0a || byte === 0x0d) continue;
+    return byte === 0x3c; // '<'
+  }
+  return false;
+}
+
+/**
+ * Fetch an image the way the page's own <img> would.
+ *
+ * AdGuard's GM_xmlhttpRequest does not follow redirects: an nginx "302 Found"
+ * page arrives as a successful response, sometimes with no headers at all, and
+ * it used to be handed on as if it were the picture. So a 3xx with a Location
+ * is followed here, by hand; and a web page with nowhere to go gets one try as
+ * an ordinary fetch, which does follow redirects (it works where the host
+ * sends CORS headers) - and otherwise an error that says what came back,
+ * rather than "could not decode the image" three steps later.
+ */
+export async function getBinary(
+  url: string,
+  timeoutMs: number,
+  options: GetOptions = {}
+): Promise<BinaryResponse> {
+  let current = url;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
+    const response = await getOnce(current, timeoutMs, options);
+    const redirected = response.status >= 300 && response.status < 400;
+    if ((redirected || isWebPage(response)) && response.location) {
+      current = new URL(response.location, current).href;
+      continue;
+    }
+    if ((redirected || isWebPage(response)) && options.noFetchFallback === true) {
+      throw new Error(`the host answered with a web page, not the file (HTTP ${response.status})`);
+    }
+    if (redirected || isWebPage(response)) {
+      try {
+        const page = await sendViaFetch({
+          method: 'GET',
+          url: current,
+          headers: {},
+          body: null,
+          encoding: 'typed',
+          timeoutMs,
+        });
+        if (page.status < 400 && !isWebPage(page)) return page;
+      } catch {
+        // CORS or the network; the error below is the more useful one.
+      }
+      throw new Error(`the image host answered with a web page, not a picture (HTTP ${response.status})`);
+    }
+    const { location: _location, ...plain } = response;
+    return plain;
+  }
+  throw new Error(`the image host redirected more than ${MAX_REDIRECTS} times`);
+}
+
+function getOnce(url: string, timeoutMs: number, options: GetOptions): Promise<HostResponse> {
   return climb(
-    { method: 'GET', url, headers: {}, body: null, encoding: 'typed', timeoutMs },
-    false
+    {
+      method: 'GET',
+      url,
+      // `Referer` is a forbidden header for a page fetch and a perfectly good
+      // one for a privileged request, which is the whole reason to be here.
+      headers: options.referer ? { Referer: options.referer } : {},
+      body: null,
+      encoding: 'typed',
+      timeoutMs,
+      // The same request the <img> would have made, cookies included - unless
+      // the caller is fetching something public and said so.
+      withCookies: options.anonymous !== true,
+    },
+    false,
+    options.noFetchFallback !== true
   );
 }
+
+/**
+ * This host, as the transport the engine asks for.
+ *
+ * The engine knows it needs a privileged cross-origin POST and nothing more;
+ * which host is running, what it does with a typed array and where a blocked
+ * domain is undone are all answered here.
+ */
+export const gmTransport: EngineTransport = {
+  post: postBinary,
+  get: getBinary,
+  hint: () =>
+    hostName() === 'Tampermonkey'
+      ? ' If Tampermonkey blocked this domain, clear it under Settings > Security > Blocked domains.'
+      : '',
+};
 
 // --- Diagnostics ------------------------------------------------------------
 

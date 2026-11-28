@@ -2,9 +2,10 @@ import { state } from '../state/store';
 import { t } from '../i18n';
 import { resolveLanguage } from './translators';
 import { cacheKey, clearCache, getCached, getRender, putCached, putRender, renderKey } from '../vendor/lens/cache';
-import { acquireSource, encodeForUpload, fingerprint } from '../vendor/lens/image';
+import { acquireSource, fingerprint } from '../vendor/lens/image';
 import type { Source } from '../vendor/lens/image';
-import { callLens } from '../vendor/lens/lens/client';
+import { askLens } from '../vendor/lens/lens/ask';
+import { tilingTag } from '../vendor/lens/lens/tiles';
 import { renderToBlob, renderToCanvas } from '../vendor/lens/render/canvas';
 import { clearStored, getStored, putStored, storedStats } from '../vendor/lens/store';
 import type { LensResult, Settings } from '../vendor/lens/types';
@@ -141,18 +142,22 @@ export function picture(url: string): Promise<Pixels> {
 export class NothingToTranslate extends Error {}
 
 // What Lens said about the picture at `url`: from memory, from an earlier visit (recognised by its
-// pixels), or asked for now. The encode is the expensive half of a miss and comes last.
+// pixels), or asked for now. The encode is the expensive half of a miss and comes last. A long strip
+// (a webtoon) is asked about in overlapping tiles and comes back as one answer in the whole picture's
+// coordinates, so nothing after this can tell.
 async function answer(url: string, settings: Settings, pixels: Pixels): Promise<LensResult> {
   const key = cacheKey(url, settings);
   let result: LensResult | null = getCached(key, settings);
-  const hash = result ? '' : fingerprint(pixels.source, pixels.width, pixels.height);
+  const print = result ? '' : fingerprint(pixels.source, pixels.width, pixels.height);
+  // A tiled strip is filed under its fingerprint with a mark: the answer a single upload once got for
+  // the same pixels is the unreadable one, and must not be what comes back
+  const hash = print ? print + tilingTag(pixels.width, pixels.height, settings) : '';
   if (!result && hash) {
     result = await getStored(hash, settings);
     if (result) putCached(key, result, settings);
   }
   if (!result) {
-    const upload = await encodeForUpload(pixels.source, settings);
-    result = await callLens(upload, settings);
+    result = await askLens(pixels.source, settings);
     putCached(key, result, settings);
     void putStored(hash, result, settings);
   }
