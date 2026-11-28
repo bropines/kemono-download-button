@@ -26,7 +26,7 @@ export function targetSize(
 
 export type Source = HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | ImageBitmap;
 
-function sourceSize(source: Source): { width: number; height: number } {
+export function sourceSize(source: Source): { width: number; height: number } {
   if (source instanceof HTMLImageElement) {
     return { width: source.naturalWidth, height: source.naturalHeight };
   }
@@ -142,6 +142,39 @@ export async function encodeForUpload(
     sourceHeight: natural.height,
     release,
   };
+}
+
+/**
+ * One rectangle of the source, in its own pixels, under the same budget as a
+ * whole picture. A region search and a tile of a long strip are both this: a
+ * part sent as if it were the picture, so it gets the resolution the whole
+ * could not have.
+ */
+export async function encodeRect(
+  source: CanvasImageSource,
+  rect: { x: number; y: number; width: number; height: number },
+  settings: Pick<Settings, 'maxArea' | 'maxSide' | 'jpegQuality'>
+): Promise<{ bytes: Bytes; width: number; height: number }> {
+  const { width, height } = targetSize(rect.width, rect.height, settings);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Could not get a 2d canvas context');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, width, height);
+  ctx.drawImage(source, rect.x, rect.y, rect.width, rect.height, 0, 0, width, height);
+
+  const jpeg = await new Promise<Blob | null>((resolve, reject) => {
+    try {
+      canvas.toBlob(resolve, 'image/jpeg', settings.jpegQuality);
+    } catch (e) {
+      reject(e as Error);
+    }
+  });
+  if (!jpeg) throw new Error('Canvas is tainted');
+  return { bytes: new Uint8Array(await jpeg.arrayBuffer()) as Bytes, width, height };
 }
 
 /**

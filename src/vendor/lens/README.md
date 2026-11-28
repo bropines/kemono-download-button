@@ -1,7 +1,7 @@
 # Lens core (vendored)
 
 A copy of the core of [chrome-lens-userscript](https://github.com/bropines/chrome-lens-userscript)
-(MIT, 2.10.0, with search by image and the text transport from 2.14.1), which talks to Google Lens's `crupload` endpoint and renders the
+(MIT, 2.10.0, with search by image, the text transport and long-strip tiling from 2.14.1), which talks to Google Lens's `crupload` endpoint and renders the
 translation the way Chromium's own Lens overlay does.
 
 Copied verbatim except for two mechanical changes: `gm.ts` imports from
@@ -27,7 +27,8 @@ Four local changes to `render/canvas.ts`, worth taking upstream:
 
 Search by image and AI Mode came later than 2.10, so the pieces they need were
 taken from upstream 2.14.1 on their own, the rest staying at 2.10 (the render
-path, `image.ts`, `cache.ts` and `store.ts` are untouched):
+path and `store.ts` are untouched; what else changed since is listed in the
+sections below):
 
 - `lens/search.ts`, verbatim: `ImageSearch` (open a session at `/v1/gsessionid`,
   upload the picture into it, describe the selection in an interaction request,
@@ -88,6 +89,33 @@ an opaque blob). Upstream's ladder would repeat the two refused binary shapes
 and then stop, because the latch on the working transport drops the fetch rung.
 Whether a page `fetch` gets through depends on the site's CSP; the endpoint
 itself answers the CORS preflight.
+
+## Long strips as tiles (from upstream 2.14.1)
+
+The upload budget is an area and a longest side. For a webtoon strip the side
+binds: 800x11352 went up as 113x1600 and Lens found nothing in it. Upstream
+2.14.1 cuts such a picture along its long axis into overlapping tiles and merges
+the answers; taken from it:
+
+- , verbatim (pure arithmetic):  (null for
+  anything the long side does not bind, so a page goes up once as before; at most
+  12 tiles, a quarter of each shared with its neighbour),  (every
+  box moved into the whole picture's coordinates, a paragraph seen by two tiles
+  kept once), .
+- , verbatim:  replaces  for callers. The
+  first tile goes alone, the rest two at a time; a tile that fails in a way that
+  could pass () is asked once more, and a tile that still fails
+  fails the translation.
+- : 2.10's, with  exported and upstream's   added (typed against , which this copy has in place of
+  ). Nothing else of 2.14's  was taken.
+- :  on . Left out it is
+  'auto'; there is no setting for it in this script.
+- : 2.10's, with upstream's , which adds an   mark when tiling is off.
+
+The merged answer has the shape of any Lens answer, so  (ours,
+see above) draws it unchanged.  calls and, as upstream's  does, files a tiled strip in the persistent store
+under its fingerprint plus , so the empty answer a single upload once
+got for the same pixels is not what comes back.
 
 ## Local files
 

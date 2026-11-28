@@ -68,7 +68,9 @@ export function normalizeUrl(raw: string): string {
 }
 
 export function cacheKey(url: string, settings: Settings): string {
-  return [normalizeUrl(url), settings.targetLang, settings.sourceLang, settings.ocrLang].join('\u0000');
+  const key = [normalizeUrl(url), settings.targetLang, settings.sourceLang, settings.ocrLang];
+  if (settings.tileLongImages === 'off') key.push('untiled');
+  return key.join('\u0000');
 }
 
 export function getCached(key: string, settings: Settings): LensResult | null {
