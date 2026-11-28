@@ -11,6 +11,8 @@ const gm = {
   },
   getBinary: async () => { throw new Error('not used'); },
   hostName: () => 'test',
+  // What transport.ts hands the engine: the host's ladder
+  get gmTransport() { return { post: gm.postBinary, get: gm.getBinary }; },
 };
 const b = browser({
   mocks: { 'src/vendor/lens/gm.ts': gm },

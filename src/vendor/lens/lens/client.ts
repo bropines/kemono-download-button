@@ -1,7 +1,8 @@
-import { getBinary, hostName, postBinary } from '../gm';
+import { getTransport } from '../transport';
 import { buildRequest } from './request';
 import { parseResponse } from './response';
-import type { LensResult, PreparedImage, Settings } from '../types';
+import { textAlternative } from './wire-text';
+import type { LensOptions, LensResult, PreparedImage } from '../types';
 
 export const LENS_ENDPOINT = 'https://lensfrontend-pa.googleapis.com/v1/crupload';
 
@@ -11,13 +12,20 @@ const IMAGE_TIMEOUT_MS = 30_000;
 /**
  * Send one image to Lens.
  *
- * GM_xmlhttpRequest runs outside the page's origin and is not subject to CORS,
- * which is the whole reason this script needs no server of its own. What it
- * does with a binary body and a binary response varies by host, so it is
- * reached through `gm.ts` rather than called directly.
+ * The request goes out through whatever transport the front end installed: in
+ * a userscript that is `GM_xmlhttpRequest`, which runs outside the page's
+ * origin and is not subject to CORS - the whole reason this needs no server of
+ * its own. What a host does with a binary body and a binary response varies
+ * enough that none of it belongs here.
+ *
+ * Only the bytes and their size are read, so a tile of a long picture - which
+ * has no decoded source of its own to carry - is sent by the same call.
  */
-export async function callLens(image: PreparedImage, settings: Settings): Promise<LensResult> {
-  const response = await postBinary({
+export async function callLens(
+  image: Pick<PreparedImage, 'imageBytes' | 'width' | 'height'>,
+  settings: LensOptions
+): Promise<LensResult> {
+  const response = await getTransport().post({
     url: LENS_ENDPOINT,
     headers: {
       'Content-Type': 'application/x-protobuf',
@@ -25,6 +33,7 @@ export async function callLens(image: PreparedImage, settings: Settings): Promis
     },
     body: buildRequest(image, settings),
     timeoutMs: settings.timeoutMs,
+    text: textAlternative(image, settings, LENS_ENDPOINT),
   });
 
   try {
@@ -35,23 +44,25 @@ export async function callLens(image: PreparedImage, settings: Settings): Promis
 }
 
 /**
- * Fetch image bytes through GM_xmlhttpRequest rather than reading the <img>.
+ * Fetch the image bytes through the transport rather than reading the <img>.
  *
  * A cross-origin image without CORS headers taints the canvas, and toBlob then
  * throws SecurityError. Fetching the bytes ourselves sidesteps that entirely.
  */
 export async function fetchImageBlob(url: string): Promise<Blob> {
+  const transport = getTransport();
   let response;
   try {
-    response = await getBinary(url, IMAGE_TIMEOUT_MS);
+    // The page asking is the page the browser would have sent as the referrer
+    // for the same <img>, and a host that checks it answers 403 to anything else.
+    response = await transport.get(url, IMAGE_TIMEOUT_MS, {
+      ...(typeof location === 'undefined' ? {} : { referer: location.href }),
+    });
   } catch (error) {
-    // Tampermonkey blocks a domain permanently once refused, and it is the one
-    // host with a specific place to undo that. Everywhere else the transport's
+    // Whatever the host wants to add - a blocked domain is worth naming, and
+    // only the host knows where to undo one. Everywhere else the transport's
     // own words are more use than anything this could invent.
-    const hint =
-      hostName() === 'Tampermonkey'
-        ? ' If Tampermonkey blocked this domain, clear it under Settings > Security > Blocked domains.'
-        : '';
+    const hint = transport.hint?.() ?? '';
     throw new Error(`Could not fetch the image (${(error as Error).message}).${hint}`);
   }
   // The type comes from the response headers rather than the request, because a

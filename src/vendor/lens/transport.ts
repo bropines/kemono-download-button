@@ -1,30 +1,115 @@
-import { postBinary } from './gm';
-import type { BinaryResponse } from './gm';
+import { gmTransport } from './gm';
 import type { Bytes } from './types';
 
 /**
- * Stands in for upstream 2.14's `transport.ts`.
+ * The one thing the engine cannot do for itself.
  *
- * Upstream's engine no longer imports `gm.ts`: a front end installs a
- * transport and the engine asks for it. `lens/search.ts` is written against
- * that, while this copy's `gm.ts` and `lens/client.ts` are still 2.10, where
- * the request ladder is called directly. So the transport here is simply that
- * ladder: a search goes out exactly as a translation does, on the same hosts,
- * anonymous, with the same encoding retries.
+ * Everything else here is arithmetic and canvas work, which runs anywhere. The
+ * Lens endpoint is not: it answers a cross-origin POST only through a
+ * privileged request, which in a userscript means `GM_xmlhttpRequest` and in
+ * anything else means something else entirely. So the engine declares what it
+ * needs and the front end supplies it, rather than importing a userscript host
+ * and dragging `vite-plugin-monkey` in behind it.
+ *
+ * `src/gm.ts` is this script's implementation, and it is where every difference
+ * between userscript hosts lives - the encoding retry, the response
+ * normalisation, the fallback to a plain fetch. None of that is the engine's
+ * business, and none of it is portable.
  */
+
+/** A response reduced to the three things this engine ever reads. */
+export interface BinaryResponse {
+  status: number;
+  bytes: Bytes;
+  contentType: string;
+}
+
 export interface BinaryRequest {
   url: string;
   headers: Record<string, string>;
   body: Bytes;
   timeoutMs: number;
+  /**
+   * The same request with nothing binary in either direction, for a host
+   * that cannot carry a binary body at all. AdGuard for Android passes
+   * `GM_xmlhttpRequest` through a local API that writes a typed array out as
+   * comma-separated numbers, re-encodes a binary string as UTF-8 (a NUL ends
+   * it) and refuses anything over 64 kB with "invalid request". A transport
+   * that finds both binary shapes refused may try this before giving up.
+   */
+  text?: TextAlternative;
+}
+
+/** A request whose body and answer are plain text. */
+export interface TextRequest {
+  url: string;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export interface TextAlternative {
+  /**
+   * The text request, made to pass `fits` - the host's own limit - by sending
+   * a smaller picture where it has to.
+   */
+  build(fits: (body: string) => boolean): Promise<TextRequest>;
+  /** The answer as it arrived, as the bytes the binary request would have had. */
+  decode(bytes: Bytes): Bytes;
+}
+
+/** What a fetch of someone else's image may need to say about where it is from. */
+export interface GetOptions {
+  /**
+   * The page the image is wanted for.
+   *
+   * Hotlink protection is a check on this: pixiv's image host and most manga
+   * CDNs answer 403 to a request without a Referer from their own site, which
+   * is what an unadorned `GM_xmlhttpRequest` sends. A browser loading the same
+   * `<img>` sends one, so the fetch that stands in for it has to as well.
+   */
+  referer?: string;
+  /**
+   * Send no cookies.
+   *
+   * An image is fetched the way the browser would have fetched it, session
+   * included, because that is what a hotlink-protected host checks. A file
+   * that is public to everyone needs none of that, and a request that does not
+   * need to say who is asking should not.
+   */
+  anonymous?: boolean;
+  /**
+   * Only the privileged request, never a page `fetch` behind it.
+   *
+   * The fetch rung is there for a host whose own transport is broken, and it
+   * is leaky: the browser attaches the page's `Origin`. For an image the page
+   * wanted that is no news; for a request of the script's own - a locale from
+   * GitHub - it tells a third party which site is being read.
+   */
+  noFetchFallback?: boolean;
 }
 
 export interface Transport {
   post(request: BinaryRequest): Promise<BinaryResponse>;
+  get(url: string, timeoutMs: number, options?: GetOptions): Promise<BinaryResponse>;
+  /**
+   * Anything the host wants appended when a request fails.
+   *
+   * Tampermonkey blocks a domain permanently once the user refuses it, and it
+   * is the one host with a specific place to undo that - which is worth saying
+   * out loud, and is not something the engine could know.
+   */
+  hint?(): string;
 }
 
-const transport: Transport = { post: postBinary };
+let installed: Transport | null = null;
 
+export function setTransport(transport: Transport): void {
+  installed = transport;
+}
+
+// Local to this copy (not upstream, which throws until a front end installs
+// one): there is one front end here and one host layer, so `gm.ts` is the
+// transport unless something else was installed.
 export function getTransport(): Transport {
-  return transport;
+  return installed ?? gmTransport;
 }

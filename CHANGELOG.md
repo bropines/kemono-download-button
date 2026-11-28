@@ -10,6 +10,10 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 ### Changed
 - "Search with Google Lens" uploads the picture itself instead of handing Google a link to the file, which the archive's file servers often refused. The results open in a new tab; where the browser blocks it, a notification carries the link.
 
+### Fixed
+- Image translation on AdGuard for Android, where every picture failed with "HTTP 400": AdGuard cannot send the picture as binary data, so there it now goes as text, made smaller where AdGuard's size limit requires it. Tampermonkey and Violentmonkey send it as before.
+- Image translation: a picture the script has to download itself is followed through redirects on AdGuard, which does not follow them.
+
 ## [2.1.9] - 2026-11-28
 
 ### Added
