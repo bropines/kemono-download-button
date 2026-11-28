@@ -13,6 +13,8 @@ export interface ToastOptions {
   /** Auto-dismiss after ms (default 4000, 6000 for destructive); 0 keeps it until dismissed. */
   duration?: number;
   action?: { label: string; onClick: () => void };
+  /** A real link opening in a new tab, for an address a script may not open by itself (a blocked popup). */
+  link?: { label: string; href: string };
   className?: string;
 }
 
@@ -38,6 +40,18 @@ function getRegion(): HTMLOListElement {
   region.setAttribute('aria-label', t('common.notifications'));
   region.setAttribute('data-kdl-dismiss-ignore', '');
   return portal(region);
+}
+
+function linkButton(link: { label: string; href: string }, onClick: () => void): HTMLAnchorElement {
+  const anchor = el('a', {
+    href: link.href,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    className: 'kdl-ui-btn kdl-ui-btn--outline kdl-ui-btn--size-sm',
+    textContent: link.label,
+  });
+  anchor.addEventListener('click', onClick);
+  return anchor;
 }
 
 /** Shows a toast in the single kit queue (bottom-right). Newest on top, oldest dropped past MAX_VISIBLE. */
@@ -92,6 +106,7 @@ export function toast(options: ToastOptions): ToastHandle {
               },
             })
           : null,
+        current.link ? linkButton(current.link, dismiss) : null,
         closeBtn,
       ].filter((n): n is NonNullable<typeof n> => !!n)
     );

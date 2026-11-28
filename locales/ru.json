@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 35,
+  "version": 36,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -719,6 +719,12 @@
     "kui.menu.uiSettings": "Настройки интерфейса",
     "kui.media.downloadOriginal": "Скачать оригинал",
     "kui.media.searchLens": "Найти через Google Объектив",
+    "kui.lensSearch.ask": "Спросить ИИ об этом изображении",
+    "kui.lensSearch.askPlaceholder": "Кто это нарисовал? Что это?",
+    "kui.lensSearch.askSubmit": "Спросить",
+    "kui.lensSearch.waiting": "Ищем через Google Объектив…",
+    "kui.lensSearch.ready": "Результаты Google Объектива готовы",
+    "kui.lensSearch.open": "Открыть",
     "kui.lens.translateImage": "Перевести текст на изображении",
     "kui.lens.translateToggle": "Перевести / показать оригинал",
     "kui.lens.showOriginal": "Показать оригинал",

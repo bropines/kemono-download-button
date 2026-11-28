@@ -4,7 +4,7 @@ import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, translateImage } from '../../services/lensImages';
 import { showMessage } from '../../ui/toast';
 import { button, ensureKit, kitIcon, tooltip } from '../../ui/kit';
-import { lensIcon } from '../../ui/components/kui/lensIcon';
+import { lensSearchButtons } from '../../ui/components/kui/lensSearchButtons';
 import { fetchPostFileData } from './api';
 import { lightboxModule } from './lightbox';
 import { GalleryLayoutElement } from '../../types';
@@ -28,15 +28,14 @@ function addThumbActions(thumbLink: HTMLAnchorElement, wrapper: HTMLElement, rel
   thumbLink.dataset.originalPath = fullOriginalPath;
   const actionsContainer = document.createElement("div");
   actionsContainer.className = "kui-thumb-actions";
-  const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(fullOriginalPath)}`;
-  [
-    { href: fullOriginalPath, icon: 'download' as const, text: t('kui.media.downloadOriginal') },
-    { href: lensLink, icon: lensIcon(), text: t('kui.media.searchLens') },
-  ].forEach(({ href, icon, text }) => {
-    const action = tooltip(
-      button({ href, target: '_blank', icon, variant: 'secondary', size: 'icon', ariaLabel: text, className: 'kui-action-btn' }),
-      { text, side: 'left' }
-    );
+  const downloadText = t('kui.media.downloadOriginal');
+  const download = tooltip(
+    button({ href: fullOriginalPath, target: '_blank', icon: 'download', variant: 'secondary', size: 'icon', ariaLabel: downloadText, className: 'kui-action-btn' }),
+    { text: downloadText, side: 'left' }
+  );
+  const lens = lensSearchButtons({ url: () => fullOriginalPath, side: 'left' });
+  [download, lens.search, lens.ask].forEach((action) => {
+    // The thumbnail under the buttons opens the viewer
     action.addEventListener("click", (e) => e.stopPropagation());
     actionsContainer.appendChild(action);
   });

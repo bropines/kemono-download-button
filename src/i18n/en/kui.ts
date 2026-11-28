@@ -8,6 +8,14 @@ export default {
   'kui.media.downloadOriginal': 'Download original',
   'kui.media.searchLens': 'Search with Google Lens',
 
+  // Search by image and AI Mode (Lens)
+  'kui.lensSearch.ask': 'Ask AI about this image',
+  'kui.lensSearch.askPlaceholder': 'Who drew this? What is this?',
+  'kui.lensSearch.askSubmit': 'Ask',
+  'kui.lensSearch.waiting': 'Searching with Google Lens…',
+  'kui.lensSearch.ready': 'Google Lens results are ready',
+  'kui.lensSearch.open': 'Open',
+
   // Image translation (Lens)
   'kui.lens.translateImage': 'Translate the text in this image',
   'kui.lens.translateToggle': 'Translate / show original',

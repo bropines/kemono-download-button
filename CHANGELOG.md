@@ -4,6 +4,12 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- Image viewer and gallery thumbnails: "Ask AI" opens Google's AI Mode with the picture attached and your question (or none).
+
+### Changed
+- "Search with Google Lens" uploads the picture itself instead of handing Google a link to the file, which the archive's file servers often refused. The results open in a new tab; where the browser blocks it, a notification carries the link.
+
 ## [2.1.9] - 2026-11-28
 
 ### Added

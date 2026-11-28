@@ -117,7 +117,7 @@ interface Pixels {
 const MAX_PICTURES = 2;
 const pictures = new Map<string, Promise<Pixels>>();
 
-function picture(url: string): Promise<Pixels> {
+export function picture(url: string): Promise<Pixels> {
   const known = pictures.get(url);
   if (known) {
     pictures.delete(url);

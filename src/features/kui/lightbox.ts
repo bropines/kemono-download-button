@@ -3,7 +3,7 @@ import { readStored, writeStored } from '../../state/gmStorage';
 import { state } from '../../state/store';
 import { LENS_DISPLAY_CHANGED, LENS_DISPLAY_PREVIEW, NothingToTranslate, renderTranslation } from '../../services/lensImages';
 import { createLensPanel } from '../../ui/components/kui/lensPanel';
-import { lensIcon } from '../../ui/components/kui/lensIcon';
+import { lensSearchButtons, type LensSearchButtons } from '../../ui/components/kui/lensSearchButtons';
 import { button, kitIcon, portal, toast, tooltip } from '../../ui/kit';
 import { lensPanelStyles } from '../../styles/components/lensPanel.styles';
 import { lightboxStyles } from '../../styles/components/kuiMain.styles';
@@ -44,7 +44,9 @@ export const lightboxModule = {
   root: null as HTMLElement | null,
   container: null as HTMLElement | null,
   downloadBtn: null as HTMLAnchorElement | null,
-  lensBtn: null as HTMLAnchorElement | null,
+  lensBtn: null as HTMLButtonElement | null,
+  askBtn: null as HTMLButtonElement | null,
+  lensSearch: null as LensSearchButtons | null,
   copyBtn: null as HTMLButtonElement | null,
   translateBtn: null as HTMLButtonElement | null,
   panelBtn: null as HTMLButtonElement | null,
@@ -94,10 +96,14 @@ export const lightboxModule = {
       button({ id: 'kui-lightbox-download-btn', href: '#', target: '_blank', icon: 'download', variant: 'secondary', size: 'icon', download: true, ariaLabel: t('kui.media.downloadOriginal'), className: 'kui-action-btn' }),
       { text: t('kui.media.downloadOriginal'), side: 'bottom' }
     );
-    this.lensBtn = tooltip(
-      button({ id: 'kui-lightbox-lens-btn', href: '#', target: '_blank', icon: lensIcon(), variant: 'secondary', size: 'icon', ariaLabel: t('kui.media.searchLens'), className: 'kui-action-btn' }),
-      { text: t('kui.media.searchLens'), side: 'bottom' }
-    );
+    // The picture as it actually loaded; before that, the address it is being loaded from
+    this.lensSearch = lensSearchButtons({
+      url: () => this.originalSrc || this.currentOriginalPath(),
+      side: 'bottom',
+      ids: { search: 'kui-lightbox-lens-btn', ask: 'kui-lightbox-ask-btn' },
+    });
+    this.lensBtn = this.lensSearch.search;
+    this.askBtn = this.lensSearch.ask;
     this.copyBtn = iconButton('kui-lightbox-copy-btn', 'link', t('kui.lightbox.copyLink'), () => this.handleCopyLink());
     this.translateBtn = translating ? iconButton('kui-lightbox-translate-btn', 'languages', t('kui.lens.translateToggle'), () => this.handleTranslate()) : null;
     this.panelBtn = translating ? iconButton('kui-lightbox-lens-settings-btn', 'sliders-horizontal', t('kui.lightbox.displaySettings'), () => this.setPanelOpen(!!this.panel?.hidden)) : null;
@@ -123,6 +129,7 @@ export const lightboxModule = {
         this.downloadBtn,
         this.copyBtn,
         this.lensBtn,
+        this.askBtn,
         this.translateBtn,
         this.panelBtn,
         iconButton('kui-lightbox-close-btn', 'x', t('kui.lightbox.close'), () => this.close()),
@@ -147,18 +154,23 @@ export const lightboxModule = {
       setTimeout(() => lightboxEl.remove(), 200);
     }
     this.removeEventListeners();
+    this.lensSearch?.closeAsk();
     this.isActive = false;
     this.wantedRender = null;
     this.translation = null;
     document.body.style.overflow = "";
   },
+  currentOriginalPath(): string {
+    const link = this.imageLinks[this.currentIndex];
+    return link ? link.dataset.originalPath || link.href : '';
+  },
   updateContent() {
     const currentLinkData = this.imageLinks[this.currentIndex];
     if (!currentLinkData || !this.canvas) return;
-    const originalPath = currentLinkData.dataset.originalPath || currentLinkData.href;
-    const lensLink = `https://lens.google.com/v3/upload?url=${encodeURIComponent(originalPath)}`;
+    const originalPath = this.currentOriginalPath();
     if (this.downloadBtn) this.downloadBtn.href = originalPath;
-    if (this.lensBtn) this.lensBtn.href = lensLink;
+    // A question typed for the last picture is not one about this picture
+    this.lensSearch?.closeAsk();
     // Another picture: its translation is still to come, and a render running for the last one is stale
     this.isTranslated = false;
     this.translation = null;
@@ -343,6 +355,16 @@ export const lightboxModule = {
       e.stopPropagation();
       e.stopImmediatePropagation();
       return;
+    }
+    // The same for the "Ask AI" question; there Escape closes the popover (its own layer), not the viewer
+    const asking = this.lensSearch?.askPopover;
+    if (asking?.isConnected) {
+      const typing = e.composedPath().includes(asking);
+      if (typing && e.key !== "Escape") {
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      }
+      if (typing || e.key === "Escape") return;
     }
     if (["ArrowLeft", "ArrowRight", "Escape"].includes(e.key)) {
       e.preventDefault();

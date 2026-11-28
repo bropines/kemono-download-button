@@ -79,6 +79,20 @@ export interface OcrParagraph {
   lines: OcrLine[];
 }
 
+/** A box in the picture's own proportions: 0..1 on both axes, unrotated. */
+export interface NormalizedBox {
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+}
+
+/** Something Lens recognised as a thing - what Chrome draws as a tappable dot. */
+export interface DetectedObject {
+  id: string;
+  geometry: Geometry | null;
+}
+
 export interface LensResult {
   contentLanguage: string;
   ocr: OcrParagraph[];
@@ -102,6 +116,13 @@ export type Alignment = (typeof Alignment)[keyof typeof Alignment];
 export type VerticalTextMode = 'auto' | 'keep' | 'horizontal';
 export type HotkeyModifier = 'alt' | 'ctrl' | 'shift' | 'none';
 export type ButtonMode = 'auto' | 'hover' | 'pinned';
+
+/**
+ * What is asked of Lens. Upstream 2.14 splits `Settings` into LensOptions,
+ * RenderOptions and CacheOptions; this copy still has the one interface, so
+ * the name the newer modules ask for is an alias of it.
+ */
+export type LensOptions = Settings;
 
 export interface Settings {
   targetLang: string;
