@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.9] - 2026-11-28
+
 ### Added
 - Home page: a button on the welcome card hides the interface to look at the background art, whole. A click or tap anywhere, Esc or Back brings the page back.
 - Import status: three log views (list, compact, cards with post thumbnails); in the list views, hovering a post line shows its thumbnail and title.
