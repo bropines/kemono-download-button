@@ -20,7 +20,7 @@ The same script from other hosts, if GitHub's raw files do not open for you. Eac
 | GitHub Gist | [kemono-download-button.user.js](https://gist.githubusercontent.com/bropines/d95924125e05f376d5bab737e1ed7463/raw/kemono-download-button.user.js) |
 | Cloudflare (workers.dev mirror) | [kemono-download-button.user.js](https://kemono-dl.bropines.workers.dev/kemono-download-button.user.js) |
 | GitHub Releases (latest release only) | [kemono-download-button.release.user.js](https://github.com/bropines/kemono-download-button/releases/latest/download/kemono-download-button.release.user.js) |
-| Sleazy Fork | coming soon |
+| Sleazy Fork | [script page](https://sleazyfork.org/scripts/607929-kemono-pawchive-download-button) (updates through Sleazy Fork) |
 
 | Manager | Status |
 | :--- | :--- |
@@ -95,7 +95,7 @@ Every push to `main` reaches users through the auto-update link, so the committe
 2. Note user-facing changes in `CHANGELOG.md` under `## [Unreleased]`.
 3. `npm run build` and commit the rebuilt `kemono-download-button.user.js` and `builds/` together with the sources. `builds/` holds the copies for other hosts (jsDelivr, the gist, GitHub Releases, and the unminified Sleazy Fork / Greasy Fork build, whose libraries come from jsDelivr to stay under the 2 MB limit).
 4. Push to `main`. For a GitHub Release, rename `[Unreleased]` to the version and date, commit, then push a tag: `git tag v0.8.50 && git push origin v0.8.50`. The release notes are that section of `CHANGELOG.md`, and the release fails if it is missing. The release attaches every build and purges the jsDelivr cache.
-5. After the release, `node scripts/publish-gist.mjs` updates the gist mirror (the workflow's token cannot write gists). Sleazy Fork syncs `builds/kemono-download-button.sleazyfork.user.js` on its own once its sync URL is set.
+5. After the release, `node scripts/publish-gist.mjs` updates the gist mirror (the workflow's token cannot write gists). Sleazy Fork (script 607929) syncs `builds/kemono-download-button.sleazyfork.user.js` and the README on its own, about once a day; a GitHub webhook set up from its admin page makes it immediate.
 
 ## Credits
 
