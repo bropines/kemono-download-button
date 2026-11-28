@@ -3,12 +3,13 @@
 // (same origin, the browser's own login), and shows the matches as the site's own cards in place of the page's
 // cards and paginators. Clearing the box (or Esc) puts the page back; so do unmount and every htmx snapshot.
 
-import type { KdlModule } from '../../core/types';
+import type { KdlModule, ModuleContext } from '../../core/types';
 import { el } from '../../utils/dom';
 import { getApiUrl } from '../../utils/helpers';
 import { ensureKit, input, kitScope } from '../../ui/kit';
 import { t } from '../../i18n';
 import { buildCard } from '../postsSearch';
+import { matchesQuery, needsTranslation, queryVariants, searchKey, translateNames } from '../../utils/searchKey';
 
 const SECTION = '.site-section--favorites';
 const MARK = 'data-kdl-favsearch';
@@ -34,6 +35,22 @@ type Kind = 'artist' | 'post';
 const lists = new Map<Kind, Promise<any[]>>();
 let timer: ReturnType<typeof setTimeout> | undefined;
 let lastQuery = '';
+let ctxRef: ModuleContext | null = null;
+const named = new Map<Kind, Promise<Record<string, string>>>();
+
+const nameOf = (item: any, kind: Kind): string => String((kind === 'artist' ? item.name : item.title) ?? '');
+
+// English names for the kanji / hangul ones, asked for once per list (and kept between visits by translateNames)
+function namesFor(kind: Kind, list: any[]): Promise<Record<string, string>> {
+  if (ctxRef && ctxRef.settings.get<boolean>('translateNames') === false) return Promise.resolve({});
+  if (!list.some((item) => needsTranslation(nameOf(item, kind)))) return Promise.resolve({});
+  let found = named.get(kind);
+  if (!found) {
+    found = translateNames(list.map((item) => nameOf(item, kind))).catch(() => ({}));
+    named.set(kind, found);
+  }
+  return found;
+}
 
 function kindOfPage(): Kind {
   return new URLSearchParams(window.location.search).get('type') === 'post' ? 'post' : 'artist';
@@ -57,11 +74,11 @@ function loadList(kind: Kind): Promise<any[]> {
 
 const fold = (text: unknown): string => String(text ?? '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '');
 
-function matches(item: any, kind: Kind, words: string[]): boolean {
-  const hay = kind === 'artist'
-    ? fold(`${item.name} ${item.id} ${item.service} ${SERVICE_NAMES[item.service] || ''}`)
-    : fold(`${item.title} ${item.id} ${item.user} ${item.service}`);
-  return words.every((word) => hay.includes(word));
+// Keys of one entry: its name (kana as rōmaji), the English Google gave for it, and its ids and service
+function keysOf(item: any, kind: Kind, english: Record<string, string>): string[] {
+  const name = nameOf(item, kind);
+  const extra = kind === 'artist' ? `${item.id} ${item.service} ${SERVICE_NAMES[item.service] || ''}` : `${item.id} ${item.user} ${item.service}`;
+  return [searchKey(name), english[name] ? searchKey(english[name]) : '', ...extra.split(' ').map(searchKey)].filter(Boolean);
 }
 
 /** The site's creator card markup (as /artists draws it), so the skin and the quick-favourite star apply */
@@ -102,8 +119,8 @@ function status(section: Element, text: string): void {
 
 async function search(section: Element, query: string): Promise<void> {
   lastQuery = query;
-  const words = fold(query).split(/\s+/).filter(Boolean);
-  if (!words.length) {
+  const variants = queryVariants(query);
+  if (!variants.length) {
     showSite(section);
     status(section, '');
     return;
@@ -117,9 +134,10 @@ async function search(section: Element, query: string): Promise<void> {
     if (lastQuery === query) status(section, t('favsearch.failed'));
     return;
   }
+  const english = await namesFor(kind, list);
   // A newer search, or the box was cleared, while the list loaded
   if (lastQuery !== query || !section.isConnected) return;
-  const found = list.filter((item) => matches(item, kind, words));
+  const found = list.filter((item) => matchesQuery(keysOf(item, kind, english), variants));
   siteParts(section).forEach((node) => node.setAttribute(HIDE_ATTR, ''));
   section.querySelectorAll(`[${MARK}="results"]`).forEach((node) => node.remove());
   const items = el('div', { className: 'card-list__items' }, found.slice(0, MAX_SHOWN).map((item) => (kind === 'artist' ? creatorCard(item) : buildCard(item))));
@@ -170,6 +188,7 @@ function undo(): void {
   lastQuery = '';
   // The list is read again on the next visit: a star may have changed it meanwhile
   lists.clear();
+  named.clear();
   document.querySelectorAll(SECTION).forEach(showSite);
   document.querySelectorAll(`[${MARK}]`).forEach((node) => node.remove());
 }
@@ -188,7 +207,13 @@ export const favoritesSearchModule: KdlModule = {
   group: 'Lists',
   pages: 'any',
   defaultEnabled: true,
+  settings: [
+    { key: 'translateNames', label: 'Find Japanese, Korean and Chinese names written in Latin or Cyrillic', type: 'boolean', default: true, hint: 'Kana is read as rōmaji on your device. Names with kanji or hangul are sent to Google Translate once to get their English form (only the names), and kept.' },
+  ],
   styles,
+  setup(ctx: ModuleContext) {
+    ctxRef = ctx;
+  },
   mount: install,
   update: install,
   unmount: undo,

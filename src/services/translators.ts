@@ -140,6 +140,11 @@ async function translateByLines(text: string, translateBatch: (lines: string[]) 
   return lines.join('\n');
 }
 
+/** Google machine translation of up to ~100 short lines, one answer per line (search uses it for names) */
+export function translateLinesGoogle(lines: string[], targetCode: string, signal?: AbortSignal): Promise<string[]> {
+  return translateGoogle(lines, targetCode, signal);
+}
+
 async function translateGoogle(lines: string[], targetCode: string, signal?: AbortSignal): Promise<string[]> {
   const response = await gmXmlhttpRequestWithRetries({
     method: 'POST',

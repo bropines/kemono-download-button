@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- Favourites search understands Japanese, Korean and Chinese names typed in Latin or Cyrillic: "sakura" or "сакура" finds さくら, "hatsune" or "хацунэ" finds 初音ミク. Kana is read as rōmaji on your device (wanakana); Russian spelling of Japanese names (Polivanov: си, ти, цу, дзи) is understood; names with kanji or hangul get their English form from Google Translate once (only the names are sent) and it is kept. A module setting turns the Google part off.
+
 ## [2.2.1] - 2026-11-28
 
 ### Added
