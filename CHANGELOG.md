@@ -9,7 +9,7 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 - Video player: a double click or double tap on the left or right third of the video seeks 10 seconds and no longer also switches to full screen; in the middle third it switches to full screen and does not seek.
 
 ### Added
-- The script can be installed from other hosts, each copy updating from where it came from: jsDelivr (a CDN, for when GitHub's raw files do not open), a GitHub gist, and the latest GitHub release. An unminified build for Sleazy Fork / Greasy Fork is made with every release.
+- The script can be installed from other hosts, each copy updating from where it came from: jsDelivr (a CDN, for when GitHub's raw files do not open), a Cloudflare mirror (kemono-dl.bropines.workers.dev), a GitHub gist, and the latest GitHub release. An unminified build for Sleazy Fork / Greasy Fork is made with every release.
 
 ## [2.2.2] - 2026-11-28
 

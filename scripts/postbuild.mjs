@@ -72,13 +72,16 @@ fs.writeFileSync(permanentUserJs, wrap(scriptHeader), 'utf-8');
 
 // The same script with its update address on another host. jsDelivr serves the repo through a CDN (raw GitHub is
 // blocked in some countries; the release workflow purges its cache), the gist mirror is updated by
-// scripts/publish-gist.mjs, and GitHub Releases carry the copy that follows the latest release.
+// scripts/publish-gist.mjs, GitHub Releases carry the copy that follows the latest release, and a Cloudflare
+// Worker mirrors the repo for managers that cannot reach GitHub at all.
 const REPO = 'bropines/kemono-download-button';
 const GIST = 'bropines/d95924125e05f376d5bab737e1ed7463';
 const HOSTS = {
   jsdelivr: (file) => `https://cdn.jsdelivr.net/gh/${REPO}@main/builds/${file}`,
   gist: () => `https://gist.githubusercontent.com/${GIST}/raw/kemono-download-button.user.js`,
   release: (file) => `https://github.com/${REPO}/releases/latest/download/${file}`,
+  // A Worker on the owner's Cloudflare account (workers.dev) that serves this copy from the repo, cached for 10 min
+  cloudflare: () => 'https://kemono-dl.bropines.workers.dev/kemono-download-button.user.js',
 };
 for (const [host, urlFor] of Object.entries(HOSTS)) {
   const file = `kemono-download-button.${host}.user.js`;
