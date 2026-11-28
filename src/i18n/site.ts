@@ -11,6 +11,8 @@ export const SITE_SCOPES = [
   '.content-wrapper > .header',
   // Import status: the card and the log toolbar (not the log lines, which name posts and creators)
   '.import__card',
+  // The DM notice above it (?dms=1): text around the link and the code, translated piece by piece
+  '.site-section--importer-status > .jumbo.no-posts',
   '.import__logs-head',
   '.import__reverse',
   '.loading-placeholder',

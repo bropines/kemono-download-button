@@ -4,6 +4,13 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Changed
+- Home art view: the interface fades out over the art as it is, instead of opening the picture whole over a blurred copy.
+
+### Fixed
+- Stored keys: the checkbox in the corner of a key shows the tick when the key is selected (the site keeps the label in another box than the checkbox).
+- The "Hey!" notice on an import that includes DMs is translated.
+
 ## [2.2.0] - 2026-11-28
 
 ### Fixed

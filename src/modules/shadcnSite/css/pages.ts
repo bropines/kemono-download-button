@@ -310,7 +310,8 @@ ${ACCOUNT_ICONS}
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 .site-section--account-keys .key__label:hover::before { border-color: color-mix(in srgb, var(--kdl-destructive) 60%, var(--kdl-input)); }
-.site-section--account-keys .key__revoke-check:checked ~ .key__label::before {
+/* The label sits inside .key__info on the live site (not next to the box): the state comes from the card */
+.site-section--account-keys .key__view:has(.key__revoke-check:checked) .key__label::before {
   border-color: var(--kdl-destructive);
   background-color: var(--kdl-destructive);
   background-image: ${KEY_CHECK};
@@ -483,7 +484,7 @@ ${ACCOUNT_ICONS}
   background-position: center;
   pointer-events: none;
 }
-/* The art view (artView.ts): only the art, whole, over a blurred copy of itself */
+/* The art view (artView.ts): the interface fades out over the art */
 .site-section--home .kdl-sk-art-toggle {
   position: absolute;
   top: 10px;
@@ -493,35 +494,15 @@ ${ACCOUNT_ICONS}
 .site-section--home .kdl-sk-art-toggle .kdl-ui-btn:hover { color: var(--kdl-foreground); }
 html.kdl-art-view,
 html.kdl-art-view body { overflow: hidden; }
+/* Everything over the art fades out; the art stays exactly as it is behind the page */
+html:has(.site-section--home) :is(.global-sidebar, .header, .backdrop, .global-footer, .jumbo-welcome-description, #kdl-fixed-controls, #kdl-progress-container) {
+  transition: opacity 0.35s ease;
+}
 html.kdl-art-view :is(.global-sidebar, .header, .backdrop, .global-footer, .jumbo-welcome-description, #kdl-fixed-controls, #kdl-progress-container) {
-  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
 }
-html.kdl-art-view .site-section--home .jumbo-welcome-background {
-  inset: 0;
-  height: auto;
-  z-index: 1;
-  overflow: hidden;
-  background-color: var(--kdl-background);
-  cursor: zoom-out;
-}
-/* Pseudo-elements paint over the element's own background: the blurred copy first, the whole art over it */
-html.kdl-art-view .site-section--home .jumbo-welcome-background::before,
-html.kdl-art-view .site-section--home .jumbo-welcome-background::after {
-  content: '';
-  position: absolute;
-  background-image: inherit;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-html.kdl-art-view .site-section--home .jumbo-welcome-background::before {
-  inset: -48px;
-  background-size: cover;
-  filter: blur(32px) brightness(0.55);
-}
-html.kdl-art-view .site-section--home .jumbo-welcome-background::after {
-  inset: 0;
-  background-size: contain;
-}
+html.kdl-art-view body { cursor: zoom-out; }
 .kdl-sk-art-hint {
   position: fixed;
   left: 50%;

@@ -1,7 +1,7 @@
 {
   "code": "ru",
   "name": "Русский",
-  "version": 36,
+  "version": 37,
   "ui": {
     "common.close": "Закрыть",
     "common.dismiss": "Скрыть",
@@ -1224,6 +1224,13 @@
     "Subscriptions": "Подписки",
     "Submitted at": "Отправлено",
     "Reverse order": "Обратный порядок",
+    "Hey!": "Привет!",
+    "You gave the importer permission to access your messages. To protect your anonymity, you must manually approve each one. Wait until": "Вы дали импортёру доступ к своим сообщениям. Чтобы сохранить вашу анонимность, каждое нужно одобрить вручную. Подождите,",
+    "after": "пока",
+    "the importer says": "импортёр не напишет",
+    ", then go": ", а затем перейдите",
+    "here": "сюда",
+    "to choose which ones you wish to import.": "и выберите, какие из них импортировать.",
     "Loading logs…": "Загружаем лог…",
     "No logs yet": "Лога пока нет",
     "Waiting for a worker…": "Ждём свободного обработчика…",

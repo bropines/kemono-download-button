@@ -1,5 +1,5 @@
-// Home page: a button on the welcome card hides the whole interface to look at the background art. The art is
-// shown whole (contain) over a blurred copy of itself; a click or tap anywhere, Esc or Back brings the page back.
+// Home page: a button on the welcome card fades the whole interface out to look at the background art as it is;
+// a click or tap anywhere, Esc or Back brings the page back.
 
 import { el } from '../../utils/dom';
 import { button, ensureKit, kitScope } from '../../ui/kit';
