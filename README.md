@@ -12,6 +12,15 @@ A userscript for **Kemono**, **Coomer** and **Pawchive**: download posts, files 
 
 The link is permanent: your userscript manager checks it for updates on its own. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
+The same script from other hosts, if GitHub's raw files do not open for you. Each copy updates from the host you installed it from:
+
+| Host | Install |
+| :--- | :--- |
+| jsDelivr (CDN) | [kemono-download-button.jsdelivr.user.js](https://cdn.jsdelivr.net/gh/bropines/kemono-download-button@main/builds/kemono-download-button.jsdelivr.user.js) |
+| GitHub Gist | [kemono-download-button.user.js](https://gist.githubusercontent.com/bropines/d95924125e05f376d5bab737e1ed7463/raw/kemono-download-button.user.js) |
+| GitHub Releases (latest release only) | [kemono-download-button.release.user.js](https://github.com/bropines/kemono-download-button/releases/latest/download/kemono-download-button.release.user.js) |
+| Sleazy Fork | coming soon |
+
 | Manager | Status |
 | :--- | :--- |
 | Tampermonkey | Reference host |
@@ -83,8 +92,9 @@ Every push to `main` reaches users through the auto-update link, so the committe
 
 1. Bump the patch version in `package.json` and the `@version` line in `src/index.ts`.
 2. Note user-facing changes in `CHANGELOG.md` under `## [Unreleased]`.
-3. `npm run build` and commit the rebuilt `kemono-download-button.user.js` together with the sources.
-4. Push to `main`. For a GitHub Release, rename `[Unreleased]` to the version and date, commit, then push a tag: `git tag v0.8.50 && git push origin v0.8.50`. The release notes are that section of `CHANGELOG.md`, and the release fails if it is missing.
+3. `npm run build` and commit the rebuilt `kemono-download-button.user.js` and `builds/` together with the sources. `builds/` holds the copies for other hosts (jsDelivr, the gist, GitHub Releases, and the unminified Sleazy Fork / Greasy Fork build, whose libraries come from jsDelivr to stay under the 2 MB limit).
+4. Push to `main`. For a GitHub Release, rename `[Unreleased]` to the version and date, commit, then push a tag: `git tag v0.8.50 && git push origin v0.8.50`. The release notes are that section of `CHANGELOG.md`, and the release fails if it is missing. The release attaches every build and purges the jsDelivr cache.
+5. After the release, `node scripts/publish-gist.mjs` updates the gist mirror (the workflow's token cannot write gists). Sleazy Fork syncs `builds/kemono-download-button.sleazyfork.user.js` on its own once its sync URL is set.
 
 ## Credits
 

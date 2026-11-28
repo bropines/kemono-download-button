@@ -4,6 +4,9 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+### Added
+- The script can be installed from other hosts, each copy updating from where it came from: jsDelivr (a CDN, for when GitHub's raw files do not open), a GitHub gist, and the latest GitHub release. An unminified build for Sleazy Fork / Greasy Fork is made with every release.
+
 ## [2.2.2] - 2026-11-28
 
 ### Added

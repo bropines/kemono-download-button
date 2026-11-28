@@ -16,7 +16,25 @@ const indexContent = fs.readFileSync(path.join(rootDir, 'src/index.ts'), 'utf-8'
 const headerMatch = indexContent.match(/\/\/\s*==UserScript==[\s\S]*?\/\/\s*==\/UserScript==/);
 const header = headerMatch ? headerMatch[0] : '';
 
-const bundlePath = path.join(rootDir, 'dist/bundle.js');
+// --target sleazyfork: the unminified copy for Sleazy Fork / Greasy Fork (vite build --mode sleazyfork). The sites
+// strip @updateURL/@downloadURL and accept @require only from known CDNs, so Plyr comes from jsDelivr there,
+// together with the libraries that build leaves out to stay under their 2 MB limit (pinned to installed versions)
+const sleazy = process.argv.includes('--target') && process.argv[process.argv.indexOf('--target') + 1] === 'sleazyfork';
+const installed = (name) => JSON.parse(fs.readFileSync(path.join(rootDir, 'node_modules', name, 'package.json'), 'utf-8')).version;
+const scriptHeader = !sleazy ? header : header
+  .split('\n')
+  .filter((line) => !/^\/\/\s*@(updateURL|downloadURL)\b/.test(line))
+  .map((line) => (/^\/\/\s*@require\s+https:\/\/cdn\.plyr\.io\//.test(line)
+    ? [
+      `// @require      https://cdn.jsdelivr.net/npm/plyr@3.7.8/dist/plyr.js`,
+      `// @require      https://cdn.jsdelivr.net/npm/fflate@${installed('fflate')}/umd/index.js`,
+      `// @require      https://cdn.jsdelivr.net/npm/wanakana@${installed('wanakana')}/wanakana.min.js`,
+    ].join('\n')
+    : line))
+  .join('\n');
+if (sleazy && !scriptHeader.includes('cdn.jsdelivr.net/npm/fflate')) throw new Error('The Plyr @require line was not found: the Sleazy Fork header would miss its libraries');
+
+const bundlePath = path.join(rootDir, sleazy ? 'dist-sleazyfork/bundle.js' : 'dist/bundle.js');
 let bundleCode = fs.readFileSync(bundlePath, 'utf-8');
 
 // AdGuard concatenates every enabled userscript (and their @require files) into one script.
@@ -25,7 +43,7 @@ let bundleCode = fs.readFileSync(bundlePath, 'utf-8');
 // - the function scope keeps Vite's `var KemonoDownloadButton` off the shared global scope,
 // - try/catch stops our start-up error from aborting the scripts concatenated after us,
 // - the flag keeps a second injection into the same page from running everything twice.
-const finalScript = `${header}
+const wrap = (scriptHeader) => `${scriptHeader}
 
 ;(function () {
   if (window.__kemonoDownloadButtonLoaded) return;
@@ -38,10 +56,37 @@ ${bundleCode.trim()}
 })();
 `;
 
+// Copies for other hosts live in builds/: each one updates from where it was installed from
+const buildsDir = path.join(rootDir, 'builds');
+fs.mkdirSync(buildsDir, { recursive: true });
+if (sleazy) {
+  fs.writeFileSync(path.join(buildsDir, 'kemono-download-button.sleazyfork.user.js'), wrap(scriptHeader), 'utf-8');
+  console.log('Successfully generated:\n - builds/kemono-download-button.sleazyfork.user.js');
+  process.exit(0);
+}
+
 // Standard single update file for Tampermonkey / Violentmonkey
 const permanentUserJs = path.join(rootDir, 'kemono-download-button.user.js');
 
-fs.writeFileSync(permanentUserJs, finalScript, 'utf-8');
+fs.writeFileSync(permanentUserJs, wrap(scriptHeader), 'utf-8');
+
+// The same script with its update address on another host. jsDelivr serves the repo through a CDN (raw GitHub is
+// blocked in some countries; the release workflow purges its cache), the gist mirror is updated by
+// scripts/publish-gist.mjs, and GitHub Releases carry the copy that follows the latest release.
+const REPO = 'bropines/kemono-download-button';
+const GIST = 'bropines/d95924125e05f376d5bab737e1ed7463';
+const HOSTS = {
+  jsdelivr: (file) => `https://cdn.jsdelivr.net/gh/${REPO}@main/builds/${file}`,
+  gist: () => `https://gist.githubusercontent.com/${GIST}/raw/kemono-download-button.user.js`,
+  release: (file) => `https://github.com/${REPO}/releases/latest/download/${file}`,
+};
+for (const [host, urlFor] of Object.entries(HOSTS)) {
+  const file = `kemono-download-button.${host}.user.js`;
+  const url = urlFor(file);
+  const hosted = header.replace(/^(\/\/\s*@(?:updateURL|downloadURL)\s+).*$/gm, (_m, key) => key + url);
+  if (!hosted.includes(url)) throw new Error(`No @updateURL to point at ${host}`);
+  fs.writeFileSync(path.join(buildsDir, file), wrap(hosted), 'utf-8');
+}
 
 // The optional preload userstyle shows the same skeletons as the page cloak: the built-in snapshots
 // (src/core/skeletons.json, taken with scripts/skeletons.mjs) drawn by src/core/skeleton.ts (transpiled and

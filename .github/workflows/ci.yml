@@ -31,7 +31,9 @@ jobs:
         run: npm run build
 
       - name: Check the compiled script parses
-        run: node --check kemono-download-button.user.js
+        run: |
+          node --check kemono-download-button.user.js
+          for f in builds/*.user.js; do node --check "$f"; done
 
       - name: Check translations
         run: npm run check-locales
@@ -42,8 +44,8 @@ jobs:
       # @updateURL serves the committed file straight from main, so it must be the build of these sources
       - name: Check the committed script is up to date
         run: |
-          if ! git diff --quiet -- kemono-download-button.user.js; then
+          if ! git diff --quiet -- kemono-download-button.user.js builds; then
             echo "::error file=kemono-download-button.user.js::The committed build is stale. Run npm run build and commit the result."
-            git diff --stat -- kemono-download-button.user.js
+            git diff --stat -- kemono-download-button.user.js builds
             exit 1
           fi

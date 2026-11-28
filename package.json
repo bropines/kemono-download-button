@@ -1,10 +1,10 @@
 {
   "name": "kemono-download-button",
-  "version": "2.2.2",
+  "version": "2.2.3",
   "description": "Kemono, Coomer, and Pawchive Download Button & UI Refactor",
   "main": "src/index.ts",
   "scripts": {
-    "build": "vite build && node scripts/postbuild.mjs",
+    "build": "vite build && node scripts/postbuild.mjs && vite build --mode sleazyfork && node scripts/postbuild.mjs --target sleazyfork",
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-tests.mjs",
     "verify-locales": "node scripts/verify-locales.mjs",
