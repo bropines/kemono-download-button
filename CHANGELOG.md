@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-11-28
+
 ### Added
 - Favourites page: a search box looks through all your favourite creators or posts (not only the 50 on the page) and shows the matches as cards; Esc or clearing it brings the page back.
 
