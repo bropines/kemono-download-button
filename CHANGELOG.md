@@ -4,6 +4,8 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.1.10] - 2026-11-28
+
 ### Added
 - Image viewer and gallery thumbnails: "Ask AI" opens Google's AI Mode with the picture attached and your question (or none).
 
