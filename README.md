@@ -16,7 +16,7 @@ The same script from other hosts, if GitHub's raw files do not open for you. Eac
 
 | Host | Install |
 | :--- | :--- |
-| jsDelivr (CDN) | [kemono-download-button.jsdelivr.user.js](https://cdn.jsdelivr.net/gh/bropines/kemono-download-button@main/builds/kemono-download-button.jsdelivr.user.js) |
+| jsDelivr (CDN) | [kemono-download-button.jsdelivr.user.js](https://cdn.jsdelivr.net/gh/bropines/kemono-download-button/builds/kemono-download-button.jsdelivr.user.js) |
 | GitHub Gist | [kemono-download-button.user.js](https://gist.githubusercontent.com/bropines/d95924125e05f376d5bab737e1ed7463/raw/kemono-download-button.user.js) |
 | Cloudflare (workers.dev mirror) | [kemono-download-button.user.js](https://kemono-dl.bropines.workers.dev/kemono-download-button.user.js) |
 | GitHub Releases (latest release only) | [kemono-download-button.release.user.js](https://github.com/bropines/kemono-download-button/releases/latest/download/kemono-download-button.release.user.js) |

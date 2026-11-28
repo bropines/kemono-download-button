@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.2.5] - 2026-11-28
+
+### Fixed
+- The jsDelivr copy updates from the latest release instead of the main branch, which jsDelivr kept cached for up to 12 hours after a release.
+
 ## [2.2.4] - 2026-11-28
 
 ### Changed

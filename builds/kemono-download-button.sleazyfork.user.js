@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.2.4
+// @version      2.2.5
 // @author       hoami_523 + Gemini + bropines
 // @license      MIT
 // @homepageURL  https://github.com/bropines/kemono-download-button
@@ -6154,7 +6154,7 @@ ${presets}`,
   }
   const normalizeExtensions = (list) => [...new Set(list.map((ext) => ext.trim().replace(/^\./, "").toLowerCase()).filter(Boolean))];
   function scriptVersion() {
-    return "2.2.4";
+    return "2.2.5";
   }
   const state$1 = {
     settings: { ...DEFAULT_SETTINGS }

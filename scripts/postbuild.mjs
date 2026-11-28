@@ -77,7 +77,8 @@ fs.writeFileSync(permanentUserJs, wrap(scriptHeader), 'utf-8');
 const REPO = 'bropines/kemono-download-button';
 const GIST = 'bropines/d95924125e05f376d5bab737e1ed7463';
 const HOSTS = {
-  jsdelivr: (file) => `https://cdn.jsdelivr.net/gh/${REPO}@main/builds/${file}`,
+  // No version in the path: jsDelivr serves the latest release tag (a branch would be cached for up to 12 h)
+  jsdelivr: (file) => `https://cdn.jsdelivr.net/gh/${REPO}/builds/${file}`,
   gist: () => `https://gist.githubusercontent.com/${GIST}/raw/kemono-download-button.user.js`,
   release: (file) => `https://github.com/${REPO}/releases/latest/download/${file}`,
   // A Worker on the owner's Cloudflare account (workers.dev) that serves this copy from the repo, cached for 10 min

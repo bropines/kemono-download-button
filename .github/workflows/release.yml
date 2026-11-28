@@ -48,6 +48,7 @@ jobs:
       # The jsDelivr copy updates from the CDN, which keeps a branch file for hours: drop it now
       - name: Purge the jsDelivr cache
         run: |
-          for f in kemono-download-button.user.js builds/kemono-download-button.jsdelivr.user.js builds/kemono-download-button.sleazyfork.user.js; do
-            curl -fsS "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}@main/$f" > /dev/null || echo "::warning::jsDelivr purge failed for $f"
+          # The jsDelivr copy updates from the path without a version (the latest tag, this one now)
+          for f in builds/kemono-download-button.jsdelivr.user.js builds/kemono-download-button.sleazyfork.user.js; do
+            curl -fsS "https://purge.jsdelivr.net/gh/${GITHUB_REPOSITORY}/$f" > /dev/null || echo "::warning::jsDelivr purge failed for $f"
           done
