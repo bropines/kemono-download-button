@@ -109,8 +109,11 @@ export function installPlayerGestures(host: HTMLElement, getPlayer: () => Gestur
     return box && host.contains(box) ? box : null;
   };
 
-  let press: { id: number; x: number; y: number; time: number; valid: boolean } | null = null;
-  let pending: { side: Side; time: number; x: number; y: number; timer: ReturnType<typeof setTimeout> } | null = null;
+  // hidden: whether the controls were hidden when the finger or button went down. Plyr itself shows them on
+  // touchstart and mousemove, before a single tap is known to be single: reading them later says "shown" and the
+  // tap would hide what Plyr had just shown (the flash of controls a side tap used to make)
+  let press: { id: number; x: number; y: number; time: number; valid: boolean; hidden: boolean } | null = null;
+  let pending: { side: Side; time: number; x: number; y: number; hidden: boolean; timer: ReturnType<typeof setTimeout> } | null = null;
   let streak: { side: -1 | 1; until: number; total: number } | null = null;
 
   const cancelPending = (): void => {
@@ -118,7 +121,13 @@ export function installPlayerGestures(host: HTMLElement, getPlayer: () => Gestur
     pending = null;
   };
 
-  const single = (side: Side): void => {
+  // A mouse reveals the controls just by moving over the video (Plyr): a click soon after counts them as hidden,
+  // so a side click keeps what the pointer revealed instead of hiding it again
+  let hoverRevealAt = -Infinity;
+  const HOVER_REVEAL_MS = 1500;
+  const controlsHidden = (): boolean => !!getPlayer()?.elements?.container?.classList.contains('plyr--hide-controls');
+
+  const single = (side: Side, hiddenBefore: boolean): void => {
     const player = getPlayer();
     if (!player) return;
     const container = player.elements?.container;
@@ -127,8 +136,8 @@ export function installPlayerGestures(host: HTMLElement, getPlayer: () => Gestur
       player.togglePlay();
       flashPlayState(container, wasPaused);
     } else {
-      const hidden = !!container?.classList.contains('plyr--hide-controls');
-      player.toggleControls(hidden);
+      // The opposite of what the controls were before this tap (Plyr hides them again later while playing)
+      player.toggleControls(hiddenBefore);
     }
   };
 
@@ -143,41 +152,52 @@ export function installPlayerGestures(host: HTMLElement, getPlayer: () => Gestur
     showSeek(player.elements?.container, side, streak.total);
   };
 
-  const double = (side: Side, time: number): void => {
+  const double = (side: Side, time: number, hiddenBefore: boolean): void => {
     const player = getPlayer();
     if (!player) return;
     if (side === 0) player.fullscreen.toggle();
-    else seekSide(side, time);
+    else {
+      seekSide(side, time);
+      // Seeking leaves the controls as they were: hidden stays hidden, whatever Plyr showed on the touches
+      if (hiddenBefore) player.toggleControls(false);
+    }
   };
 
-  const tap = (box: HTMLElement, x: number, y: number, time: number): void => {
+  const tap = (box: HTMLElement, x: number, y: number, time: number, hidden: boolean): void => {
     const side = sideOf(box.getBoundingClientRect(), x);
     // In a seek streak a tap on that side seeks at once
     if (side !== 0 && streak && streak.side === side && time <= streak.until) {
       cancelPending();
       seekSide(side, time);
+      if (hidden) getPlayer()?.toggleControls(false);
       return;
     }
     if (pending && pending.side === side && time - pending.time <= DOUBLE_MS + 60 &&
         Math.hypot(x - pending.x, y - pending.y) <= MAX_MOVEMENT_PX * 3) {
+      const before = pending.hidden;
       cancelPending();
-      double(side, time);
+      double(side, time, before);
       return;
     }
     cancelPending();
     streak = null;
     const timer = setTimeout(() => {
       pending = null;
-      single(side);
+      single(side, hidden);
     }, DOUBLE_MS);
-    pending = { side, time, x, y, timer };
+    pending = { side, time, x, y, hidden, timer };
   };
 
   const down = (event: PointerEvent): void => {
     if (event.button > 0 || !event.isPrimary) { press = null; return; }
-    press = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, valid: !!surface(event.target) };
+    const revealedByHover = event.pointerType === 'mouse' && event.timeStamp - hoverRevealAt < HOVER_REVEAL_MS;
+    // One click uses up the reveal: the next one sees the controls as shown and hides them
+    hoverRevealAt = -Infinity;
+    press = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, valid: !!surface(event.target), hidden: controlsHidden() || revealedByHover };
   };
   const move = (event: PointerEvent): void => {
+    // pointermove comes before the mousemove Plyr shows the controls on: hidden here means this move reveals them
+    if (event.pointerType === 'mouse' && !press && controlsHidden()) hoverRevealAt = event.timeStamp;
     if (press && press.id === event.pointerId && Math.hypot(event.clientX - press.x, event.clientY - press.y) > MAX_MOVEMENT_PX) press.valid = false;
   };
   const up = (event: PointerEvent): void => {
@@ -187,7 +207,7 @@ export function installPlayerGestures(host: HTMLElement, getPlayer: () => Gestur
     if (event.timeStamp - p.time > MAX_TAP_MS || Math.hypot(event.clientX - p.x, event.clientY - p.y) > MAX_MOVEMENT_PX) return;
     const box = surface(event.target);
     if (!box) return;
-    tap(box, event.clientX, event.clientY, event.timeStamp);
+    tap(box, event.clientX, event.clientY, event.timeStamp, p.hidden);
   };
   // Plyr toggles fullscreen on its own dblclick and plays on its own click: both are ours now. Capture runs first.
   const swallow = (event: MouseEvent): void => {

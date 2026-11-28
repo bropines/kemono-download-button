@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.2.5
+// @version      2.2.6
 // @author       hoami_523 + Gemini + bropines
 // @license      MIT
 // @homepageURL  https://github.com/bropines/kemono-download-button
@@ -6154,7 +6154,7 @@ ${presets}`,
   }
   const normalizeExtensions = (list) => [...new Set(list.map((ext) => ext.trim().replace(/^\./, "").toLowerCase()).filter(Boolean))];
   function scriptVersion() {
-    return "2.2.5";
+    return "2.2.6";
   }
   const state$1 = {
     settings: { ...DEFAULT_SETTINGS }
@@ -17309,7 +17309,13 @@ ${t("kui.embeds.passwordTitle", { password })}`;
       if (pending2) clearTimeout(pending2.timer);
       pending2 = null;
     };
-    const single = (side) => {
+    let hoverRevealAt = -Infinity;
+    const HOVER_REVEAL_MS = 1500;
+    const controlsHidden = () => {
+      var _a, _b, _c;
+      return !!((_c = (_b = (_a = getPlayer()) == null ? void 0 : _a.elements) == null ? void 0 : _b.container) == null ? void 0 : _c.classList.contains("plyr--hide-controls"));
+    };
+    const single = (side, hiddenBefore) => {
       var _a, _b;
       const player = getPlayer();
       if (!player) return;
@@ -17319,8 +17325,7 @@ ${t("kui.embeds.passwordTitle", { password })}`;
         player.togglePlay();
         flashPlayState(container2, wasPaused);
       } else {
-        const hidden2 = !!(container2 == null ? void 0 : container2.classList.contains("plyr--hide-controls"));
-        player.toggleControls(hidden2);
+        player.toggleControls(hiddenBefore);
       }
     };
     const seekSide = (side, time) => {
@@ -17332,40 +17337,49 @@ ${t("kui.embeds.passwordTitle", { password })}`;
       seek(media, side * SEEK_SECONDS);
       showSeek((_a = player.elements) == null ? void 0 : _a.container, side, streak.total);
     };
-    const double = (side, time) => {
+    const double = (side, time, hiddenBefore) => {
       const player = getPlayer();
       if (!player) return;
       if (side === 0) player.fullscreen.toggle();
-      else seekSide(side, time);
+      else {
+        seekSide(side, time);
+        if (hiddenBefore) player.toggleControls(false);
+      }
     };
-    const tap = (box, x, y, time) => {
+    const tap = (box, x, y, time, hidden2) => {
+      var _a;
       const side = sideOf(box.getBoundingClientRect(), x);
       if (side !== 0 && streak && streak.side === side && time <= streak.until) {
         cancelPending();
         seekSide(side, time);
+        if (hidden2) (_a = getPlayer()) == null ? void 0 : _a.toggleControls(false);
         return;
       }
       if (pending2 && pending2.side === side && time - pending2.time <= DOUBLE_MS + 60 && Math.hypot(x - pending2.x, y - pending2.y) <= MAX_MOVEMENT_PX * 3) {
+        const before = pending2.hidden;
         cancelPending();
-        double(side, time);
+        double(side, time, before);
         return;
       }
       cancelPending();
       streak = null;
       const timer2 = setTimeout(() => {
         pending2 = null;
-        single(side);
+        single(side, hidden2);
       }, DOUBLE_MS);
-      pending2 = { side, time, x, y, timer: timer2 };
+      pending2 = { side, time, x, y, hidden: hidden2, timer: timer2 };
     };
     const down = (event) => {
       if (event.button > 0 || !event.isPrimary) {
         press = null;
         return;
       }
-      press = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, valid: !!surface(event.target) };
+      const revealedByHover = event.pointerType === "mouse" && event.timeStamp - hoverRevealAt < HOVER_REVEAL_MS;
+      hoverRevealAt = -Infinity;
+      press = { id: event.pointerId, x: event.clientX, y: event.clientY, time: event.timeStamp, valid: !!surface(event.target), hidden: controlsHidden() || revealedByHover };
     };
     const move2 = (event) => {
+      if (event.pointerType === "mouse" && !press && controlsHidden()) hoverRevealAt = event.timeStamp;
       if (press && press.id === event.pointerId && Math.hypot(event.clientX - press.x, event.clientY - press.y) > MAX_MOVEMENT_PX) press.valid = false;
     };
     const up = (event) => {
@@ -17375,7 +17389,7 @@ ${t("kui.embeds.passwordTitle", { password })}`;
       if (event.timeStamp - p.time > MAX_TAP_MS || Math.hypot(event.clientX - p.x, event.clientY - p.y) > MAX_MOVEMENT_PX) return;
       const box = surface(event.target);
       if (!box) return;
-      tap(box, event.clientX, event.clientY, event.timeStamp);
+      tap(box, event.clientX, event.clientY, event.timeStamp, p.hidden);
     };
     const swallow = (event) => {
       if (!surface(event.target)) return;

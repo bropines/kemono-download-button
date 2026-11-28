@@ -4,6 +4,11 @@ User-facing changes to the userscript. Every push to `main` reaches users throug
 
 ## [Unreleased]
 
+## [2.2.6] - 2026-11-28
+
+### Fixed
+- Video player: a click or tap on the left or right shows the hidden controls and they stay (they flashed and vanished: the player showed them on the touch or the mouse movement, and the tap then took them as shown and hid them). A second tap hides them; a double tap that seeks leaves them as they were.
+
 ## [2.2.5] - 2026-11-28
 
 ### Fixed

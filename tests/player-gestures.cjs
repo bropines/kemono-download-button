@@ -8,7 +8,7 @@ const ts = require('typescript');
 const js = ts.transpileModule(fs.readFileSync('src/features/kui/playerGestures.ts', 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText;
 const sandbox = {
   exports: {}, setTimeout, clearTimeout, Number, Math, String,
-  require: (id) => ({ '../../utils/dom': { el: () => ({}) }, '../../config/icons': { icon: () => ({}) }, '../../i18n': { t: (k) => k } })[id],
+  require: (id) => ({ '../../utils/dom': { el: () => ({ dataset: {}, classList: { add() {}, remove() {} }, replaceChildren() {}, setAttribute() {}, offsetWidth: 0 }) }, '../../config/icons': { icon: () => ({}) }, '../../i18n': { t: (k) => k } })[id],
 };
 vm.runInNewContext(js, sandbox);
 const { installPlayerGestures } = sandbox.exports;
@@ -77,6 +77,25 @@ const gap = (ms) => { clock += ms; };
   stopped = 0;
   listeners.get('click')({ type: 'click', target: control, stopPropagation() { stopped++; } });
   assert.equal(stopped, 0, 'a click on a control reaches Plyr');
+
+  // Plyr shows the controls on touchstart / mousemove, before a single tap is known: the tap must act on what
+  // they were when it began, or it hides what Plyr just showed (the controls flashed and vanished)
+  const classes = new Set(['plyr--hide-controls']);
+  player.elements.container = { classList: { contains: (c) => classes.has(c) }, querySelector: () => null, appendChild() {} };
+  player.toggleControls = (show) => { calls.controls.push(show); if (show) classes.delete('plyr--hide-controls'); else classes.add('plyr--hide-controls'); };
+  const plyrTap = (x) => {
+    clock += 1;
+    listeners.get('pointerdown')({ pointerId: 1, isPrimary: true, button: 0, clientX: x, clientY: 50, timeStamp: clock, target: video });
+    classes.delete('plyr--hide-controls'); // Plyr's touchstart
+    clock += 40;
+    listeners.get('pointerup')({ type: 'pointerup', pointerId: 1, clientX: x, clientY: 50, timeStamp: clock, target: video });
+  };
+  gap(2000); plyrTap(20); await wait(300);
+  assert.ok(!classes.has('plyr--hide-controls'), 'a side tap on hidden controls leaves them shown');
+  gap(2000); plyrTap(20); await wait(300);
+  assert.ok(classes.has('plyr--hide-controls'), 'a side tap on shown controls hides them');
+  gap(2000); plyrTap(280); gap(100); plyrTap(280); await wait(300);
+  assert.ok(classes.has('plyr--hide-controls'), 'a seek keeps hidden controls hidden');
 
   cleanup();
   assert.equal(listeners.size, 0, 'listeners are removed on unmount');

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Kemono & Pawchive Download Button
 // @namespace    https://github.com/bropines/kemono-download-button
-// @version      2.2.5
+// @version      2.2.6
 // @author       hoami_523 + Gemini + bropines
 // @license      MIT
 // @homepageURL  https://github.com/bropines/kemono-download-button
